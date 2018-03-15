@@ -1,0 +1,6 @@
+[submodule "src/belt.pp/belt.pp"]
+	path = src/belt.pp
+	url = https://github.com/PubliqNetwork/belt.pp
+[submodule "src/mesh.pp"]
+	path = src/mesh.pp
+	url = https://github.com/PubliqNetwork/mesh.pp
