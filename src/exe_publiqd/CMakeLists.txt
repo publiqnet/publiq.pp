@@ -7,6 +7,7 @@ target_link_libraries(exe_publiqd PUBLIC
     publiq.pp
     mesh.pp
     belt.pp
+    p2psocket
     )
 
 # what to do on make install

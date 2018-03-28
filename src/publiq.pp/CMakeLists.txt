@@ -11,6 +11,7 @@ target_include_directories(publiq.pp INTERFACE
 # libraries this module links to
 target_link_libraries(publiq.pp INTERFACE
     mesh.pp
+    p2psocket
     )
 
 # what to do on make install
