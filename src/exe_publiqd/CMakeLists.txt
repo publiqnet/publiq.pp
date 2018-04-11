@@ -1,11 +1,20 @@
+# generate message.gen.hpp from message.idl
+add_custom_command (
+  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
+  MAIN_DEPENDENCY message.idl
+  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
+)
+
 # define the executable
 add_executable(exe_publiqd
-    main.cpp)
+    main.cpp
+    message.hpp
+    message.gen.hpp)
 
 # libraries this module links to
-target_link_libraries(exe_publiqd PUBLIC
+target_link_libraries(exe_publiqd PRIVATE
     publiq.pp
-    mesh.pp
+    mesh.pp # adds an implicit dependency on boost and cryptopp
     belt.pp
     p2psocket
     )

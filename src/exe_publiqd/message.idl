@@ -1,0 +1,7 @@
+module PubliqNodeMessage
+{
+    class Hellow
+    {
+        String text
+    }
+}

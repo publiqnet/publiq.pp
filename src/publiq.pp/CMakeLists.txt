@@ -9,10 +9,7 @@ target_include_directories(publiq.pp INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>)
 
 # libraries this module links to
-target_link_libraries(publiq.pp INTERFACE
-    mesh.pp
-    p2psocket
-    )
+target_link_libraries(publiq.pp)
 
 # what to do on make install
 install(TARGETS publiq.pp
