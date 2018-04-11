@@ -13,6 +13,7 @@ add_executable(exe_publiqd
 
 # libraries this module links to
 target_link_libraries(exe_publiqd PRIVATE
+    socket
     publiq.pp
     mesh.pp # adds an implicit dependency on boost and cryptopp
     belt.pp

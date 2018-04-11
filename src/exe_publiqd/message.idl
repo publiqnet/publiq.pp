@@ -1,5 +1,10 @@
 module PubliqNodeMessage
 {
+    type Join {}
+    type Drop {}
+    type Error {}
+    type TimerOut {}
+
     class Hellow
     {
         String text
