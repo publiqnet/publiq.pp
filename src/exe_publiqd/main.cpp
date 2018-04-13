@@ -59,10 +59,6 @@ bool process_command_line(int argc, char** argv,
                     program_options::parse_command_line(argc, argv, options_description),
                     options);
 
-        cout << interface << endl;
-        for (auto const& item : hosts)
-            cout << item << endl;
-
         program_options::notify(options);
 
         if (options.count("help"))
@@ -122,7 +118,8 @@ int main(int argc, char** argv)
 
         meshpp::p2psocket sk = meshpp::getp2psocket<sf>(bind_to_address,
                                                         connect_to_addresses,
-                                                        std::move(ptr_utl));
+                                                        std::move(ptr_utl),
+                                                        nullptr);
     }
     catch (std::exception const& ex)
     {
