@@ -18,6 +18,7 @@ target_link_libraries(exe_publiqd PRIVATE
     mesh.pp # adds an implicit dependency on boost and cryptopp
     belt.pp
     p2psocket
+    utility
     )
 
 # what to do on make install
