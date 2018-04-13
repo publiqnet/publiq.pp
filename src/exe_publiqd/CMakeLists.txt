@@ -19,6 +19,7 @@ target_link_libraries(exe_publiqd PRIVATE
     belt.pp
     p2psocket
     utility
+    log
     )
 
 # what to do on make install
