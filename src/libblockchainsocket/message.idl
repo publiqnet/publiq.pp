@@ -1,0 +1,12 @@
+module BlockchainMessage
+{
+    type Join {}
+    type Drop {}
+    type Error {}
+    type TimerOut {}
+
+    class Other
+    {
+        Extension contents
+    }
+}

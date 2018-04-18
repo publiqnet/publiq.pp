@@ -17,7 +17,8 @@ install(TARGETS publiq.pp
         DESTINATION lib/publiq.pp)
 
 set(SRC_FILES
-    global.hpp)
+    global.hpp
+    blockchainsocket.hpp)
 
 install(FILES
     ${SRC_FILES}

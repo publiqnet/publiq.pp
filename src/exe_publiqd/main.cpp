@@ -3,7 +3,7 @@
 #include <belt.pp/message_global.hpp>
 #include <belt.pp/log.hpp>
 
-#include <mesh.pp/p2psocket.hpp>
+#include <publiq.pp/blockchainsocket.hpp>
 
 #include <boost/program_options.hpp>
 
@@ -15,9 +15,9 @@
 
 using namespace PubliqNodeMessage;
 
-using peer_id = meshpp::p2psocket::peer_id;
-using packet = meshpp::p2psocket::packet;
-using packets = meshpp::p2psocket::packets;
+using peer_id = publiqpp::blockchainsocket::peer_id;
+using packet = publiqpp::blockchainsocket::packet;
+using packets = publiqpp::blockchainsocket::packets;
 
 namespace program_options = boost::program_options;
 
@@ -29,7 +29,7 @@ using std::vector;
 namespace chrono = std::chrono;
 using chrono::steady_clock;
 
-using sf = meshpp::p2psocket_family_t<
+using sf = publiqpp::blockchainsocket_family_t<
     Error::rtt,
     Join::rtt,
     Drop::rtt,
@@ -81,10 +81,10 @@ int main(int argc, char** argv)
         beltpp::ilog_ptr plogger = beltpp::console_logger("exe_publiqd");
         plogger->disable();
 
-        meshpp::p2psocket sk = meshpp::getp2psocket<sf>(bind_to_address,
-                                                        connect_to_addresses,
-                                                        std::move(ptr_utl),
-                                                        plogger.get());
+        publiqpp::blockchainsocket sk = publiqpp::getblockchainsocket<sf>(bind_to_address,
+                                                                          connect_to_addresses,
+                                                                          std::move(ptr_utl),
+                                                                          plogger.get());
         sk.set_timer(chrono::seconds(10));
 
         cout << endl;
@@ -95,7 +95,7 @@ int main(int argc, char** argv)
         {
             try
             {
-                meshpp::p2psocket::peer_id peerid;
+                publiqpp::blockchainsocket::peer_id peerid;
 
                 packets received_packets = sk.receive(peerid);
 

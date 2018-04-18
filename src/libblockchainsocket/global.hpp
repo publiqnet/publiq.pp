@@ -1,0 +1,10 @@
+#pragma once
+
+#include <mesh.pp/global.hpp>
+
+#if defined(BLOCKCHAINSOCKET_LIBRARY)
+#define BLOCKCHAINSOCKETSHARED_EXPORT MESH_EXPORT
+#else
+#define BLOCKCHAINSOCKETSHARED_EXPORT MESH_IMPORT
+#endif
+

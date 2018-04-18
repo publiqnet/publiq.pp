@@ -17,7 +17,7 @@ target_link_libraries(exe_publiqd PRIVATE
     publiq.pp
     mesh.pp # adds an implicit dependency on boost and cryptopp
     belt.pp
-    p2psocket
+    blockchainsocket
     utility
     log
     )
