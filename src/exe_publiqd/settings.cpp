@@ -19,7 +19,8 @@
 
 #elif defined(P_OS_MACOS)
 
-#include <CoreServices/CoreServices.h>
+#include <sysdir.h>
+#include <limits.h>
 
 #else
 #error config_dir function has not been implemented for your platform!
@@ -30,6 +31,37 @@ using std::string;
 using std::runtime_error;
 using std::fstream;
 using std::vector;
+
+#if defined(P_OS_MACOS)
+
+#include <glob.h>
+#include <cassert>
+#include <string>
+#include <cstring>
+
+void ExpandTildePath(char const* compact_path, char* expanded_path)
+{
+    glob_t globbuf;
+
+    assert(compact_path && expanded_path);
+
+    if (nullptr == compact_path ||
+        nullptr == expanded_path)
+        throw runtime_error("ExpandTildePath wring input");
+
+    if (glob(compact_path, GLOB_TILDE, nullptr, &globbuf))
+        throw runtime_error("ExpandTildePath glob(compact_path, GLOB_TILDE, nullptr, &globbuf): " + std::string(compact_path));
+
+    if (1 != globbuf.gl_pathc)
+        throw runtime_error("ExpandTildePath gl_pathc: " + std::to_string(globbuf.gl_pathc));
+
+    strcpy(expanded_path, globbuf.gl_pathv[0]);
+
+    globfree(&globbuf);
+}
+
+
+#endif
 
 namespace settings
 {
@@ -66,10 +98,12 @@ filesystem::path config_dir_path()
     filesystem::path fs_config(appdata);
 
 #elif defined(P_OS_MACOS)
-    FSRef ref;
-    FSFindFolder(kUserDomain, kApplicationSupportFolderType, kCreateFolder, &ref);
     char config[PATH_MAX];
-    FSRefMakePath(&ref, (UInt8 *)&config, PATH_MAX);
+    sysdir_search_path_enumeration_state state = sysdir_start_search_path_enumeration(SYSDIR_DIRECTORY_APPLICATION_SUPPORT, SYSDIR_DOMAIN_MASK_USER);
+    if ((state = sysdir_get_next_search_path_enumeration(state, config)) == 0)
+        throw runtime_error("(state = sysdir_get_next_search_path_enumeration(state, path)) == 0");
+
+    ExpandTildePath(config, config);
 
     filesystem::path fs_config(config);
 #endif
