@@ -233,6 +233,9 @@ blockchainsocket::packets blockchainsocket::receive(blockchainsocket::peer_id& p
             }
             }
         }
+
+        if (received_packets.empty())   //  in cases when lower layer returns with no messages
+            break;                      //  let higher layer do the same
     }
 
     return return_packets;

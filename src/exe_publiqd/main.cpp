@@ -1,17 +1,31 @@
 #include "message.hpp"
+#include "settings.hpp"
+
+#include "pid.hpp"
 
 #include <belt.pp/message_global.hpp>
 #include <belt.pp/log.hpp>
 
+#include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/processutility.hpp>
+
 #include <publiq.pp/blockchainsocket.hpp>
 
 #include <boost/program_options.hpp>
+
+#include <boost/locale.hpp>
+#include <boost/filesystem/path.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 #include <memory>
 #include <iostream>
 #include <vector>
 #include <sstream>
 #include <chrono>
+#include <memory>
+#include <exception>
+
+#include <signal.h>
 
 using namespace PubliqNodeMessage;
 
@@ -28,6 +42,8 @@ using std::endl;
 using std::vector;
 namespace chrono = std::chrono;
 using chrono::steady_clock;
+using std::unique_ptr;
+using std::runtime_error;
 
 using sf = publiqpp::blockchainsocket_family_t<
     Error::rtt,
@@ -54,8 +70,43 @@ inline string short_name(string const& peerid)
     return peerid.substr(0, 5);
 }
 
+void add_port(Config::Port2PID& ob, unsigned short port)
+{
+    auto res = ob.reserved_ports.insert(std::make_pair(port, meshpp::current_process_id()));
+
+    if (false == res.second)
+    {
+        string error = "port: ";
+        error += std::to_string(res.first->first);
+        error += " is locked by pid: ";
+        error += std::to_string(res.first->second);
+        throw runtime_error(error);
+    }
+}
+void remove_port(Config::Port2PID& ob, unsigned short port)
+{
+    auto it = ob.reserved_ports.find(port);
+    if (it == ob.reserved_ports.end())
+        throw runtime_error("cannot find own port: " + std::to_string(port));
+
+    ob.reserved_ports.erase(it);
+}
+
+bool g_termination_handled = false;
+void termination_handler(int signum)
+{
+    g_termination_handled = true;
+}
+
 int main(int argc, char** argv)
 {
+    //  boost filesystem UTF-8 support
+    std::locale::global(boost::locale::generator().generate(""));
+    boost::filesystem::path::imbue(std::locale());
+    //
+    settings::settings::set_application_name("publiqd");
+    settings::settings::set_data_dir(settings::config_dir_path().string());
+
     beltpp::ip_address bind_to_address;
     vector<beltpp::ip_address> connect_to_addresses;
     string greeting;
@@ -66,8 +117,28 @@ int main(int argc, char** argv)
                                       greeting))
         return 1;
 
+    struct sigaction signal_handler;
+    signal_handler.sa_handler = termination_handler;
+    sigaction(SIGINT, &signal_handler, NULL);
+    sigaction(SIGINT, &signal_handler, NULL);
+
     try
     {
+        settings::create_config_dir();
+        settings::create_data_dir();
+
+        using port_toggler_type = void(*)(Config::Port2PID&, unsigned short);
+        using FLPort2PID = meshpp::file_toggler<Config::Port2PID,
+                                                port_toggler_type,
+                                                port_toggler_type,
+                                                &add_port,
+                                                &remove_port,
+                                                &Config::Port2PID::string_loader,
+                                                &Config::Port2PID::string_saver,
+                                                unsigned short>;
+
+        FLPort2PID port2pid(settings::config_file_path("pid"), bind_to_address.local.port);
+
         cout << bind_to_address.to_string() << endl;
         for (auto const& item : connect_to_addresses)
             cout << item.to_string() << endl;
@@ -136,6 +207,9 @@ int main(int argc, char** argv)
                     }
                     }
                 }
+
+                if (g_termination_handled)
+                    break;
             }
             catch (std::exception const& ex)
             {
@@ -143,9 +217,12 @@ int main(int argc, char** argv)
             }
             catch (...)
             {
-                cout << "always throw std::exceptions" << endl;
+                cout << "always throw std::exceptions, will exit now" << endl;
+                break;
             }
         }
+
+        port2pid.commit();
     }
     catch (std::exception const& ex)
     {

@@ -1,0 +1,7 @@
+module Config
+{
+    class Port2PID
+    {
+        Hash UInt16 UInt64 reserved_ports
+    }
+}
