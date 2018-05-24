@@ -12,6 +12,8 @@ add_library(blockchainsocket SHARED
     global.hpp
     blockchainsocket.cpp
     blockchainsocket.hpp
+    blockchain.cpp
+    blockchain.hpp
     blockchainstate.cpp
     blockchainstate.hpp
     message.hpp

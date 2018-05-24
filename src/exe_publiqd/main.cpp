@@ -63,7 +63,8 @@ using sf = publiqpp::blockchainsocket_family_t<
 bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& bind_to_address,
                           vector<beltpp::ip_address>& connect_to_addresses,
-                          string& greeting);
+                          string& greeting,
+                          bool& oneshot);
 
 inline string short_name(string const& peerid)
 {
@@ -98,8 +99,33 @@ void termination_handler(int signum)
     g_termination_handled = true;
 }
 
+
+#include <cryptopp/sha.h>
+#include <cryptopp/filters.h>
+#include <cryptopp/base64.h>
+#include <cryptopp/hex.h>
+
+std::string SHA256HashString(std::string aString)
+{
+    byte digest[CryptoPP::SHA256::DIGESTSIZE];
+
+    byte const* pb = (byte const*)aString.c_str();
+    CryptoPP::SHA256().CalculateDigest(digest, pb, aString.length());
+
+    CryptoPP::HexEncoder encoder;
+    std::string output;
+
+    encoder.Attach( new CryptoPP::StringSink( output ) );
+    encoder.Put( digest, sizeof(digest) );
+    encoder.MessageEnd();
+
+    return output;
+}
+
 int main(int argc, char** argv)
 {
+    /*cout << SHA256HashString("a") << endl;
+    return 0;*/
     //  boost filesystem UTF-8 support
     std::locale::global(boost::locale::generator().generate(""));
     boost::filesystem::path::imbue(std::locale());
@@ -110,17 +136,19 @@ int main(int argc, char** argv)
     beltpp::ip_address bind_to_address;
     vector<beltpp::ip_address> connect_to_addresses;
     string greeting;
+    bool oneshot = false;
 
     if (false == process_command_line(argc, argv,
                                       bind_to_address,
                                       connect_to_addresses,
-                                      greeting))
+                                      greeting,
+                                      oneshot))
         return 1;
 
     struct sigaction signal_handler;
     signal_handler.sa_handler = termination_handler;
-    sigaction(SIGINT, &signal_handler, NULL);
-    sigaction(SIGINT, &signal_handler, NULL);
+    ::sigaction(SIGINT, &signal_handler, nullptr);
+    ::sigaction(SIGINT, &signal_handler, nullptr);
 
     try
     {
@@ -170,6 +198,7 @@ int main(int argc, char** argv)
 
                 packets received_packets = sk.receive(peerid);
 
+                bool timer_event = false;
                 for (auto const& received_packet : received_packets)
                 {
                     switch (received_packet.type())
@@ -195,6 +224,7 @@ int main(int argc, char** argv)
                         break;
                     case TimerOut::rtt:
                         cout << "timer" << endl;
+                        timer_event = true;
                         break;
                     case Hellow::rtt:
                     {
@@ -208,7 +238,8 @@ int main(int argc, char** argv)
                     }
                 }
 
-                if (g_termination_handled)
+                if (g_termination_handled ||
+                    (timer_event && oneshot))
                     break;
             }
             catch (std::exception const& ex)
@@ -238,7 +269,8 @@ int main(int argc, char** argv)
 bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& bind_to_address,
                           vector<beltpp::ip_address>& connect_to_addresses,
-                          string& greeting)
+                          string& greeting,
+                          bool& oneshot)
 {
     string interface;
     vector<string> hosts;
@@ -252,7 +284,8 @@ bool process_command_line(int argc, char** argv,
             ("connect,c", program_options::value<vector<string>>(&hosts),
                             "Remote nodes addresss with port")
             ("greeting,g", program_options::value<string>(&greeting),
-                            "send a greeting message to all peers");
+                            "send a greeting message to all peers")
+            ("oneshot,1", "set to exit after timer event");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -267,6 +300,8 @@ bool process_command_line(int argc, char** argv,
         {
             throw std::runtime_error("");
         }
+        if (options.count("oneshot"))
+            oneshot = true;
 
         bind_to_address.from_string(interface);
         for (auto const& item : hosts)

@@ -145,12 +145,4 @@ string settings::application_name()
 {
     return s_application_name;
 }
-
-
-
-/*bool save_interface_port(unsigned short port)
-{
-    Config::Port2PID a;
-    Config::detail::loader();
-}*/
 }   //  end settings namespace
