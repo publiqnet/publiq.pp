@@ -5,6 +5,13 @@ add_custom_command (
   COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
 )
 
+# generate data.gen.hpp from data.idl
+add_custom_command (
+  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/data.gen.hpp
+  MAIN_DEPENDENCY data.idl
+  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/data.idl ${CMAKE_CURRENT_SOURCE_DIR}/data.gen.hpp
+)
+
 add_definitions(-DBLOCKCHAINSOCKET_LIBRARY)
 
 # define the shared library
@@ -16,6 +23,8 @@ add_library(blockchainsocket SHARED
     blockchain.hpp
     blockchainstate.cpp
     blockchainstate.hpp
+    data.hpp
+    data.gen.hpp
     message.hpp
     message.gen.hpp)
 

@@ -6,6 +6,8 @@
 #include <belt.pp/message_global.hpp>
 #include <belt.pp/ilog.hpp>
 
+#include <boost/filesystem/path.hpp>
+
 #include <memory>
 #include <string>
 #include <list>
@@ -62,6 +64,7 @@ public:
 
     blockchainsocket(beltpp::ip_address const& bind_to_address,
                      std::vector<beltpp::ip_address> const& connect_to_addresses,
+                     boost::filesystem::path const& fs_blockchain,
                      size_t _rtt_error,
                      size_t _rtt_join,
                      size_t _rtt_drop,
@@ -78,6 +81,10 @@ public:
                      beltpp::ilog* plogger);
     blockchainsocket(blockchainsocket&& other);
     virtual ~blockchainsocket();
+
+    int native_handle() const override;
+
+    void prepare_receive() override;
 
     packets receive(peer_id& peer) override;
 
@@ -96,27 +103,28 @@ private:
 
 template <typename T_blockchainsocket_family>
 BLOCKCHAINSOCKETSHARED_EXPORT blockchainsocket getblockchainsocket(beltpp::ip_address const& bind_to_address,
-                                                            std::vector<beltpp::ip_address> const& connect_to_addresses,
-                                                            beltpp::void_unique_ptr&& putl,
-                                                            beltpp::ilog* plogger)
+                                                                   std::vector<beltpp::ip_address> const& connect_to_addresses,
+                                                                   beltpp::void_unique_ptr&& putl,
+                                                                   boost::filesystem::path const& fs_blockchain,
+                                                                   beltpp::ilog* plogger)
 {
-    return
-            blockchainsocket(bind_to_address,
-                             connect_to_addresses,
-                             T_blockchainsocket_family::rtt_error,
-                             T_blockchainsocket_family::rtt_join,
-                             T_blockchainsocket_family::rtt_drop,
-                             T_blockchainsocket_family::rtt_timer_out,
-                             T_blockchainsocket_family::fcreator_error,
-                             T_blockchainsocket_family::fcreator_join,
-                             T_blockchainsocket_family::fcreator_drop,
-                             T_blockchainsocket_family::fcreator_timer_out,
-                             T_blockchainsocket_family::fsaver_error,
-                             T_blockchainsocket_family::fsaver_join,
-                             T_blockchainsocket_family::fsaver_drop,
-                             T_blockchainsocket_family::fsaver_timer_out,
-                             std::move(putl),
-                             plogger);
+    return blockchainsocket(bind_to_address,
+                            connect_to_addresses,
+                            fs_blockchain,
+                            T_blockchainsocket_family::rtt_error,
+                            T_blockchainsocket_family::rtt_join,
+                            T_blockchainsocket_family::rtt_drop,
+                            T_blockchainsocket_family::rtt_timer_out,
+                            T_blockchainsocket_family::fcreator_error,
+                            T_blockchainsocket_family::fcreator_join,
+                            T_blockchainsocket_family::fcreator_drop,
+                            T_blockchainsocket_family::fcreator_timer_out,
+                            T_blockchainsocket_family::fsaver_error,
+                            T_blockchainsocket_family::fsaver_join,
+                            T_blockchainsocket_family::fsaver_drop,
+                            T_blockchainsocket_family::fsaver_timer_out,
+                            std::move(putl),
+                            plogger);
 }
 
 }

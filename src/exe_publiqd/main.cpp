@@ -3,6 +3,7 @@
 
 #include "pid.hpp"
 
+#include <belt.pp/socket.hpp>
 #include <belt.pp/message_global.hpp>
 #include <belt.pp/log.hpp>
 
@@ -24,6 +25,7 @@
 #include <chrono>
 #include <memory>
 #include <exception>
+#include <unordered_set>
 
 #include <signal.h>
 
@@ -44,8 +46,9 @@ namespace chrono = std::chrono;
 using chrono::steady_clock;
 using std::unique_ptr;
 using std::runtime_error;
+using std::unordered_set;
 
-using sf = publiqpp::blockchainsocket_family_t<
+using p2p_sf = publiqpp::blockchainsocket_family_t<
     Error::rtt,
     Join::rtt,
     Drop::rtt,
@@ -60,9 +63,27 @@ using sf = publiqpp::blockchainsocket_family_t<
     &TimerOut::saver
 >;
 
+using sf = beltpp::socket_family_t<
+    Error::rtt,
+    Join::rtt,
+    Drop::rtt,
+    TimerOut::rtt,
+    &beltpp::new_void_unique_ptr<Error>,
+    &beltpp::new_void_unique_ptr<Join>,
+    &beltpp::new_void_unique_ptr<Drop>,
+    &beltpp::new_void_unique_ptr<TimerOut>,
+    &Error::saver,
+    &Join::saver,
+    &Drop::saver,
+    &TimerOut::saver,
+    &message_list_load
+>;
+
 bool process_command_line(int argc, char** argv,
-                          beltpp::ip_address& bind_to_address,
-                          vector<beltpp::ip_address>& connect_to_addresses,
+                          beltpp::ip_address& p2p_bind_to_address,
+                          vector<beltpp::ip_address>& p2p_connect_to_addresses,
+                          beltpp::ip_address& rpc_bind_to_address,
+                          string& data_directory,
                           string& greeting,
                           bool& oneshot);
 
@@ -131,19 +152,26 @@ int main(int argc, char** argv)
     boost::filesystem::path::imbue(std::locale());
     //
     settings::settings::set_application_name("publiqd");
-    settings::settings::set_data_dir(settings::config_dir_path().string());
+    settings::settings::set_data_directory(settings::config_directory_path().string());
 
-    beltpp::ip_address bind_to_address;
-    vector<beltpp::ip_address> connect_to_addresses;
+    beltpp::ip_address p2p_bind_to_address;
+    beltpp::ip_address rpc_bind_to_address;
+    vector<beltpp::ip_address> p2p_connect_to_addresses;
+    string data_directory;
     string greeting;
     bool oneshot = false;
 
     if (false == process_command_line(argc, argv,
-                                      bind_to_address,
-                                      connect_to_addresses,
+                                      p2p_bind_to_address,
+                                      p2p_connect_to_addresses,
+                                      rpc_bind_to_address,
+                                      data_directory,
                                       greeting,
                                       oneshot))
         return 1;
+
+    if (false == data_directory.empty())
+        settings::settings::set_data_directory(data_directory);
 
     struct sigaction signal_handler;
     signal_handler.sa_handler = termination_handler;
@@ -152,8 +180,8 @@ int main(int argc, char** argv)
 
     try
     {
-        settings::create_config_dir();
-        settings::create_data_dir();
+        settings::create_config_directory();
+        settings::create_data_directory();
 
         using port_toggler_type = void(*)(Config::Port2PID&, unsigned short);
         using FLPort2PID = meshpp::file_toggler<Config::Port2PID,
@@ -165,40 +193,129 @@ int main(int argc, char** argv)
                                                 &Config::Port2PID::string_saver,
                                                 unsigned short>;
 
-        FLPort2PID port2pid(settings::config_file_path("pid"), bind_to_address.local.port);
+        FLPort2PID port2pid(settings::config_file_path("pid"), p2p_bind_to_address.local.port);
 
-        cout << bind_to_address.to_string() << endl;
-        for (auto const& item : connect_to_addresses)
+        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<Config::DataDirAttribute, &Config::DataDirAttribute::string_loader, &Config::DataDirAttribute::string_saver>>;
+        DataDirAttributeLoader dda(settings::data_file_path("running.txt"));
+        Config::RunningDuration item;
+        item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+        dda->history.push_back(item);
+        dda.next_layer().commit();
+
+        auto fs_blockchain = settings::data_directory_path("blockchain");
+
+        cout << p2p_bind_to_address.to_string() << endl;
+        for (auto const& item : p2p_connect_to_addresses)
             cout << item.to_string() << endl;
-
 
         beltpp::message_loader_utility utl;
         PubliqNodeMessage::detail::extension_helper(utl);
         auto ptr_utl =
-                beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(&utl);
+                beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
 
         beltpp::ilog_ptr plogger = beltpp::console_logger("exe_publiqd");
         plogger->disable();
 
-        publiqpp::blockchainsocket sk = publiqpp::getblockchainsocket<sf>(bind_to_address,
-                                                                          connect_to_addresses,
-                                                                          std::move(ptr_utl),
-                                                                          plogger.get());
-        sk.set_timer(chrono::seconds(10));
+        publiqpp::blockchainsocket p2p_sk = publiqpp::getblockchainsocket<p2p_sf>(p2p_bind_to_address,
+                                                                                  p2p_connect_to_addresses,
+                                                                                  std::move(ptr_utl),
+                                                                                  fs_blockchain,
+                                                                                  plogger.get());
+        p2p_sk.set_timer(chrono::seconds(10));
+
+        beltpp::socket sk = beltpp::getsocket<sf>();
 
         cout << endl;
-        cout << "Node: " << short_name(sk.name()) << endl;
+        cout << "Node: " << short_name(p2p_sk.name()) << endl;
         cout << endl;
+
+        sk.listen(rpc_bind_to_address);
+
+        beltpp::socket_group sockets;
+        sockets.add(sk);
+        sockets.add(p2p_sk);
+        sockets.set_timer(chrono::seconds(10));
+
+        unordered_set<string> p2p_peers;
 
         while (true)
         {
+            beltpp::isocket* wait_socket = nullptr;
+
+            bool p2p_timer_event = false;
+
+            auto wait_result = sockets.wait(wait_socket);
+
+            if (wait_result == beltpp::socket_group::wait_result::event &&
+                wait_socket == &sk)
+            {
+            try
+            {
+                beltpp::socket::peer_id peerid;
+
+                cout << "sk.receive" << endl;
+                packets received_packets = sk.receive(peerid);
+                cout << "done" << endl;
+
+                for (auto const& received_packet : received_packets)
+                {
+                    switch (received_packet.type())
+                    {
+                    case Join::rtt:
+                    {
+                        cout << peerid << " joined" << endl;
+                        break;
+                    }
+                    case Drop::rtt:
+                    {
+                        cout << peerid << " dropped" << endl;
+                        break;
+                    }
+                    case Hellow::rtt:
+                    {
+                        Hellow hellow_msg;
+                        received_packet.get(hellow_msg);
+
+                        cout << "Hellow: " << hellow_msg.text << endl;
+                        cout << "From: " << peerid << endl;
+                        break;
+                    }
+                    case Broadcast::rtt:
+                    {
+                        Broadcast broadcast_msg;
+                        received_packet.get(broadcast_msg);
+
+                        cout << "broadcasting" << endl;
+
+                        for (auto const& p2p_peer : p2p_peers)
+                            p2p_sk.send(p2p_peer, std::move(broadcast_msg.payload));
+
+                        break;
+                    }
+                    }
+                }
+            }
+            catch (std::exception const& ex)
+            {
+                cout << "exception cought: " << ex.what() << endl;
+            }
+            catch (...)
+            {
+                cout << "always throw std::exceptions, will exit now" << endl;
+                break;
+            }
+            }
+            else if ((wait_result == beltpp::socket_group::wait_result::event &&
+                      wait_socket == &p2p_sk) ||
+                     wait_result == beltpp::socket_group::wait_result::timer_out)
+            {
             try
             {
                 publiqpp::blockchainsocket::peer_id peerid;
 
-                packets received_packets = sk.receive(peerid);
+                packets received_packets = p2p_sk.receive(peerid);
 
-                bool timer_event = false;
                 for (auto const& received_packet : received_packets)
                 {
                     switch (received_packet.type())
@@ -206,6 +323,8 @@ int main(int argc, char** argv)
                     case Join::rtt:
                     {
                         cout << short_name(peerid) << " joined" << endl;
+
+                        p2p_peers.insert(peerid);
 
                         if (greeting.empty() == false)
                         {
@@ -215,17 +334,22 @@ int main(int argc, char** argv)
 
                             Hellow msg_send;
                             msg_send.text = greeting;
-                            sk.send(peerid, msg_send);
+                            p2p_sk.send(peerid, msg_send);
                         }
                         break;
                     }
                     case Drop::rtt:
+                    {
                         cout << short_name(peerid) << " dropped" << endl;
+                        p2p_peers.erase(peerid);
                         break;
+                    }
                     case TimerOut::rtt:
+                    {
                         cout << "timer" << endl;
-                        timer_event = true;
+                        p2p_timer_event = true;
                         break;
+                    }
                     case Hellow::rtt:
                     {
                         Hellow hellow_msg;
@@ -237,10 +361,6 @@ int main(int argc, char** argv)
                     }
                     }
                 }
-
-                if (g_termination_handled ||
-                    (timer_event && oneshot))
-                    break;
             }
             catch (std::exception const& ex)
             {
@@ -251,8 +371,15 @@ int main(int argc, char** argv)
                 cout << "always throw std::exceptions, will exit now" << endl;
                 break;
             }
+            }
+
+            if (g_termination_handled ||
+                (p2p_timer_event && oneshot))
+                break;
         }
 
+        dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        dda.next_layer().commit();
         port2pid.commit();
     }
     catch (std::exception const& ex)
@@ -267,22 +394,29 @@ int main(int argc, char** argv)
 }
 
 bool process_command_line(int argc, char** argv,
-                          beltpp::ip_address& bind_to_address,
-                          vector<beltpp::ip_address>& connect_to_addresses,
+                          beltpp::ip_address& p2p_bind_to_address,
+                          vector<beltpp::ip_address>& p2p_connect_to_addresses,
+                          beltpp::ip_address& rpc_bind_to_address,
+                          string& data_directory,
                           string& greeting,
                           bool& oneshot)
 {
-    string interface;
+    string p2p_local_interface;
+    string rpc_local_interface;
     vector<string> hosts;
     program_options::options_description options_description;
     try
     {
         auto desc_init = options_description.add_options()
             ("help,h", "Print this help message and exit.")
-            ("interface,i", program_options::value<string>(&interface)->required(),
+            ("p2p_local_interface,i", program_options::value<string>(&p2p_local_interface)->required(),
                             "The local network interface and port to bind to")
-            ("connect,c", program_options::value<vector<string>>(&hosts),
+            ("p2p_remote_host,p", program_options::value<vector<string>>(&hosts),
                             "Remote nodes addresss with port")
+            ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface)->required(),
+                            "The local network interface and port to bind to")
+            ("data_directory,d", program_options::value<string>(&data_directory),
+                            "Data directory path")
             ("greeting,g", program_options::value<string>(&greeting),
                             "send a greeting message to all peers")
             ("oneshot,1", "set to exit after timer event");
@@ -303,12 +437,13 @@ bool process_command_line(int argc, char** argv,
         if (options.count("oneshot"))
             oneshot = true;
 
-        bind_to_address.from_string(interface);
+        p2p_bind_to_address.from_string(p2p_local_interface);
+        rpc_bind_to_address.from_string(rpc_local_interface);
         for (auto const& item : hosts)
         {
             beltpp::ip_address address_item;
             address_item.from_string(item);
-            connect_to_addresses.push_back(address_item);
+            p2p_connect_to_addresses.push_back(address_item);
         }
     }
     catch (std::exception const& ex)

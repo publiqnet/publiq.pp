@@ -65,12 +65,46 @@ void ExpandTildePath(char const* compact_path, char* expanded_path)
 
 namespace settings
 {
+filesystem::path home_directory_path()
+{
+#ifdef P_OS_LINUX
+    char* home = getenv("XDG_CONFIG_HOME");
+    if (nullptr == home)
+    {
+        home = getenv("HOME");
+        if (nullptr == home)
+            throw runtime_error("neither XDG_CONFIG_HOME nor HOME environment"
+                                " variable is specified");
+    }
+
+    filesystem::path fs_home(home);
+
+#elif defined(P_OS_WINDOWS)
+    wchar_t home[MAX_PATH];
+    if (!SUCCEEDED(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, home)))
+        throw runtime_error("SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, 0, home)");
+
+    filesystem::path fs_home(home);
+
+#elif defined(P_OS_MACOS)
+    char home[PATH_MAX];
+    ExpandTildePath("~", home);
+
+    filesystem::path fs_home(home);
+#endif
+
+    if (fs_home.empty() ||
+        false == filesystem::is_directory(fs_home))
+        throw runtime_error("detected invalid home directory: " + fs_home.string());
+
+    return fs_home;
+}
 /*
  *   Windows: C:\Users\username\AppData\Roaming\appname\
  *   Linux: /home/username/.config/appname/
  *   Mac: /Users/username/Library/Application Support/appname/
  */
-filesystem::path config_dir_path()
+filesystem::path config_directory_path()
 {
 #ifdef P_OS_LINUX
     char* home = getenv("XDG_CONFIG_HOME");
@@ -86,7 +120,7 @@ filesystem::path config_dir_path()
 
     if (fs_home.empty() ||
         false == filesystem::is_directory(fs_home))
-        throw runtime_error("detected invalid directory");
+        throw runtime_error("detected invalid home directory: " + fs_home.string());
 
     filesystem::path fs_config = fs_home / ".config";
 
@@ -113,38 +147,42 @@ filesystem::path config_dir_path()
     return fs_config;
 }
 
-filesystem::path data_dir_path()
+filesystem::path data_directory_path()
 {
-    filesystem::path fs_data(settings::data_dir());
-    return filesystem::canonical(fs_data);
+    filesystem::path fs_data(settings::data_directory());
+    return filesystem::weakly_canonical(fs_data);
 }
 
-void create_config_dir()
+void create_config_directory()
 {
-    filesystem::create_directory(config_dir_path());
+    filesystem::create_directory(config_directory_path());
 }
-void create_data_dir()
+void create_data_directory()
 {
-    filesystem::create_directory(data_dir_path());
+    filesystem::create_directory(data_directory_path());
 }
 
 enum class config_data {config, data};
 filesystem::path file_path(vector<string> const& dirs, string const& file, config_data cd)
 {
-    filesystem::path fs_config = config_dir_path();
+    filesystem::path fs_path = config_directory_path();
     if (cd == config_data::data)
-        fs_config = data_dir_path();
+        fs_path = data_directory_path();
 
     for (auto const& dir : dirs)
     {
-        fs_config /= dir;
-        if (false == filesystem::exists(fs_config))
-            filesystem::create_directory(fs_config);
+        if (dir.empty())
+            continue;
+
+        fs_path /= dir;
+        if (false == filesystem::exists(fs_path))
+            filesystem::create_directory(fs_path);
     }
 
-    fs_config /= file;
+    if (false == file.empty())
+        fs_path /= file;
 
-    return fs_config;
+    return fs_path;
 }
 
 filesystem::path config_file_path(string const& file)
@@ -156,16 +194,22 @@ filesystem::path data_file_path(string const& file)
 {
     return file_path(vector<string>(), file, config_data::data);
 }
-
-string settings::s_data_dir = config_dir_path().string();
-string settings::s_application_name = "exe_publiqd";
-
-void settings::set_data_dir(string const& data_dir)
+filesystem::path data_directory_path(string const& dir)
 {
-    s_data_dir = data_dir;
+    return file_path({dir}, string(), config_data::data);
 }
 
-string settings::data_dir()
+string settings::s_data_dir = config_directory_path().string();
+string settings::s_application_name = "exe_publiqd";
+
+void settings::set_data_directory(string const& data_dir)
+{
+    s_data_dir = data_dir;
+    if (s_data_dir.find("~") == 0)
+        s_data_dir.replace(0, 1, home_directory_path().string());
+}
+
+string settings::data_directory()
 {
     return s_data_dir;
 }

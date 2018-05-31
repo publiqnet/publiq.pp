@@ -1,4 +1,5 @@
 #include "blockchainstate.hpp"
+#include "blockchain.hpp"
 
 #include <cryptopp/sha.h>
 #include <cryptopp/filters.h>
@@ -19,17 +20,20 @@ std::string SHA256HashString(std::string aString){
 class blockchainstate_ex : public publiqpp::blockchainstate
 {
 public:
-    blockchainstate_ex()
+    blockchainstate_ex(boost::filesystem::path const& fs_blockchain)
+        : m_ptr_blockchain(publiqpp::getblockchain(fs_blockchain))
     {
     }
 
     virtual ~blockchainstate_ex() {}
+
+    publiqpp::blockchain_ptr m_ptr_blockchain;
 };
 
 namespace publiqpp
 {
-blockchainstate_ptr getblockchainstate()
+blockchainstate_ptr getblockchainstate(boost::filesystem::path const& fs_blockchain)
 {
-    return beltpp::new_dc_unique_ptr<blockchainstate, blockchainstate_ex>();
+    return beltpp::new_dc_unique_ptr<blockchainstate, blockchainstate_ex>(fs_blockchain);
 }
 }

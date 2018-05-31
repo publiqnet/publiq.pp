@@ -4,4 +4,15 @@ module Config
     {
         Hash UInt16 UInt64 reserved_ports
     }
+
+    class RunningDuration
+    {
+        TimePoint start
+        TimePoint end
+    }
+
+    class DataDirAttribute
+    {
+        Array RunningDuration history
+    }
 }

@@ -51,6 +51,7 @@ class blockchainsocket_internals
 public:
     blockchainsocket_internals(ip_address const& bind_to_address,
                                std::vector<ip_address> const& connect_to_addresses,
+                               boost::filesystem::path const& fs_blockchain,
                                size_t rtt_error,
                                size_t rtt_join,
                                size_t rtt_drop,
@@ -72,7 +73,7 @@ public:
                                      std::move(putl),
                                      _plogger)
                                           ))
-        , m_ptr_state(publiqpp::getblockchainstate())
+        , m_ptr_state(publiqpp::getblockchainstate(fs_blockchain))
         , plogger(_plogger)
         , m_rtt_error(rtt_error)
         , m_rtt_join(rtt_join)
@@ -129,6 +130,7 @@ public:
  */
 blockchainsocket::blockchainsocket(ip_address const& bind_to_address,
                                    std::vector<ip_address> const& connect_to_addresses,
+                                   boost::filesystem::path const& fs_blockchain,
                                    size_t _rtt_error,
                                    size_t _rtt_join,
                                    size_t _rtt_drop,
@@ -146,6 +148,7 @@ blockchainsocket::blockchainsocket(ip_address const& bind_to_address,
     : isocket()
     , m_pimpl(new detail::blockchainsocket_internals(bind_to_address,
                                                      connect_to_addresses,
+                                                     fs_blockchain,
                                                      _rtt_error,
                                                      _rtt_join,
                                                      _rtt_drop,
@@ -171,71 +174,78 @@ blockchainsocket::~blockchainsocket()
 
 }
 
+int blockchainsocket::native_handle() const
+{
+    return m_pimpl->m_ptr_socket->native_handle();
+}
+
+void blockchainsocket::prepare_receive()
+{
+    m_pimpl->m_ptr_socket->prepare_receive();
+}
+
 blockchainsocket::packets blockchainsocket::receive(blockchainsocket::peer_id& peer)
 {
     packets return_packets;
-    while (return_packets.empty())
+
+    prepare_receive();
+
+    peer_id current_peer;
+    packets received_packets =
+            m_pimpl->m_ptr_socket->receive(current_peer);
+
+    for (auto& received_packet : received_packets)
     {
-        peer_id current_peer;
-        packets received_packets =
-                m_pimpl->m_ptr_socket->receive(current_peer);
-
-        for (auto& received_packet : received_packets)
+        switch (received_packet.type())
         {
-            switch (received_packet.type())
-            {
-            case Join::rtt:
-            {
-                peer = current_peer;
-                packet packet_join;
-                packet_join.set(m_pimpl->m_rtt_join,
-                                m_pimpl->m_fcreator_join(),
-                                m_pimpl->m_fsaver_join);
-                return_packets.emplace_back(std::move(packet_join));
-                break;
-            }
-            case Error::rtt:
-            {
-                peer = current_peer;
-                packet packet_error;
-                packet_error.set(m_pimpl->m_rtt_error,
-                                 m_pimpl->m_fcreator_error(),
-                                 m_pimpl->m_fsaver_error);
-                return_packets.emplace_back(std::move(packet_error));
-                break;
-            }
-            case Drop::rtt:
-            {
-                peer = current_peer;
-                packet packet_drop;
-                packet_drop.set(m_pimpl->m_rtt_drop,
-                                m_pimpl->m_fcreator_drop(),
-                                m_pimpl->m_fsaver_drop);
-                return_packets.emplace_back(std::move(packet_drop));
-                break;
-            }
-            case TimerOut::rtt:
-            {
-                packet packet_timer_out;
-                packet_timer_out.set(m_pimpl->m_rtt_timer_out,
-                                     m_pimpl->m_fcreator_timer_out(),
-                                     m_pimpl->m_fsaver_timer_out);
-                return_packets.emplace_back(std::move(packet_timer_out));
-                break;
-            }
-            case Other::rtt:
-            {
-                peer = current_peer;
-                Other pack;
-                std::move(received_packet).get(pack);
-                return_packets.emplace_back(std::move(pack.contents));
-                break;
-            }
-            }
+        case Join::rtt:
+        {
+            peer = current_peer;
+            packet packet_join;
+            packet_join.set(m_pimpl->m_rtt_join,
+                            m_pimpl->m_fcreator_join(),
+                            m_pimpl->m_fsaver_join);
+            return_packets.emplace_back(std::move(packet_join));
+            break;
         }
-
-        if (received_packets.empty())   //  in cases when lower layer returns with no messages
-            break;                      //  let higher layer do the same
+        case Error::rtt:
+        {
+            peer = current_peer;
+            packet packet_error;
+            packet_error.set(m_pimpl->m_rtt_error,
+                             m_pimpl->m_fcreator_error(),
+                             m_pimpl->m_fsaver_error);
+            return_packets.emplace_back(std::move(packet_error));
+            break;
+        }
+        case Drop::rtt:
+        {
+            peer = current_peer;
+            packet packet_drop;
+            packet_drop.set(m_pimpl->m_rtt_drop,
+                            m_pimpl->m_fcreator_drop(),
+                            m_pimpl->m_fsaver_drop);
+            return_packets.emplace_back(std::move(packet_drop));
+            break;
+        }
+        case TimerOut::rtt:
+        {
+            packet packet_timer_out;
+            packet_timer_out.set(m_pimpl->m_rtt_timer_out,
+                                 m_pimpl->m_fcreator_timer_out(),
+                                 m_pimpl->m_fsaver_timer_out);
+            return_packets.emplace_back(std::move(packet_timer_out));
+            break;
+        }
+        case Other::rtt:
+        {
+            peer = current_peer;
+            Other pack;
+            std::move(received_packet).get(pack);
+            return_packets.emplace_back(std::move(pack.contents));
+            break;
+        }
+        }
     }
 
     return return_packets;

@@ -9,4 +9,9 @@ module PubliqNodeMessage
     {
         String text
     }
+
+    class Broadcast
+    {
+        Object payload
+    }
 }

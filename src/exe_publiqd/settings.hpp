@@ -8,21 +8,22 @@
 namespace settings
 {
 
-boost::filesystem::path config_dir_path();
-boost::filesystem::path data_dir_path();
+boost::filesystem::path config_directory_path();
+boost::filesystem::path data_directory_path();
 
-void create_config_dir();
-void create_data_dir();
+void create_config_directory();
+void create_data_directory();
 
 boost::filesystem::path config_file_path(std::string const& file);
 boost::filesystem::path data_file_path(std::string const& file);
+boost::filesystem::path data_directory_path(std::string const& dir);
 
 
 class settings
 {
 public:
-    static void set_data_dir(std::string const& data_dir);
-    static std::string data_dir();
+    static void set_data_directory(std::string const& data_dir);
+    static std::string data_directory();
 
     static void set_application_name(std::string const& application_name);
     static std::string application_name();

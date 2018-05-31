@@ -1,0 +1,7 @@
+module Data
+{
+    class Length
+    {
+        UInt64 value
+    }
+}
