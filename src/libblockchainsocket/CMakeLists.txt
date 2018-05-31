@@ -36,7 +36,8 @@ target_link_libraries(blockchainsocket PUBLIC
     PRIVATE
     utility
     p2psocket
-    socket)
+    socket
+    systemutility)
 
 # what to do on make install
 install(TARGETS blockchainsocket
