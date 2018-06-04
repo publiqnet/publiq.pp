@@ -33,15 +33,12 @@ using sf = meshpp::p2psocket_family_t<
     Error::rtt,
     Join::rtt,
     Drop::rtt,
-    TimerOut::rtt,
     &beltpp::new_void_unique_ptr<Error>,
     &beltpp::new_void_unique_ptr<Join>,
     &beltpp::new_void_unique_ptr<Drop>,
-    &beltpp::new_void_unique_ptr<TimerOut>,
     &Error::saver,
     &Join::saver,
-    &Drop::saver,
-    &TimerOut::saver
+    &Drop::saver
 >;
 
 namespace detail
@@ -49,26 +46,25 @@ namespace detail
 class blockchainsocket_internals
 {
 public:
-    blockchainsocket_internals(ip_address const& bind_to_address,
+    blockchainsocket_internals(beltpp::event_handler& eh,
+                               ip_address const& bind_to_address,
                                std::vector<ip_address> const& connect_to_addresses,
                                boost::filesystem::path const& fs_blockchain,
                                size_t rtt_error,
                                size_t rtt_join,
                                size_t rtt_drop,
-                               size_t rtt_timer_out,
                                detail::fptr_creator fcreator_error,
                                detail::fptr_creator fcreator_join,
                                detail::fptr_creator fcreator_drop,
-                               detail::fptr_creator fcreator_timer_out,
                                detail::fptr_saver fsaver_error,
                                detail::fptr_saver fsaver_join,
                                detail::fptr_saver fsaver_drop,
-                               detail::fptr_saver fsaver_timer_out,
                                beltpp::void_unique_ptr&& putl,
                                beltpp::ilog* _plogger)
         : m_putl(putl.get())
         , m_ptr_socket(new meshpp::p2psocket(
-            meshpp::getp2psocket<sf>(bind_to_address,
+            meshpp::getp2psocket<sf>(eh,
+                                     bind_to_address,
                                      connect_to_addresses,
                                      std::move(putl),
                                      _plogger)
@@ -78,15 +74,12 @@ public:
         , m_rtt_error(rtt_error)
         , m_rtt_join(rtt_join)
         , m_rtt_drop(rtt_drop)
-        , m_rtt_timer_out(rtt_timer_out)
         , m_fcreator_error(fcreator_error)
         , m_fcreator_join(fcreator_join)
         , m_fcreator_drop(fcreator_drop)
-        , m_fcreator_timer_out(fcreator_timer_out)
         , m_fsaver_error(fsaver_error)
         , m_fsaver_join(fsaver_join)
         , m_fsaver_drop(fsaver_drop)
-        , m_fsaver_timer_out(fsaver_timer_out)
     {
         beltpp::message_loader_utility* _putl = static_cast<beltpp::message_loader_utility*>(m_putl);
         BlockchainMessage::detail::extension_helper(*_putl);
@@ -113,54 +106,47 @@ public:
     size_t m_rtt_error;
     size_t m_rtt_join;
     size_t m_rtt_drop;
-    size_t m_rtt_timer_out;
     detail::fptr_creator m_fcreator_error;
     detail::fptr_creator m_fcreator_join;
     detail::fptr_creator m_fcreator_drop;
-    detail::fptr_creator m_fcreator_timer_out;
     detail::fptr_saver m_fsaver_error;
     detail::fptr_saver m_fsaver_join;
     detail::fptr_saver m_fsaver_drop;
-    detail::fptr_saver m_fsaver_timer_out;
 };
 }
 
 /*
  * blockchainsocket
  */
-blockchainsocket::blockchainsocket(ip_address const& bind_to_address,
+blockchainsocket::blockchainsocket(beltpp::event_handler& eh,
+                                   ip_address const& bind_to_address,
                                    std::vector<ip_address> const& connect_to_addresses,
                                    boost::filesystem::path const& fs_blockchain,
                                    size_t _rtt_error,
                                    size_t _rtt_join,
                                    size_t _rtt_drop,
-                                   size_t _rtt_timer_out,
                                    detail::fptr_creator _fcreator_error,
                                    detail::fptr_creator _fcreator_join,
                                    detail::fptr_creator _fcreator_drop,
-                                   detail::fptr_creator _fcreator_timer_out,
                                    detail::fptr_saver _fsaver_error,
                                    detail::fptr_saver _fsaver_join,
                                    detail::fptr_saver _fsaver_drop,
-                                   detail::fptr_saver _fsaver_timer_out,
                                    beltpp::void_unique_ptr&& putl,
                                    beltpp::ilog* plogger)
-    : isocket()
-    , m_pimpl(new detail::blockchainsocket_internals(bind_to_address,
+    : isocket(eh)
+    , m_pimpl(new detail::blockchainsocket_internals(eh,
+                                                     bind_to_address,
                                                      connect_to_addresses,
                                                      fs_blockchain,
                                                      _rtt_error,
                                                      _rtt_join,
                                                      _rtt_drop,
-                                                     _rtt_timer_out,
                                                      _fcreator_error,
                                                      _fcreator_join,
                                                      _fcreator_drop,
-                                                     _fcreator_timer_out,
                                                      _fsaver_error,
                                                      _fsaver_join,
                                                      _fsaver_drop,
-                                                     _fsaver_timer_out,
                                                      std::move(putl),
                                                      plogger))
 {
@@ -174,21 +160,14 @@ blockchainsocket::~blockchainsocket()
 
 }
 
-int blockchainsocket::native_handle() const
+void blockchainsocket::prepare_wait()
 {
-    return m_pimpl->m_ptr_socket->native_handle();
-}
-
-void blockchainsocket::prepare_receive()
-{
-    m_pimpl->m_ptr_socket->prepare_receive();
+    m_pimpl->m_ptr_socket->prepare_wait();
 }
 
 blockchainsocket::packets blockchainsocket::receive(blockchainsocket::peer_id& peer)
 {
     packets return_packets;
-
-    prepare_receive();
 
     peer_id current_peer;
     packets received_packets =
@@ -228,15 +207,6 @@ blockchainsocket::packets blockchainsocket::receive(blockchainsocket::peer_id& p
             return_packets.emplace_back(std::move(packet_drop));
             break;
         }
-        case TimerOut::rtt:
-        {
-            packet packet_timer_out;
-            packet_timer_out.set(m_pimpl->m_rtt_timer_out,
-                                 m_pimpl->m_fcreator_timer_out(),
-                                 m_pimpl->m_fsaver_timer_out);
-            return_packets.emplace_back(std::move(packet_timer_out));
-            break;
-        }
         case Other::rtt:
         {
             peer = current_peer;
@@ -259,14 +229,19 @@ void blockchainsocket::send(peer_id const& peer,
     m_pimpl->m_ptr_socket->send(peer, std::move(wrapper));
 }
 
-void blockchainsocket::set_timer(std::chrono::steady_clock::duration const& period)
+void blockchainsocket::timer_action()
 {
-    m_pimpl->m_ptr_socket->set_timer(period);
+    m_pimpl->m_ptr_socket->timer_action();
 }
 
 string blockchainsocket::name() const
 {
     return m_pimpl->m_ptr_socket->name();
+}
+
+beltpp::ievent_item const& blockchainsocket::worker() const
+{
+    return m_pimpl->m_ptr_socket->worker();
 }
 }
 
