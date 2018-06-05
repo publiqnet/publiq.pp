@@ -292,8 +292,12 @@ bool node::run()
                         m_pimpl->writeln_node("broadcasting");
 
                     for (auto const& p2p_peer : m_pimpl->p2p_peers)
+                    {
+                        beltpp::packet payload;
+                        BlockchainMessage::detail::assign_packet(payload, broadcast_msg.payload);
                         m_pimpl->m_ptr_p2p_socket->send(p2p_peer,
-                                                        std::move(broadcast_msg.payload));
+                                                        std::move(payload));
+                    }
 
                     break;
                 }
