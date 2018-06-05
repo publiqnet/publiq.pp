@@ -12,24 +12,24 @@ add_custom_command (
   COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/data.idl ${CMAKE_CURRENT_SOURCE_DIR}/data.gen.hpp
 )
 
-add_definitions(-DBLOCKCHAINSOCKET_LIBRARY)
+add_definitions(-DBLOCKCHAIN_LIBRARY)
 
 # define the shared library
-add_library(blockchainsocket SHARED
+add_library(blockchain SHARED
     global.hpp
-    blockchainsocket.cpp
-    blockchainsocket.hpp
     blockchain.cpp
     blockchain.hpp
-    blockchainstate.cpp
-    blockchainstate.hpp
+    state.cpp
+    state.hpp
     data.hpp
     data.gen.hpp
     message.hpp
-    message.gen.hpp)
+    message.gen.hpp
+    node.cpp
+    node.hpp)
 
 # libraries this module links to
-target_link_libraries(blockchainsocket PUBLIC
+target_link_libraries(blockchain PUBLIC
     mesh.pp
     belt.pp
     packet
@@ -40,12 +40,12 @@ target_link_libraries(blockchainsocket PUBLIC
     systemutility)
 
 # what to do on make install
-install(TARGETS blockchainsocket
+install(TARGETS blockchain
         EXPORT publiq.pp.package
         LIBRARY DESTINATION lib/publiq.pp
         ARCHIVE DESTINATION lib/publiq.pp/archive)
 
 install(FILES
     global.hpp
-    blockchainsocket.hpp
-    DESTINATION include/publiq.pp/libblockchainsocket)
+    node.hpp
+    DESTINATION include/publiq.pp/libblockchain)

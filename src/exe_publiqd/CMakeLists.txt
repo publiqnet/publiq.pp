@@ -1,9 +1,4 @@
-# generate message.gen.hpp from message.idl
-add_custom_command (
-  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
-  MAIN_DEPENDENCY message.idl
-  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
-)
+# generate pid.gen.hpp from pid.idl
 add_custom_command (
   OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/pid.gen.hpp
   MAIN_DEPENDENCY pid.idl
@@ -13,8 +8,6 @@ add_custom_command (
 # define the executable
 add_executable(exe_publiqd
     main.cpp
-    message.hpp
-    message.gen.hpp
     pid.hpp
     pid.gen.hpp
     settings.cpp
@@ -27,7 +20,7 @@ target_link_libraries(exe_publiqd PRIVATE
     mesh.pp # adds an implicit dependency on boost and cryptopp
     systemutility
     belt.pp
-    blockchainsocket
+    blockchain
     utility
     log
     )

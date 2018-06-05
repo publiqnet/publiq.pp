@@ -1,4 +1,4 @@
-#include "blockchainstate.hpp"
+#include "state.hpp"
 #include "blockchain.hpp"
 
 #include <cryptopp/sha.h>
@@ -17,23 +17,23 @@ std::string SHA256HashString(std::string aString){
     return digest;
 }
 
-class blockchainstate_ex : public publiqpp::blockchainstate
+class state_ex : public publiqpp::state
 {
 public:
-    blockchainstate_ex(boost::filesystem::path const& fs_blockchain)
+    state_ex(boost::filesystem::path const& fs_blockchain)
         : m_ptr_blockchain(publiqpp::getblockchain(fs_blockchain))
     {
     }
 
-    virtual ~blockchainstate_ex() {}
+    virtual ~state_ex() {}
 
     publiqpp::blockchain_ptr m_ptr_blockchain;
 };
 
 namespace publiqpp
 {
-blockchainstate_ptr getblockchainstate(boost::filesystem::path const& fs_blockchain)
+state_ptr getstate(boost::filesystem::path const& fs_blockchain)
 {
-    return beltpp::new_dc_unique_ptr<blockchainstate, blockchainstate_ex>(fs_blockchain);
+    return beltpp::new_dc_unique_ptr<state, state_ex>(fs_blockchain);
 }
 }

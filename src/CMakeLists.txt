@@ -15,7 +15,7 @@ endif()
 if(NOT MESH_PP_LOADED)
 add_subdirectory(mesh.pp)
 endif()
-add_subdirectory(libblockchainsocket)
+add_subdirectory(libblockchain)
 add_subdirectory(publiq.pp)
 add_subdirectory(exe_publiqd)
 

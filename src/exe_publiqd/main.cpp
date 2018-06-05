@@ -1,20 +1,15 @@
-#include "message.hpp"
 #include "settings.hpp"
 
 #include "pid.hpp"
 
-#include <belt.pp/socket.hpp>
-#include <belt.pp/message_global.hpp>
 #include <belt.pp/log.hpp>
-#include <belt.pp/event.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
 
-#include <publiq.pp/blockchainsocket.hpp>
+#include <publiq.pp/node.hpp>
 
 #include <boost/program_options.hpp>
-
 #include <boost/locale.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -26,15 +21,8 @@
 #include <chrono>
 #include <memory>
 #include <exception>
-#include <unordered_set>
 
 #include <signal.h>
-
-using namespace PubliqNodeMessage;
-
-using peer_id = publiqpp::blockchainsocket::peer_id;
-using packet = publiqpp::blockchainsocket::packet;
-using packets = publiqpp::blockchainsocket::packets;
 
 namespace program_options = boost::program_options;
 
@@ -47,45 +35,13 @@ namespace chrono = std::chrono;
 using chrono::steady_clock;
 using std::unique_ptr;
 using std::runtime_error;
-using std::unordered_set;
-
-using p2p_sf = publiqpp::blockchainsocket_family_t<
-    Error::rtt,
-    Join::rtt,
-    Drop::rtt,
-    &beltpp::new_void_unique_ptr<Error>,
-    &beltpp::new_void_unique_ptr<Join>,
-    &beltpp::new_void_unique_ptr<Drop>,
-    &Error::saver,
-    &Join::saver,
-    &Drop::saver
->;
-
-using sf = beltpp::socket_family_t<
-    Error::rtt,
-    Join::rtt,
-    Drop::rtt,
-    &beltpp::new_void_unique_ptr<Error>,
-    &beltpp::new_void_unique_ptr<Join>,
-    &beltpp::new_void_unique_ptr<Drop>,
-    &Error::saver,
-    &Join::saver,
-    &Drop::saver,
-    &message_list_load
->;
 
 bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& p2p_bind_to_address,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
-                          string& greeting,
-                          bool& oneshot);
-
-inline string short_name(string const& peerid)
-{
-    return peerid.substr(0, 5);
-}
+                          string& greeting);
 
 void add_port(Config::Port2PID& ob, unsigned short port)
 {
@@ -154,15 +110,13 @@ int main(int argc, char** argv)
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
     string greeting;
-    bool oneshot = false;
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
                                       p2p_connect_to_addresses,
                                       rpc_bind_to_address,
                                       data_directory,
-                                      greeting,
-                                      oneshot))
+                                      greeting))
         return 1;
 
     if (false == data_directory.empty())
@@ -204,101 +158,31 @@ int main(int argc, char** argv)
         for (auto const& item : p2p_connect_to_addresses)
             cout << item.to_string() << endl;
 
-        beltpp::message_loader_utility utl;
-        PubliqNodeMessage::detail::extension_helper(utl);
-        auto ptr_utl =
-                beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+        beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p");
+        plogger_p2p->disable();
+        beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
+        //plogger_rpc->disable();
 
-        beltpp::ilog_ptr plogger = beltpp::console_logger("exe_publiqd");
-        plogger->disable();
-
-        beltpp::event_handler eh;
-        eh.set_timer(chrono::seconds(10));
-
-        publiqpp::blockchainsocket p2p_sk = publiqpp::getblockchainsocket<p2p_sf>(eh,
-                                                                                  p2p_bind_to_address,
-                                                                                  p2p_connect_to_addresses,
-                                                                                  std::move(ptr_utl),
-                                                                                  fs_blockchain,
-                                                                                  plogger.get());
-
-        beltpp::socket sk = beltpp::getsocket<sf>(eh);
+        publiqpp::node node(rpc_bind_to_address,
+                            p2p_bind_to_address,
+                            p2p_connect_to_addresses,
+                            fs_blockchain,
+                            plogger_p2p.get(),
+                            plogger_rpc.get());
 
         cout << endl;
-        cout << "Node: " << short_name(p2p_sk.name()) << endl;
+        cout << "Node: " << node.name()/*.substr(0, 5)*/ << endl;
         cout << endl;
-
-        sk.listen(rpc_bind_to_address);
-
-        eh.add(sk);
-        eh.add(p2p_sk);
-
-        unordered_set<string> p2p_peers;
 
         while (true)
         {
-            unordered_set<beltpp::ievent_item const*> wait_sockets;
-
-            bool p2p_timer_event = false;
-
-            //cout << "eh.wait" << endl;
-            auto wait_result = eh.wait(wait_sockets);
-            //cout << "done" << endl;
-
-            if (wait_result == beltpp::event_handler::event &&
-                wait_sockets.end() != wait_sockets.find(&sk))
-            {
             try
             {
-                beltpp::socket::peer_id peerid;
+            if (false == node.run())
+                break;
 
-                //cout << "sk.receive" << endl;
-                packets received_packets = sk.receive(peerid);
-                //cout << "done" << endl;
-
-                for (auto const& received_packet : received_packets)
-                {
-                    switch (received_packet.type())
-                    {
-                    case Join::rtt:
-                    {
-                        cout << peerid << " joined" << endl;
-                        break;
-                    }
-                    case Drop::rtt:
-                    {
-                        cout << peerid << " dropped" << endl;
-                        break;
-                    }
-                    case Error::rtt:
-                    {
-                        cout << peerid << " error" << endl;
-                        sk.send(peerid, Drop());
-                        break;
-                    }
-                    case Hellow::rtt:
-                    {
-                        Hellow hellow_msg;
-                        received_packet.get(hellow_msg);
-
-                        cout << "Hellow: " << hellow_msg.text << endl;
-                        cout << "From: " << peerid << endl;
-                        break;
-                    }
-                    case Broadcast::rtt:
-                    {
-                        Broadcast broadcast_msg;
-                        received_packet.get(broadcast_msg);
-
-                        cout << "broadcasting" << endl;
-
-                        for (auto const& p2p_peer : p2p_peers)
-                            p2p_sk.send(p2p_peer, std::move(broadcast_msg.payload));
-
-                        break;
-                    }
-                    }
-                }
+            if (g_termination_handled)
+                break;
             }
             catch (std::exception const& ex)
             {
@@ -309,79 +193,6 @@ int main(int argc, char** argv)
                 cout << "always throw std::exceptions, will exit now" << endl;
                 break;
             }
-            }
-            else if (wait_result == beltpp::event_handler::event &&
-                     wait_sockets.end() != wait_sockets.find(&p2p_sk.worker()))
-            {
-            try
-            {
-                publiqpp::blockchainsocket::peer_id peerid;
-
-                //cout << "p2p_sk.receive" << endl;
-                packets received_packets = p2p_sk.receive(peerid);
-                //cout << "done" << endl;
-
-                for (auto const& received_packet : received_packets)
-                {
-                    switch (received_packet.type())
-                    {
-                    case Join::rtt:
-                    {
-                        cout << short_name(peerid) << " joined" << endl;
-
-                        p2p_peers.insert(peerid);
-
-                        if (greeting.empty() == false)
-                        {
-                            cout << "sending Hellow to: "
-                                 << short_name(peerid)
-                                 << endl;
-
-                            Hellow msg_send;
-                            msg_send.text = greeting;
-                            p2p_sk.send(peerid, msg_send);
-                        }
-                        break;
-                    }
-                    case Drop::rtt:
-                    {
-                        cout << short_name(peerid) << " dropped" << endl;
-                        p2p_peers.erase(peerid);
-                        break;
-                    }
-                    case Hellow::rtt:
-                    {
-                        Hellow hellow_msg;
-                        received_packet.get(hellow_msg);
-
-                        cout << "Hellow: " << hellow_msg.text << endl;
-                        cout << "From: " << short_name(peerid) << endl;
-                        break;
-                    }
-                    }
-                }
-            }
-            catch (std::exception const& ex)
-            {
-                cout << "exception cought: " << ex.what() << endl;
-            }
-            catch (...)
-            {
-                cout << "always throw std::exceptions, will exit now" << endl;
-                break;
-            }
-            }
-            else if (beltpp::event_handler::timer_out == wait_result)
-            {
-                cout << "timer" << endl;
-                p2p_timer_event = true;
-                sk.timer_action();
-                p2p_sk.timer_action();
-            }
-
-            if (g_termination_handled ||
-                (p2p_timer_event && oneshot))
-                break;
         }
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -404,8 +215,7 @@ bool process_command_line(int argc, char** argv,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
-                          string& greeting,
-                          bool& oneshot)
+                          string& greeting)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -424,8 +234,7 @@ bool process_command_line(int argc, char** argv,
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
             ("greeting,g", program_options::value<string>(&greeting),
-                            "send a greeting message to all peers")
-            ("oneshot,1", "set to exit after timer event");
+                            "send a greeting message to all peers");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -440,8 +249,6 @@ bool process_command_line(int argc, char** argv,
         {
             throw std::runtime_error("");
         }
-        if (options.count("oneshot"))
-            oneshot = true;
 
         p2p_bind_to_address.from_string(p2p_local_interface);
         rpc_bind_to_address.from_string(rpc_local_interface);
