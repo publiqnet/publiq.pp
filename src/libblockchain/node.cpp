@@ -24,6 +24,7 @@ using namespace BlockchainMessage;
 using beltpp::ip_address;
 using beltpp::ip_destination;
 using beltpp::socket;
+using beltpp::packet;
 using peer_id = socket::peer_id;
 using std::unordered_set;
 
@@ -191,22 +192,28 @@ bool node::run()
     auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
     //m_pimpl->writeln_node("eh.wait - done");
 
+    enum class interface_type {p2p, rpc};
+
     if (wait_result == beltpp::event_handler::event)
     {
         for (auto& pevent_item : wait_sockets)
         {
-            auto str_receive = [this, pevent_item]
+            interface_type it = interface_type::rpc;
+            if (pevent_item == &m_pimpl->m_ptr_p2p_socket.get()->worker())
+                it = interface_type::p2p;
+
+            auto str_receive = [it]
             {
-                if (pevent_item == &m_pimpl->m_ptr_p2p_socket.get()->worker())
+                if (it == interface_type::p2p)
                     return "p2p_sk.receive";
                 else
                     return "rpc_sk.receive";
             };
             str_receive();
 
-            auto str_peerid = [this, pevent_item](string const& peerid)
+            auto str_peerid = [it](string const& peerid)
             {
-                if (pevent_item == &m_pimpl->m_ptr_p2p_socket.get()->worker())
+                if (it == interface_type::p2p)
                     return peerid.substr(0, 5);
                 else
                     return peerid;
@@ -229,9 +236,39 @@ bool node::run()
             }
 
 
-            for (auto const& received_packet : received_packets)
+            for (auto& received_packet : received_packets)
             {
-                switch (received_packet.type())
+                bool broadcast_packet = false;
+
+                vector<packet> packets;
+                packets.emplace_back(std::move(received_packet));
+
+                while (true)
+                {
+                    bool container_type = false;
+                    packet& ref_packet = packets.back();
+
+                    switch (ref_packet.type())
+                    {
+                    case Broadcast::rtt:
+                    {
+                        container_type = true;
+                        broadcast_packet = true;
+                        Broadcast container;
+                        ref_packet.get(container);
+
+                        packets.emplace_back(std::move(container.payload));
+                        break;
+                    }
+                    }
+
+                    if (false == container_type)
+                        break;
+                }
+
+                packet& ref_packet = packets.back();
+
+                switch (ref_packet.type())
                 {
                 case Join::rtt:
                 {
@@ -267,7 +304,7 @@ bool node::run()
                 case Hellow::rtt:
                 {
                     Hellow hellow_msg;
-                    received_packet.get(hellow_msg);
+                    ref_packet.get(hellow_msg);
 
                     if (hellow_msg.index % 1000 == 0)
                     {
@@ -276,29 +313,45 @@ bool node::run()
                         m_pimpl->write_node("From:");
                         m_pimpl->writeln_node(str_peerid(peerid));
                     }
+
+                    if (broadcast_packet)
+                    {
+                        if (hellow_msg.index % 1000 == 0)
+                            m_pimpl->writeln_node("broadcasting hellow");
+
+                        for (auto const& p2p_peer : m_pimpl->p2p_peers)
+                            m_pimpl->m_ptr_p2p_socket->send(p2p_peer, hellow_msg);
+                    }
                     break;
                 }
                 case Broadcast::rtt:
                 {
                     Broadcast broadcast_msg;
-                    received_packet.get(broadcast_msg);
+                    ref_packet.get(broadcast_msg);
 
                     Hellow hellow_msg;
                     if (broadcast_msg.payload.type() != Hellow::rtt)
                         break;
                     broadcast_msg.payload.get(hellow_msg);
 
-                    if (hellow_msg.index % 1000 == 2)
-                        m_pimpl->writeln_node("broadcasting");
+                    break;
+                }
+                case Shutdown::rtt:
+                {
+                    m_pimpl->writeln_node("shutdown received");
 
-                    for (auto const& p2p_peer : m_pimpl->p2p_peers)
+                    code = false;
+
+                    if (broadcast_packet)
                     {
-                        beltpp::packet payload;
-                        BlockchainMessage::detail::assign_packet(payload, broadcast_msg.payload);
-                        m_pimpl->m_ptr_p2p_socket->send(p2p_peer,
-                                                        std::move(payload));
-                    }
+                        m_pimpl->writeln_node("broadcasting shutdown");
 
+                        Shutdown shutdown_msg;
+                        ref_packet.get(shutdown_msg);
+
+                        for (auto const& p2p_peer : m_pimpl->p2p_peers)
+                            m_pimpl->m_ptr_p2p_socket->send(p2p_peer, shutdown_msg);
+                    }
                     break;
                 }
                 }
