@@ -6,27 +6,39 @@
 
 namespace filesystem = boost::filesystem;
 
-class blockchain_ex : public publiqpp::blockchain
+namespace publiqpp
+{
+
+namespace detail
+{
+class blockchain_internals
 {
 public:
-    blockchain_ex(filesystem::path const& path)
+    blockchain_internals(filesystem::path const& path)
         : m_length(path / "length.txt")
     {
+
     }
 
-    virtual ~blockchain_ex() {}
-
-private:
     using length_loader = meshpp::file_loader<Data::Length, &Data::Length::string_loader, &Data::Length::string_saver>;
     using length_locked_loader = meshpp::file_locker<length_loader>;
 
     length_locked_loader m_length;
 };
+}
 
-namespace publiqpp
+blockchain::blockchain(boost::filesystem::path const& fs_blockchain)
+    : m_pimpl(new detail::blockchain_internals(fs_blockchain))
 {
-blockchain_ptr getblockchain(filesystem::path const& path)
+
+}
+blockchain::~blockchain()
 {
-    return beltpp::new_dc_unique_ptr<blockchain, blockchain_ex>(path);
+
+}
+
+size_t blockchain::length() const
+{
+    return m_pimpl->m_length->value;
 }
 }

@@ -2,20 +2,26 @@
 
 #include "global.hpp"
 
+#include "blockchain.hpp"
+
 #include <boost/filesystem/path.hpp>
 
-#include <vector>
 #include <memory>
 
 namespace publiqpp
 {
-
+namespace detail
+{
+class state_internals;
+}
 class state
 {
 public:
-    virtual ~state() {};
-};
+    state(boost::filesystem::path const& fs_blockchain);
+    ~state();
 
-using state_ptr = beltpp::t_unique_ptr<state>;
-state_ptr getstate(boost::filesystem::path const& fs_blockchain);
+    publiqpp::blockchain& blockchain();
+private:
+    std::unique_ptr<detail::state_internals> m_pimpl;
+};
 }

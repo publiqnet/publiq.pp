@@ -17,23 +17,37 @@ std::string SHA256HashString(std::string aString){
     return digest;
 }
 
-class state_ex : public publiqpp::state
-{
-public:
-    state_ex(boost::filesystem::path const& fs_blockchain)
-        : m_ptr_blockchain(publiqpp::getblockchain(fs_blockchain))
-    {
-    }
-
-    virtual ~state_ex() {}
-
-    publiqpp::blockchain_ptr m_ptr_blockchain;
-};
+namespace filesystem = boost::filesystem;
+using std::unique_ptr;
 
 namespace publiqpp
 {
-state_ptr getstate(boost::filesystem::path const& fs_blockchain)
+namespace detail
 {
-    return beltpp::new_dc_unique_ptr<state, state_ex>(fs_blockchain);
+class state_internals
+{
+public:
+    state_internals(filesystem::path const& fs_blockchain)
+        : m_blockchain(fs_blockchain)
+    {}
+
+    publiqpp::blockchain m_blockchain;
+};
+}
+
+state::state(filesystem::path const& fs_blockchain)
+    : m_pimpl(new detail::state_internals(fs_blockchain))
+{
+
+}
+
+state::~state()
+{
+
+}
+
+publiqpp::blockchain& state::blockchain()
+{
+    return m_pimpl->m_blockchain;
 }
 }

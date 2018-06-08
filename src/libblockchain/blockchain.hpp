@@ -10,12 +10,20 @@
 namespace publiqpp
 {
 
+namespace detail
+{
+class blockchain_internals;
+}
+
 class blockchain
 {
 public:
-    virtual ~blockchain() {};
+    blockchain(boost::filesystem::path const& fs_blockchain);
+    ~blockchain();
+
+    size_t length() const;
+private:
+    std::unique_ptr<detail::blockchain_internals> m_pimpl;
 };
 
-using blockchain_ptr = beltpp::t_unique_ptr<blockchain>;
-blockchain_ptr getblockchain(boost::filesystem::path const& fs_blockchain);
 }

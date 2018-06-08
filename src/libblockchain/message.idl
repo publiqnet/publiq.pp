@@ -16,4 +16,11 @@ module BlockchainMessage
     }
 
     class Shutdown {}
+
+    class GetChainInfo {}
+
+    class ChainInfo
+    {
+        UInt64 length
+    }
 }

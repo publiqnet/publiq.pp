@@ -1,5 +1,6 @@
 #include "node.hpp"
 #include "state.hpp"
+#include "blockchain.hpp"
 #include "message.hpp"
 
 #include <belt.pp/packet.hpp>
@@ -98,7 +99,7 @@ public:
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_sf>(*m_ptr_eh)
                                ))
-        , m_ptr_state(publiqpp::getstate(fs_blockchain))
+        , m_state(fs_blockchain)
     {
         m_ptr_eh->set_timer(chrono::seconds(10));
 
@@ -137,7 +138,7 @@ public:
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
-    publiqpp::state_ptr m_ptr_state;
+    publiqpp::state m_state;
 
     unordered_set<string> p2p_peers;
 };
@@ -352,6 +353,13 @@ bool node::run()
                         for (auto const& p2p_peer : m_pimpl->p2p_peers)
                             m_pimpl->m_ptr_p2p_socket->send(p2p_peer, shutdown_msg);
                     }
+                    break;
+                }
+                case GetChainInfo::rtt:
+                {
+                    ChainInfo chaininfo_msg;
+                    chaininfo_msg.length = m_pimpl->m_state.blockchain().length();
+                    psk->send(peerid, chaininfo_msg);
                     break;
                 }
                 }
