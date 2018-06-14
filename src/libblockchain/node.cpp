@@ -36,6 +36,12 @@ using std::string;
 using std::vector;
 using std::unique_ptr;
 
+//  MSVS does not instansiate template function only because its address
+//  is needed, so let's force it
+template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Error>();
+template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Join>();
+template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Drop>();
+
 namespace publiqpp
 {
 
