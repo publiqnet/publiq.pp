@@ -4,7 +4,8 @@ set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED YES )
 
 if (WIN32)
-#TODO
+	add_compile_options(/wd4251)
+	add_compile_options(/wd4275)
 else (WIN32)
     add_compile_options(-Wall)
     add_compile_options(-Werror)
