@@ -70,11 +70,12 @@ void termination_handler(int signum)
     g_termination_handled = true;
 }
 
-
 #include <cryptopp/sha.h>
 #include <cryptopp/filters.h>
 #include <cryptopp/base64.h>
 #include <cryptopp/hex.h>
+
+typedef unsigned char byte;
 
 std::string SHA256HashString(std::string aString)
 {
@@ -119,10 +120,14 @@ int main(int argc, char** argv)
     if (false == data_directory.empty())
         settings::settings::set_data_directory(data_directory);
 
+#ifdef B_OS_WINDOWS
+    //TODO
+#else
     struct sigaction signal_handler;
     signal_handler.sa_handler = termination_handler;
     ::sigaction(SIGINT, &signal_handler, nullptr);
     ::sigaction(SIGINT, &signal_handler, nullptr);
+#endif
 
     try
     {
