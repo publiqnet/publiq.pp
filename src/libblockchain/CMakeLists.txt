@@ -42,6 +42,7 @@ target_link_libraries(blockchain PUBLIC
 # what to do on make install
 install(TARGETS blockchain
         EXPORT publiq.pp.package
+        RUNTIME DESTINATION bin/publiq.pp
         LIBRARY DESTINATION lib/publiq.pp
         ARCHIVE DESTINATION lib/publiq.pp/archive)
 
