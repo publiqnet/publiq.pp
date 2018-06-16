@@ -37,5 +37,5 @@ add_subdirectory(publiq.pp)
 add_subdirectory(exe_publiqd)
 
 # following is used for find_package functionality
-install(FILES publiq.pp-config.cmake DESTINATION lib/publiq.pp)
-install(EXPORT publiq.pp.package DESTINATION lib/publiq.pp)
+install(FILES publiq.pp-config.cmake DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})
+install(EXPORT publiq.pp.package DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})
