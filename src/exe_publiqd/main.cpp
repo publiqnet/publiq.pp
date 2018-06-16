@@ -70,18 +70,17 @@ void termination_handler(int signum)
     g_termination_handled = true;
 }
 
+#include <mesh.pp/cryptopp_byte.hpp>
 #include <cryptopp/sha.h>
 #include <cryptopp/filters.h>
 #include <cryptopp/base64.h>
 #include <cryptopp/hex.h>
 
-typedef unsigned char byte;
-
 std::string SHA256HashString(std::string aString)
 {
-    byte digest[CryptoPP::SHA256::DIGESTSIZE];
+    CryptoPP::byte digest[CryptoPP::SHA256::DIGESTSIZE];
 
-    byte const* pb = (byte const*)aString.c_str();
+    CryptoPP::byte const* pb = (byte const*)aString.c_str();
     CryptoPP::SHA256().CalculateDigest(digest, pb, aString.length());
 
     CryptoPP::HexEncoder encoder;
