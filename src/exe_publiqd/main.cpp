@@ -80,7 +80,7 @@ std::string SHA256HashString(std::string aString)
 {
     CryptoPP::byte digest[CryptoPP::SHA256::DIGESTSIZE];
 
-    CryptoPP::byte const* pb = (byte const*)aString.c_str();
+    CryptoPP::byte const* pb = (CryptoPP::byte const*)aString.c_str();
     CryptoPP::SHA256().CalculateDigest(digest, pb, aString.length());
 
     CryptoPP::HexEncoder encoder;
