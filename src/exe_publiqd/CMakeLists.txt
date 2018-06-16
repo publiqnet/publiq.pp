@@ -28,4 +28,6 @@ target_link_libraries(exe_publiqd PRIVATE
 # what to do on make install
 install(TARGETS exe_publiqd
         EXPORT publiq.pp.package
-        RUNTIME DESTINATION bin/publiq.pp)
+        RUNTIME DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_RUNTIME}
+        LIBRARY DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY}
+        ARCHIVE DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_ARCHIVE})

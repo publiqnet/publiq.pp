@@ -14,7 +14,7 @@ target_link_libraries(publiq.pp)
 # what to do on make install
 install(TARGETS publiq.pp
         EXPORT publiq.pp.package
-        DESTINATION lib/publiq.pp)
+        DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})
 
 set(SRC_FILES
     global.hpp
@@ -22,7 +22,7 @@ set(SRC_FILES
 
 install(FILES
     ${SRC_FILES}
-    DESTINATION include/publiq.pp/publiq.pp)
+    DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/publiq.pp)
 
 #
 # add custom target simply for IDE to show the files

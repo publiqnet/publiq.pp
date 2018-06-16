@@ -42,11 +42,11 @@ target_link_libraries(blockchain PUBLIC
 # what to do on make install
 install(TARGETS blockchain
         EXPORT publiq.pp.package
-        RUNTIME DESTINATION bin/publiq.pp
-        LIBRARY DESTINATION lib/publiq.pp
-        ARCHIVE DESTINATION lib/publiq.pp/archive)
+        RUNTIME DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_RUNTIME}
+        LIBRARY DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY}
+        ARCHIVE DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_ARCHIVE})
 
 install(FILES
     global.hpp
     node.hpp
-    DESTINATION include/publiq.pp/libblockchain)
+    DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/libblockchain)
