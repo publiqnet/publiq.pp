@@ -14,8 +14,8 @@ add_custom_command (
 
 add_definitions(-DBLOCKCHAIN_LIBRARY)
 
-# define the shared library
-add_library(blockchain SHARED
+# define the library
+add_library(blockchain
     global.hpp
     blockchain.cpp
     blockchain.hpp
