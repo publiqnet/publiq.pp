@@ -76,7 +76,7 @@ void termination_handler(int signum)
 #include <cryptopp/base64.h>
 #include <cryptopp/hex.h>
 
-std::string SHA256HashString(std::string aString)
+/*std::string SHA256HashString(std::string aString)
 {
     CryptoPP::byte digest[CryptoPP::SHA256::DIGESTSIZE];
 
@@ -91,7 +91,7 @@ std::string SHA256HashString(std::string aString)
     encoder.MessageEnd();
 
     return output;
-}
+}*/
 
 int main(int argc, char** argv)
 {
