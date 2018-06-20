@@ -20,10 +20,10 @@ public:
 
     }
 
-    using length_loader = meshpp::file_loader<Data::Length, &Data::Length::string_loader, &Data::Length::string_saver>;
-    using length_locked_loader = meshpp::file_locker<length_loader>;
+    using number_loader = meshpp::file_loader<Data::Number, &Data::Number::string_loader, &Data::Number::string_saver>;
+    using number_locked_loader = meshpp::file_locker<number_loader>;
 
-    length_locked_loader m_length;
+    number_locked_loader m_length;
 };
 }
 

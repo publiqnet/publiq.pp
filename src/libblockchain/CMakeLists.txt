@@ -17,6 +17,8 @@ add_definitions(-DBLOCKCHAIN_LIBRARY)
 # define the library
 add_library(blockchain
     global.hpp
+    action_log.cpp
+    action_log.hpp
     blockchain.cpp
     blockchain.hpp
     state.cpp
