@@ -19,6 +19,6 @@ endif (WIN32)
 
 project(publiq.pp)
 
-set(PUBLIQ_PP_LOADED TRUE PARENT_SCOPE)
+set(PUBLIQ_PP_LOADED TRUE)
 
 add_subdirectory(src)
