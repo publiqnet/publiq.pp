@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.2)
 
 option(BUILD_SHARED_LIBS "dynamic link build" ON)
+if (BUILD_SHARED_LIBS)
+    message("define export symbols for shared lib build")
+    add_definitions(-DBUILD_SHARED_LIBS)
+endif()
 
 set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED YES )

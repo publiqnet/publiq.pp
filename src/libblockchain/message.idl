@@ -1,24 +1,33 @@
 module BlockchainMessage
 {
+    //  standard socket messages
     type Join {}
     type Drop {}
     type Error {}
 
+    //  dummy, testing
     class Hellow
     {
         String text
         UInt64 index
     }
 
+    //  container messages
     class Broadcast
     {
         Object value
     }
 
+    //  special testing shutdown message
     class Shutdown {}
 
+    ///
+    /// RPC interface
+    ///
+    //  GetChainInfo request, response should be ChainInfo
     class GetChainInfo {}
 
+    //  ChainInfo
     class ChainInfo
     {
         UInt64 length
@@ -33,6 +42,7 @@ module BlockchainMessage
         Array Object list
     }
 
+    //  this is admin tool for RPC testing
     class SubmitNews
     {
         Object item
