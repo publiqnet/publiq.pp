@@ -33,7 +33,6 @@ using std::endl;
 using std::vector;
 namespace chrono = std::chrono;
 using chrono::steady_clock;
-using std::unique_ptr;
 using std::runtime_error;
 
 bool process_command_line(int argc, char** argv,
