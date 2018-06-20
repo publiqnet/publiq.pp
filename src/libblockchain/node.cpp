@@ -275,6 +275,7 @@ public:
                    ip_address const& p2p_bind_to_address,
                    std::vector<ip_address> const& p2p_connect_to_addresses,
                    boost::filesystem::path const& fs_blockchain,
+                   boost::filesystem::path const& fs_action_log,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node)
         : plogger_p2p(_plogger_p2p)
@@ -290,7 +291,7 @@ public:
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_sf>(*m_ptr_eh)
                                ))
-        , m_state(fs_blockchain)
+        , m_state(fs_blockchain, fs_action_log)
     {
         m_ptr_eh->set_timer(chrono::seconds(10));
 
@@ -342,12 +343,14 @@ node::node(ip_address const& rpc_bind_to_address,
            ip_address const& p2p_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
            boost::filesystem::path const& fs_blockchain,
+           boost::filesystem::path const& fs_action_log,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node)
     : m_pimpl(new detail::node_internals(rpc_bind_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,
                                          fs_blockchain,
+                                         fs_action_log,
                                          plogger_p2p,
                                          plogger_node))
 {
@@ -449,7 +452,7 @@ bool node::run()
                         Broadcast container;
                         ref_packet.get(container);
 
-                        packets.emplace_back(std::move(container.payload));
+                        packets.emplace_back(std::move(container.value));
                         break;
                     }
                     }
@@ -544,6 +547,27 @@ bool node::run()
                     ChainInfo chaininfo_msg;
                     chaininfo_msg.length = m_pimpl->m_state.blockchain().length();
                     psk->send(peerid, chaininfo_msg);
+                    break;
+                }
+                case SubmitNews::rtt:
+                {
+                    SubmitNews submitnews_msg;
+                    ref_packet.get(submitnews_msg);
+
+                    if (Reward::rtt == submitnews_msg.item.type())
+                    {
+                        Reward msg_reward;
+                        submitnews_msg.item.get(msg_reward);
+
+                        m_pimpl->m_state.action_log().insert(msg_reward);
+                    }
+                    else if (NewArticle::rtt == submitnews_msg.item.type())
+                    {
+                        NewArticle msg_new_article;
+                        submitnews_msg.item.get(msg_new_article);
+
+                        m_pimpl->m_state.action_log().insert(msg_new_article);
+                    }
                     break;
                 }
                 }

@@ -12,7 +12,7 @@ module BlockchainMessage
 
     class Broadcast
     {
-        Object payload
+        Object value
     }
 
     class Shutdown {}
@@ -24,9 +24,72 @@ module BlockchainMessage
         UInt64 length
     }
 
+    class GetNews
+    {
+    }
+
+    class News
+    {
+        Array Object list
+    }
+
+    class SubmitNews
+    {
+        Object item
+    }
+
+    class Bin64
+    {
+        String value
+    }
+
+    class TransactionHash
+    {
+        Bin64 value
+        UInt64 block_index
+    }
+
+    class Address
+    {
+        String value
+    }
+
+    class Coin
+    {
+        UInt64 value
+    }
+
     class Transaction
     {
-        Array String inputs
+        TimePoint tm
+        UInt64 nonce
+        Coin fee
+        Object obj
+    }
 
+    class SignedTransaction
+    {
+        Array TransactionHash inputs
+        Transaction obj
+        String signature
+    }
+
+    class Transfer
+    {
+        Address from
+        Coin amount
+        Address to
+    }
+
+    class Reward
+    {
+        Coin amount
+        Address to
+    }
+
+    class NewArticle
+    {
+        String title
+        Array String hash
     }
 }

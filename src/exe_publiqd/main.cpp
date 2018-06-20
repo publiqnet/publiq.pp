@@ -42,41 +42,19 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory);
 
-void add_port(Config::Port2PID& ob, unsigned short port)
-{
-    auto res = ob.reserved_ports.insert(std::make_pair(port, meshpp::current_process_id()));
-
-    if (false == res.second)
-    {
-        string error = "port: ";
-        error += std::to_string(res.first->first);
-        error += " is locked by pid: ";
-        error += std::to_string(res.first->second);
-        throw runtime_error(error);
-    }
-}
-void remove_port(Config::Port2PID& ob, unsigned short port)
-{
-    auto it = ob.reserved_ports.find(port);
-    if (it == ob.reserved_ports.end())
-        throw runtime_error("cannot find own port: " + std::to_string(port));
-
-    ob.reserved_ports.erase(it);
-}
-
 bool g_termination_handled = false;
 void termination_handler(int signum)
 {
     g_termination_handled = true;
 }
 
-#include <mesh.pp/cryptopp_byte.hpp>
+/*#include <mesh.pp/cryptopp_byte.hpp>
 #include <cryptopp/sha.h>
 #include <cryptopp/filters.h>
 #include <cryptopp/base64.h>
 #include <cryptopp/hex.h>
 
-/*std::string SHA256HashString(std::string aString)
+std::string SHA256HashString(std::string aString)
 {
     CryptoPP::byte digest[CryptoPP::SHA256::DIGESTSIZE];
 
@@ -92,6 +70,74 @@ void termination_handler(int signum)
 
     return output;
 }*/
+
+class port2pid_helper
+{
+    using Loader = meshpp::file_locker<meshpp::file_loader<Config::Port2PID,
+                                                            &Config::Port2PID::string_loader,
+                                                            &Config::Port2PID::string_saver>>;
+public:
+    port2pid_helper(boost::filesystem::path const& _path, unsigned short _port)
+        : port(_port)
+        , path(_path)
+        , eptr()
+    {
+        Loader ob(path);
+        auto res = ob->reserved_ports.insert(std::make_pair(port, meshpp::current_process_id()));
+
+        if (false == res.second)
+        {
+            string error = "port: ";
+            error += std::to_string(res.first->first);
+            error += " is locked by pid: ";
+            error += std::to_string(res.first->second);
+            error += " as specified in: ";
+            error += path.string();
+            throw runtime_error(error);
+        }
+
+        ob.save();
+    }
+    ~port2pid_helper()
+    {
+        _commit();
+    }
+
+    void commit()
+    {
+        _commit();
+
+        if (eptr)
+            std::rethrow_exception(eptr);
+    }
+private:
+    void _commit()
+    {
+        try
+        {
+            Loader ob(path);
+            auto it = ob.as_const()->reserved_ports.find(port);
+            if (it == ob.as_const()->reserved_ports.end())
+            {
+                string error = "cannot find own port: ";
+                error += std::to_string(port);
+                error += " specified in: ";
+                error += path.string();
+                throw runtime_error(error);
+            }
+
+            ob->reserved_ports.erase(it);
+            ob.save();
+        }
+        catch (...)
+        {
+            eptr = std::current_exception();
+        }
+    }
+    unsigned short port;
+    boost::filesystem::path path;
+    std::exception_ptr eptr;
+};
 
 int main(int argc, char** argv)
 {
@@ -133,17 +179,7 @@ int main(int argc, char** argv)
         settings::create_config_directory();
         settings::create_data_directory();
 
-        using port_toggler_type = void(*)(Config::Port2PID&, unsigned short);
-        using FLPort2PID = meshpp::file_toggler<Config::Port2PID,
-                                                port_toggler_type,
-                                                port_toggler_type,
-                                                &add_port,
-                                                &remove_port,
-                                                &Config::Port2PID::string_loader,
-                                                &Config::Port2PID::string_saver,
-                                                unsigned short>;
-
-        FLPort2PID port2pid(settings::config_file_path("pid"), p2p_bind_to_address.local.port);
+        unique_ptr<port2pid_helper> port2pid(new port2pid_helper(settings::config_file_path("pid"), p2p_bind_to_address.local.port));
 
         using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<Config::DataDirAttribute, &Config::DataDirAttribute::string_loader, &Config::DataDirAttribute::string_saver>>;
         DataDirAttributeLoader dda(settings::data_file_path("running.txt"));
@@ -151,9 +187,10 @@ int main(int argc, char** argv)
         item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
         dda->history.push_back(item);
-        dda.next_layer().commit();
+        dda.save();
 
         auto fs_blockchain = settings::data_directory_path("blockchain");
+        auto fs_action_log = settings::data_directory_path("action_log");
 
         cout << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
@@ -168,6 +205,7 @@ int main(int argc, char** argv)
                             p2p_bind_to_address,
                             p2p_connect_to_addresses,
                             fs_blockchain,
+                            fs_action_log,
                             plogger_p2p.get(),
                             plogger_rpc.get());
 
@@ -197,8 +235,8 @@ int main(int argc, char** argv)
         }
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-        dda.next_layer().commit();
-        port2pid.commit();
+        dda.save();
+        port2pid->commit();
     }
     catch (std::exception const& ex)
     {
