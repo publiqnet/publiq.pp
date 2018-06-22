@@ -33,6 +33,18 @@ module BlockchainMessage
         UInt64 length
     }
 
+    //  request to calculate the checksum
+    class CalculateChecksum
+    {
+        Object value
+    }
+
+    class Checksum
+    {
+        String value
+    }
+    // .
+    // .
     class GetNews
     {
     }
@@ -40,6 +52,20 @@ module BlockchainMessage
     class News
     {
         Array Object list
+    }
+    // .
+    //  save HTTPObject in distributed storage, response
+    //  will be Checksums
+    class HTTPObject
+    {
+        String mimetype
+        String body
+    }
+
+    //  response will be HTTPObject
+    class GetFromStorage
+    {
+        Checksum path
     }
 
     //  this is admin tool for RPC testing

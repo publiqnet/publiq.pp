@@ -23,6 +23,8 @@ add_library(blockchain
     blockchain.hpp
     state.cpp
     state.hpp
+    storage.cpp
+    storage.hpp
     data.hpp
     data.gen.hpp
     message.hpp

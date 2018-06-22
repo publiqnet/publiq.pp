@@ -190,6 +190,7 @@ int main(int argc, char** argv)
 
         auto fs_blockchain = settings::data_directory_path("blockchain");
         auto fs_action_log = settings::data_directory_path("action_log");
+        auto fs_storage = settings::data_directory_path("storage");
 
         cout << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
@@ -205,6 +206,7 @@ int main(int argc, char** argv)
                             p2p_connect_to_addresses,
                             fs_blockchain,
                             fs_action_log,
+                            fs_storage,
                             plogger_p2p.get(),
                             plogger_rpc.get());
 

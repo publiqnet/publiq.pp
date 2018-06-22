@@ -276,6 +276,7 @@ public:
                    std::vector<ip_address> const& p2p_connect_to_addresses,
                    boost::filesystem::path const& fs_blockchain,
                    boost::filesystem::path const& fs_action_log,
+                   boost::filesystem::path const& fs_storage,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node)
         : plogger_p2p(_plogger_p2p)
@@ -291,7 +292,7 @@ public:
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_sf>(*m_ptr_eh)
                                ))
-        , m_state(fs_blockchain, fs_action_log)
+        , m_state(fs_blockchain, fs_action_log, fs_storage)
     {
         m_ptr_eh->set_timer(chrono::seconds(10));
 
@@ -344,6 +345,7 @@ node::node(ip_address const& rpc_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
            boost::filesystem::path const& fs_blockchain,
            boost::filesystem::path const& fs_action_log,
+           boost::filesystem::path const& fs_storage,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node)
     : m_pimpl(new detail::node_internals(rpc_bind_to_address,
@@ -351,6 +353,7 @@ node::node(ip_address const& rpc_bind_to_address,
                                          p2p_connect_to_addresses,
                                          fs_blockchain,
                                          fs_action_log,
+                                         fs_storage,
                                          plogger_p2p,
                                          plogger_node))
 {
