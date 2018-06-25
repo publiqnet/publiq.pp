@@ -41,7 +41,7 @@ module BlockchainMessage
 
     class Checksum
     {
-        String value
+        String sha256_2x
     }
     // .
     // .
@@ -55,7 +55,7 @@ module BlockchainMessage
     }
     // .
     //  save HTTPObject in distributed storage, response
-    //  will be Checksums
+    //  will be Checksum
     class HTTPObject
     {
         String mimetype
@@ -87,7 +87,7 @@ module BlockchainMessage
 
     class Address
     {
-        String value
+        String public_key
     }
 
     class Coin
@@ -117,12 +117,14 @@ module BlockchainMessage
         Address to
     }
 
+    //  .
     class Reward
     {
         Coin amount
         Address to
     }
 
+    //  .
     class NewArticle
     {
         String title
