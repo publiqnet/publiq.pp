@@ -294,7 +294,7 @@ public:
                                ))
         , m_state(fs_blockchain, fs_action_log, fs_storage)
     {
-        m_ptr_eh->set_timer(chrono::seconds(10));
+        m_ptr_eh->set_timer(chrono::seconds(1));
 
         m_ptr_rpc_socket->listen(rpc_bind_to_address);
 

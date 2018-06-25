@@ -165,12 +165,13 @@ int main(int argc, char** argv)
         settings::settings::set_data_directory(data_directory);
 
 #ifdef B_OS_WINDOWS
-    //TODO
+    // will work after wait retuns, not immediately !
+    signal(SIGINT, termination_handler);
 #else
     struct sigaction signal_handler;
     signal_handler.sa_handler = termination_handler;
     ::sigaction(SIGINT, &signal_handler, nullptr);
-    ::sigaction(SIGINT, &signal_handler, nullptr);
+    ::sigaction(SIGTERM, &signal_handler, nullptr);
 #endif
 
     try
