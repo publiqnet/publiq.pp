@@ -552,28 +552,36 @@ bool node::run()
                     psk->send(peerid, chaininfo_msg);
                     break;
                 }
-                case SubmitNews::rtt:
+                case SubmitActions::rtt:
                 {
                     bool answered = false;
                     if (it == interface_type::rpc)
                     {
                         try
                         {
-                            SubmitNews submitnews_msg;
-                            ref_packet.get(submitnews_msg);
+                            SubmitActions submitactions_msg;
+                            ref_packet.get(submitactions_msg);
 
-                            if (Reward::rtt == submitnews_msg.item.type())
-                            {
+                            if (Reward::rtt == submitactions_msg.item.type())
+                            {   //  check reward, account and coin rtts for testing
                                 Reward msg_reward;
-                                submitnews_msg.item.get(msg_reward);
+                                submitactions_msg.item.get(msg_reward);
 
                                 m_pimpl->m_state.action_log().insert(msg_reward);
                                 psk->send(peerid, Done());
                             }
-                            else if (NewArticle::rtt == submitnews_msg.item.type())
+                            else if (RevertLastAction::rtt == submitactions_msg.item.type())
+                            {   //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
+                                RevertActionAt msg_revert;
+                                msg_revert.index = m_pimpl->m_state.action_log().length() - 1;
+
+                                m_pimpl->m_state.action_log().insert(msg_revert);
+                                psk->send(peerid, Done());
+                            }
+                            else if (NewArticle::rtt == submitactions_msg.item.type())
                             {
                                 NewArticle msg_new_article;
-                                submitnews_msg.item.get(msg_new_article);
+                                submitactions_msg.item.get(msg_new_article);
 
                                 m_pimpl->m_state.action_log().insert(msg_new_article);
                                 psk->send(peerid, Done());
@@ -600,14 +608,24 @@ bool node::run()
                     }
                     break;
                 }
-                case GetNews::rtt:
+                case GetActions::rtt:
                 {
-                    News msg_news;
-                    beltpp::packet action;
-                    while (m_pimpl->m_state.action_log().pop(action))
-                        msg_news.list.push_back(std::move(action));
+                    GetActions msg_get_actions;
+                    received_packet.get(msg_get_actions);
+                    uint64_t index = msg_get_actions.start_index;
 
-                    psk->send(peerid, msg_news);
+                    Actions msg_actions;
+                    for (size_t i = index; i < m_pimpl->m_state.action_log().length(); ++i)
+                    {   //  TO DO: use collapse algorithm to process revert actions
+                        beltpp::packet action;
+                        m_pimpl->m_state.action_log().at(i, action);
+                        Action item;
+                        item.index = i;
+                        item.item = std::move(action);
+                        msg_actions.list.push_back(std::move(item));
+                    }
+
+                    psk->send(peerid, msg_actions);
                     break;
                 }
                 }

@@ -24,6 +24,12 @@ module BlockchainMessage
     ///
     /// RPC interface
     ///
+    //  response codes
+    class Done {}
+    class Failed
+    {
+        String message
+    }
     //  GetChainInfo request, response should be ChainInfo
     class GetChainInfo {}
 
@@ -45,13 +51,20 @@ module BlockchainMessage
     }
     // .
     // .
-    class GetNews
+    class GetActions
     {
+        UInt64 start_index
     }
 
-    class News
+    class Action
     {
-        Array Object list
+        UInt64 index
+        Object item
+    }
+
+    class Actions
+    {
+        Array Action list
     }
     // .
     //  save HTTPObject in distributed storage, response
@@ -69,7 +82,7 @@ module BlockchainMessage
     }
 
     //  this is admin tool for RPC testing
-    class SubmitNews
+    class SubmitActions
     {
         Object item
     }
@@ -117,6 +130,13 @@ module BlockchainMessage
         Address to
     }
 
+    class RevertActionAt
+    {
+        UInt64 index
+    }
+
+    class RevertLastAction {}
+
     //  .
     class Reward
     {
@@ -129,11 +149,5 @@ module BlockchainMessage
     {
         String title
         Array String hash
-    }
-
-    class Done {}
-    class Failed
-    {
-        String message
     }
 }
