@@ -554,23 +554,60 @@ bool node::run()
                 }
                 case SubmitNews::rtt:
                 {
-                    SubmitNews submitnews_msg;
-                    ref_packet.get(submitnews_msg);
-
-                    if (Reward::rtt == submitnews_msg.item.type())
+                    bool answered = false;
+                    if (it == interface_type::rpc)
                     {
-                        Reward msg_reward;
-                        submitnews_msg.item.get(msg_reward);
+                        try
+                        {
+                            SubmitNews submitnews_msg;
+                            ref_packet.get(submitnews_msg);
 
-                        m_pimpl->m_state.action_log().insert(msg_reward);
-                    }
-                    else if (NewArticle::rtt == submitnews_msg.item.type())
-                    {
-                        NewArticle msg_new_article;
-                        submitnews_msg.item.get(msg_new_article);
+                            if (Reward::rtt == submitnews_msg.item.type())
+                            {
+                                Reward msg_reward;
+                                submitnews_msg.item.get(msg_reward);
 
-                        m_pimpl->m_state.action_log().insert(msg_new_article);
+                                m_pimpl->m_state.action_log().insert(msg_reward);
+                                psk->send(peerid, Done());
+                            }
+                            else if (NewArticle::rtt == submitnews_msg.item.type())
+                            {
+                                NewArticle msg_new_article;
+                                submitnews_msg.item.get(msg_new_article);
+
+                                m_pimpl->m_state.action_log().insert(msg_new_article);
+                                psk->send(peerid, Done());
+                            }
+                        }
+                        catch (std::exception const& ex)
+                        {
+                            if (false == answered)
+                            {
+                                Failed msg_failed;
+                                msg_failed.message = ex.what();
+                                psk->send(peerid, msg_failed);
+                            }
+                        }
+                        catch (...)
+                        {
+                            if (false == answered)
+                            {
+                                Failed msg_failed;
+                                msg_failed.message = "unknown exception";
+                                psk->send(peerid, msg_failed);
+                            }
+                        }
                     }
+                    break;
+                }
+                case GetNews::rtt:
+                {
+                    News msg_news;
+                    beltpp::packet action;
+                    while (m_pimpl->m_state.action_log().pop(action))
+                        msg_news.list.push_back(std::move(action));
+
+                    psk->send(peerid, msg_news);
                     break;
                 }
                 }

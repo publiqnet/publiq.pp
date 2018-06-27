@@ -130,4 +130,10 @@ module BlockchainMessage
         String title
         Array String hash
     }
+
+    class Done {}
+    class Failed
+    {
+        String message
+    }
 }
