@@ -611,7 +611,7 @@ bool node::run()
                 case GetActions::rtt:
                 {
                     GetActions msg_get_actions;
-                    received_packet.get(msg_get_actions);
+                    ref_packet.get(msg_get_actions);
                     uint64_t index = msg_get_actions.start_index;
 
                     Actions msg_actions;
