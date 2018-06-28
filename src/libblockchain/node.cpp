@@ -680,7 +680,7 @@ bool node::run()
                             RevertActionAt msg;
                             packet.get(msg);
 
-                            revert = msg.index > index;
+                            revert = msg.index >= index;
                         }
 
                         if (revert) 
