@@ -47,29 +47,6 @@ void termination_handler(int signum)
     g_termination_handled = true;
 }
 
-/*#include <mesh.pp/cryptopp_byte.hpp>
-#include <cryptopp/sha.h>
-#include <cryptopp/filters.h>
-#include <cryptopp/base64.h>
-#include <cryptopp/hex.h>
-
-std::string SHA256HashString(std::string aString)
-{
-    CryptoPP::byte digest[CryptoPP::SHA256::DIGESTSIZE];
-
-    CryptoPP::byte const* pb = (CryptoPP::byte const*)aString.c_str();
-    CryptoPP::SHA256().CalculateDigest(digest, pb, aString.length());
-
-    CryptoPP::HexEncoder encoder;
-    std::string output;
-
-    encoder.Attach( new CryptoPP::StringSink( output ) );
-    encoder.Put( digest, sizeof(digest) );
-    encoder.MessageEnd();
-
-    return output;
-}*/
-
 class port2pid_helper
 {
     using Loader = meshpp::file_locker<meshpp::file_loader<Config::Port2PID,
@@ -140,8 +117,6 @@ private:
 
 int main(int argc, char** argv)
 {
-    /*cout << SHA256HashString("a") << endl;
-    return 0;*/
     //  boost filesystem UTF-8 support
     std::locale::global(boost::locale::generator().generate(""));
     boost::filesystem::path::imbue(std::locale());

@@ -646,7 +646,7 @@ bool node::run()
 
                     std::stack<Action> action_stack;
 
-                    size_t i = index + 1; // log[index] was already sent
+                    size_t i = index;
                     size_t len = m_pimpl->m_state.action_log().length();
 
                     bool revert = i < len;
