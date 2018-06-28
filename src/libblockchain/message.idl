@@ -1,114 +1,116 @@
 module BlockchainMessage
 {
     //  standard socket messages
-    type Join {}
-    type Drop {}
-    type Error {}
+    type Join {} // 0
+    type Drop {} // 1
+    type Error {} // 2
 
     //  dummy, testing
-    class Hellow
+    class Hellow // 3
     {
         String text
         UInt64 index
     }
 
     //  container messages
-    class Broadcast
+    class Broadcast // 4
     {
         Object value
     }
 
     //  special testing shutdown message
-    class Shutdown {}
+    class Shutdown {} // 5
 
     ///
     /// RPC interface
     ///
     //  response codes
-    class Done {}
-    class Failed
+    class Done {} // 6
+
+    class Failed // 7
     {
         String message
     }
+
     //  GetChainInfo request, response should be ChainInfo
-    class GetChainInfo {}
+    class GetChainInfo {} // 8
 
     //  ChainInfo
-    class ChainInfo
+    class ChainInfo // 9
     {
         UInt64 length
     }
 
     //  request to calculate the checksum
-    class CalculateChecksum
+    class CalculateChecksum // 10
     {
         Object value
     }
 
-    class Checksum
+    class Checksum // 11
     {
         String sha256_2x
     }
     // .
     // .
-    class GetActions
+    class GetActions // 12
     {
         UInt64 start_index
     }
 
-    class Action
+    class Action // 13
     {
         UInt64 index
         Object item
     }
 
-    class Actions
+    class Actions // 14
     {
         Array Action list
     }
-    // .
+
     //  save HTTPObject in distributed storage, response
     //  will be Checksum
-    class HTTPObject
+    class HTTPObject // 15
     {
         String mimetype
         String body
     }
 
     //  response will be HTTPObject
-    class GetFromStorage
+    class GetFromStorage // 16
     {
         Checksum path
     }
 
     //  this is admin tool for RPC testing
-    class SubmitActions
+    class SubmitActions // 17
     {
         Object item
     }
 
-    class Bin64
+    class Bin64 // 18
     {
         String value
     }
 
-    class TransactionHash
+    class TransactionHash // 29
     {
         Bin64 value
         UInt64 block_index
     }
 
-    class Address
+    class Address // 20
     {
         String public_key
     }
 
-    class Coin
+    class Coin // 21
     {
         UInt64 value
     }
 
-    class Transaction
+    class Transaction // 22
     {
         TimePoint tm
         UInt64 nonce
@@ -116,36 +118,36 @@ module BlockchainMessage
         Object obj
     }
 
-    class SignedTransaction
+    class SignedTransaction // 23
     {
         Array TransactionHash inputs
         Transaction obj
         String signature
     }
 
-    class Transfer
+    class Transfer // 24
     {
         Address from
         Coin amount
         Address to
     }
 
-    class RevertActionAt
+    class RevertActionAt // 25
     {
         UInt64 index
     }
 
-    class RevertLastAction {}
+    class RevertLastAction {} // 26
 
     //  .
-    class Reward
+    class Reward // 27
     {
         Coin amount
         Address to
     }
 
     //  .
-    class NewArticle
+    class NewArticle // 28
     {
         String title
         Array String hash

@@ -52,7 +52,7 @@ void action_log::insert(BlockchainMessage::RevertActionAt const& msg_revert)
                                                 &BlockchainMessage::RevertActionAt::string_loader,
                                                 &BlockchainMessage::RevertActionAt::string_saver>;
 
-    string file_name(std::to_string(m_pimpl->m_length.as_const()->value));
+    string file_name(std::to_string(m_pimpl->m_length.as_const()->value) + ".act");
 
     revert_loader rv(m_pimpl->m_path / file_name);
     *rv = msg_revert;
@@ -68,7 +68,7 @@ void action_log::insert(BlockchainMessage::Reward const& msg_reward)
                                                 &BlockchainMessage::Reward::string_loader,
                                                 &BlockchainMessage::Reward::string_saver>;
 
-    string file_name(std::to_string(m_pimpl->m_length.as_const()->value));
+    string file_name(std::to_string(m_pimpl->m_length.as_const()->value) + ".act");
 
     reward_loader rw(m_pimpl->m_path / file_name);
     *rw = msg_reward;
@@ -84,7 +84,7 @@ void action_log::insert(BlockchainMessage::NewArticle const& msg_new_article)
                                                     &BlockchainMessage::NewArticle::string_loader,
                                                     &BlockchainMessage::NewArticle::string_saver>;
 
-    string file_name(std::to_string(m_pimpl->m_length.as_const()->value));
+    string file_name(std::to_string(m_pimpl->m_length.as_const()->value) + ".act");
     new_article_loader na(m_pimpl->m_path / file_name);
     *na = msg_new_article;
     na.save();
@@ -98,7 +98,7 @@ bool action_log::at(size_t index, beltpp::packet& action) const
     if (index >= m_pimpl->m_length->value)
         return false;
 
-    string file_name(std::to_string(index));
+    string file_name(std::to_string(index) + ".act");
 
     auto path = m_pimpl->m_path / file_name;
     std::istream_iterator<char> end, begin;

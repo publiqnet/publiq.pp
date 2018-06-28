@@ -19,6 +19,7 @@
 #include <chrono>
 #include <unordered_set>
 #include <vector>
+#include <stack>
 
 using namespace BlockchainMessage;
 
@@ -572,8 +573,33 @@ bool node::run()
                             }
                             else if (RevertLastAction::rtt == submitactions_msg.item.type())
                             {   //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
+
+                                // check if last action is revert
+                                int revert_mark = 0;
+                                size_t index = m_pimpl->m_state.action_log().length() - 1;
+                                bool revert = index > 0;
+
+                                while (revert)
+                                {
+                                    beltpp::packet packet;
+                                    m_pimpl->m_state.action_log().at(index, packet);
+
+                                    revert = packet.type() == RevertActionAt::rtt;
+
+                                    if (revert)
+                                        ++revert_mark;
+                                    else
+                                        --revert_mark;
+
+                                    if (revert_mark >= 0)
+                                        --index;
+                                    else
+                                        revert = false;
+                                }
+
+                                // revert last valid action
                                 RevertActionAt msg_revert;
-                                msg_revert.index = m_pimpl->m_state.action_log().length() - 1;
+                                msg_revert.index = index;
 
                                 m_pimpl->m_state.action_log().insert(msg_revert);
                                 psk->send(peerid, Done());
@@ -614,15 +640,72 @@ bool node::run()
                     ref_packet.get(msg_get_actions);
                     uint64_t index = msg_get_actions.start_index;
 
+                    std::stack<Action> action_stack;
+
+                    size_t i = index + 1; // log[index] was already sent
+                    size_t len = m_pimpl->m_state.action_log().length();
+
+                    bool revert = i < len;
+                    while (revert) //the case when next action is revert
+                    {
+                        beltpp::packet packet;
+                        m_pimpl->m_state.action_log().at(i, packet);
+
+                        revert = packet.type() == RevertActionAt::rtt;
+
+                        if (revert)
+                        {
+                            ++i;
+                            Action action;
+                            action.index = i;
+                            action.item = std::move(packet);
+
+                            action_stack.push(action);
+                        }
+                    }
+
+                    for (; i < len; ++i)
+                    {
+                        beltpp::packet packet;
+                        m_pimpl->m_state.action_log().at(i, packet);
+
+                        // remove all not received entries and their reverts
+                        revert = packet.type() == RevertActionAt::rtt;
+                        if (revert)
+                        {
+                            RevertActionAt msg;
+                            packet.get(msg);
+
+                            revert = msg.index > index;
+                        }
+
+                        if (revert) 
+                        {
+                            action_stack.pop();
+                        }
+                        else
+                        {
+
+                            Action action;
+                            action.index = i;
+                            action.item = std::move(packet);
+
+                            action_stack.push(action);
+                        }
+                    }
+
+                    std::stack<Action> reverse_stack;
+                    while (!action_stack.empty()) // revers the stack
+                    {
+                        reverse_stack.push(action_stack.top());
+                        action_stack.pop();
+                    }
+
                     Actions msg_actions;
-                    for (size_t i = index; i < m_pimpl->m_state.action_log().length(); ++i)
-                    {   //  TO DO: use collapse algorithm to process revert actions
-                        beltpp::packet action;
-                        m_pimpl->m_state.action_log().at(i, action);
-                        Action item;
-                        item.index = i;
-                        item.item = std::move(action);
-                        msg_actions.list.push_back(std::move(item));
+                    while(!reverse_stack.empty()) // list is a vector in reality :)
+                    {
+                        msg_actions.list.push_back(std::move(reverse_stack.top()));
+                        reverse_stack.pop();
                     }
 
                     psk->send(peerid, msg_actions);
