@@ -135,6 +135,7 @@ module BlockchainMessage
     class RevertActionAt // 25
     {
         UInt64 index
+        Object item
     }
 
     class RevertLastAction {} // 26

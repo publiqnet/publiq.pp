@@ -598,8 +598,12 @@ bool node::run()
                                 }
 
                                 // revert last valid action
+                                beltpp::packet packet;
+                                m_pimpl->m_state.action_log().at(index, packet);
+
                                 RevertActionAt msg_revert;
                                 msg_revert.index = index;
+                                msg_revert.item = std::move(packet);
 
                                 m_pimpl->m_state.action_log().insert(msg_revert);
                                 psk->send(peerid, Done());
