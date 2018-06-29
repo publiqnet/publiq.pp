@@ -561,18 +561,18 @@ bool node::run()
                             SubmitActions submitactions_msg;
                             ref_packet.get(submitactions_msg);
 
-                            if (Reward::rtt == submitactions_msg.item.type())
-                            {   //  check reward, account and coin rtts for testing
+                            switch (submitactions_msg.item.type())
+                            {
+                            case Reward::rtt: //  check reward for testing
+                            case Transfer::rtt: // check transaction for testing
+                            case NewArticle::rtt:
+                            {
                                 m_pimpl->m_state.action_log().insert(submitactions_msg.item);
                                 psk->send(peerid, Done());
+                                break;
                             }
-                            else if (Transfer::rtt == submitactions_msg.item.type())
-                            {   // check transaction
-                                m_pimpl->m_state.action_log().insert(submitactions_msg.item);
-                                psk->send(peerid, Done());
-                            }
-                            else if (RevertLastAction::rtt == submitactions_msg.item.type())
-                            {   //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
+                            case RevertLastAction::rtt: //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
+                            {
                                 // check if last action is revert
                                 int revert_mark = 0;
                                 size_t index = m_pimpl->m_state.action_log().length() - 1;
@@ -610,11 +610,11 @@ bool node::run()
 
                                 m_pimpl->m_state.action_log().insert(msg_revert);
                                 psk->send(peerid, Done());
+                                break;
                             }
-                            else if (NewArticle::rtt == submitactions_msg.item.type())
-                            {
-                                m_pimpl->m_state.action_log().insert(submitactions_msg.item);
-                                psk->send(peerid, Done());
+                            default:
+                                throw std::runtime_error("Unsupported action!");
+                                break;
                             }
                         }
                         catch (std::exception const& ex)
@@ -689,7 +689,6 @@ bool node::run()
                         }
                         else
                         {
-
                             Action action;
                             action.index = i;
                             action.item = std::move(packet);
@@ -715,6 +714,9 @@ bool node::run()
                     psk->send(peerid, msg_actions);
                     break;
                 }
+                default:
+                    throw std::runtime_error("Unsupported action!");
+                    break;
                 }
             }
         }
