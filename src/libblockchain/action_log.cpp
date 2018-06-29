@@ -52,7 +52,7 @@ void action_log::insert(beltpp::packet const& packet)
         packet.type() != BlockchainMessage::Transfer::rtt &&
         packet.type() != BlockchainMessage::NewArticle::rtt &&
         packet.type() != BlockchainMessage::RevertActionAt::rtt)
-        throw std::runtime_error("Unknows rtt to insert:" + std::to_string(packet.type()));
+        throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
 
     string file_name(std::to_string(m_pimpl->m_length.as_const()->value) + ".act");
 
