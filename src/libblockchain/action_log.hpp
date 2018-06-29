@@ -25,10 +25,7 @@ public:
 
     size_t length() const;
 
-    void insert(BlockchainMessage::RevertActionAt const& msg_revert);
-    void insert(BlockchainMessage::Reward const& msg_reward);
-    void insert(BlockchainMessage::NewArticle const& msg_new_article);
-
+    void insert(beltpp::packet const& packet);
     bool at(size_t index, beltpp::packet& action) const;
 private:
     std::unique_ptr<detail::action_log_internals> m_pimpl;

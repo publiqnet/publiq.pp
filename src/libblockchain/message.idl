@@ -127,8 +127,8 @@ module BlockchainMessage
     class Transfer // 24
     {
         Address from
-        Coin amount
         Address to
+        Coin amount
     }
 
     class RevertActionAt // 25

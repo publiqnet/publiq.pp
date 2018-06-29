@@ -46,48 +46,29 @@ size_t action_log::length() const
     return m_pimpl->m_length->value;
 }
 
-void action_log::insert(BlockchainMessage::RevertActionAt const& msg_revert)
+void action_log::insert(beltpp::packet const& packet)
 {
-    using revert_loader = meshpp::file_loader<BlockchainMessage::RevertActionAt,
-                                                &BlockchainMessage::RevertActionAt::string_loader,
-                                                &BlockchainMessage::RevertActionAt::string_saver>;
+    if (packet.type() != BlockchainMessage::Reward::rtt &&
+        packet.type() != BlockchainMessage::Transfer::rtt &&
+        packet.type() != BlockchainMessage::NewArticle::rtt &&
+        packet.type() != BlockchainMessage::RevertActionAt::rtt)
+        throw std::runtime_error("Unknows rtt to insert:" + packet.type());
 
     string file_name(std::to_string(m_pimpl->m_length.as_const()->value) + ".act");
 
-    revert_loader rv(m_pimpl->m_path / file_name);
-    *rv = msg_revert;
-    rv.save();
+    boost::filesystem::ofstream fl;
+    fl.open(m_pimpl->m_path / file_name,
+        std::ios_base::binary |
+        std::ios_base::trunc);
 
-    m_pimpl->m_length->value++;
-    m_pimpl->m_length.save();
-}
+    if (!fl)
+        throw std::runtime_error("Can not create file: " + file_name);
 
-void action_log::insert(BlockchainMessage::Reward const& msg_reward)
-{
-    using reward_loader = meshpp::file_loader<BlockchainMessage::Reward,
-                                                &BlockchainMessage::Reward::string_loader,
-                                                &BlockchainMessage::Reward::string_saver>;
+    std::vector<char> packet_vec = packet.save();
+    size_t len = packet_vec.size();
 
-    string file_name(std::to_string(m_pimpl->m_length.as_const()->value) + ".act");
-
-    reward_loader rw(m_pimpl->m_path / file_name);
-    *rw = msg_reward;
-    rw.save();
-
-    m_pimpl->m_length->value++;
-    m_pimpl->m_length.save();
-}
-
-void action_log::insert(BlockchainMessage::NewArticle const& msg_new_article)
-{
-    using new_article_loader = meshpp::file_loader<BlockchainMessage::NewArticle,
-                                                    &BlockchainMessage::NewArticle::string_loader,
-                                                    &BlockchainMessage::NewArticle::string_saver>;
-
-    string file_name(std::to_string(m_pimpl->m_length.as_const()->value) + ".act");
-    new_article_loader na(m_pimpl->m_path / file_name);
-    *na = msg_new_article;
-    na.save();
+    for(auto i = 0; i < len; ++i)
+    fl << packet_vec[i];
 
     m_pimpl->m_length->value++;
     m_pimpl->m_length.save();

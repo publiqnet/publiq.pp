@@ -427,11 +427,9 @@ bool node::run()
                 psk = m_pimpl->m_ptr_rpc_socket.get();
 
             beltpp::socket::packets received_packets;
-            if (psk)
+            if (psk != nullptr)
             {
-                //m_pimpl->writeln_node(str_receive());
                 received_packets = psk->receive(peerid);
-                //m_pimpl->writeln_node("done");
             }
 
 
@@ -466,7 +464,7 @@ bool node::run()
                 }
 
                 packet& ref_packet = packets.back();
-
+                
                 switch (ref_packet.type())
                 {
                 case Join::rtt:
@@ -565,19 +563,20 @@ bool node::run()
 
                             if (Reward::rtt == submitactions_msg.item.type())
                             {   //  check reward, account and coin rtts for testing
-                                Reward msg_reward;
-                                submitactions_msg.item.get(msg_reward);
-
-                                m_pimpl->m_state.action_log().insert(msg_reward);
+                                m_pimpl->m_state.action_log().insert(submitactions_msg.item);
+                                psk->send(peerid, Done());
+                            }
+                            else if (Transfer::rtt == submitactions_msg.item.type())
+                            {   // check transaction
+                                m_pimpl->m_state.action_log().insert(submitactions_msg.item);
                                 psk->send(peerid, Done());
                             }
                             else if (RevertLastAction::rtt == submitactions_msg.item.type())
                             {   //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
-
                                 // check if last action is revert
                                 int revert_mark = 0;
                                 size_t index = m_pimpl->m_state.action_log().length() - 1;
-                                bool revert = index > 0;
+                                bool revert = true;
 
                                 while (revert)
                                 {
@@ -592,9 +591,13 @@ bool node::run()
                                         --revert_mark;
 
                                     if (revert_mark >= 0)
+                                    {
+                                        if (index == 0)
+                                            throw std::runtime_error("Nothing to revert!");
+
                                         --index;
-                                    else
-                                        revert = false;
+                                        revert = true;
+                                    }
                                 }
 
                                 // revert last valid action
@@ -610,10 +613,7 @@ bool node::run()
                             }
                             else if (NewArticle::rtt == submitactions_msg.item.type())
                             {
-                                NewArticle msg_new_article;
-                                submitactions_msg.item.get(msg_new_article);
-
-                                m_pimpl->m_state.action_log().insert(msg_new_article);
+                                m_pimpl->m_state.action_log().insert(submitactions_msg.item);
                                 psk->send(peerid, Done());
                             }
                         }
