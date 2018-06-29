@@ -62,13 +62,13 @@ void action_log::insert(beltpp::packet const& packet)
         std::ios_base::trunc);
 
     if (!fl)
-        throw std::runtime_error("Can not create file: " + file_name);
+        throw std::runtime_error("Cannot create file: " + file_name);
 
     std::vector<char> packet_vec = packet.save();
     size_t len = packet_vec.size();
 
-    for(auto i = 0; i < len; ++i)
-    fl << packet_vec[i];
+    for(size_t i = 0; i < len; ++i)
+        fl << packet_vec[i];
 
     m_pimpl->m_length->value++;
     m_pimpl->m_length.save();
