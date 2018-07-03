@@ -563,6 +563,11 @@ bool node::run()
                         get_actions(ref_packet, m_pimpl->m_state, *psk, peerid);
                     break;
                 }
+                case GetHash::rtt:
+                {
+                    get_hash(ref_packet, m_pimpl->m_state, *psk, peerid);;
+                    break;
+                }
                 default:
                     throw std::runtime_error("Unsupported message received!");
                     break;

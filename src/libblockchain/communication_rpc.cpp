@@ -1,7 +1,13 @@
 #include "communication_rpc.hpp"
 #include "message.hpp"
 
+#include <mesh.pp/cryptoutility.hpp>
+
 #include <stack>
+#include <vector>
+
+using std::vector;
+using std::stack;
 
 using namespace BlockchainMessage;
 
@@ -107,7 +113,7 @@ void get_actions(beltpp::packet const& packet,
         packet.get(msg_get_actions);
         uint64_t index = msg_get_actions.start_index;
 
-        std::stack<Action> action_stack;
+        stack<Action> action_stack;
 
         size_t i = index;
         size_t len = state.action_log().length();
@@ -196,3 +202,47 @@ void get_actions(beltpp::packet const& packet,
         }
     }
 }
+
+
+
+void get_hash(beltpp::packet const& packet,
+              publiqpp::state& state,
+              beltpp::isocket& sk,
+              beltpp::isocket::peer_id const& peerid)
+{
+    bool answered = false;
+
+    try
+    {
+        GetHash msg_get_hash;
+        packet.get(msg_get_hash);
+
+        vector<char> buffer = msg_get_hash.item.save();
+
+        HashResult msg_hash_result;
+        msg_hash_result.base58_hash = meshpp::hash(buffer.begin(), buffer.end());
+        msg_hash_result.item = std::move(msg_get_hash.item);
+
+        sk.send(peerid, msg_hash_result);
+        answered = true;
+    }
+    catch (std::exception const& ex)
+    {
+        if (false == answered)
+        {
+            Failed msg_failed;
+            msg_failed.message = ex.what();
+            sk.send(peerid, msg_failed);
+        }
+    }
+    catch (...)
+    {
+        if (false == answered)
+        {
+            Failed msg_failed;
+            msg_failed.message = "unknown exception";
+            sk.send(peerid, msg_failed);
+        }
+    }
+}
+

@@ -152,4 +152,15 @@ module BlockchainMessage
         String title
         Array String hash
     }
+
+    class GetHash
+    {
+        Object item
+    }
+
+    class HashResult
+    {
+        String base58_hash
+        Object item
+    }
 }
