@@ -175,6 +175,7 @@ void get_actions(beltpp::packet const& packet,
         }
 
         sk.send(peerid, msg_actions);
+        answered = true;
     }
     catch (std::exception const& ex)
     {
