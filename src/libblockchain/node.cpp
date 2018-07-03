@@ -2,6 +2,7 @@
 #include "state.hpp"
 #include "blockchain.hpp"
 #include "message.hpp"
+#include "communication_rpc.hpp"
 
 #include <belt.pp/packet.hpp>
 #include <belt.pp/utility.hpp>
@@ -19,7 +20,6 @@
 #include <chrono>
 #include <unordered_set>
 #include <vector>
-#include <stack>
 
 using namespace BlockchainMessage;
 
@@ -463,7 +463,7 @@ bool node::run()
                         break;
                 }
 
-                packet& ref_packet = packets.back();
+                packet const& ref_packet = packets.back();
                 
                 switch (ref_packet.type())
                 {
@@ -553,169 +553,18 @@ bool node::run()
                 }
                 case SubmitActions::rtt:
                 {
-                    bool answered = false;
                     if (it == interface_type::rpc)
-                    {
-                        try
-                        {
-                            SubmitActions submitactions_msg;
-                            ref_packet.get(submitactions_msg);
-
-                            switch (submitactions_msg.item.type())
-                            {
-                            case Reward::rtt: //  check reward for testing
-                            case Transfer::rtt: // check transaction for testing
-                            case NewArticle::rtt:
-                            {
-                                m_pimpl->m_state.action_log().insert(submitactions_msg.item);
-                                psk->send(peerid, Done());
-                                break;
-                            }
-                            case RevertLastAction::rtt: //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
-                            {
-                                // check if last action is revert
-                                int revert_mark = 0;
-                                size_t index = m_pimpl->m_state.action_log().length() - 1;
-                                bool revert = true;
-
-                                while (revert)
-                                {
-                                    beltpp::packet packet;
-                                    m_pimpl->m_state.action_log().at(index, packet);
-
-                                    revert = packet.type() == RevertActionAt::rtt;
-
-                                    if (revert)
-                                        ++revert_mark;
-                                    else
-                                        --revert_mark;
-
-                                    if (revert_mark >= 0)
-                                    {
-                                        if (index == 0)
-                                            throw std::runtime_error("Nothing to revert!");
-
-                                        --index;
-                                        revert = true;
-                                    }
-                                }
-
-                                // revert last valid action
-                                beltpp::packet packet;
-                                m_pimpl->m_state.action_log().at(index, packet);
-
-                                RevertActionAt msg_revert;
-                                msg_revert.index = index;
-                                msg_revert.item = std::move(packet);
-
-                                m_pimpl->m_state.action_log().insert(msg_revert);
-                                psk->send(peerid, Done());
-                                break;
-                            }
-                            default:
-                                throw std::runtime_error("Unsupported action!");
-                                break;
-                            }
-                        }
-                        catch (std::exception const& ex)
-                        {
-                            if (false == answered)
-                            {
-                                Failed msg_failed;
-                                msg_failed.message = ex.what();
-                                psk->send(peerid, msg_failed);
-                            }
-                        }
-                        catch (...)
-                        {
-                            if (false == answered)
-                            {
-                                Failed msg_failed;
-                                msg_failed.message = "unknown exception";
-                                psk->send(peerid, msg_failed);
-                            }
-                        }
-                    }
+                        submit_actions(ref_packet, m_pimpl->m_state, *psk, peerid);
                     break;
                 }
                 case GetActions::rtt:
                 {
-                    GetActions msg_get_actions;
-                    ref_packet.get(msg_get_actions);
-                    uint64_t index = msg_get_actions.start_index;
-
-                    std::stack<Action> action_stack;
-
-                    size_t i = index;
-                    size_t len = m_pimpl->m_state.action_log().length();
-
-                    bool revert = i < len;
-                    while (revert) //the case when next action is revert
-                    {
-                        beltpp::packet packet;
-                        m_pimpl->m_state.action_log().at(i, packet);
-
-                        revert = packet.type() == RevertActionAt::rtt;
-
-                        if (revert)
-                        {
-                            ++i;
-                            Action action;
-                            action.index = i;
-                            action.item = std::move(packet);
-
-                            action_stack.push(action);
-                        }
-                    }
-
-                    for (; i < len; ++i)
-                    {
-                        beltpp::packet packet;
-                        m_pimpl->m_state.action_log().at(i, packet);
-
-                        // remove all not received entries and their reverts
-                        revert = packet.type() == RevertActionAt::rtt;
-                        if (revert)
-                        {
-                            RevertActionAt msg;
-                            packet.get(msg);
-
-                            revert = msg.index >= index;
-                        }
-
-                        if (revert) 
-                        {
-                            action_stack.pop();
-                        }
-                        else
-                        {
-                            Action action;
-                            action.index = i;
-                            action.item = std::move(packet);
-
-                            action_stack.push(action);
-                        }
-                    }
-
-                    std::stack<Action> reverse_stack;
-                    while (!action_stack.empty()) // revers the stack
-                    {
-                        reverse_stack.push(action_stack.top());
-                        action_stack.pop();
-                    }
-
-                    Actions msg_actions;
-                    while(!reverse_stack.empty()) // list is a vector in reality :)
-                    {
-                        msg_actions.list.push_back(std::move(reverse_stack.top()));
-                        reverse_stack.pop();
-                    }
-
-                    psk->send(peerid, msg_actions);
+                    if (it == interface_type::rpc)
+                        get_actions(ref_packet, m_pimpl->m_state, *psk, peerid);
                     break;
                 }
                 default:
-                    throw std::runtime_error("Unsupported action!");
+                    throw std::runtime_error("Unsupported message received!");
                     break;
                 }
             }

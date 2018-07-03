@@ -167,12 +167,13 @@ int main(int argc, char** argv)
         auto fs_blockchain = settings::data_directory_path("blockchain");
         auto fs_action_log = settings::data_directory_path("action_log");
         auto fs_storage = settings::data_directory_path("storage");
+        //auto fs_logfile = fs_storage / "log.txt";
 
         cout << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
             cout << item.to_string() << endl;
 
-        beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p");
+        beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p"/*, fs_logfile.native()*/);
         plogger_p2p->disable();
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
         //plogger_rpc->disable();

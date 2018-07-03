@@ -21,6 +21,8 @@ add_library(blockchain
     action_log.hpp
     blockchain.cpp
     blockchain.hpp
+    communication_rpc.cpp
+    communication_rpc.hpp
     state.cpp
     state.hpp
     storage.cpp
