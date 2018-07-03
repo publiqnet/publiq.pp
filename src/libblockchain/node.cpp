@@ -11,6 +11,7 @@
 #include <belt.pp/socket.hpp>
 #include <belt.pp/packet.hpp>
 #include <belt.pp/message_global.hpp>
+#include <belt.pp/scope_helper.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
 
@@ -333,8 +334,6 @@ public:
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
     publiqpp::state m_state;
-
-    unordered_set<string> p2p_peers;
 };
 }
 
@@ -464,6 +463,9 @@ bool node::run()
                 }
 
                 packet const& ref_packet = packets.back();
+
+                if (it == interface_type::p2p)
+                    m_pimpl->m_state.check_response(peerid, ref_packet);
                 
                 switch (ref_packet.type())
                 {
@@ -473,7 +475,17 @@ bool node::run()
                     m_pimpl->writeln_node("joined");
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                        m_pimpl->p2p_peers.insert(peerid);
+                    {
+                        beltpp::scope_helper guard([]{},
+                            [&peerid, &psk] { psk->send(peerid, Drop()); });
+
+                        m_pimpl->m_state.add_peer(peerid);
+
+                        guard.commit();
+
+                        //m_pimpl->m_state.set_request(peerid, GetChainInfo());
+                        //psk->send(peerid, GetChainInfo());
+                    }
 
                     break;
                 }
@@ -483,7 +495,7 @@ bool node::run()
                     m_pimpl->writeln_node("dropped");
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                        m_pimpl->p2p_peers.erase(peerid);
+                        m_pimpl->m_state.remove_peer(peerid);
 
                     break;
                 }
@@ -494,12 +506,15 @@ bool node::run()
                     psk->send(peerid, Drop());
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                        m_pimpl->p2p_peers.erase(peerid);
+                        m_pimpl->m_state.remove_peer(peerid);
 
                     break;
                 }
                 case Hellow::rtt:
                 {
+                    if (it != interface_type::rpc)
+                        break;
+
                     Hellow hellow_msg;
                     ref_packet.get(hellow_msg);
 
@@ -516,13 +531,16 @@ bool node::run()
                         if (hellow_msg.index % 1000 == 0)
                             m_pimpl->writeln_node("broadcasting hellow");
 
-                        for (auto const& p2p_peer : m_pimpl->p2p_peers)
+                        for (auto const& p2p_peer : m_pimpl->m_state.peers())
                             m_pimpl->m_ptr_p2p_socket->send(p2p_peer, hellow_msg);
                     }
                     break;
                 }
                 case Shutdown::rtt:
                 {
+                    if (it != interface_type::rpc)
+                        break;
+
                     m_pimpl->writeln_node("shutdown received");
 
                     code = false;
@@ -539,7 +557,7 @@ bool node::run()
                         Shutdown shutdown_msg;
                         ref_packet.get(shutdown_msg);
 
-                        for (auto const& p2p_peer : m_pimpl->p2p_peers)
+                        for (auto const& p2p_peer : m_pimpl->m_state.peers())
                             m_pimpl->m_ptr_p2p_socket->send(p2p_peer, shutdown_msg);
                     }
                     break;
@@ -565,11 +583,15 @@ bool node::run()
                 }
                 case GetHash::rtt:
                 {
-                    get_hash(ref_packet, m_pimpl->m_state, *psk, peerid);;
+                    get_hash(ref_packet, m_pimpl->m_state, *psk, peerid);
                     break;
                 }
                 default:
-                    throw std::runtime_error("Unsupported message received!");
+                    m_pimpl->writeln_node("dropping " + peerid);
+                    psk->send(peerid, Drop());
+
+                    if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                        m_pimpl->m_state.remove_peer(peerid);
                     break;
                 }
             }
@@ -581,6 +603,13 @@ bool node::run()
 
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
+
+        auto const& peerids_to_remove = m_pimpl->m_state.do_step();
+        for (auto const& peerid_to_remove : peerids_to_remove)
+        {
+            m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, Drop());
+            m_pimpl->m_state.remove_peer(peerid_to_remove);
+        }
     }
 
     return code;

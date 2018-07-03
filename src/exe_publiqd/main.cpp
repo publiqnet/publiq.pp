@@ -173,7 +173,8 @@ int main(int argc, char** argv)
         for (auto const& item : p2p_connect_to_addresses)
             cout << item.to_string() << endl;
 
-        beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p"/*, fs_logfile.native()*/);
+        //beltpp::ilog_ptr plogger_p2p = beltpp::file_logger("exe_publiqd_p2p", fs_logfile.native());
+        beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p");
         plogger_p2p->disable();
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
         //plogger_rpc->disable();

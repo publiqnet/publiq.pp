@@ -6,9 +6,13 @@
 #include "action_log.hpp"
 #include "storage.hpp"
 
+#include <belt.pp/isocket.hpp>
+
 #include <boost/filesystem/path.hpp>
 
 #include <memory>
+#include <unordered_set>
+#include <vector>
 
 namespace publiqpp
 {
@@ -27,6 +31,13 @@ public:
     publiqpp::blockchain& blockchain();
     publiqpp::action_log& action_log();
     publiqpp::storage& storage();
+
+    std::unordered_set<beltpp::isocket::peer_id> const& peers() const;
+    void add_peer(beltpp::isocket::peer_id const& peerid);
+    void remove_peer(beltpp::isocket::peer_id const& peerid);
+    void check_response(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet);
+    void set_request(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet);
+    std::vector<beltpp::isocket::peer_id> do_step();
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
 };

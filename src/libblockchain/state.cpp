@@ -3,9 +3,16 @@
 #include "action_log.hpp"
 #include "storage.hpp"
 
+#include <belt.pp/isocket.hpp>
+
 #include <cryptopp/sha.h>
 #include <cryptopp/filters.h>
 #include <cryptopp/base64.h>
+
+#include <utility>
+
+using std::unordered_set;
+using std::vector;
 
 std::string SHA256HashString(std::string aString){
     std::string digest;
@@ -40,6 +47,8 @@ public:
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
     publiqpp::storage m_storage;
+
+    unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
 };
 }
 
@@ -72,4 +81,39 @@ publiqpp::storage& state::storage()
 {
     return m_pimpl->m_storage;
 }
+
+unordered_set<beltpp::isocket::peer_id> const& state::peers() const
+{
+    return m_pimpl->m_p2p_peers;
+}
+
+void state::add_peer(beltpp::isocket::peer_id const& peerid)
+{
+    std::pair<unordered_set<beltpp::isocket::peer_id>::iterator, bool> result =
+            m_pimpl->m_p2p_peers.insert(peerid);
+
+    if (result.second == false)
+        throw std::runtime_error("p2p peer already exists: " + peerid);
+}
+
+void state::remove_peer(beltpp::isocket::peer_id const& peerid)
+{
+    if (0 == m_pimpl->m_p2p_peers.erase(peerid))
+        throw std::runtime_error("p2p peer not found to remove: " + peerid);
+}
+
+void state::check_response(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet)
+{
+}
+
+void state::set_request(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet)
+{
+
+}
+
+vector<beltpp::isocket::peer_id> state::do_step()
+{
+    return vector<beltpp::isocket::peer_id>();
+}
+
 }
