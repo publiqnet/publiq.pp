@@ -6,6 +6,7 @@
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 #include <publiq.pp/node.hpp>
 
@@ -120,6 +121,8 @@ int main(int argc, char** argv)
     //  boost filesystem UTF-8 support
     std::locale::global(boost::locale::generator().generate(""));
     boost::filesystem::path::imbue(std::locale());
+    //
+    meshpp::config::set_public_key_prefix("PBQ");
     //
     settings::settings::set_application_name("publiqd");
     settings::settings::set_data_directory(settings::config_directory_path().string());

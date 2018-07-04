@@ -163,4 +163,14 @@ module BlockchainMessage
         String base58_hash
         Object item
     }
+
+    class RemoteError
+    {
+        String message
+    }
+
+    class InvalidAddress
+    {
+        Address item
+    }
 }

@@ -2,6 +2,7 @@
 #include "blockchain.hpp"
 #include "action_log.hpp"
 #include "storage.hpp"
+#include "message.hpp"
 
 #include <belt.pp/isocket.hpp>
 
@@ -10,8 +11,11 @@
 #include <cryptopp/base64.h>
 
 #include <utility>
+#include <unordered_map>
+#include <cassert>
 
 using std::unordered_set;
+using std::unordered_map;
 using std::vector;
 
 std::string SHA256HashString(std::string aString){
@@ -33,6 +37,13 @@ namespace publiqpp
 {
 namespace detail
 {
+class packet_and_expiry
+{
+public:
+    beltpp::packet packet;
+    size_t expiry;
+};
+
 class state_internals
 {
 public:
@@ -49,6 +60,7 @@ public:
     publiqpp::storage m_storage;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
+    unordered_map<beltpp::isocket::peer_id, vector<packet_and_expiry>> m_stored_requests;
 };
 }
 
@@ -59,12 +71,10 @@ state::state(filesystem::path const& fs_blockchain,
                                           fs_action_log,
                                           fs_storage))
 {
-
 }
 
 state::~state()
 {
-
 }
 
 publiqpp::blockchain& state::blockchain()
@@ -102,13 +112,25 @@ void state::remove_peer(beltpp::isocket::peer_id const& peerid)
         throw std::runtime_error("p2p peer not found to remove: " + peerid);
 }
 
-void state::check_response(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet)
+void state::find_stored_request(beltpp::isocket::peer_id const& peerid)
 {
 }
 
-void state::set_request(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet)
+void state::store_request(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet)
 {
-
+    detail::packet_and_expiry pck;
+    BlockchainMessage::detail::assign_packet(pck.packet, packet);
+    pck.expiry = 2;
+    auto it = m_pimpl->m_stored_requests.find(peerid);
+    if (it == m_pimpl->m_stored_requests.end())
+    {
+        vector<detail::packet_and_expiry> temp;
+        auto res =
+                m_pimpl->m_stored_requests.insert(std::move(std::make_pair(peerid, std::move(temp))));
+        assert(res.second == true);
+        it = res.first;
+    }
+    it->second.push_back(std::move(pck));
 }
 
 vector<beltpp::isocket::peer_id> state::do_step()

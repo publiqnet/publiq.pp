@@ -14,6 +14,7 @@
 #include <belt.pp/scope_helper.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 #include <exception>
 #include <string>
@@ -427,12 +428,11 @@ bool node::run()
 
             beltpp::socket::packets received_packets;
             if (psk != nullptr)
-            {
                 received_packets = psk->receive(peerid);
-            }
-
 
             for (auto& received_packet : received_packets)
+            {
+            try
             {
                 bool broadcast_packet = false;
 
@@ -464,8 +464,8 @@ bool node::run()
 
                 packet const& ref_packet = packets.back();
 
-                if (it == interface_type::p2p)
-                    m_pimpl->m_state.check_response(peerid, ref_packet);
+                //if (it == interface_type::p2p)
+                    //m_pimpl->m_state.check_response(peerid, ref_packet);
                 
                 switch (ref_packet.type())
                 {
@@ -483,7 +483,7 @@ bool node::run()
 
                         guard.commit();
 
-                        //m_pimpl->m_state.set_request(peerid, GetChainInfo());
+                        //m_pimpl->m_state.store_request(peerid, GetChainInfo());
                         //psk->send(peerid, GetChainInfo());
                     }
 
@@ -587,6 +587,7 @@ bool node::run()
                     break;
                 }
                 default:
+                {
                     m_pimpl->writeln_node("dropping " + peerid);
                     psk->send(peerid, Drop());
 
@@ -594,8 +595,31 @@ bool node::run()
                         m_pimpl->m_state.remove_peer(peerid);
                     break;
                 }
+                }   // switch
             }
-        }
+            catch (meshpp::exception_public_key const& e)
+            {
+                InvalidAddress msg;
+                msg.item.public_key = e.pub_key;
+                psk->send(peerid, msg);
+                throw;
+            }
+            catch(std::exception const& e)
+            {
+                RemoteError msg;
+                msg.message = e.what();
+                psk->send(peerid, msg);
+                throw;
+            }
+            catch (...)
+            {
+                RemoteError msg;
+                msg.message = "unknown exception";
+                psk->send(peerid, msg);
+                throw;
+            }
+            }   // for (auto& received_packet : received_packets)
+        }   // for (auto& pevent_item : wait_sockets)
     }
     else if (beltpp::event_handler::timer_out == wait_result)
     {
@@ -607,6 +631,7 @@ bool node::run()
         auto const& peerids_to_remove = m_pimpl->m_state.do_step();
         for (auto const& peerid_to_remove : peerids_to_remove)
         {
+            m_pimpl->writeln_node("dropping " + peerid_to_remove);
             m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, Drop());
             m_pimpl->m_state.remove_peer(peerid_to_remove);
         }

@@ -35,8 +35,8 @@ public:
     std::unordered_set<beltpp::isocket::peer_id> const& peers() const;
     void add_peer(beltpp::isocket::peer_id const& peerid);
     void remove_peer(beltpp::isocket::peer_id const& peerid);
-    void check_response(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet);
-    void set_request(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet);
+    void find_stored_request(beltpp::isocket::peer_id const& peerid);
+    void store_request(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet);
     std::vector<beltpp::isocket::peer_id> do_step();
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
