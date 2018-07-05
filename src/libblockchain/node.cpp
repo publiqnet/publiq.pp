@@ -464,8 +464,9 @@ bool node::run()
 
                 packet const& ref_packet = packets.back();
 
-                //if (it == interface_type::p2p)
-                    //m_pimpl->m_state.check_response(peerid, ref_packet);
+                packet stored_packet;
+                if (it == interface_type::p2p)
+                    m_pimpl->m_state.find_stored_request(peerid, stored_packet);
                 
                 switch (ref_packet.type())
                 {
@@ -483,8 +484,8 @@ bool node::run()
 
                         guard.commit();
 
-                        //m_pimpl->m_state.store_request(peerid, GetChainInfo());
-                        //psk->send(peerid, GetChainInfo());
+                        m_pimpl->m_state.store_request(peerid, GetChainInfo());
+                        psk->send(peerid, GetChainInfo());
                     }
 
                     break;
@@ -569,6 +570,16 @@ bool node::run()
                     psk->send(peerid, chaininfo_msg);
                     break;
                 }
+                case ChainInfo::rtt:
+                {
+                    if (it == interface_type::p2p)
+                    {
+                        m_pimpl->m_state.reset_stored_request(peerid);
+                        if (stored_packet.type() != GetChainInfo::rtt)
+                            throw std::runtime_error("I didn't ask for chain info");
+                    }
+                    break;
+                }
                 case SubmitActions::rtt:
                 {
                     if (it == interface_type::rpc)
@@ -588,7 +599,7 @@ bool node::run()
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("dropping " + peerid);
+                    m_pimpl->writeln_node("don't know how to handle: dropping " + peerid);
                     psk->send(peerid, Drop());
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
@@ -631,7 +642,7 @@ bool node::run()
         auto const& peerids_to_remove = m_pimpl->m_state.do_step();
         for (auto const& peerid_to_remove : peerids_to_remove)
         {
-            m_pimpl->writeln_node("dropping " + peerid_to_remove);
+            m_pimpl->writeln_node("not answering: dropping " + peerid_to_remove);
             m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, Drop());
             m_pimpl->m_state.remove_peer(peerid_to_remove);
         }

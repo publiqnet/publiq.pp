@@ -60,7 +60,7 @@ public:
     publiqpp::storage m_storage;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
-    unordered_map<beltpp::isocket::peer_id, vector<packet_and_expiry>> m_stored_requests;
+    unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
 };
 }
 
@@ -108,34 +108,49 @@ void state::add_peer(beltpp::isocket::peer_id const& peerid)
 
 void state::remove_peer(beltpp::isocket::peer_id const& peerid)
 {
+    reset_stored_request(peerid);
     if (0 == m_pimpl->m_p2p_peers.erase(peerid))
         throw std::runtime_error("p2p peer not found to remove: " + peerid);
 }
 
-void state::find_stored_request(beltpp::isocket::peer_id const& peerid)
+void state::find_stored_request(beltpp::isocket::peer_id const& peerid,
+                                beltpp::packet& packet)
 {
+    auto it = m_pimpl->m_stored_requests.find(peerid);
+    if (it != m_pimpl->m_stored_requests.end())
+    {
+        BlockchainMessage::detail::assign_packet(packet, it->second.packet);
+    }
 }
 
-void state::store_request(beltpp::isocket::peer_id const& peerid, beltpp::packet const& packet)
+void state::reset_stored_request(beltpp::isocket::peer_id const& peerid)
+{
+    m_pimpl->m_stored_requests.erase(peerid);
+}
+
+void state::store_request(beltpp::isocket::peer_id const& peerid,
+                          beltpp::packet const& packet)
 {
     detail::packet_and_expiry pck;
     BlockchainMessage::detail::assign_packet(pck.packet, packet);
     pck.expiry = 2;
-    auto it = m_pimpl->m_stored_requests.find(peerid);
-    if (it == m_pimpl->m_stored_requests.end())
-    {
-        vector<detail::packet_and_expiry> temp;
-        auto res =
-                m_pimpl->m_stored_requests.insert(std::move(std::make_pair(peerid, std::move(temp))));
-        assert(res.second == true);
-        it = res.first;
-    }
-    it->second.push_back(std::move(pck));
+    auto res = m_pimpl->m_stored_requests.insert(std::make_pair(peerid, std::move(pck)));
+    if (false == res.second)
+        throw std::runtime_error("only one request is supported at a time");
 }
 
 vector<beltpp::isocket::peer_id> state::do_step()
 {
-    return vector<beltpp::isocket::peer_id>();
+    vector<beltpp::isocket::peer_id> result;
+
+    for (auto& key_value : m_pimpl->m_stored_requests)
+    {
+        if (0 == key_value.second.expiry)
+            result.push_back(key_value.first);
+
+        --key_value.second.expiry;
+    }
+    return result;
 }
 
 }
