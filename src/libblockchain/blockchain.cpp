@@ -39,6 +39,6 @@ blockchain::~blockchain()
 
 size_t blockchain::length() const
 {
-    return m_pimpl->m_length->value;
+    return m_pimpl->m_length.as_const()->value;
 }
 }

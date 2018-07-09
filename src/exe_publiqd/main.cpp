@@ -170,6 +170,8 @@ int main(int argc, char** argv)
         auto fs_blockchain = settings::data_directory_path("blockchain");
         auto fs_action_log = settings::data_directory_path("action_log");
         auto fs_storage = settings::data_directory_path("storage");
+        auto fs_transaction_pool = settings::data_directory_path("transaction_pool");
+        auto fs_state = settings::data_directory_path("state");
         //auto fs_logfile = fs_storage / "log.txt";
 
         cout << p2p_bind_to_address.to_string() << endl;
@@ -188,6 +190,8 @@ int main(int argc, char** argv)
                             fs_blockchain,
                             fs_action_log,
                             fs_storage,
+                            fs_transaction_pool,
+                            fs_state,
                             plogger_p2p.get(),
                             plogger_rpc.get());
 

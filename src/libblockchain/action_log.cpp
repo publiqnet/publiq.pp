@@ -43,7 +43,7 @@ action_log::~action_log()
 
 size_t action_log::length() const
 {
-    return m_pimpl->m_length->value;
+    return m_pimpl->m_length.as_const()->value;
 }
 
 void action_log::insert(beltpp::packet const& packet)
@@ -101,7 +101,7 @@ bool action_log::at(size_t index, beltpp::packet& action) const
     if (pmsgall.rtt == 0 ||
         pmsgall.pmsg == nullptr)
     {
-        throw std::runtime_error("action_log::pop(): " + path.string());
+        throw std::runtime_error("action_log::at(): " + path.string());
     }
     else
     {

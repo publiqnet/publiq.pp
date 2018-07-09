@@ -4,4 +4,9 @@ module Data
     {
         UInt64 value
     }
+
+    class HashIndex
+    {
+        Array String keys
+    }
 }

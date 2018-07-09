@@ -23,28 +23,31 @@ add_library(blockchain
     blockchain.hpp
     communication_rpc.cpp
     communication_rpc.hpp
-    state.cpp
-    state.hpp
-    storage.cpp
-    storage.hpp
     data.hpp
     data.gen.hpp
     message.hpp
     message.gen.hpp
     node.cpp
-    node.hpp)
+    node.hpp
+    state.cpp
+    state.hpp
+    storage.cpp
+    storage.hpp
+    transaction_pool.cpp
+    transaction_pool.hpp)
 
 # libraries this module links to
-target_link_libraries(blockchain PUBLIC
-    mesh.pp
-    belt.pp
-    packet
+target_link_libraries(blockchain
+    PUBLIC
+        mesh.pp
+        belt.pp
     PRIVATE
-    utility
-    p2psocket
-    socket
-    systemutility
-    cryptoutility)
+        packet
+        utility
+        p2psocket
+        socket
+        systemutility
+        cryptoutility)
 
 # what to do on make install
 install(TARGETS blockchain

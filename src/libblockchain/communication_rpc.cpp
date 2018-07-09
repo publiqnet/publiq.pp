@@ -12,7 +12,7 @@ using std::stack;
 using namespace BlockchainMessage;
 
 void submit_actions(beltpp::packet const& packet,
-                    publiqpp::state& state,
+                    publiqpp::action_log& action_log,
                     beltpp::isocket& sk,
                     beltpp::isocket::peer_id const& peerid)
 {
@@ -40,7 +40,7 @@ void submit_actions(beltpp::packet const& packet,
             meshpp::public_key temp1(msg_transfer.to.public_key);
             meshpp::public_key temp2(msg_transfer.from.public_key);
         }
-        state.action_log().insert(submitactions_msg.item);
+        action_log.insert(submitactions_msg.item);
         sk.send(peerid, Done());
         break;
     }
@@ -48,13 +48,13 @@ void submit_actions(beltpp::packet const& packet,
     {
         // check if last action is revert
         int revert_mark = 0;
-        size_t index = state.action_log().length() - 1;
+        size_t index = action_log.length() - 1;
         bool revert = true;
 
         while (revert)
         {
             beltpp::packet packet;
-            state.action_log().at(index, packet);
+            action_log.at(index, packet);
 
             revert = packet.type() == RevertActionAt::rtt;
 
@@ -75,13 +75,13 @@ void submit_actions(beltpp::packet const& packet,
 
         // revert last valid action
         beltpp::packet packet;
-        state.action_log().at(index, packet);
+        action_log.at(index, packet);
 
         RevertActionAt msg_revert;
         msg_revert.index = index;
         msg_revert.item = std::move(packet);
 
-        state.action_log().insert(msg_revert);
+        action_log.insert(msg_revert);
         sk.send(peerid, Done());
         break;
     }
@@ -92,7 +92,7 @@ void submit_actions(beltpp::packet const& packet,
 }
 
 void get_actions(beltpp::packet const& packet,
-                 publiqpp::state& state,
+                 publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
                  beltpp::isocket::peer_id const& peerid)
 {
@@ -103,13 +103,13 @@ void get_actions(beltpp::packet const& packet,
     stack<Action> action_stack;
 
     size_t i = index;
-    size_t len = state.action_log().length();
+    size_t len = action_log.length();
 
     bool revert = i < len;
     while (revert) //the case when next action is revert
     {
         beltpp::packet packet;
-        state.action_log().at(i, packet);
+        action_log.at(i, packet);
 
         revert = packet.type() == RevertActionAt::rtt;
 
@@ -127,7 +127,7 @@ void get_actions(beltpp::packet const& packet,
     for (; i < len; ++i)
     {
         beltpp::packet packet;
-        state.action_log().at(i, packet);
+        action_log.at(i, packet);
 
         // remove all not received entries and their reverts
         revert = packet.type() == RevertActionAt::rtt;
@@ -171,7 +171,6 @@ void get_actions(beltpp::packet const& packet,
 }
 
 void get_hash(beltpp::packet const& packet,
-              publiqpp::state& state,
               beltpp::isocket& sk,
               beltpp::isocket::peer_id const& peerid)
 {
