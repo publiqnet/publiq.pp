@@ -12,6 +12,13 @@
 namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
+using hash_index_loader = meshpp::file_loader<Data::StringSet, 
+                                              &Data::StringSet::string_loader,
+                                              &Data::StringSet::string_saver>;
+using hash_index_locked_loader = meshpp::file_locker<hash_index_loader>;
+using transaction_data_loader = meshpp::file_loader<BlockchainMessage::TransactionFileData,
+                                                    &BlockchainMessage::TransactionFileData::string_loader,
+                                                    &BlockchainMessage::TransactionFileData::string_saver>;
 
 namespace publiqpp
 {
@@ -27,15 +34,25 @@ public:
     {
 
     }
-    using hash_index_loader = meshpp::file_loader<Data::HashIndex, &Data::HashIndex::string_loader, &Data::HashIndex::string_saver>;
-    using hash_index_locked_loader = meshpp::file_locker<hash_index_loader>;
 
     filesystem::path m_path;
     hash_index_locked_loader m_index;
+
+    string get_df_id(string const& hash) const
+    {
+        //string s = hash.substr(hash.size()-3, 3);
+        //int i = 10000 + std::stoi(s, 0, 16);
+        //
+        //s = std::to_string(i);
+        //
+        //return s.substr(1, 4);
+
+        return "0000"; //TODO later
+    }
 };
 }
 
-transaction_pool::transaction_pool(boost::filesystem::path const& fs_transaction_pool)
+transaction_pool::transaction_pool(filesystem::path const& fs_transaction_pool)
     : m_pimpl(new detail::transaction_pool_internals(fs_transaction_pool))
 {
 
@@ -45,74 +62,56 @@ transaction_pool::~transaction_pool()
 
 }
 
-vector<std::string> transaction_pool::keys() const
-{
-    return m_pimpl->m_index.as_const()->keys;
-}
-
 void transaction_pool::insert(beltpp::packet const& packet)
 {
     if (packet.type() != BlockchainMessage::Transfer::rtt)
         throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
 
     vector<char> packet_vec = packet.save();
-    auto str_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
-    string file_name(str_hash + ".tpool");
+    string packet_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+    string hash_id = m_pimpl->get_df_id(packet_hash);
+    string file_name("df" + hash_id + ".tpool");
 
-    boost::filesystem::ofstream fl;
-    fl.open(m_pimpl->m_path / file_name,
-        std::ios_base::binary |
-        std::ios_base::trunc);
+    m_pimpl->m_index->dictionary.insert(packet_hash);
+    transaction_data_loader file_data(m_pimpl->m_path / file_name);
 
-    if (!fl)
-        throw std::runtime_error("Cannot create file: " + file_name);
+    BlockchainMessage::Transfer transfer;
+    packet.get(transfer);
 
-    fl.write(&packet_vec.front(), packet_vec.size());
-
-    m_pimpl->m_index->keys.push_back(str_hash);
-    std::sort(m_pimpl->m_index->keys.begin(), m_pimpl->m_index->keys.end());
+    file_data->transactions[packet_hash] = transfer;
+    
+    file_data.save();
     m_pimpl->m_index.save();
 }
 
-bool transaction_pool::at(std::string const& key, beltpp::packet& transaction) const
+bool transaction_pool::at(string const& key, beltpp::packet& transaction) const
 {
-    bool found =
-            std::binary_search(m_pimpl->m_index.as_const()->keys.begin(),
-                               m_pimpl->m_index.as_const()->keys.end(),
-                               key);
-    if (false == found)
+    if (m_pimpl->m_index->dictionary.find(key) == m_pimpl->m_index->dictionary.end())
         return false;
 
-    string file_name(key + ".tpool");
+    string hash_id = m_pimpl->get_df_id(key);
+    string file_name("df" + hash_id + ".tpool");
 
-    auto path = m_pimpl->m_path / file_name;
-    std::istream_iterator<char> end, begin;
-    boost::filesystem::ifstream fl;
-    meshpp::load_file(path, fl, begin, end);
+    transaction_data_loader file_data(m_pimpl->m_path / file_name);
+    transaction = file_data.as_const()->transactions.at(key);
+    
+    return true;
+}
 
-    beltpp::detail::session_special_data ssd;
-    ::beltpp::detail::pmsg_all pmsgall(size_t(-1),
-                                       ::beltpp::void_unique_ptr(nullptr, [](void*){}),
-                                       nullptr);
-    if (fl && begin != end)
-    {
-        string file_all(begin, end);
-        beltpp::iterator_wrapper<char const> it_begin(file_all.begin());
-        beltpp::iterator_wrapper<char const> it_end(file_all.end());
-        pmsgall = BlockchainMessage::message_list_load(it_begin, it_end, ssd, nullptr);
-    }
+bool transaction_pool::remove(string const& key)
+{
+    if (m_pimpl->m_index->dictionary.find(key) == m_pimpl->m_index->dictionary.end())
+        return false;
 
-    if (pmsgall.rtt == 0 ||
-        pmsgall.pmsg == nullptr)
-    {
-        throw std::runtime_error("transaction_pool::at(): " + path.string());
-    }
-    else
-    {
-        transaction.set(pmsgall.rtt,
-                        std::move(pmsgall.pmsg),
-                        pmsgall.fsaver);
-    }
+    string hash_id = m_pimpl->get_df_id(key);
+    string file_name("df" + hash_id + ".tpool");
+
+    m_pimpl->m_index->dictionary.erase(key);
+    transaction_data_loader file_data(m_pimpl->m_path / file_name);
+    file_data->transactions.erase(key);
+
+    file_data.save();
+    m_pimpl->m_index.save();
 
     return true;
 }

@@ -13,6 +13,7 @@ using namespace BlockchainMessage;
 
 void submit_actions(beltpp::packet const& packet,
                     publiqpp::action_log& action_log,
+                    publiqpp::transaction_pool& transaction_pool,
                     beltpp::isocket& sk,
                     beltpp::isocket::peer_id const& peerid)
 {
@@ -37,8 +38,10 @@ void submit_actions(beltpp::packet const& packet,
             Transfer msg_transfer;
             submitactions_msg.item.get(msg_transfer);
             // following will throw on invalid public key
-            meshpp::public_key temp1(msg_transfer.to.public_key);
-            meshpp::public_key temp2(msg_transfer.from.public_key);
+            //meshpp::public_key temp1(msg_transfer.to.public_key);
+            //meshpp::public_key temp2(msg_transfer.from.public_key);
+
+            transaction_pool.insert(msg_transfer);
         }
         action_log.insert(submitactions_msg.item);
         sk.send(peerid, Done());

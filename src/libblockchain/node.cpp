@@ -672,7 +672,7 @@ bool node::run()
                 case SubmitActions::rtt:
                 {
                     if (it == interface_type::rpc)
-                        submit_actions(ref_packet, m_pimpl->m_action_log, *psk, peerid);
+                        submit_actions(ref_packet, m_pimpl->m_action_log, m_pimpl->m_transaction_pool, *psk, peerid);
                     break;
                 }
                 case GetActions::rtt:
