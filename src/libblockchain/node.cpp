@@ -7,6 +7,7 @@
 #include "storage.hpp"
 #include "message.hpp"
 #include "communication_rpc.hpp"
+#include "open_container_packet.hpp"
 
 #include <belt.pp/packet.hpp>
 #include <belt.pp/utility.hpp>
@@ -523,35 +524,21 @@ bool node::run()
             {
             try
             {
-                bool broadcast_packet = false;
+                vector<packet const*> composition;
 
-                vector<packet> packets;
-                packets.emplace_back(std::move(received_packet));
+                open_container_packet<Broadcast, SignedTransaction> broadcast_transaction;
+                open_container_packet<Broadcast> broadcast_anything;
+                bool is_container =
+                        (broadcast_transaction.open(std::move(received_packet), composition) ||
+                         broadcast_anything.open(std::move(received_packet), composition));
 
-                while (true)
+                if (is_container == false)
                 {
-                    bool container_type = false;
-                    packet& ref_packet = packets.back();
-
-                    switch (ref_packet.type())
-                    {
-                    case Broadcast::rtt:
-                    {
-                        container_type = true;
-                        broadcast_packet = true;
-                        Broadcast container;
-                        ref_packet.get(container);
-
-                        packets.emplace_back(std::move(container.value));
-                        break;
-                    }
-                    }
-
-                    if (false == container_type)
-                        break;
+                    composition.clear();
+                    composition.push_back(&received_packet);
                 }
 
-                packet const& ref_packet = packets.back();
+                packet const& ref_packet = *composition.back();
 
                 packet stored_packet;
                 if (it == interface_type::p2p)
@@ -566,12 +553,12 @@ bool node::run()
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
-                        beltpp::scope_helper guard([]{},
+                        beltpp::on_failure guard(
                             [&peerid, &psk] { psk->send(peerid, Drop()); });
 
                         m_pimpl->add_peer(peerid);
 
-                        guard.commit();
+                        guard.dismiss();
 
                         m_pimpl->store_request(peerid, GetChainInfo());
                         psk->send(peerid, GetChainInfo());
@@ -616,7 +603,7 @@ bool node::run()
                         m_pimpl->writeln_node(str_peerid(peerid));
                     }
 
-                    if (broadcast_packet)
+                    if (false == broadcast_anything.items.empty())
                     {
                         if (hellow_msg.index % 1000 == 0)
                             m_pimpl->writeln_node("broadcasting hellow");
@@ -640,7 +627,7 @@ bool node::run()
                     hellow_msg.text = "bye";
                     psk->send(peerid, hellow_msg);
 
-                    if (broadcast_packet)
+                    if (false == broadcast_anything.items.empty())
                     {
                         m_pimpl->writeln_node("broadcasting shutdown");
 

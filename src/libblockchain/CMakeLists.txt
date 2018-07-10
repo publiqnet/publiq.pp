@@ -29,6 +29,7 @@ add_library(blockchain
     message.gen.hpp
     node.cpp
     node.hpp
+    open_container_packet.hpp
     state.cpp
     state.hpp
     storage.cpp

@@ -113,7 +113,6 @@ module BlockchainMessage
     class Transaction // 22
     {
         TimePoint tm
-        UInt64 nonce
         Coin fee
         Object obj
     }
@@ -122,6 +121,7 @@ module BlockchainMessage
     {
         Transaction obj
         String signature
+        Address public_key
     }
 
     class Transfer // 24
