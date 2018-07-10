@@ -173,4 +173,9 @@ module BlockchainMessage
     {
         Address item
     }
+
+    class TransactionFileData
+    {
+        Hash String Transfer transactions
+    }
 }

@@ -5,8 +5,8 @@ module Data
         UInt64 value
     }
 
-    class HashIndex
+    class StringSet
     {
-        Array String keys
+        Set String dictionary
     }
 }
