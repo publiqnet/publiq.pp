@@ -177,7 +177,7 @@ void get_hash(beltpp::packet const& packet,
               beltpp::isocket& sk,
               beltpp::isocket::peer_id const& peerid)
 {
-    GetHash msg_get_hash;
+    HashRequest msg_get_hash;
     packet.get(msg_get_hash);
 
     vector<char> buffer = msg_get_hash.item.save();
@@ -189,3 +189,63 @@ void get_hash(beltpp::packet const& packet,
     sk.send(peerid, msg_hash_result);
 }
 
+void get_random_seed(beltpp::isocket& sk,
+                     beltpp::isocket::peer_id const& peerid)
+{
+    meshpp::random_seed rs;
+    RandomSeed rs_msg;
+    rs_msg.seed = rs.get_brain_key();
+
+    sk.send(peerid, rs_msg);
+}
+
+void get_key_pair(beltpp::packet const& packet,
+                  beltpp::isocket& sk,
+                  beltpp::isocket::peer_id const& peerid)
+{
+    KeyPairRequest kpr_msg;
+    packet.get(kpr_msg);
+
+    meshpp::random_seed rs(kpr_msg.seed);
+    meshpp::private_key pv = rs.get_private_key();
+    meshpp::public_key pb = pv.get_public_key();
+
+    KeyPair kp_msg;
+    kp_msg.seed = rs.get_brain_key();
+    kp_msg.private_key.private_key = pv.get_base58_wif();
+    kp_msg.public_key.public_key = pb.to_string();
+
+    sk.send(peerid, kp_msg);
+}
+
+void get_signature(beltpp::packet const& packet,
+                   beltpp::isocket& sk,
+                   beltpp::isocket::peer_id const& peerid)
+{
+    SignRequest msg;
+    packet.get(msg);
+
+    meshpp::private_key pv(msg.private_key.private_key);
+    meshpp::signature signed_msg = pv.sign(msg.obj.save());
+
+    Signature sg_msg;
+    sg_msg.obj = std::move(msg.obj);
+    sg_msg.signature = signed_msg.base64;
+    sg_msg.public_key.public_key = pv.get_public_key().to_string();
+
+    sk.send(peerid, sg_msg);
+}
+
+void verify_signature(beltpp::packet const& packet,
+                      beltpp::isocket& sk,
+                      beltpp::isocket::peer_id const& peerid)
+{
+    Signature msg;
+    packet.get(msg);
+
+    meshpp::signature signed_msg(msg.public_key.public_key, msg.obj.save(), msg.signature);
+    if (false == signed_msg.verify())
+        throw std::runtime_error("wrong signature");
+
+    sk.send(peerid, Done());
+}

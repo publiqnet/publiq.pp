@@ -153,7 +153,7 @@ module BlockchainMessage
         Array String hash
     }
 
-    class GetHash
+    class HashRequest
     {
         Object item
     }
@@ -177,5 +177,44 @@ module BlockchainMessage
     class TransactionFileData
     {
         Hash String Transfer transactions
+    }
+
+    class SecretKey
+    {
+        String private_key
+    }
+
+    class RandomSeedRequest {}
+
+    class RandomSeed
+    {
+        String seed
+    }
+
+    class KeyPairRequest
+    {
+        String seed
+        UInt64 index
+    }
+
+    class KeyPair
+    {
+        String seed
+        UInt64 index
+        Address public_key
+        SecretKey private_key
+    }
+
+    class SignRequest
+    {
+        SecretKey private_key
+        Object obj
+    }
+
+    class Signature
+    {
+        Address public_key
+        String signature
+        Object obj
     }
 }

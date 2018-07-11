@@ -19,3 +19,18 @@ void get_actions(beltpp::packet const& packet,
 void get_hash(beltpp::packet const& packet,
               beltpp::isocket& sk,
               beltpp::isocket::peer_id const& peerid);
+
+void get_random_seed(beltpp::isocket& sk,
+                     beltpp::isocket::peer_id const& peerid);
+
+void get_key_pair(beltpp::packet const& packet,
+                  beltpp::isocket& sk,
+                  beltpp::isocket::peer_id const& peerid);
+
+void get_signature(beltpp::packet const& packet,
+                   beltpp::isocket& sk,
+                   beltpp::isocket::peer_id const& peerid);
+
+void verify_signature(beltpp::packet const& packet,
+                      beltpp::isocket& sk,
+                      beltpp::isocket::peer_id const& peerid);

@@ -668,9 +668,29 @@ bool node::run()
                         get_actions(ref_packet, m_pimpl->m_action_log, *psk, peerid);
                     break;
                 }
-                case GetHash::rtt:
+                case HashRequest::rtt:
                 {
                     get_hash(ref_packet, *psk, peerid);
+                    break;
+                }
+                case RandomSeedRequest::rtt:
+                {
+                    get_random_seed(*psk, peerid);
+                    break;
+                }
+                case KeyPairRequest::rtt:
+                {
+                    get_key_pair(ref_packet, *psk, peerid);
+                    break;
+                }
+                case SignRequest::rtt:
+                {
+                    get_signature(ref_packet, *psk, peerid);
+                    break;
+                }
+                case Signature::rtt:
+                {
+                    verify_signature(ref_packet, *psk, peerid);
                     break;
                 }
                 default:
