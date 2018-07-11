@@ -237,7 +237,7 @@ beltpp::detail::pmsg_all message_list_load(
     {
         ss.status = scan_status::clean;
         iter_scan_begin = iter_scan_end;
-        return ::beltpp::detail::pmsg_all(0,
+        return ::beltpp::detail::pmsg_all(size_t(-2),
                                           ::beltpp::void_unique_ptr(nullptr, [](void*){}),
                                           nullptr);
     }
@@ -524,7 +524,7 @@ bool node::run()
             {
             try
             {
-                vector<packet const*> composition;
+                vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_transaction;
                 open_container_packet<Broadcast> broadcast_anything;
@@ -538,7 +538,7 @@ bool node::run()
                     composition.push_back(&received_packet);
                 }
 
-                packet const& ref_packet = *composition.back();
+                packet& ref_packet = *composition.back();
 
                 packet stored_packet;
                 if (it == interface_type::p2p)
@@ -560,8 +560,8 @@ bool node::run()
 
                         guard.dismiss();
 
-                        m_pimpl->store_request(peerid, GetChainInfo());
-                        psk->send(peerid, GetChainInfo());
+                        m_pimpl->store_request(peerid, ChainInfoRequest());
+                        psk->send(peerid, ChainInfoRequest());
                     }
 
                     break;
@@ -587,32 +587,6 @@ bool node::run()
 
                     break;
                 }
-                case Hellow::rtt:
-                {
-                    if (it != interface_type::rpc)
-                        break;
-
-                    Hellow hellow_msg;
-                    ref_packet.get(hellow_msg);
-
-                    if (hellow_msg.index % 1000 == 0)
-                    {
-                        m_pimpl->write_node("Hellow:");
-                        m_pimpl->writeln_node(hellow_msg.text);
-                        m_pimpl->write_node("From:");
-                        m_pimpl->writeln_node(str_peerid(peerid));
-                    }
-
-                    if (false == broadcast_anything.items.empty())
-                    {
-                        if (hellow_msg.index % 1000 == 0)
-                            m_pimpl->writeln_node("broadcasting hellow");
-
-                        for (auto const& p2p_peer : m_pimpl->m_p2p_peers)
-                            m_pimpl->m_ptr_p2p_socket->send(p2p_peer, hellow_msg);
-                    }
-                    break;
-                }
                 case Shutdown::rtt:
                 {
                     if (it != interface_type::rpc)
@@ -622,10 +596,7 @@ bool node::run()
 
                     code = false;
 
-                    Hellow hellow_msg;
-                    hellow_msg.index = 0;
-                    hellow_msg.text = "bye";
-                    psk->send(peerid, hellow_msg);
+                    psk->send(peerid, Done());
 
                     if (false == broadcast_anything.items.empty())
                     {
@@ -639,7 +610,7 @@ bool node::run()
                     }
                     break;
                 }
-                case GetChainInfo::rtt:
+                case ChainInfoRequest::rtt:
                 {
                     ChainInfo chaininfo_msg;
                     chaininfo_msg.length = m_pimpl->m_blockchain.length();
@@ -651,18 +622,30 @@ bool node::run()
                     if (it == interface_type::p2p)
                     {
                         m_pimpl->reset_stored_request(peerid);
-                        if (stored_packet.type() != GetChainInfo::rtt)
+                        if (stored_packet.type() != ChainInfoRequest::rtt)
                             throw std::runtime_error("I didn't ask for chain info");
                     }
                     break;
                 }
-                case SubmitActions::rtt:
+                case LogTransaction::rtt:
                 {
                     if (it == interface_type::rpc)
-                        submit_actions(ref_packet, m_pimpl->m_action_log, m_pimpl->m_transaction_pool, *psk, peerid);
+                        submit_action(std::move(ref_packet),
+                                      m_pimpl->m_action_log,
+                                      m_pimpl->m_transaction_pool,
+                                      *psk,
+                                      peerid);
                     break;
                 }
-                case GetActions::rtt:
+                case RevertLastLoggedAction::rtt:
+                {
+                    if (it == interface_type::rpc)
+                        revert_last_action(  m_pimpl->m_action_log,
+                                             *psk,
+                                             peerid);
+                    break;
+                }
+                case LoggedTransactionsRequest::rtt:
                 {
                     if (it == interface_type::rpc)
                         get_actions(ref_packet, m_pimpl->m_action_log, *psk, peerid);
@@ -673,7 +656,7 @@ bool node::run()
                     get_hash(ref_packet, *psk, peerid);
                     break;
                 }
-                case RandomSeedRequest::rtt:
+                case MasterKeyRequest::rtt:
                 {
                     get_random_seed(*psk, peerid);
                     break;
@@ -706,8 +689,27 @@ bool node::run()
             }
             catch (meshpp::exception_public_key const& e)
             {
-                InvalidAddress msg;
-                msg.item.public_key = e.pub_key;
+                InvalidPublicKey msg;
+                msg.public_key = e.pub_key;
+                psk->send(peerid, msg);
+                throw;
+            }
+            catch (meshpp::exception_private_key const& e)
+            {
+                InvalidPrivateKey msg;
+                msg.private_key = e.priv_key;
+                psk->send(peerid, msg);
+                throw;
+            }
+            catch (meshpp::exception_signature const& e)
+            {
+                InvalidSignature msg;
+                msg.details.public_key = e.sgn.pb_key.to_string();
+                msg.details.signature = e.sgn.base64;
+                BlockchainMessage::detail::loader(msg.details.package,
+                                                  std::string(e.sgn.message.begin(), e.sgn.message.end()),
+                                                  nullptr);
+
                 psk->send(peerid, msg);
                 throw;
             }

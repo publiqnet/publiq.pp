@@ -11,80 +11,46 @@ using std::stack;
 
 using namespace BlockchainMessage;
 
-void submit_actions(beltpp::packet const& packet,
-                    publiqpp::action_log& action_log,
-                    publiqpp::transaction_pool& transaction_pool,
-                    beltpp::isocket& sk,
-                    beltpp::isocket::peer_id const& peerid)
+void submit_action(beltpp::packet&& package,
+                   publiqpp::action_log& action_log,
+                   publiqpp::transaction_pool& transaction_pool,
+                   beltpp::isocket& sk,
+                   beltpp::isocket::peer_id const& peerid)
 {
-    SubmitActions submitactions_msg;
-    packet.get(submitactions_msg);
+    LogTransaction log_transaction_msg;
+    std::move(package).get(log_transaction_msg);
 
-    switch (submitactions_msg.item.type())
+    auto& ref_action = log_transaction_msg.action;
+    switch (ref_action.type())
     {
     case Reward::rtt: //  check reward for testing
     case Transfer::rtt: // check transaction for testing
-    case NewArticle::rtt:
+    //case NewArticle::rtt:
     {
-        if (Reward::rtt == submitactions_msg.item.type())
+        if (Reward::rtt == ref_action.type())
         {
             Reward msg_reward;
-            submitactions_msg.item.get(msg_reward);
+            ref_action.get(msg_reward);
             // following will throw on invalid public key
-            meshpp::public_key temp(msg_reward.to.public_key);
+            meshpp::public_key temp(msg_reward.to);
         }
-        else if (Transfer::rtt == submitactions_msg.item.type())
+        else if (Transfer::rtt == ref_action.type())
         {
             Transfer msg_transfer;
-            submitactions_msg.item.get(msg_transfer);
+            ref_action.get(msg_transfer);
             // following will throw on invalid public key
-            //meshpp::public_key temp1(msg_transfer.to.public_key);
-            //meshpp::public_key temp2(msg_transfer.from.public_key);
+            //meshpp::public_key temp1(msg_transfer.to);
+            //meshpp::public_key temp2(msg_transfer.from);
 
             transaction_pool.insert(msg_transfer);
         }
-        action_log.insert(submitactions_msg.item);
-        sk.send(peerid, Done());
-        break;
-    }
-    case RevertLastAction::rtt: //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
-    {
-        // check if last action is revert
-        int revert_mark = 0;
-        size_t index = action_log.length() - 1;
-        bool revert = true;
 
-        while (revert)
-        {
-            beltpp::packet packet;
-            action_log.at(index, packet);
+        LoggedTransaction action_info;
+        action_info.applied_reverted = true;    //  apply
+        action_info.index = 0; // will be set automatically
+        action_info.action = std::move(ref_action);
 
-            revert = packet.type() == RevertActionAt::rtt;
-
-            if (revert)
-                ++revert_mark;
-            else
-                --revert_mark;
-
-            if (revert_mark >= 0)
-            {
-                if (index == 0)
-                    throw std::runtime_error("Nothing to revert!");
-
-                --index;
-                revert = true;
-            }
-        }
-
-        // revert last valid action
-        beltpp::packet packet;
-        action_log.at(index, packet);
-
-        RevertActionAt msg_revert;
-        msg_revert.index = index;
-        msg_revert.item = std::move(packet);
-
-        action_log.insert(msg_revert);
+        action_log.insert(action_info);
         sk.send(peerid, Done());
         break;
     }
@@ -94,16 +60,56 @@ void submit_actions(beltpp::packet const& packet,
     }
 }
 
-void get_actions(beltpp::packet const& packet,
+void revert_last_action(publiqpp::action_log& action_log,
+                        beltpp::isocket& sk,
+                        beltpp::isocket::peer_id const& peerid)
+ {
+     int revert_mark = 0;
+     size_t index = action_log.length() - 1;
+     bool revert = true;
+
+     while (revert)
+     {
+         LoggedTransaction action_info;
+         action_log.at(index, action_info);
+
+         revert = (action_info.applied_reverted == false);
+
+         if (revert)
+             ++revert_mark;
+         else
+             --revert_mark;
+
+         if (revert_mark >= 0)
+         {
+             if (index == 0)
+                 throw std::runtime_error("Nothing to revert!");
+
+             --index;
+             revert = true;
+         }
+     }
+
+     // revert last valid action
+     LoggedTransaction action_revert_info;
+     action_log.at(index, action_revert_info);
+
+     action_revert_info.applied_reverted = false;   //  revert
+
+     action_log.insert(action_revert_info);
+     sk.send(peerid, Done());
+ }
+
+void get_actions(beltpp::packet const& package,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
                  beltpp::isocket::peer_id const& peerid)
 {
-    GetActions msg_get_actions;
-    packet.get(msg_get_actions);
+    LoggedTransactionsRequest msg_get_actions;
+    package.get(msg_get_actions);
     uint64_t index = msg_get_actions.start_index;
 
-    stack<Action> action_stack;
+    stack<LoggedTransaction> action_stack;
 
     size_t i = index;
     size_t len = action_log.length();
@@ -111,62 +117,42 @@ void get_actions(beltpp::packet const& packet,
     bool revert = i < len;
     while (revert) //the case when next action is revert
     {
-        beltpp::packet packet;
-        action_log.at(i, packet);
+        LoggedTransaction action_info;
+        action_log.at(i, action_info);
 
-        revert = packet.type() == RevertActionAt::rtt;
+        revert = (action_info.applied_reverted == false && i < len);
 
         if (revert)
         {
             ++i;
-            Action action;
-            action.index = i;
-            action.item = std::move(packet);
-
-            action_stack.push(action);
+            action_stack.push(std::move(action_info));
         }
     }
 
     for (; i < len; ++i)
     {
-        beltpp::packet packet;
-        action_log.at(i, packet);
+        LoggedTransaction action_info;
+        action_log.at(i, action_info);
 
         // remove all not received entries and their reverts
-        revert = packet.type() == RevertActionAt::rtt;
-        if (revert)
-        {
-            RevertActionAt msg;
-            packet.get(msg);
-
-            revert = msg.index >= index;
-        }
-
-        if (revert)
-        {
+        if (action_info.applied_reverted == false &&
+            action_info.index >= index)
             action_stack.pop();
-        }
         else
-        {
-            Action action;
-            action.index = i;
-            action.item = std::move(packet);
-
-            action_stack.push(action);
-        }
+            action_stack.push(std::move(action_info));
     }
 
-    std::stack<Action> reverse_stack;
+    std::stack<LoggedTransaction> reverse_stack;
     while (!action_stack.empty()) // reverse the stack
     {
-        reverse_stack.push(action_stack.top());
+        reverse_stack.push(std::move(action_stack.top()));
         action_stack.pop();
     }
 
-    Actions msg_actions;
+    LoggedTransactions msg_actions;
     while(!reverse_stack.empty()) // list is a vector in reality :)
     {
-        msg_actions.list.push_back(std::move(reverse_stack.top()));
+        msg_actions.actions.push_back(std::move(reverse_stack.top()));
         reverse_stack.pop();
     }
 
@@ -180,11 +166,11 @@ void get_hash(beltpp::packet const& packet,
     HashRequest msg_get_hash;
     packet.get(msg_get_hash);
 
-    vector<char> buffer = msg_get_hash.item.save();
+    vector<char> buffer = msg_get_hash.package.save();
 
     HashResult msg_hash_result;
     msg_hash_result.base58_hash = meshpp::hash(buffer.begin(), buffer.end());
-    msg_hash_result.item = std::move(msg_get_hash.item);
+    msg_hash_result.package = std::move(msg_get_hash.package);
 
     sk.send(peerid, msg_hash_result);
 }
@@ -193,8 +179,8 @@ void get_random_seed(beltpp::isocket& sk,
                      beltpp::isocket::peer_id const& peerid)
 {
     meshpp::random_seed rs;
-    RandomSeed rs_msg;
-    rs_msg.seed = rs.get_brain_key();
+    MasterKey rs_msg;
+    rs_msg.master_key = rs.get_brain_key();
 
     sk.send(peerid, rs_msg);
 }
@@ -206,14 +192,15 @@ void get_key_pair(beltpp::packet const& packet,
     KeyPairRequest kpr_msg;
     packet.get(kpr_msg);
 
-    meshpp::random_seed rs(kpr_msg.seed);
-    meshpp::private_key pv = rs.get_private_key();
+    meshpp::random_seed rs(kpr_msg.master_key);
+    meshpp::private_key pv = rs.get_private_key(kpr_msg.index);
     meshpp::public_key pb = pv.get_public_key();
 
     KeyPair kp_msg;
-    kp_msg.seed = rs.get_brain_key();
-    kp_msg.private_key.private_key = pv.get_base58_wif();
-    kp_msg.public_key.public_key = pb.to_string();
+    kp_msg.master_key = rs.get_brain_key();
+    kp_msg.private_key = pv.get_base58_wif();
+    kp_msg.public_key = pb.to_string();
+    kp_msg.index = kpr_msg.index;
 
     sk.send(peerid, kp_msg);
 }
@@ -225,13 +212,13 @@ void get_signature(beltpp::packet const& packet,
     SignRequest msg;
     packet.get(msg);
 
-    meshpp::private_key pv(msg.private_key.private_key);
-    meshpp::signature signed_msg = pv.sign(msg.obj.save());
+    meshpp::private_key pv(msg.private_key);
+    meshpp::signature signed_msg = pv.sign(msg.package.save());
 
     Signature sg_msg;
-    sg_msg.obj = std::move(msg.obj);
+    sg_msg.package = std::move(msg.package);
     sg_msg.signature = signed_msg.base64;
-    sg_msg.public_key.public_key = pv.get_public_key().to_string();
+    sg_msg.public_key = pv.get_public_key().to_string();
 
     sk.send(peerid, sg_msg);
 }
@@ -243,9 +230,8 @@ void verify_signature(beltpp::packet const& packet,
     Signature msg;
     packet.get(msg);
 
-    meshpp::signature signed_msg(msg.public_key.public_key, msg.obj.save(), msg.signature);
-    if (false == signed_msg.verify())
-        throw std::runtime_error("wrong signature");
+    meshpp::signature signed_msg(msg.public_key, msg.package.save(), msg.signature);
+    signed_msg.check();
 
     sk.send(peerid, Done());
 }
