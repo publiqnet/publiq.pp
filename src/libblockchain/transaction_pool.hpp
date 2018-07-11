@@ -27,6 +27,8 @@ public:
     void insert(beltpp::packet const& packet);
     bool at(std::string const& key, beltpp::packet& transaction) const;
     bool remove(std::string const& key);
+
+    bool contains(std::string const& key) const;
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };

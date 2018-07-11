@@ -112,7 +112,8 @@ module BlockchainMessage
 
     class Transaction // 22
     {
-        TimePoint tm
+        TimePoint creation
+        TimePoint expiry
         Coin fee
         Object obj
     }
@@ -177,5 +178,11 @@ module BlockchainMessage
     class TransactionFileData
     {
         Hash String Transfer transactions
+    }
+
+    class InvalidAutority
+    {
+        Address autority
+        Object transaction
     }
 }

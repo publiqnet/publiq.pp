@@ -8,14 +8,13 @@
 
 using std::vector;
 using std::stack;
+using std::string;
 
 using namespace BlockchainMessage;
 
 void submit_actions(beltpp::packet const& packet,
                     publiqpp::action_log& action_log,
-                    publiqpp::transaction_pool& transaction_pool,
-                    beltpp::isocket& sk,
-                    beltpp::isocket::peer_id const& peerid)
+                    publiqpp::transaction_pool& transaction_pool)
 {
     SubmitActions submitactions_msg;
     packet.get(submitactions_msg);
@@ -44,7 +43,6 @@ void submit_actions(beltpp::packet const& packet,
             transaction_pool.insert(msg_transfer);
         }
         action_log.insert(submitactions_msg.item);
-        sk.send(peerid, Done());
         break;
     }
     case RevertLastAction::rtt: //  pay attention - RevertLastAction is sent, but RevertActionAt is stored
@@ -85,7 +83,6 @@ void submit_actions(beltpp::packet const& packet,
         msg_revert.item = std::move(packet);
 
         action_log.insert(msg_revert);
-        sk.send(peerid, Done());
         break;
     }
     default:
@@ -187,5 +184,36 @@ void get_hash(beltpp::packet const& packet,
     msg_hash_result.item = std::move(msg_get_hash.item);
 
     sk.send(peerid, msg_hash_result);
+}
+
+void process_transfer(beltpp::packet const& packet,
+                      publiqpp::action_log& action_log,
+                      publiqpp::transaction_pool& transaction_pool,
+                      publiqpp::state& state)
+{
+    Transfer transfer;
+    packet.get(transfer);
+
+    // Check pool
+    vector<char> packet_vec = packet.save();
+    string packet_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+
+    if (transaction_pool.contains(packet_hash))
+        throw std::runtime_error("Transaction is already received!");
+
+    // Validate state
+    if (!state.possible_transfer(transfer))//fee
+        throw std::runtime_error("Balance is not enough!");
+
+    // Add to the pool
+    transaction_pool.insert(packet);
+
+    // Apply state
+    state.apply_transfer(transfer);//fee
+
+    // Add to action log
+    action_log.insert(packet);
+
+    // Boradcast
 }
 

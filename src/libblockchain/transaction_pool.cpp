@@ -40,14 +40,15 @@ public:
 
     string get_df_id(string const& hash) const
     {
-        //string s = hash.substr(hash.size()-3, 3);
-        //int i = 10000 + std::stoi(s, 0, 16);
-        //
-        //s = std::to_string(i);
-        //
-        //return s.substr(1, 4);
+        string _hash = meshpp::base64_to_hex(hash);
+        string s = _hash.substr(_hash.size()-3, 3);
+        int i = 10000 + std::stoi(s, 0, 16) + 1;
+        
+        s = std::to_string(i);
+        
+        return s.substr(1, 4);
 
-        return "0000"; //TODO later
+        //return "0000"; //Debug mode
     }
 };
 }
@@ -86,7 +87,7 @@ void transaction_pool::insert(beltpp::packet const& packet)
 
 bool transaction_pool::at(string const& key, beltpp::packet& transaction) const
 {
-    if (m_pimpl->m_index->dictionary.find(key) == m_pimpl->m_index->dictionary.end())
+    if (contains(key))
         return false;
 
     string hash_id = m_pimpl->get_df_id(key);
@@ -100,7 +101,7 @@ bool transaction_pool::at(string const& key, beltpp::packet& transaction) const
 
 bool transaction_pool::remove(string const& key)
 {
-    if (m_pimpl->m_index->dictionary.find(key) == m_pimpl->m_index->dictionary.end())
+    if (contains(key))
         return false;
 
     string hash_id = m_pimpl->get_df_id(key);
@@ -114,6 +115,11 @@ bool transaction_pool::remove(string const& key)
     m_pimpl->m_index.save();
 
     return true;
+}
+
+bool transaction_pool::contains(string const& key) const
+{
+    return m_pimpl->m_index->dictionary.find(key) != m_pimpl->m_index->dictionary.end();
 }
 
 }

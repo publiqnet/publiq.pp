@@ -1,6 +1,7 @@
 #pragma once
 
 #include "global.hpp"
+#include "message.hpp"
 
 #include <boost/filesystem/path.hpp>
 
@@ -23,6 +24,9 @@ public:
 
     void set_balance(std::string const& pb_key, uint64_t amount);
     uint64_t get_balance(std::string const& key) const;
+
+    bool possible_transfer(BlockchainMessage::Transfer const& transfer) const;
+    void apply_transfer(BlockchainMessage::Transfer const& transfer);
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
 };

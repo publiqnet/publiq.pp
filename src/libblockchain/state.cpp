@@ -9,6 +9,7 @@
 namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
+using namespace BlockchainMessage;
 
 namespace publiqpp
 {
@@ -47,6 +48,17 @@ void state::set_balance(std::string const&/* pb_key*/, uint64_t/* amount*/)
 uint64_t state::get_balance(std::string const&/* key*/) const
 {
     return 0;
+}
+
+bool state::possible_transfer(BlockchainMessage::Transfer const& transfer) const
+{
+    //TODO
+    return true;
+}
+
+void state::apply_transfer(BlockchainMessage::Transfer const& transfer)
+{
+    //TODO
 }
 
 }
