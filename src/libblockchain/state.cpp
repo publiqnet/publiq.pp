@@ -6,10 +6,14 @@
 
 #include <string>
 
+using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
-using namespace BlockchainMessage;
+
+using state_data_loader = meshpp::file_loader<StateFileData,
+                                              &StateFileData::string_loader,
+                                              &StateFileData::string_saver>;
 
 namespace publiqpp
 {
@@ -21,9 +25,11 @@ class state_internals
 public:
     state_internals(filesystem::path const& path)
         : m_path(path)
+        , m_state(path / "accounts.state")
     {}
 
     filesystem::path m_path;
+    state_data_loader m_state;
 };
 }
 
@@ -36,29 +42,52 @@ state::~state()
 {
 }
 
-std::vector<string> state::accounts() const
+uint64_t state::get_balance(std::string const& key) const
 {
-    return vector<string>();
+    if (m_pimpl->m_state->accounts.find(key) != m_pimpl->m_state->accounts.end())
+        return m_pimpl->m_state->accounts[key];
+
+    return 0; // all accounts not included have 0 balance
 }
 
-void state::set_balance(std::string const&/* pb_key*/, uint64_t/* amount*/)
+bool state::check_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const
 {
+    if (transfer.amount == 0)
+        throw std::runtime_error("0 amount transfer is restricted!");
 
-}
-uint64_t state::get_balance(std::string const&/* key*/) const
-{
-    return 0;
-}
+    if (m_pimpl->m_state->accounts.find(transfer.from) != m_pimpl->m_state->accounts.end())
+    {
+        uint64_t balance = m_pimpl->m_state->accounts[transfer.from];
 
-bool state::possible_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const
-{
-    //TODO
-    return true;
+        if (balance >= transfer.amount + fee)
+            return true;
+    }
+
+    return false; // all accounts not included have 0 balance
 }
 
 void state::apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee)
 {
-    //TODO
+    if (!check_transfer(transfer, fee))
+        throw std::runtime_error("Transfer balance is not enough!");
+
+    // decrease "from" balance
+    uint64_t balance = m_pimpl->m_state->accounts[transfer.from];
+
+    // balance is checked above
+    balance = balance - transfer.amount - fee;
+
+    if (balance == 0)
+        m_pimpl->m_state->accounts.erase(transfer.from);
+    else
+        m_pimpl->m_state->accounts[transfer.from] = balance;
+    
+    // increase "to" balance
+    balance = m_pimpl->m_state->accounts[transfer.to];
+    m_pimpl->m_state->accounts[transfer.to] = balance + transfer.amount;
+
+    // save state to file after each change
+    m_pimpl->m_state.save();
 }
 
 }

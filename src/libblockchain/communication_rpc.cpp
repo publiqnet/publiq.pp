@@ -250,6 +250,7 @@ void process_transfer(beltpp::packet const& packet,
     signed_transaction.action_details.action.get(transfer);
 
     // Quick validate
+    // Transaction expiry date shoul be checked
     if (signed_transaction.authority != transfer.from)
     {
         InvalidAuthority msg;
@@ -260,18 +261,18 @@ void process_transfer(beltpp::packet const& packet,
     }
 
     // Check pool
-    vector<char> packet_vec = packet.save();
+    vector<char> packet_vec = signed_transaction.action_details.action.save();
     string packet_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
 
     if (transaction_pool.contains(packet_hash))
         throw std::runtime_error("Transaction is already received!");
 
     // Validate state
-    if (!state.possible_transfer(transfer, signed_transaction.action_details.fee))
+    if (!state.check_transfer(transfer, signed_transaction.action_details.fee))
         throw std::runtime_error("Balance is not enough!");
 
     // Add to the pool
-    transaction_pool.insert(packet);
+    transaction_pool.insert(signed_transaction.action_details.action);
 
     // Apply state
     state.apply_transfer(transfer, signed_transaction.action_details.fee);
@@ -285,7 +286,9 @@ void process_transfer(beltpp::packet const& packet,
     action_log.insert(action_info);
 
     // Boradcast
+    //TODO
 
+    // Return OK to sender
     sk.send(peerid, Done());
 }
 

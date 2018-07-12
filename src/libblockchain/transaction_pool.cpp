@@ -9,6 +9,7 @@
 #include <string>
 #include <algorithm>
 
+using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
@@ -16,9 +17,10 @@ using hash_index_loader = meshpp::file_loader<Data::StringSet,
                                               &Data::StringSet::string_loader,
                                               &Data::StringSet::string_saver>;
 using hash_index_locked_loader = meshpp::file_locker<hash_index_loader>;
-using transaction_data_loader = meshpp::file_loader<BlockchainMessage::TransactionFileData,
-                                                    &BlockchainMessage::TransactionFileData::string_loader,
-                                                    &BlockchainMessage::TransactionFileData::string_saver>;
+
+using transaction_data_loader = meshpp::file_loader<TransactionFileData,
+                                                    &TransactionFileData::string_loader,
+                                                    &TransactionFileData::string_saver>;
 
 namespace publiqpp
 {
@@ -65,7 +67,7 @@ transaction_pool::~transaction_pool()
 
 void transaction_pool::insert(beltpp::packet const& packet)
 {
-    if (packet.type() != BlockchainMessage::Transfer::rtt)
+    if (packet.type() != Transfer::rtt)
         throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
 
     vector<char> packet_vec = packet.save();
@@ -76,7 +78,7 @@ void transaction_pool::insert(beltpp::packet const& packet)
     m_pimpl->m_index->dictionary.insert(packet_hash);
     transaction_data_loader file_data(m_pimpl->m_path / file_name);
 
-    BlockchainMessage::Transfer transfer;
+    Transfer transfer;
     packet.get(transfer);
 
     file_data->actions[packet_hash] = transfer;
@@ -94,7 +96,7 @@ bool transaction_pool::at(string const& key, beltpp::packet& transaction) const
     string file_name("df" + hash_id + ".tpool");
 
     transaction_data_loader file_data(m_pimpl->m_path / file_name);
-    BlockchainMessage::detail::assign_packet(transaction, file_data.as_const()->actions.at(key));
+    ::detail::assign_packet(transaction, file_data.as_const()->actions.at(key));
     
     return true;
 }

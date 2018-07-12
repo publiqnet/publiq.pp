@@ -125,10 +125,16 @@ module BlockchainMessage
     //  special testing message
     class Shutdown {}
 
-    //  special storage data
+    //  transaction pool storage data
     class TransactionFileData
     {
         Hash String Object actions
+    }
+
+    //  state storage data
+    class StateFileData
+    {
+        Hash String UInt64 accounts
     }
 
     //  standard socket messages
