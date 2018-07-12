@@ -527,9 +527,11 @@ bool node::run()
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_transaction;
+                open_container_packet<Broadcast, SignedBlock> broadcast_block;
                 open_container_packet<Broadcast> broadcast_anything;
                 bool is_container =
                         (broadcast_transaction.open(std::move(received_packet), composition) ||
+                         broadcast_block.open(std::move(received_packet), composition) ||
                          broadcast_anything.open(std::move(received_packet), composition));
 
                 if (is_container == false)
@@ -615,7 +617,8 @@ bool node::run()
                     if (broadcast_transaction.items.empty())
                         throw std::runtime_error("Empty transfer");
                 
-                    process_transfer(broadcast_transaction.items[0],
+                    process_transfer(broadcast_transaction.items[1],
+                                     ref_packet,
                                      m_pimpl->m_action_log,
                                      m_pimpl->m_transaction_pool,
                                      m_pimpl->m_state,

@@ -236,7 +236,8 @@ void verify_signature(beltpp::packet const& packet,
     sk.send(peerid, Done());
 }
 
-void process_transfer(beltpp::packet const& packet,
+void process_transfer(beltpp::packet const& package_signed_transaction,
+                      beltpp::packet const& package_transfer,
                       publiqpp::action_log& action_log,
                       publiqpp::transaction_pool& transaction_pool,
                       publiqpp::state& state,
@@ -244,13 +245,13 @@ void process_transfer(beltpp::packet const& packet,
                       beltpp::isocket::peer_id const& peerid)
 {
     SignedTransaction signed_transaction;
-    packet.get(signed_transaction);
+    package_signed_transaction.get(signed_transaction);
 
     Transfer transfer;
-    signed_transaction.action_details.action.get(transfer);
+    package_transfer.get(transfer);
 
     // Quick validate
-    // Transaction expiry date shoul be checked
+    // Transaction expiry date should be checked
     if (signed_transaction.authority != transfer.from)
     {
         InvalidAuthority msg;
@@ -261,32 +262,32 @@ void process_transfer(beltpp::packet const& packet,
     }
 
     // Check pool
-    vector<char> packet_vec = signed_transaction.action_details.action.save();
+    vector<char> packet_vec = package_transfer.save();
     string packet_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
 
-    if (transaction_pool.contains(packet_hash))
-        throw std::runtime_error("Transaction is already received!");
+    if (false == transaction_pool.contains(packet_hash))
+    {
+        // Validate state
+        if (!state.check_transfer(transfer, signed_transaction.transaction_details.fee))
+            throw std::runtime_error("Balance is not enough!");
 
-    // Validate state
-    if (!state.check_transfer(transfer, signed_transaction.action_details.fee))
-        throw std::runtime_error("Balance is not enough!");
+        // Add to the pool
+        transaction_pool.insert(signed_transaction.transaction_details.action);
 
-    // Add to the pool
-    transaction_pool.insert(signed_transaction.action_details.action);
+        // Apply state
+        state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
 
-    // Apply state
-    state.apply_transfer(transfer, signed_transaction.action_details.fee);
+        // Add to action log
+        LoggedTransaction action_info;
+        action_info.applied_reverted = true;    //  apply
+        action_info.index = 0; // will be set automatically
+        action_info.action = std::move(transfer);
 
-    // Add to action log
-    LoggedTransaction action_info;
-    action_info.applied_reverted = false;    //  apply
-    action_info.index = 0; // will be set automatically
-    action_info.action = std::move(signed_transaction.action_details);
+        action_log.insert(action_info);
 
-    action_log.insert(action_info);
-
-    // Boradcast
-    //TODO
+        // Boradcast
+        //TODO, move out somewhere else
+    }
 
     // Return OK to sender
     sk.send(peerid, Done());

@@ -40,7 +40,8 @@ void verify_signature(beltpp::packet const& packet,
                       beltpp::isocket& sk,
                       beltpp::isocket::peer_id const& peerid);
 
-void process_transfer(beltpp::packet const& packet,
+void process_transfer(beltpp::packet const& package_signed_transaction,
+                      beltpp::packet const& package_transfer,
                       publiqpp::action_log& action_log,
                       publiqpp::transaction_pool& transaction_pool,
                       publiqpp::state& state,

@@ -25,17 +25,33 @@ void put_contained_object_back(Broadcast& pck, packet&& value)
 packet&& take_contained_object(SignedTransaction&& pck)
 {
     meshpp::public_key pb_key(pck.authority);
-    auto message = detail::saver(pck.action_details);
+    auto message = detail::saver(pck.transaction_details);
     meshpp::signature signature_check(pb_key,
                                       vector<char>(message.begin(), message.end()),
                                       pck.signature);
     signature_check.check();
 
-    return std::move(pck.action_details.action);
+    return std::move(pck.transaction_details.action);
 }
 void put_contained_object_back(SignedTransaction& pck, packet&& value)
 {
-    pck.action_details.action = std::move(value);
+    pck.transaction_details.action = std::move(value);
+}
+
+Block&& take_contained_object(SignedBlock&& pck)
+{
+    meshpp::public_key pb_key(pck.authority);
+    auto message = detail::saver(pck.block_details);
+    meshpp::signature signature_check(pb_key,
+                                      vector<char>(message.begin(), message.end()),
+                                      pck.signature);
+    signature_check.check();
+
+    return std::move(pck.block_details);
+}
+void put_contained_object_back(SignedBlock& pck, Block&& value)
+{
+    pck.block_details = std::move(value);
 }
 
 template <typename... Ts>
@@ -57,8 +73,7 @@ public:
             pck.set(std::move(container));
         });
 
-        packet temp;
-        temp = take_contained_object(std::move(container));
+        auto&& temp = take_contained_object(std::move(container));
         beltpp::on_failure check2([&container, &temp]
         {
             put_contained_object_back(container, std::move(temp));

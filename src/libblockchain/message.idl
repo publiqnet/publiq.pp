@@ -21,12 +21,22 @@ module BlockchainMessage
 
     class SignedTransaction
     {
-        Transaction action_details
+        Transaction transaction_details
         String authority
         String signature
     }
 
-    class Block {}
+    class Block
+    {
+        Array SignedTransaction signed_transactions
+    }
+
+    class SignedBlock
+    {
+        Block block_details
+        String authority
+        String signature
+    }
 
     ///
     //  blockchain transactions
