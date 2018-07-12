@@ -1,227 +1,138 @@
 module BlockchainMessage
 {
-    //  standard socket messages
-    type Join {} // 0
-    type Drop {} // 1
-    type Error {} // 2
-
-    //  dummy, testing
-    class Hellow // 3
+    ///
+    //  core functions
+    ///
+    class Broadcast
     {
-        String text
-        UInt64 index
+        Object package
     }
-
-    //  container messages
-    class Broadcast // 4
-    {
-        Object value
-    }
-
-    //  special testing shutdown message
-    class Shutdown {} // 5
 
     ///
-    /// RPC interface
+    //  core entities
     ///
-    //  response codes
-    class Done {} // 6
-
-    class Failed // 7
-    {
-        String message
-    }
-
-    //  GetChainInfo request, response should be ChainInfo
-    class GetChainInfo {} // 8
-
-    //  ChainInfo
-    class ChainInfo // 9
-    {
-        UInt64 length
-    }
-
-    //  request to calculate the checksum
-    class CalculateChecksum // 10
-    {
-        Object value
-    }
-
-    class Checksum // 11
-    {
-        String sha256_2x
-    }
-    // .
-    // .
-    class GetActions // 12
-    {
-        UInt64 start_index
-    }
-
-    class Action // 13
-    {
-        UInt64 index
-        Object item
-    }
-
-    class Actions // 14
-    {
-        Array Action list
-    }
-
-    //  save HTTPObject in distributed storage, response
-    //  will be Checksum
-    class HTTPObject // 15
-    {
-        String mimetype
-        String body
-    }
-
-    //  response will be HTTPObject
-    class GetFromStorage // 16
-    {
-        Checksum path
-    }
-
-    //  this is admin tool for RPC testing
-    class SubmitActions // 17
-    {
-        Object item
-    }
-
-    class Bin64 // 18
-    {
-        String value
-    }
-
-    class TransactionHash // 29
-    {
-        Bin64 value
-        UInt64 block_index
-    }
-
-    class Address // 20
-    {
-        String public_key
-    }
-
-    class Coin // 21
-    {
-        UInt64 value
-    }
-
-    class Transaction // 22
+    class Transaction
     {
         TimePoint creation
         TimePoint expiry
-        Coin fee
-        Object obj
+        UInt64 fee
+        Object action  //  Transfer or ...
     }
 
-    class SignedTransaction // 23
+    class SignedTransaction
     {
-        Transaction obj
+        Transaction action_details
+        String authority
         String signature
-        Address public_key
     }
 
-    class Transfer // 24
+    class Block {}
+
+    ///
+    //  blockchain transactions
+    ///
+    class Reward
+    {   //  in fact no authority can issue
+        //  this transaction
+        UInt64 amount
+        String to
+    }
+
+    class Transfer
     {
-        Address from
-        Address to
-        Coin amount
+        String from
+        String to
+        UInt64 amount
     }
 
-    class RevertActionAt // 25
-    {
-        UInt64 index
-        Object item
-    }
-
-    class RevertLastAction {} // 26
-
-    //  .
-    class Reward // 27
-    {
-        Coin amount
-        Address to
-    }
-
-    //  .
-    class NewArticle // 28
-    {
-        String title
-        Array String hash
-    }
-
-    class HashRequest
-    {
-        Object item
-    }
-
+    //  request/response
+    class HashRequest { Object package }
     class HashResult
     {
         String base58_hash
-        Object item
+        Object package
     }
 
-    class RemoteError
+    class ChainInfoRequest {}
+    class ChainInfo { UInt64 length }
+
+    class LoggedTransaction //  just a structure for below request/response
     {
-        String message
+        Bool applied_reverted
+        UInt64 index
+        Object action
     }
+    class LoggedTransactionsRequest { UInt64 start_index }
+    class LoggedTransactions { Array LoggedTransaction actions }
 
-    class InvalidAddress
+    class MasterKeyRequest {}
+    class MasterKey
     {
-        Address item
-    }
-
-    class TransactionFileData
-    {
-        Hash String Transfer transactions
-    }
-
-    class SecretKey
-    {
-        String private_key
-    }
-
-    class RandomSeedRequest {}
-
-    class RandomSeed
-    {
-        String seed
+        String master_key
     }
 
     class KeyPairRequest
     {
-        String seed
+        String master_key
         UInt64 index
     }
-
     class KeyPair
     {
-        String seed
+        String master_key
         UInt64 index
-        Address public_key
-        SecretKey private_key
+        String public_key
+        String private_key
     }
 
     class SignRequest
     {
-        SecretKey private_key
-        Object obj
+        String private_key
+        Object package
     }
-
     class Signature
     {
-        Address public_key
+        String public_key
         String signature
-        Object obj
+        Object package
     }
 
-    class InvalidAutority
+    ///
+    //  response codes
+    ///
+    class Done {}
+    class InvalidPublicKey { String public_key }
+    class InvalidPrivateKey { String private_key }
+    class InvalidSignature { Signature details }
+    class InvalidAuthority
     {
-        Address autority
-        Object transaction
+        String authority_abuser
+        String authority_abused
     }
+    class RemoteError { String message }
+
+    ///
+    //  action log relevant
+    ///
+
+    //  this is admin tool for RPC testing
+    class LogTransaction
+    {
+        Object action  //  Transfer or Reward
+    }
+
+    class RevertLastLoggedAction {}
+
+    //  special testing message
+    class Shutdown {}
+
+    //  special storage data
+    class TransactionFileData
+    {
+        Hash String Object actions
+    }
+
+    //  standard socket messages
+    type Join {}
+    type Drop {}
+    type Error {}
 }

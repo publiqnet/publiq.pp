@@ -79,7 +79,7 @@ void transaction_pool::insert(beltpp::packet const& packet)
     BlockchainMessage::Transfer transfer;
     packet.get(transfer);
 
-    file_data->transactions[packet_hash] = transfer;
+    file_data->actions[packet_hash] = transfer;
     
     file_data.save();
     m_pimpl->m_index.save();
@@ -94,7 +94,7 @@ bool transaction_pool::at(string const& key, beltpp::packet& transaction) const
     string file_name("df" + hash_id + ".tpool");
 
     transaction_data_loader file_data(m_pimpl->m_path / file_name);
-    transaction = file_data.as_const()->transactions.at(key);
+    BlockchainMessage::detail::assign_packet(transaction, file_data.as_const()->actions.at(key));
     
     return true;
 }
@@ -109,7 +109,7 @@ bool transaction_pool::remove(string const& key)
 
     m_pimpl->m_index->dictionary.erase(key);
     transaction_data_loader file_data(m_pimpl->m_path / file_name);
-    file_data->transactions.erase(key);
+    file_data->actions.erase(key);
 
     file_data.save();
     m_pimpl->m_index.save();

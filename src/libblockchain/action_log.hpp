@@ -25,8 +25,8 @@ public:
 
     size_t length() const;
 
-    void insert(beltpp::packet const& packet);
-    bool at(size_t index, beltpp::packet& action) const;
+    void insert(BlockchainMessage::LoggedTransaction const& action_info);
+    bool at(size_t index, BlockchainMessage::LoggedTransaction& action_info) const;
 private:
     std::unique_ptr<detail::action_log_internals> m_pimpl;
 };

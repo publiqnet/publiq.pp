@@ -15,28 +15,27 @@ using std::vector;
 
 packet&& take_contained_object(Broadcast&& pck)
 {
-    return std::move(pck.value);
+    return std::move(pck.package);
 }
 void put_contained_object_back(Broadcast& pck, packet&& value)
 {
-    pck.value = std::move(value);
+    pck.package = std::move(value);
 }
 
 packet&& take_contained_object(SignedTransaction&& pck)
 {
-    meshpp::public_key pb_key(pck.public_key.public_key);
-    auto message = detail::saver(pck.obj);
+    meshpp::public_key pb_key(pck.authority);
+    auto message = detail::saver(pck.action_details);
     meshpp::signature signature_check(pb_key,
                                       vector<char>(message.begin(), message.end()),
                                       pck.signature);
-    if (false == signature_check.verify())
-        throw std::runtime_error("invalid signed transaction: " + detail::saver(pck));
+    signature_check.check();
 
-    return std::move(pck.obj.obj);
+    return std::move(pck.action_details.action);
 }
 void put_contained_object_back(SignedTransaction& pck, packet&& value)
 {
-    pck.obj.obj = std::move(value);
+    pck.action_details.action = std::move(value);
 }
 
 template <typename... Ts>
@@ -46,7 +45,7 @@ template <typename T_container>
 class open_container_packet<T_container>
 {
 public:
-    bool open(packet&& pck, vector<packet const*>& composition)
+    bool open(packet&& pck, vector<packet*>& composition)
     {
         if (T_container::rtt != pck.type())
             return false;
@@ -71,7 +70,7 @@ public:
         items.push_back(std::move(container));
         items.push_back(std::move(temp));
 
-        for (auto const& item : items)
+        for (auto& item : items)
             composition.push_back(&item);
 
         check2.dismiss();
@@ -86,7 +85,7 @@ template <typename T_container, typename... Ts>
 class open_container_packet<T_container, Ts...>
 {
 public:
-    bool open(packet&& pck, vector<packet const*>& composition)
+    bool open(packet&& pck, vector<packet*>& composition)
     {
         if (T_container::rtt != pck.type())
             return false;
@@ -116,7 +115,7 @@ public:
         for (auto& item : sub.items)
             items.push_back(std::move(item));
 
-        for (auto const& item : items)
+        for (auto& item : items)
             composition.push_back(&item);
 
         check1.dismiss();
