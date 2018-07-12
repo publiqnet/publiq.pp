@@ -610,35 +610,20 @@ bool node::run()
                     }
                     break;
                 }
-                //case Transfer::rtt:
-                //{
-                //    if (broadcast_transaction.items.empty())
-                //        throw std::runtime_error("Empty transfer");
-                //
-                //    // Quick validate
-                //    Transfer transfer;
-                //    ref_packet.get(transfer);
-                //    SignedTransaction signed_transaction;
-                //    std::move(broadcast_anything.items[1]).get(signed_transaction);
-                //
-                //    if (signed_transaction.public_key.public_key != transfer.from.public_key)
-                //    {
-                //        InvalidAutority msg;
-                //        msg.autority = std::move(signed_transaction.public_key);
-                //        msg.transaction = std::move(transfer);
-                //        psk->send(peerid, msg);
-                //        break;
-                //    }
-                //
-                //    process_transfer(ref_packet,
-                //                     m_pimpl->m_action_log,
-                //                     m_pimpl->m_transaction_pool,
-                //                     m_pimpl->m_state);
-                //
-                //    psk->send(peerid, Done());
-                //
-                //    break;
-                //}
+                case Transfer::rtt:
+                {
+                    if (broadcast_transaction.items.empty())
+                        throw std::runtime_error("Empty transfer");
+                
+                    process_transfer(broadcast_transaction.items[0],
+                                     m_pimpl->m_action_log,
+                                     m_pimpl->m_transaction_pool,
+                                     m_pimpl->m_state,
+                                     *psk,
+                                     peerid);
+                
+                    break;
+                }
                 case ChainInfoRequest::rtt:
                 {
                     ChainInfo chaininfo_msg;

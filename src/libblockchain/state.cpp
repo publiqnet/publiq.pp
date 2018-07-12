@@ -50,13 +50,13 @@ uint64_t state::get_balance(std::string const&/* key*/) const
     return 0;
 }
 
-bool state::possible_transfer(BlockchainMessage::Transfer const& transfer) const
+bool state::possible_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const
 {
     //TODO
     return true;
 }
 
-void state::apply_transfer(BlockchainMessage::Transfer const& transfer)
+void state::apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee)
 {
     //TODO
 }

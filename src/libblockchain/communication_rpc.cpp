@@ -239,10 +239,25 @@ void verify_signature(beltpp::packet const& packet,
 void process_transfer(beltpp::packet const& packet,
                       publiqpp::action_log& action_log,
                       publiqpp::transaction_pool& transaction_pool,
-                      publiqpp::state& state)
+                      publiqpp::state& state,
+                      beltpp::isocket& sk,
+                      beltpp::isocket::peer_id const& peerid)
 {
+    SignedTransaction signed_transaction;
+    packet.get(signed_transaction);
+
     Transfer transfer;
-    packet.get(transfer);
+    signed_transaction.action_details.action.get(transfer);
+
+    // Quick validate
+    if (signed_transaction.authority != transfer.from)
+    {
+        InvalidAuthority msg;
+        msg.authority_abuser = signed_transaction.authority;
+        msg.authority_abused = transfer.from;
+        sk.send(peerid, msg);
+        return;
+    }
 
     // Check pool
     vector<char> packet_vec = packet.save();
@@ -252,23 +267,25 @@ void process_transfer(beltpp::packet const& packet,
         throw std::runtime_error("Transaction is already received!");
 
     // Validate state
-    if (!state.possible_transfer(transfer))//fee
+    if (!state.possible_transfer(transfer, signed_transaction.action_details.fee))
         throw std::runtime_error("Balance is not enough!");
 
     // Add to the pool
     transaction_pool.insert(packet);
 
     // Apply state
-    state.apply_transfer(transfer);//fee
+    state.apply_transfer(transfer, signed_transaction.action_details.fee);
 
     // Add to action log
     LoggedTransaction action_info;
     action_info.applied_reverted = false;    //  apply
     action_info.index = 0; // will be set automatically
-    action_info.action = std::move(transfer);
+    action_info.action = std::move(signed_transaction.action_details);
 
     action_log.insert(action_info);
 
     // Boradcast
+
+    sk.send(peerid, Done());
 }
 
