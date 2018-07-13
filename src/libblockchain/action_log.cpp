@@ -13,8 +13,8 @@ using std::string;
 namespace
 {
 using logged_action_loader = meshpp::file_loader<BlockchainMessage::LoggedTransaction,
-&BlockchainMessage::LoggedTransaction::string_loader,
-&BlockchainMessage::LoggedTransaction::string_saver>;
+                                                 &BlockchainMessage::LoggedTransaction::string_loader,
+                                                 &BlockchainMessage::LoggedTransaction::string_saver>;
 }
 
 namespace publiqpp

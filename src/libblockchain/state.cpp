@@ -90,4 +90,15 @@ void state::apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t
     m_pimpl->m_state.save();
 }
 
+void state::merge_block(std::unordered_map<string, uint64_t> const& tmp_state)
+{
+    for (auto &it : tmp_state)
+    {
+        if (it.second == 0)
+            m_pimpl->m_state->accounts.erase(it.first);
+        else
+            m_pimpl->m_state->accounts[it.first] = it.second;
+    }
+}
+
 }

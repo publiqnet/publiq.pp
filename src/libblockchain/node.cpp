@@ -612,19 +612,56 @@ bool node::run()
                     }
                     break;
                 }
-                case Transfer::rtt:
+                case Transaction::rtt:
                 {
                     if (broadcast_transaction.items.empty())
-                        throw std::runtime_error("Empty transfer");
+                        throw std::runtime_error("Empty transaction!");
                 
-                    process_transfer(broadcast_transaction.items[1],
-                                     ref_packet,
-                                     m_pimpl->m_action_log,
-                                     m_pimpl->m_transaction_pool,
-                                     m_pimpl->m_state,
-                                     *psk,
-                                     peerid);
+                    process_transaction(broadcast_transaction.items[1],
+                                        ref_packet,
+                                        m_pimpl->m_action_log,
+                                        m_pimpl->m_transaction_pool,
+                                        m_pimpl->m_state,
+                                        *psk,
+                                        peerid);
                 
+                    break;
+                }
+                case Block::rtt:
+                {
+                    if (broadcast_block.items.empty())
+                        throw std::runtime_error("Empty block!");
+
+                    // Verify block signature
+                    SignedBlock signed_block;
+                    broadcast_block.items[1].get(signed_block);
+
+                    vector<char> buffer = SignedBlock::saver(&signed_block.block_details);
+                    meshpp::signature sg(meshpp::public_key(signed_block.authority), buffer, signed_block.signature);
+
+                    bool block_accepted = sg.verify();
+
+                    //Check consensus
+                    //TODO block_accepted = block_accepted && consensus
+
+                    block_accepted = block_accepted && process_block(ref_packet,
+                                                                     m_pimpl->m_action_log,
+                                                                     m_pimpl->m_transaction_pool,
+                                                                     m_pimpl->m_state);
+
+                    if (block_accepted)
+                    {
+                        // block is accepted
+                        //TODO add to blockchain
+                        //TODO broadcast
+
+                        psk->send(peerid, Done());
+                    }
+                    else //block is not acceptable
+                    {
+                        //TODO
+                    }
+
                     break;
                 }
                 case ChainInfoRequest::rtt:

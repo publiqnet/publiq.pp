@@ -29,6 +29,10 @@ public:
     bool remove(std::string const& key);
 
     bool contains(std::string const& key) const;
+    void get_keys(std::vector<std::string> &keys);
+    void get_amounts(std::string const& key, 
+                     std::vector<std::pair<std::string, uint64_t>>& amounts, 
+                     bool in_out);
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };

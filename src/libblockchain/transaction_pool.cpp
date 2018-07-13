@@ -34,11 +34,28 @@ public:
         : m_path(path)
         , m_index(path / "transactions.tpool.index")
     {
+        // Load transfers
+        std::unordered_set<string> filename_set;
+        for (string const& packet_hash : m_index->dictionary)
+            filename_set.insert(string("df" + get_df_id(packet_hash) + ".tpool"));
 
+        for (string const& file_name : filename_set)
+        {
+            transaction_data_loader file_data(m_path / file_name);
+
+            for (auto& it : file_data.as_const()->actions)
+            {
+                Transaction transaction;
+                std::move(it.second).get(transaction);
+
+                transactions[it.first] = transaction;
+            }
+        }
     }
 
     filesystem::path m_path;
     hash_index_locked_loader m_index;
+    std::unordered_map<string, Transaction> transactions;
 
     string get_df_id(string const& hash) const
     {
@@ -67,7 +84,7 @@ transaction_pool::~transaction_pool()
 
 void transaction_pool::insert(beltpp::packet const& packet)
 {
-    if (packet.type() != Transfer::rtt)
+    if (packet.type() != Transaction::rtt)
         throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
 
     vector<char> packet_vec = packet.save();
@@ -78,10 +95,11 @@ void transaction_pool::insert(beltpp::packet const& packet)
     m_pimpl->m_index->dictionary.insert(packet_hash);
     transaction_data_loader file_data(m_pimpl->m_path / file_name);
 
-    Transfer transfer;
-    packet.get(transfer);
+    Transaction transaction;
+    packet.get(transaction);
 
-    file_data->actions[packet_hash] = transfer;
+    file_data->actions[packet_hash] = transaction;
+    m_pimpl->transactions[packet_hash] = transaction;
     
     file_data.save();
     m_pimpl->m_index.save();
@@ -92,11 +110,7 @@ bool transaction_pool::at(string const& key, beltpp::packet& transaction) const
     if (contains(key))
         return false;
 
-    string hash_id = m_pimpl->get_df_id(key);
-    string file_name("df" + hash_id + ".tpool");
-
-    transaction_data_loader file_data(m_pimpl->m_path / file_name);
-    ::detail::assign_packet(transaction, file_data.as_const()->actions.at(key));
+    ::detail::assign_packet(transaction, m_pimpl->transactions[key]);
     
     return true;
 }
@@ -108,10 +122,11 @@ bool transaction_pool::remove(string const& key)
 
     string hash_id = m_pimpl->get_df_id(key);
     string file_name("df" + hash_id + ".tpool");
-
-    m_pimpl->m_index->dictionary.erase(key);
     transaction_data_loader file_data(m_pimpl->m_path / file_name);
+    
     file_data->actions.erase(key);
+    m_pimpl->transactions.erase(key);
+    m_pimpl->m_index->dictionary.erase(key);
 
     file_data.save();
     m_pimpl->m_index.save();
@@ -122,6 +137,26 @@ bool transaction_pool::remove(string const& key)
 bool transaction_pool::contains(string const& key) const
 {
     return m_pimpl->m_index->dictionary.find(key) != m_pimpl->m_index->dictionary.end();
+}
+
+void transaction_pool::get_amounts(std::string const& key, std::vector<std::pair<std::string, uint64_t>>& amounts, bool in_out)
+{
+    for (auto &it : m_pimpl->transactions)
+    {
+        Transfer transfer;
+        it.second.action.get(transfer);
+
+        if (in_out && transfer.to == key)
+            amounts.push_back(std::pair<std::string, uint64_t>(it.first, transfer.amount));
+        else if (!in_out && transfer.from == key)
+            amounts.push_back(std::pair<std::string, uint64_t>(it.first, transfer.amount + it.second.fee));
+    }
+}
+
+void transaction_pool::get_keys(std::vector<std::string> &keys)
+{
+    for (auto &it : m_pimpl->transactions)
+        keys.push_back(it.first);
 }
 
 }
