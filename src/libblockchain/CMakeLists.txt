@@ -48,7 +48,8 @@ target_link_libraries(blockchain
         p2psocket
         socket
         systemutility
-        cryptoutility)
+        cryptoutility
+        log)
 
 # what to do on make install
 install(TARGETS blockchain

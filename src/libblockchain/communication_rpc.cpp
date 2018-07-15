@@ -239,24 +239,19 @@ void verify_signature(beltpp::packet const& packet,
     sk.send(peerid, Done());
 }
 
-void process_transaction(beltpp::packet const& package_signed_transaction,
-                         beltpp::packet const& package_transaction,
-                         publiqpp::action_log& action_log,
-                         publiqpp::transaction_pool& transaction_pool,
-                         publiqpp::state& state,
-                         beltpp::isocket& sk,
-                         beltpp::isocket::peer_id const& peerid)
+void process_transfer(beltpp::packet const& package_signed_transaction,
+                      beltpp::packet const& package_transfer,
+                      publiqpp::action_log& action_log,
+                      publiqpp::transaction_pool& transaction_pool,
+                      publiqpp::state& state,
+                      beltpp::isocket& sk,
+                      beltpp::isocket::peer_id const& peerid)
 {
     SignedTransaction signed_transaction;
     package_signed_transaction.get(signed_transaction);
 
-    Transaction transaction;
-    package_transaction.get(transaction);
-
-    beltpp::packet package_transfer = std::move(transaction.action);
-
     Transfer transfer;
-    std::move(package_transfer).get(transfer);
+    package_transfer.get(transfer);
 
     // Expiry date check
     auto now = system_clock::now();
@@ -517,6 +512,92 @@ bool process_block(beltpp::packet const& package_block,
 
             action_log.insert(action_info);
         }
+    }
+}
+
+void broadcast(beltpp::packet& package_broadcast,
+               beltpp::isocket::peer_id const& self,
+               beltpp::isocket::peer_id const& from,
+               bool from_rpc,
+               beltpp::ilog* plog,
+               std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
+               beltpp::isocket* psk)
+{
+    auto str_compare = [](string const& first, string const& second)
+    {
+        auto res = first.compare(second);
+        if (res > 0)
+            res = 1;
+        if (res < 0)
+            res = -1;
+        return res;
+    };
+
+    int direction = 0;
+    if (false == from_rpc)
+    {
+        direction = str_compare(self, from);
+        if (plog)
+            plog->message(self.substr(0, 2) + ", " + from.substr(0, 2) + ": " + std::to_string(direction));
+
+        if (0 == direction)
+            return;
+    }
+
+    bool chance_to_reflect = beltpp::chance_one_of(10);
+    BlockchainMessage::Broadcast msg_broadcast;
+    package_broadcast.get(msg_broadcast);
+
+    uint64_t echoes = msg_broadcast.echoes;
+    if (from_rpc)
+    {
+        if (plog)
+            plog->message("will broadcast to all");
+        echoes = 2;
+    }
+    if (chance_to_reflect)
+    {
+        if (plog)
+            plog->message("can reflect, 1 chance out of 10");
+        if (msg_broadcast.echoes == 0)
+        {
+            if (plog)
+                plog->message("    oh no!");
+            chance_to_reflect = false;
+        }
+    }
+
+    for (auto const& peer : all_peers)
+    {
+        bool do_reflect = false;
+        auto direction2 = str_compare(self, peer);
+        if (false == from_rpc &&
+            direction == direction2)
+        {
+            if (false == chance_to_reflect)
+            {
+                if (plog)
+                    plog->message("skip: " + self.substr(0,2) + ", " + peer.substr(0,2) + ": " + std::to_string(direction2));
+                continue;
+            }
+            else
+                do_reflect = true;
+        }
+
+        msg_broadcast.echoes = echoes;
+        if (do_reflect)
+        {
+            if (plog)
+            {
+                plog->message("will reflect broadcast to: " + peer.substr(0, 5));
+                plog->message("    " + std::to_string(msg_broadcast.echoes));
+            }
+            --msg_broadcast.echoes;
+        }
+        else if (plog)
+            plog->message("will rebroadcast to: " + peer.substr(0, 5));
+
+        psk->send(peer, msg_broadcast);
     }
 }
 

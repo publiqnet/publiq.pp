@@ -17,6 +17,7 @@
 #include <belt.pp/packet.hpp>
 #include <belt.pp/message_global.hpp>
 #include <belt.pp/scope_helper.hpp>
+#include <belt.pp/utility.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
 #include <mesh.pp/cryptoutility.hpp>
@@ -527,12 +528,10 @@ bool node::run()
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_transaction;
-                open_container_packet<Broadcast, SignedBlock> broadcast_block;
                 open_container_packet<Broadcast> broadcast_anything;
                 bool is_container =
-                        (broadcast_transaction.open(std::move(received_packet), composition) ||
-                         broadcast_block.open(std::move(received_packet), composition) ||
-                         broadcast_anything.open(std::move(received_packet), composition));
+                        (broadcast_transaction.open(received_packet, composition) ||
+                         broadcast_anything.open(received_packet, composition));
 
                 if (is_container == false)
                 {
@@ -612,18 +611,27 @@ bool node::run()
                     }
                     break;
                 }
-                case Transaction::rtt:
+                case Transfer::rtt:
                 {
                     if (broadcast_transaction.items.empty())
-                        throw std::runtime_error("Empty transaction!");
+                        throw std::runtime_error("will process only \"broadcast signed transfer\"");
                 
-                    process_transaction(broadcast_transaction.items[1],
-                                        ref_packet,
-                                        m_pimpl->m_action_log,
-                                        m_pimpl->m_transaction_pool,
-                                        m_pimpl->m_state,
-                                        *psk,
-                                        peerid);
+                    process_transfer(*broadcast_transaction.items[1],
+                                     ref_packet,
+                                     m_pimpl->m_action_log,
+                                     m_pimpl->m_transaction_pool,
+                                     m_pimpl->m_state,
+                                     *psk,
+                                     peerid);
+
+
+                    broadcast(received_packet,
+                              m_pimpl->m_ptr_p2p_socket->name(),
+                              peerid,
+                              (it == interface_type::rpc),
+                              m_pimpl->plogger_node,
+                              m_pimpl->m_p2p_peers,
+                              m_pimpl->m_ptr_p2p_socket.get());
                 
                     break;
                 }

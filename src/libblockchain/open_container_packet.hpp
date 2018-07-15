@@ -13,16 +13,12 @@ using beltpp::packet;
 using namespace BlockchainMessage;
 using std::vector;
 
-packet&& take_contained_object(Broadcast&& pck)
+packet& contained_member(Broadcast& pck)
 {
-    return std::move(pck.package);
-}
-void put_contained_object_back(Broadcast& pck, packet&& value)
-{
-    pck.package = std::move(value);
+    return pck.package;
 }
 
-packet&& take_contained_object(SignedTransaction&& pck)
+packet& contained_member(SignedTransaction& pck)
 {
     meshpp::public_key pb_key(pck.authority);
     auto message = detail::saver(pck.transaction_details);
@@ -31,27 +27,7 @@ packet&& take_contained_object(SignedTransaction&& pck)
                                       pck.signature);
     signature_check.check();
 
-    return std::move(pck.transaction_details.action);
-}
-void put_contained_object_back(SignedTransaction& pck, packet&& value)
-{
-    pck.transaction_details.action = std::move(value);
-}
-
-Block&& take_contained_object(SignedBlock&& pck)
-{
-    meshpp::public_key pb_key(pck.authority);
-    auto message = detail::saver(pck.block_details);
-    meshpp::signature signature_check(pb_key,
-                                      vector<char>(message.begin(), message.end()),
-                                      pck.signature);
-    signature_check.check();
-
-    return std::move(pck.block_details);
-}
-void put_contained_object_back(SignedBlock& pck, Block&& value)
-{
-    pck.block_details = std::move(value);
+    return pck.transaction_details.action;
 }
 
 template <typename... Ts>
@@ -61,83 +37,54 @@ template <typename T_container>
 class open_container_packet<T_container>
 {
 public:
-    bool open(packet&& pck, vector<packet*>& composition)
+    bool open(packet& pck, vector<packet*>& composition)
     {
         if (T_container::rtt != pck.type())
             return false;
 
-        T_container container;
-        std::move(pck).get(container);
-        beltpp::on_failure check1([&pck, &container]
-        {
-            pck.set(std::move(container));
-        });
+        T_container* pcontainer;
+        pck.get(pcontainer);
 
-        auto&& temp = take_contained_object(std::move(container));
-        beltpp::on_failure check2([&container, &temp]
-        {
-            put_contained_object_back(container, std::move(temp));
-        });
+        packet& temp = contained_member(*pcontainer);
 
         items.reserve(items.size() + 2);
-        composition.clear();
-        composition.reserve(items.size());
-        items.push_back(std::move(container));
-        items.push_back(std::move(temp));
+        items.push_back(&pck);
+        items.push_back(&temp);
 
-        for (auto& item : items)
-            composition.push_back(&item);
-
-        check2.dismiss();
-        check1.dismiss();
+        composition = items;
 
         return true;
     }
 
-    vector<packet> items;
+    vector<packet*> items;
 };
 template <typename T_container, typename... Ts>
 class open_container_packet<T_container, Ts...>
 {
 public:
-    bool open(packet&& pck, vector<packet*>& composition)
+    bool open(packet& pck, vector<packet*>& composition)
     {
         if (T_container::rtt != pck.type())
             return false;
 
-        T_container container;
-        std::move(pck).get(container);
-        beltpp::on_failure check1([&pck, &container]
-        {
-            pck.set(std::move(container));
-        });
+        T_container* pcontainer;
+        pck.get(pcontainer);
 
-        packet temp;
-        temp = take_contained_object(std::move(container));
-        beltpp::on_failure check2([&container, &temp]
-        {
-            put_contained_object_back(container, std::move(temp));
-        });
+        packet& temp = contained_member(*pcontainer);
 
         open_container_packet<Ts...> sub;
-        if (false == sub.open(std::move(temp), composition))
+        if (false == sub.open(temp, composition))
             return false;
 
         items.reserve(items.size() + 1 + sub.items.size());
-        composition.clear();
-        composition.reserve(items.size());
-        items.push_back(std::move(container));
+        items.push_back(&pck);
         for (auto& item : sub.items)
-            items.push_back(std::move(item));
+            items.push_back(item);
 
-        for (auto& item : items)
-            composition.push_back(&item);
-
-        check1.dismiss();
-        check2.dismiss();
+        composition = items;
 
         return true;
     }
 
-    vector<packet> items;
+    vector<packet*> items;
 };
