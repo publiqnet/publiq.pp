@@ -257,7 +257,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
     auto now = system_clock::now();
     system_clock::to_time_t(now);
 
-    if (now <= system_clock::from_time_t(transaction.expiry.tm))
+    if (now <= system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
         throw std::runtime_error("Expired transaction!");
 
     // Authority check
@@ -448,6 +448,7 @@ bool process_block(beltpp::packet const& package_block,
 
     for (auto &it : keys)
     {
+        B_UNUSED(it);
         int revert_mark = 0;
         size_t index = action_log.length() - 1;
         bool revert = true;
@@ -513,6 +514,8 @@ bool process_block(beltpp::packet const& package_block,
             action_log.insert(action_info);
         }
     }
+
+    return true;
 }
 
 void broadcast(beltpp::packet& package_broadcast,

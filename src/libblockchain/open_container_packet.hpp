@@ -30,6 +30,11 @@ packet& contained_member(SignedTransaction& pck)
     return pck.transaction_details.action;
 }
 
+packet& contained_member(SignedBlock& pck)
+{
+    return pck.block_details;
+}
+
 template <typename... Ts>
 class open_container_packet;
 

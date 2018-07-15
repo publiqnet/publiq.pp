@@ -34,7 +34,7 @@ module BlockchainMessage
 
     class SignedBlock
     {
-        Block block_details
+        Object block_details
         String authority
         String signature
     }

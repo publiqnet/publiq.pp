@@ -528,9 +528,11 @@ bool node::run()
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_transaction;
+                open_container_packet<Broadcast, SignedBlock> broadcast_block;
                 open_container_packet<Broadcast> broadcast_anything;
                 bool is_container =
                         (broadcast_transaction.open(received_packet, composition) ||
+                         broadcast_block.open(received_packet, composition) ||
                          broadcast_anything.open(received_packet, composition));
 
                 if (is_container == false)
@@ -638,11 +640,11 @@ bool node::run()
                 case Block::rtt:
                 {
                     if (broadcast_block.items.empty())
-                        throw std::runtime_error("Empty block!");
+                        throw std::runtime_error("will process only \"broadcast signed block\"");
 
                     // Verify block signature
                     SignedBlock signed_block;
-                    broadcast_block.items[1].get(signed_block);
+                    broadcast_block.items[1]->get(signed_block);
 
                     vector<char> buffer = SignedBlock::saver(&signed_block.block_details);
                     meshpp::signature sg(meshpp::public_key(signed_block.authority), buffer, signed_block.signature);
