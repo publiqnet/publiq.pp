@@ -7,6 +7,7 @@
 
 #include <string>
 
+using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
 
@@ -79,4 +80,40 @@ bool action_log::at(size_t index, BlockchainMessage::LoggedTransaction& action_i
 
     return true;
 }
+
+void action_log::revert()
+{
+    int revert_mark = 0;
+    size_t index = length() - 1;
+    bool revert = true;
+
+    while (revert)
+    {
+        LoggedTransaction action_info;
+        at(index, action_info);
+
+        revert = (action_info.applied_reverted == false);
+
+        if (revert)
+            ++revert_mark;
+        else
+            --revert_mark;
+
+        if (revert_mark >= 0)
+        {
+            if (index == 0)
+                throw std::runtime_error("Nothing to revert!");
+
+            --index;
+            revert = true;
+        }
+    }
+
+    // revert last valid action
+    LoggedTransaction action_revert_info;
+    at(index, action_revert_info);
+    action_revert_info.applied_reverted = false;   //  revert
+    insert(action_revert_info);
+}
+
 }

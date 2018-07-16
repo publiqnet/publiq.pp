@@ -1,9 +1,11 @@
 #include "blockchain.hpp"
 
 #include "data.hpp"
+#include "message.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 
+using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 namespace publiqpp
@@ -41,4 +43,15 @@ size_t blockchain::length() const
 {
     return m_pimpl->m_length.as_const()->value;
 }
+
+void blockchain::get_last_block(Block& block) const
+{
+    //TODO
+}
+
+void blockchain::remove_last_block()
+{
+    //TODO
+}
+
 }

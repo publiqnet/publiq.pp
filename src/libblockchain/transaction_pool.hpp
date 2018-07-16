@@ -28,6 +28,7 @@ public:
     bool at(std::string const& key, beltpp::packet& transaction) const;
     bool remove(std::string const& key);
 
+    size_t length() const;
     bool contains(std::string const& key) const;
     void get_keys(std::vector<std::string> &keys);
     void get_amounts(std::string const& key, 

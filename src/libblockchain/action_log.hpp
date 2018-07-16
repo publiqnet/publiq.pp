@@ -27,6 +27,7 @@ public:
 
     void insert(BlockchainMessage::LoggedTransaction const& action_info);
     bool at(size_t index, BlockchainMessage::LoggedTransaction& action_info) const;
+    void revert();
 private:
     std::unique_ptr<detail::action_log_internals> m_pimpl;
 };

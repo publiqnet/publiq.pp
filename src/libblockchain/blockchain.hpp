@@ -2,6 +2,8 @@
 
 #include "global.hpp"
 
+#include "message.hpp"
+
 #include <boost/filesystem/path.hpp>
 
 #include <vector>
@@ -22,6 +24,9 @@ public:
     ~blockchain();
 
     size_t length() const;
+
+    void get_last_block(BlockchainMessage::Block& block) const;
+    void remove_last_block();
 private:
     std::unique_ptr<detail::blockchain_internals> m_pimpl;
 };

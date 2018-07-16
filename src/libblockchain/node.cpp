@@ -622,9 +622,7 @@ bool node::run()
                                      ref_packet,
                                      m_pimpl->m_action_log,
                                      m_pimpl->m_transaction_pool,
-                                     m_pimpl->m_state,
-                                     *psk,
-                                     peerid);
+                                     m_pimpl->m_state);
 
 
                     broadcast(received_packet,
@@ -635,6 +633,7 @@ bool node::run()
                               m_pimpl->m_p2p_peers,
                               m_pimpl->m_ptr_p2p_socket.get());
                 
+                    psk->send(peerid, Done());
                     break;
                 }
                 case Block::rtt:
@@ -649,28 +648,26 @@ bool node::run()
                     vector<char> buffer = SignedBlock::saver(&signed_block.block_details);
                     meshpp::signature sg(meshpp::public_key(signed_block.authority), buffer, signed_block.signature);
 
-                    bool block_accepted = sg.verify();
+                    sg.check();
 
                     //Check consensus
-                    //TODO block_accepted = block_accepted && consensus
+                    //TODO
 
-                    block_accepted = block_accepted && process_block(ref_packet,
-                                                                     m_pimpl->m_action_log,
-                                                                     m_pimpl->m_transaction_pool,
-                                                                     m_pimpl->m_state);
+                    std::vector<beltpp::packet> package_blocks;
+                    package_blocks.push_back(std::move(ref_packet));
 
-                    if (block_accepted)
-                    {
-                        // block is accepted
-                        //TODO add to blockchain
-                        //TODO broadcast
+                    insert_blocks(package_blocks,
+                                  m_pimpl->m_action_log,
+                                  m_pimpl->m_transaction_pool,
+                                  m_pimpl->m_state);
 
-                        psk->send(peerid, Done());
-                    }
-                    else //block is not acceptable
-                    {
-                        //TODO
-                    }
+                    //TODO add to blockchain
+
+                    //TODO broadcast
+
+                    psk->send(peerid, Done());
+
+                    //TODO manage exceptions
 
                     break;
                 }
@@ -704,9 +701,10 @@ bool node::run()
                 case RevertLastLoggedAction::rtt:
                 {
                     if (it == interface_type::rpc)
-                        revert_last_action(  m_pimpl->m_action_log,
-                                             *psk,
-                                             peerid);
+                    {
+                        m_pimpl->m_action_log.revert();
+                        psk->send(peerid, Done());
+                    }
                     break;
                 }
                 case LoggedTransactionsRequest::rtt:
@@ -774,6 +772,14 @@ bool node::run()
                                                   std::string(e.sgn.message.begin(), e.sgn.message.end()),
                                                   nullptr);
 
+                psk->send(peerid, msg);
+                throw;
+            }
+            catch (exception_authority const& e)
+            {
+                InvalidAuthority msg;
+                msg.authority_provided = e.authority_provided;
+                msg.authority_required = e.authority_required;
                 psk->send(peerid, msg);
                 throw;
             }

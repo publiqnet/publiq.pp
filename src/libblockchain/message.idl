@@ -118,8 +118,8 @@ module BlockchainMessage
     class InvalidSignature { Signature details }
     class InvalidAuthority
     {
-        String authority_abuser
-        String authority_abused
+        String authority_provided
+        String authority_required
     }
     class RemoteError { String message }
 

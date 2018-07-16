@@ -63,46 +63,6 @@ void submit_action(beltpp::packet&& package,
     }
 }
 
-void revert_last_action(publiqpp::action_log& action_log,
-                        beltpp::isocket& sk,
-                        beltpp::isocket::peer_id const& peerid)
- {
-     int revert_mark = 0;
-     size_t index = action_log.length() - 1;
-     bool revert = true;
-
-     while (revert)
-     {
-         LoggedTransaction action_info;
-         action_log.at(index, action_info);
-
-         revert = (action_info.applied_reverted == false);
-
-         if (revert)
-             ++revert_mark;
-         else
-             --revert_mark;
-
-         if (revert_mark >= 0)
-         {
-             if (index == 0)
-                 throw std::runtime_error("Nothing to revert!");
-
-             --index;
-             revert = true;
-         }
-     }
-
-     // revert last valid action
-     LoggedTransaction action_revert_info;
-     action_log.at(index, action_revert_info);
-
-     action_revert_info.applied_reverted = false;   //  revert
-
-     action_log.insert(action_revert_info);
-     sk.send(peerid, Done());
- }
-
 void get_actions(beltpp::packet const& package,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
@@ -243,9 +203,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
                       beltpp::packet const& package_transfer,
                       publiqpp::action_log& action_log,
                       publiqpp::transaction_pool& transaction_pool,
-                      publiqpp::state& state,
-                      beltpp::isocket& sk,
-                      beltpp::isocket::peer_id const& peerid)
+                      publiqpp::state& state)
 {
     SignedTransaction signed_transaction;
     package_signed_transaction.get(signed_transaction);
@@ -262,16 +220,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     // Authority check
     if (signed_transaction.authority != transfer.from)
-    {
-        InvalidAuthority msg;
-        msg.authority_abuser = signed_transaction.authority;
-        msg.authority_abused = transfer.from;
-        sk.send(peerid, msg);
-        return;
-    }
-
-    // Signature check
-    //TODO
+        throw exception_authority(signed_transaction.authority, transfer.from);
 
     // Check pool
     vector<char> packet_vec = package_transfer.save();
@@ -296,191 +245,152 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         action_info.action = std::move(transfer);
 
         action_log.insert(action_info);
-
-        // Boradcast
-        //TODO, move out somewhere else
     }
-
-    // Return OK to sender
-    sk.send(peerid, Done());
 }
 
-bool process_block(beltpp::packet const& package_block,
+void insert_blocks(std::vector<beltpp::packet>& package_blocks,
                    publiqpp::action_log& action_log,
                    publiqpp::transaction_pool& transaction_pool,
                    publiqpp::state& state)
 {
-    Block block;
-    package_block.get(block);
-
     std::unordered_set<string> used_key_set;
     std::unordered_set<string> erase_tpool_set;
     std::unordered_map<string, uint64_t> tmp_state;
-    
-    std::vector<std::string> keys;
     std::vector<LoggedTransaction> logged_transactions;
     std::vector<std::pair<std::string, uint64_t>> amounts;
 
-    // Check block transactions and calculate new state
-    for (auto &signed_transaction : block.signed_transactions)
+    auto &it = package_blocks.begin();
+    for (; it != package_blocks.end(); ++it)
     {
-        // Verify signed_transaction signature
-        vector<char> buffer = SignedTransaction::saver(&signed_transaction.transaction_details);
-        meshpp::signature sg(meshpp::public_key(signed_transaction.authority), buffer, signed_transaction.signature);
-        
-        if (!sg.verify())
-            return false;
+        Block block;
+        (*it).get(block);
 
-        beltpp::packet package_transaction = std::move(signed_transaction.transaction_details.action);
-        vector<char> packet_vec = package_transaction.save();
-        string transfer_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
-
-        string key;
-        uint64_t amount;
-
-        Transaction transaction;
-        std::move(package_transaction).get(transaction);
-
-        beltpp::packet package_transfer = std::move(transaction.action);
-
-        Transfer transfer;
-        std::move(package_transfer).get(transfer);
-
-        if (signed_transaction.authority != transfer.from)
-            return false;
-
-        // correct "from" key balance
-        key = transfer.from;
-        tmp_state[key] = state.get_balance(key);
-
-        if (used_key_set.find(key) == used_key_set.end())
+        // Check block transactions and calculate new state
+        for (auto &signed_transaction : block.signed_transactions)
         {
-            used_key_set.insert(key);
+            // Verify signed_transaction signature
+            vector<char> buffer = SignedTransaction::saver(&signed_transaction.transaction_details);
+            meshpp::signature sg(meshpp::public_key(signed_transaction.authority), buffer, signed_transaction.signature);
 
-            // process "key" output transfers
-            amounts.clear();
-            transaction_pool.get_amounts(key, amounts, false);
+            sg.check();
 
-            amount = tmp_state[key];
-            for (auto& it : amounts)
+            beltpp::packet package_transaction = std::move(signed_transaction.transaction_details.action);
+            vector<char> packet_vec = package_transaction.save();
+            string transfer_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+
+            string key;
+            uint64_t amount;
+
+            Transaction transaction;
+            std::move(package_transaction).get(transaction);
+
+            beltpp::packet package_transfer = std::move(transaction.action);
+
+            Transfer transfer;
+            std::move(package_transfer).get(transfer);
+
+            if (signed_transaction.authority != transfer.from)
+                throw exception_authority(signed_transaction.authority, transfer.from);
+
+            // correct "from" key balance
+            key = transfer.from;
+            tmp_state[key] = state.get_balance(key);
+
+            if (used_key_set.find(key) == used_key_set.end())
             {
-                amount += it.second;
-                erase_tpool_set.insert(it.first);
-            }
+                used_key_set.insert(key);
 
-            // process "key" input transfers
-            amounts.clear();
-            transaction_pool.get_amounts(key, amounts, true);
+                // process "key" output transfers
+                amounts.clear();
+                transaction_pool.get_amounts(key, amounts, false);
 
-            for (auto& it : amounts)
-            {
-                if (amount >= it.second)
+                amount = tmp_state[key];
+                for (auto& it : amounts)
                 {
-                    amount -= it.second;
+                    amount += it.second;
                     erase_tpool_set.insert(it.first);
                 }
-                else
-                    return false;
-            }
-            tmp_state[key] = amount;
-        }
 
-        // remove transfer amount and fee from sender balance
-        amount = tmp_state[key];
-        if (amount >= transfer.amount + transaction.fee)
-            tmp_state[key] = amount - transfer.amount - transaction.fee;
-        else
-            return false;
+                // process "key" input transfers
+                amounts.clear();
+                transaction_pool.get_amounts(key, amounts, true);
 
-        // correct to_key balance
-        key = transfer.to;
-        tmp_state[key] = state.get_balance(key);
-
-        if (used_key_set.find(key) == used_key_set.end())
-        {
-            used_key_set.insert(key);
-
-            // process "key" output transfers
-            amounts.clear();
-            transaction_pool.get_amounts(key, amounts, false);
-
-            amount = tmp_state[key];
-            for (auto& it : amounts)
-            {
-                amount += it.second;
-                erase_tpool_set.insert(it.first);
-            }
-
-            // process "key" input transfers
-            amounts.clear();
-            transaction_pool.get_amounts(key, amounts, true);
-
-            for (auto& it : amounts)
-            {
-                if (amount >= it.second)
+                for (auto& it : amounts)
                 {
-                    amount -= it.second;
+                    if (amount >= it.second)
+                    {
+                        amount -= it.second;
+                        erase_tpool_set.insert(it.first);
+                    }
+                    else
+                        throw exception_balance(key);
+                }
+                tmp_state[key] = amount;
+            }
+
+            // remove transfer amount and fee from sender balance
+            amount = tmp_state[key];
+            if (amount >= transfer.amount + transaction.fee)
+                tmp_state[key] = amount - transfer.amount - transaction.fee;
+            else
+                throw exception_balance(key);
+
+            // correct to_key balance
+            key = transfer.to;
+            tmp_state[key] = state.get_balance(key);
+
+            if (used_key_set.find(key) == used_key_set.end())
+            {
+                used_key_set.insert(key);
+
+                // process "key" output transfers
+                amounts.clear();
+                transaction_pool.get_amounts(key, amounts, false);
+
+                amount = tmp_state[key];
+                for (auto& it : amounts)
+                {
+                    amount += it.second;
                     erase_tpool_set.insert(it.first);
                 }
-                else
-                    return false;
+
+                // process "key" input transfers
+                amounts.clear();
+                transaction_pool.get_amounts(key, amounts, true);
+
+                for (auto& it : amounts)
+                {
+                    if (amount >= it.second)
+                    {
+                        amount -= it.second;
+                        erase_tpool_set.insert(it.first);
+                    }
+                    else
+                        throw exception_balance(key);
+                }
+                tmp_state[key] = amount;
             }
-            tmp_state[key] = amount;
+
+            // add transfer amount to receiver balance
+            amount = tmp_state[key];
+            tmp_state[key] = amount + transfer.amount;
+
+            // collect action log
+            LoggedTransaction action_info;
+            action_info.applied_reverted = true;
+            action_info.index = 0;
+            action_info.action = std::move(transaction);
+            logged_transactions.push_back(std::move(action_info));
         }
-
-        // add transfer amount to receiver balance
-        amount = tmp_state[key];
-        tmp_state[key] = amount + transfer.amount;
-
-        // collect action log
-        LoggedTransaction action_info;
-        action_info.applied_reverted = true;
-        action_info.index = 0;
-        action_info.action = std::move(transaction);
-        logged_transactions.push_back(std::move(action_info));
     }
 
     // Correct state
     state.merge_block(tmp_state);
 
     // Correct action log ( 1. revert old action log )
-    transaction_pool.get_keys(keys);
-
-    for (auto &it : keys)
-    {
-        B_UNUSED(it);
-        int revert_mark = 0;
-        size_t index = action_log.length() - 1;
-        bool revert = true;
-
-        while (revert)
-        {
-            LoggedTransaction action_info;
-            action_log.at(index, action_info);
-
-            revert = (action_info.applied_reverted == false);
-
-            if (revert)
-                ++revert_mark;
-            else
-                --revert_mark;
-
-            if (revert_mark >= 0)
-            {
-                if (index == 0) // this should never happen
-                    throw std::runtime_error("Nothing to revert!");
-
-                --index;
-                revert = true;
-            }
-        }
-
-        LoggedTransaction action_revert_info;
-        action_log.at(index, action_revert_info);
-        action_revert_info.applied_reverted = false;
-
-        action_log.insert(action_revert_info);
-    }
+    size_t count = transaction_pool.length();
+    for (size_t i = 0; i < count; ++i)
+        action_log.revert();
 
     // Correct action log ( 2. apply block transfers )
     for (auto &it : logged_transactions)
@@ -490,7 +400,7 @@ bool process_block(beltpp::packet const& package_block,
     for (auto &it : erase_tpool_set)
         transaction_pool.remove(it);
 
-    keys.clear();
+    std::vector<std::string> keys;
     transaction_pool.get_keys(keys);
 
     auto now = system_clock::now();
@@ -514,8 +424,30 @@ bool process_block(beltpp::packet const& package_block,
             action_log.insert(action_info);
         }
     }
+}
 
-    return true;
+void revert_blocks(size_t count,
+                   publiqpp::blockchain& blockchain,
+                   publiqpp::transaction_pool& transaction_pool)
+{
+    for (size_t i = 0; i < count; ++i)
+    {
+        Block block;
+        blockchain.get_last_block(block);
+
+        auto &it = block.signed_transactions.rbegin();
+
+        // Add block transactions to the pool
+        for (; it != block.signed_transactions.rend(); ++it)
+            transaction_pool.insert((*it).transaction_details.action);
+
+        // Remove last block from blockchain
+        blockchain.remove_last_block();
+    }
+
+    // State shoul be correct :)
+
+    // Action log should be correct :)
 }
 
 void broadcast(beltpp::packet& package_broadcast,
@@ -604,3 +536,42 @@ void broadcast(beltpp::packet& package_broadcast,
     }
 }
 
+
+
+//---------------- Exceptions -----------------------
+exception_authority::exception_authority(string const& _authority_provided, string const& _authority_required)
+    : runtime_error("Invalid authority! authority_provided: " + _authority_provided + "  " + " authority_required: " + _authority_required)
+    , authority_provided(_authority_provided)
+    , authority_required(_authority_required)
+{}
+exception_authority::exception_authority(exception_authority const& other) noexcept
+    : runtime_error(other)
+    , authority_provided(other.authority_provided)
+    , authority_required(other.authority_required)
+{}
+exception_authority& exception_authority::operator=(exception_authority const& other) noexcept
+{
+    dynamic_cast<runtime_error*>(this)->operator =(other);
+    authority_provided = other.authority_provided;
+    authority_required = other.authority_required;
+    return *this;
+}
+exception_authority::~exception_authority() noexcept
+{}
+
+exception_balance::exception_balance(string const& _account)
+    : runtime_error("Low balance! account: " + account)
+    , account(_account)
+{}
+exception_balance::exception_balance(exception_balance const& other) noexcept
+    : runtime_error(other)
+    , account(other.account)
+{}
+exception_balance& exception_balance::operator=(exception_balance const& other) noexcept
+{
+    dynamic_cast<runtime_error*>(this)->operator =(other);
+    account = other.account;
+    return *this;
+}
+exception_balance::~exception_balance() noexcept
+{}

@@ -134,6 +134,11 @@ bool transaction_pool::remove(string const& key)
     return true;
 }
 
+size_t transaction_pool::length() const
+{
+    return m_pimpl->transactions.size();
+}
+
 bool transaction_pool::contains(string const& key) const
 {
     return m_pimpl->m_index->dictionary.find(key) != m_pimpl->m_index->dictionary.end();
