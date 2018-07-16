@@ -259,7 +259,7 @@ void insert_blocks(std::vector<beltpp::packet>& package_blocks,
     std::vector<LoggedTransaction> logged_transactions;
     std::vector<std::pair<std::string, uint64_t>> amounts;
 
-    auto &it = package_blocks.begin();
+    auto it = package_blocks.begin();
     for (; it != package_blocks.end(); ++it)
     {
         Block block;
@@ -435,7 +435,7 @@ void revert_blocks(size_t count,
         Block block;
         blockchain.get_last_block(block);
 
-        auto &it = block.signed_transactions.rbegin();
+        auto it = block.signed_transactions.rbegin();
 
         // Add block transactions to the pool
         for (; it != block.signed_transactions.rend(); ++it)
