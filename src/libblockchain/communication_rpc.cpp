@@ -560,7 +560,7 @@ exception_authority::~exception_authority() noexcept
 {}
 
 exception_balance::exception_balance(string const& _account)
-    : runtime_error("Low balance! account: " + account)
+    : runtime_error("Low balance! account: " + _account)
     , account(_account)
 {}
 exception_balance::exception_balance(exception_balance const& other) noexcept
