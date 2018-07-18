@@ -432,8 +432,15 @@ void revert_blocks(size_t count,
 {
     for (size_t i = 0; i < count; ++i)
     {
+        uint64_t number = blockchain.length();
+        beltpp::packet block_packet;
+        blockchain.at(number, block_packet);
+
+        SignedBlock signed_block;
+        std::move(block_packet).get(signed_block);
+
         Block block;
-        blockchain.get_last_block(block);
+        std::move(signed_block.block_details).get(block);
 
         auto it = block.signed_transactions.rbegin();
 

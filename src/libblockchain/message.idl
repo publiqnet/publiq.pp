@@ -29,6 +29,7 @@ module BlockchainMessage
 
     class Block
     {
+		UInt64 number
         Array SignedTransaction signed_transactions
     }
 
@@ -137,6 +138,12 @@ module BlockchainMessage
 
     //  special testing message
     class Shutdown {}
+
+    //  blockchain storage data
+    class BlockchainFileData
+    {
+        Hash UInt64 Object blocks
+    }
 
     //  transaction pool storage data
     class TransactionFileData
