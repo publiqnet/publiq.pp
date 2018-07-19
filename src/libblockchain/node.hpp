@@ -33,6 +33,7 @@ public:
     node(node&& other);
     ~node();
 
+    void terminate();
     std::string name() const;
     bool run();
 

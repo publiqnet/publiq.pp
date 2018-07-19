@@ -43,9 +43,12 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory);
 
 bool g_termination_handled = false;
+publiqpp::node* g_pnode = nullptr;
 void termination_handler(int signum)
 {
     g_termination_handled = true;
+    if (g_pnode)
+        g_pnode->terminate();
 }
 
 class port2pid_helper
@@ -198,6 +201,8 @@ int main(int argc, char** argv)
         cout << endl;
         cout << "Node: " << node.name()/*.substr(0, 5)*/ << endl;
         cout << endl;
+
+        g_pnode = &node;
 
         while (true)
         {
