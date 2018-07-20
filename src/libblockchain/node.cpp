@@ -814,6 +814,14 @@ bool node::run()
             m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, Drop());
             m_pimpl->remove_peer(peerid_to_remove);
         }
+
+        //TODO node timer actions
+        //1. mine tmp node
+        //2. check connected nodes delta
+        //3. if needed check chain
+        //4. apply best block
+        
+        //5. sync process
     }
 
     return code;

@@ -31,6 +31,11 @@ public:
 
     }
 
+    const size_t delta_step = 10;
+    const uint64_t delta_max = 120000000;
+    const uint64_t delta_up = 100000000;
+    const uint64_t delta_down = 80000000;
+
     filesystem::path m_path;
     number_locked_loader m_length;
 
@@ -44,6 +49,12 @@ public:
 
         //return "0000"; //Debug mode
     }
+
+    uint64_t dist(string key, string hash)
+    {
+        //TODO
+        return 10000;
+    }
 };
 }
 
@@ -52,6 +63,7 @@ blockchain::blockchain(boost::filesystem::path const& fs_blockchain)
 {
 
 }
+
 blockchain::~blockchain()
 {
 
@@ -122,6 +134,108 @@ void blockchain::remove_last_block()
 
     file_data.save();
     m_pimpl->m_length.save();
+}
+
+uint64_t blockchain::get_delta(string key, BlockchainMessage::Block& block, uint64_t amount)
+{
+    uint64_t d = m_pimpl->dist(key, block.previous_hash);
+    uint64_t delta = amount / (d * block.consensus_const);
+    
+    if (delta > m_pimpl->delta_max)
+        delta = m_pimpl->delta_max;
+
+    return delta;
+}
+
+void blockchain::mine_block(string key, 
+                            uint64_t amount,
+                            publiqpp::transaction_pool& transaction_pool, 
+                            SignedBlock& signed_block)
+{
+    uint64_t number = length();
+
+    beltpp::packet prev_packet;
+    at(number, prev_packet);
+
+    SignedBlock prev_signed_block;
+    std::move(prev_packet).get(prev_signed_block);
+
+    Block prev_block;
+    std::move(prev_signed_block.block_details).get(prev_block);
+
+    uint64_t delta = get_delta(key, prev_block, amount);
+
+    Block block;
+    block.number = number + 1;
+    block.consensus_delta = delta;
+    block.consensus_const = prev_block.consensus_const;
+    block.consensus_summary = prev_block.consensus_summary + delta;
+    block.previous_hash = "previous_hash"; //TODO
+
+    if (delta > m_pimpl->delta_up)
+    {
+        size_t step = 1;
+        uint64_t _delta = delta;
+
+        while (_delta > m_pimpl->delta_up && step < m_pimpl->delta_step && number > 0)
+        {
+            beltpp::packet _prev_packet;
+            at(number, _prev_packet);
+
+            SignedBlock _prev_signed_block;
+            std::move(_prev_packet).get(_prev_signed_block);
+
+            Block _prev_block;
+            std::move(_prev_signed_block.block_details).get(_prev_block);
+
+            --number;
+            ++step;
+            _delta = _prev_block.consensus_delta;
+        }
+
+        if (step >= m_pimpl->delta_step)
+            block.consensus_const = prev_block.consensus_const * 2;
+    }
+    else
+    if (delta < m_pimpl->delta_down && block.consensus_const > 1)
+    {
+        size_t step = 1;
+        uint64_t _delta = delta;
+
+        while (_delta < m_pimpl->delta_down && step < m_pimpl->delta_step && number > 0)
+        {
+            beltpp::packet _prev_packet;
+            at(number, _prev_packet);
+
+            SignedBlock _prev_signed_block;
+            std::move(_prev_packet).get(_prev_signed_block);
+
+            Block _prev_block;
+            std::move(_prev_signed_block.block_details).get(_prev_block);
+
+            --number;
+            ++step;
+            _delta = _prev_block.consensus_delta;
+        }
+
+        if (step >= m_pimpl->delta_step)
+            block.consensus_const = prev_block.consensus_const / 2;
+    }
+
+    // copy transactions from pool to block
+    std::vector<std::string> keys;
+    transaction_pool.get_keys(keys);
+
+    //TODO here we should have keys ordered by transaction time
+    for (auto& it : keys)
+    {
+        //TODO move transactions to the block
+    }
+
+    // sign block to return
+    signed_block.authority = key;
+    signed_block.signature = "signature"; //TODO
+    signed_block.block_details = std::move(block);
 }
 
 }

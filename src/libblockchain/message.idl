@@ -30,6 +30,11 @@ module BlockchainMessage
     class Block
     {
 		UInt64 number
+        UInt64 consensus_const
+        UInt64 consensus_delta
+        UInt64 consensus_summary
+        String previous_hash
+
         Array SignedTransaction signed_transactions
     }
 
