@@ -251,6 +251,7 @@ void blockchain::mine_block(string key,
     //TODO here we should have keys ordered by transaction time
     for (auto& it : keys)
     {
+        B_UNUSED(it);
         //TODO move transactions to the block
     }
 
