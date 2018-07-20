@@ -126,12 +126,12 @@ void get_hash(beltpp::packet const& packet,
               beltpp::isocket& sk,
               beltpp::isocket::peer_id const& peerid)
 {
-    HashRequest msg_get_hash;
+    DigestRequest msg_get_hash;
     packet.get(msg_get_hash);
 
     vector<char> buffer = msg_get_hash.package.save();
 
-    HashResult msg_hash_result;
+    Digest msg_hash_result;
     msg_hash_result.base58_hash = meshpp::hash(buffer.begin(), buffer.end());
     msg_hash_result.package = std::move(msg_get_hash.package);
 
@@ -433,11 +433,9 @@ void revert_blocks(size_t count,
     for (size_t i = 0; i < count; ++i)
     {
         uint64_t number = blockchain.length();
-        beltpp::packet block_packet;
-        blockchain.at(number, block_packet);
 
         SignedBlock signed_block;
-        std::move(block_packet).get(signed_block);
+        blockchain.at(number, signed_block);
 
         Block block;
         std::move(signed_block.block_details).get(block);
