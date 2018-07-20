@@ -365,12 +365,14 @@ public:
         if (result.second == false)
             throw std::runtime_error("p2p peer already exists: " + peerid);
     }
+
     void remove_peer(socket::peer_id const& peerid)
     {
         reset_stored_request(peerid);
         if (0 == m_p2p_peers.erase(peerid))
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
     }
+
     void find_stored_request(socket::peer_id const& peerid,
                              beltpp::packet& packet)
     {
@@ -384,6 +386,7 @@ public:
     {
         m_stored_requests.erase(peerid);
     }
+
     void store_request(socket::peer_id const& peerid,
                        beltpp::packet const& packet)
     {
@@ -394,6 +397,7 @@ public:
         if (false == res.second)
             throw std::runtime_error("only one request is supported at a time");
     }
+
     std::vector<beltpp::isocket::peer_id> do_step()
     {
         vector<beltpp::isocket::peer_id> result;
@@ -422,6 +426,17 @@ public:
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
+
+    //--------------------------------------
+    //TODO refactor
+    size_t sync_counter = 0;
+    size_t mine_counter = 0;
+
+    const size_t sync_threshold = 10;
+    const size_t mine_threshold = 600;
+
+    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_vector;
+    //--------------------------------------
 };
 }
 
@@ -718,7 +733,7 @@ bool node::run()
                         get_actions(ref_packet, m_pimpl->m_action_log, *psk, peerid);
                     break;
                 }
-                case HashRequest::rtt:
+                case DigestRequest::rtt:
                 {
                     get_hash(ref_packet, *psk, peerid);
                     break;
@@ -741,6 +756,44 @@ bool node::run()
                 case Signature::rtt:
                 {
                     verify_signature(ref_packet, *psk, peerid);
+                    break;
+                }
+                case SyncRequest::rtt:
+                {
+                    if (it == interface_type::p2p)
+                    {
+                        SyncRequest sync_request;
+                        std::move(ref_packet).get(sync_request);
+
+                        SyncResponse sync_response;
+                        sync_response.block_number = m_pimpl->m_blockchain.length();
+                        sync_response.consensus_sum = m_pimpl->m_blockchain.consensus_sum();
+
+                        if (sync_response.block_number > sync_request.block_number ||
+                            (sync_response.block_number == sync_request.block_number &&
+                             sync_response.consensus_sum > sync_request.consensus_sum))
+                        {
+                            psk->send(peerid, std::move(sync_response));
+                        }
+                    }
+                    break;
+                }
+                case SyncResponse::rtt:
+                {
+                    SyncResponse sync_response;
+                    std::move(ref_packet).get(sync_response);
+
+                    m_pimpl->sync_vector.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
+                    break;
+                }
+                case ConsensusRequest::rtt:
+                {
+                    //TODO
+                    break;
+                }
+                case ConsensusResponse::rtt:
+                {
+                    //TODO
                     break;
                 }
                 default:
@@ -820,13 +873,73 @@ bool node::run()
             m_pimpl->remove_peer(peerid_to_remove);
         }
 
-        //TODO node timer actions
-        //1. mine tmp node
-        //2. check connected nodes delta
-        //3. if needed check chain
-        //4. apply best block
-        
-        //5. sync process
+        beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
+
+        // Sync node
+        ++m_pimpl->sync_counter;
+        if (m_pimpl->sync_counter >= m_pimpl->sync_threshold)
+        {
+            // process collected blocks
+            SyncRequest sync_request;
+            sync_request.block_number = m_pimpl->m_blockchain.length();
+            sync_request.consensus_sum = m_pimpl->m_blockchain.consensus_sum();
+            beltpp::isocket::peer_id tmp_peer = "tmp";
+
+            for (auto& it : m_pimpl->sync_vector)
+            {
+                if (sync_request.block_number < it.second.block_number ||
+                    (sync_request.block_number == it.second.block_number &&
+                     sync_request.consensus_sum < it.second.consensus_sum))
+                {
+                    sync_request.block_number = it.second.block_number;
+                    sync_request.consensus_sum = it.second.consensus_sum;
+                    tmp_peer = it.first;
+                }
+            }
+
+            m_pimpl->sync_vector.clear();
+
+            if (tmp_peer != "tmp")
+            {
+                // request better chain
+                psk->send(tmp_peer, ChainRequest());
+            }
+            else
+            {
+                // new sync request 
+                sync_request.block_number = m_pimpl->m_blockchain.length();
+                sync_request.consensus_sum = m_pimpl->m_blockchain.consensus_sum();
+
+                for (auto& it : m_pimpl->m_p2p_peers)
+                    psk->send(it, sync_request);
+            }
+
+            m_pimpl->sync_counter = 0;
+        }
+
+        // Mine block
+        string key; // TODO assign
+        uint64_t amount = m_pimpl->m_state.get_balance(key);
+
+        if (amount > 100000000)
+        {
+            ++m_pimpl->mine_counter;
+            if (m_pimpl->mine_counter >= m_pimpl->mine_threshold)
+            {
+                SignedBlock signed_block;
+                m_pimpl->m_blockchain.mine_block(key,
+                    amount,
+                    m_pimpl->m_transaction_pool,
+                    signed_block);
+
+                // save signed_block as tmp
+
+                for (auto& it : m_pimpl->m_p2p_peers)
+                    psk->send(it, ConsensusRequest());
+
+                m_pimpl->mine_counter = 0;
+            }
+        }
     }
 
     return code;

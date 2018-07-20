@@ -36,6 +36,9 @@ public:
     const uint64_t delta_up = 100000000;
     const uint64_t delta_down = 80000000;
 
+    uint64_t consensus_sum;
+    uint64_t consensus_delta;
+
     filesystem::path m_path;
     number_locked_loader m_length;
 
@@ -61,7 +64,7 @@ public:
 blockchain::blockchain(boost::filesystem::path const& fs_blockchain)
     : m_pimpl(new detail::blockchain_internals(fs_blockchain))
 {
-
+    update_consensus_data();
 }
 
 blockchain::~blockchain()
@@ -69,9 +72,32 @@ blockchain::~blockchain()
 
 }
 
-size_t blockchain::length() const
+void blockchain::update_consensus_data()
+{
+    SignedBlock signed_block;
+    at(length(), signed_block);
+
+    Block block;
+    std::move(signed_block.block_details).get(block);
+
+    m_pimpl->consensus_sum = block.consensus_sum;
+    m_pimpl->consensus_delta = block.consensus_delta;
+}
+
+
+uint64_t blockchain::length() const
 {
     return m_pimpl->m_length.as_const()->value;
+}
+
+uint64_t blockchain::consensus_sum() const
+{
+    return m_pimpl->consensus_sum;
+}
+
+uint64_t blockchain::consensus_delta() const
+{
+    return m_pimpl->consensus_delta;
 }
 
 void blockchain::insert(beltpp::packet const& packet)
@@ -85,24 +111,27 @@ void blockchain::insert(beltpp::packet const& packet)
     Block block;
     signed_block.block_details.get(block);
 
-    uint64_t number = block.number;
+    uint64_t block_number = block.block_number;
 
-    if ( number != length() + 1)
-        throw std::runtime_error("Wrong block is goinf to insert! number:" + std::to_string(number));
+    if (block_number != length() + 1)
+        throw std::runtime_error("Wrong block is goinf to insert! number:" + std::to_string(block_number));
 
-    string hash_id = m_pimpl->get_df_id(number);
+    string hash_id = m_pimpl->get_df_id(block_number);
     string file_name("df" + hash_id + ".bchain");
 
     blockchain_data_loader file_data(m_pimpl->m_path / file_name);
 
-    file_data->blocks[number] = signed_block;
-    m_pimpl->m_length->value = number;
+    file_data->blocks[block_number] = signed_block;
+    m_pimpl->m_length->value = block_number;
 
     file_data.save();
     m_pimpl->m_length.save();
+
+    m_pimpl->consensus_sum = block.consensus_sum;
+    m_pimpl->consensus_delta = block.consensus_delta;
 }
 
-bool blockchain::at(uint64_t number, beltpp::packet& signed_block) const
+bool blockchain::at(uint64_t number, SignedBlock& signed_block) const
 {
     if (number > length())
         return false;
@@ -112,7 +141,7 @@ bool blockchain::at(uint64_t number, beltpp::packet& signed_block) const
 
     blockchain_data_loader file_data(m_pimpl->m_path / file_name);
 
-    ::detail::assign_packet(signed_block, file_data->blocks[number]);
+    file_data->blocks[number].get(signed_block);
 
     return true;
 }
@@ -134,9 +163,11 @@ void blockchain::remove_last_block()
 
     file_data.save();
     m_pimpl->m_length.save();
+
+    update_consensus_data();
 }
 
-uint64_t blockchain::get_delta(string key, BlockchainMessage::Block& block, uint64_t amount)
+uint64_t blockchain::calc_delta(string key, BlockchainMessage::Block& block, uint64_t amount)
 {
     uint64_t d = m_pimpl->dist(key, block.previous_hash);
     uint64_t delta = amount / (d * block.consensus_const);
@@ -152,24 +183,21 @@ void blockchain::mine_block(string key,
                             publiqpp::transaction_pool& transaction_pool, 
                             SignedBlock& signed_block)
 {
-    uint64_t number = length();
-
-    beltpp::packet prev_packet;
-    at(number, prev_packet);
+    uint64_t block_number = length();
 
     SignedBlock prev_signed_block;
-    std::move(prev_packet).get(prev_signed_block);
+    at(block_number, prev_signed_block);
 
     Block prev_block;
     std::move(prev_signed_block.block_details).get(prev_block);
 
-    uint64_t delta = get_delta(key, prev_block, amount);
+    uint64_t delta = calc_delta(key, prev_block, amount);
 
     Block block;
-    block.number = number + 1;
+    block.block_number = block_number + 1;
     block.consensus_delta = delta;
     block.consensus_const = prev_block.consensus_const;
-    block.consensus_summary = prev_block.consensus_summary + delta;
+    block.consensus_sum = prev_block.consensus_sum + delta;
     block.previous_hash = "previous_hash"; //TODO
 
     if (delta > m_pimpl->delta_up)
@@ -177,18 +205,15 @@ void blockchain::mine_block(string key,
         size_t step = 1;
         uint64_t _delta = delta;
 
-        while (_delta > m_pimpl->delta_up && step < m_pimpl->delta_step && number > 0)
+        while (_delta > m_pimpl->delta_up && step < m_pimpl->delta_step && block_number > 0)
         {
-            beltpp::packet _prev_packet;
-            at(number, _prev_packet);
-
             SignedBlock _prev_signed_block;
-            std::move(_prev_packet).get(_prev_signed_block);
+            at(block_number, _prev_signed_block);
 
             Block _prev_block;
             std::move(_prev_signed_block.block_details).get(_prev_block);
 
-            --number;
+            --block_number;
             ++step;
             _delta = _prev_block.consensus_delta;
         }
@@ -202,18 +227,15 @@ void blockchain::mine_block(string key,
         size_t step = 1;
         uint64_t _delta = delta;
 
-        while (_delta < m_pimpl->delta_down && step < m_pimpl->delta_step && number > 0)
+        while (_delta < m_pimpl->delta_down && step < m_pimpl->delta_step && block_number > 0)
         {
-            beltpp::packet _prev_packet;
-            at(number, _prev_packet);
-
             SignedBlock _prev_signed_block;
-            std::move(_prev_packet).get(_prev_signed_block);
+            at(block_number, _prev_signed_block);
 
             Block _prev_block;
             std::move(_prev_signed_block.block_details).get(_prev_block);
 
-            --number;
+            --block_number;
             ++step;
             _delta = _prev_block.consensus_delta;
         }

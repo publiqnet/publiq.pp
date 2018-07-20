@@ -29,10 +29,10 @@ module BlockchainMessage
 
     class Block
     {
-		UInt64 number
+		UInt64 block_number
         UInt64 consensus_const
         UInt64 consensus_delta
-        UInt64 consensus_summary
+        UInt64 consensus_sum
         String previous_hash
 
         Array SignedTransaction signed_transactions
@@ -63,8 +63,8 @@ module BlockchainMessage
     }
 
     //  request/response
-    class HashRequest { Object package }
-    class HashResult
+    class DigestRequest { Object package }
+    class Digest
     {
         String base58_hash
         Object package
@@ -113,6 +113,41 @@ module BlockchainMessage
         String public_key
         String signature
         Object package
+    }
+
+
+    class SyncRequest
+    {
+        UInt64 block_number
+        UInt64 consensus_sum
+    }
+
+    class SyncResponse
+    {
+        UInt64 block_number
+        UInt64 consensus_sum
+    }
+
+    class ConsensusRequest
+    {
+        UInt64 block_number
+        UInt64 consensus_delta
+    }
+
+    class ConsensusResponse
+    {
+        UInt64 block_number
+        UInt64 consensus_delta
+    }
+
+    class ChainRequest
+    {
+
+    }
+
+    class ChainResponse
+    {
+
     }
 
     ///
