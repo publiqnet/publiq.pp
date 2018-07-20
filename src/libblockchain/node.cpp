@@ -325,7 +325,7 @@ public:
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)
     {
-        m_ptr_eh->set_timer(chrono::seconds(1));
+        m_ptr_eh->set_timer(chrono::seconds(30));
 
         m_ptr_rpc_socket->listen(rpc_bind_to_address);
 
@@ -466,6 +466,11 @@ node::~node()
     wrapper.contents = std::move(pack);
     m_pimpl->m_ptr_p2p_socket->send(peer, std::move(wrapper));
 }*/
+
+void node::terminate()
+{
+    m_pimpl->m_ptr_eh->terminate();
+}
 
 string node::name() const
 {
