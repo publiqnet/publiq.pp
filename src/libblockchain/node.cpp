@@ -1031,7 +1031,7 @@ bool node::run()
         string key; // TODO assign
         uint64_t amount = m_pimpl->m_state.get_balance(key);
 
-        if (amount > 100000000 && m_pimpl->m_blockchain.mine_block(key, amount, m_pimpl->m_transaction_pool))
+        if (m_pimpl->m_blockchain.mine_block(key, amount, m_pimpl->m_transaction_pool))
         {
             uint64_t tmp_delta;
             uint64_t tmp_number;
@@ -1046,6 +1046,9 @@ bool node::run()
                     psk->send(it, consensus_request);
             }
         }
+
+        // Apply own block
+        m_pimpl->m_blockchain.step_apply();
     }
 
     return code;

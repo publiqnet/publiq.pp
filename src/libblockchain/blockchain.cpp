@@ -35,6 +35,7 @@ public:
     const uint64_t delta_max = 120000000;
     const uint64_t delta_up = 100000000;
     const uint64_t delta_down = 80000000;
+    const uint64_t mine_amount = 100000000;
 
     uint64_t consensus_sum;
     uint64_t consensus_delta;
@@ -67,6 +68,12 @@ public:
     bool mine_allowed()
     {
         //TODO check time after previous block
+        return true;
+    }
+
+    bool apply_allowed()
+    {
+        //TODO check time after previous mine
         return true;
     }
 };
@@ -194,6 +201,9 @@ bool blockchain::mine_block(string key,
                             uint64_t amount,
                             publiqpp::transaction_pool& transaction_pool)
 {
+    if (amount < m_pimpl->mine_amount)
+        return false;
+
     if (false == m_pimpl->mine_allowed())
         return false;
 
@@ -308,6 +318,9 @@ bool blockchain::tmp_block(BlockchainMessage::SignedBlock& signed_block)
 void blockchain::step_apply()
 {
     if (false == m_pimpl->step_enabled)
+        return;
+
+    if (false == m_pimpl->apply_allowed())
         return;
 
     SignedBlock signed_block;
