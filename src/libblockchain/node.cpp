@@ -755,9 +755,12 @@ bool node::run()
                         SyncRequest sync_request;
                         std::move(ref_packet).get(sync_request);
 
+                        BlockHeader block_header;
+                        m_pimpl->m_blockchain.header(block_header);
+
                         SyncResponse sync_response;
-                        sync_response.block_number = m_pimpl->m_blockchain.length();
-                        sync_response.consensus_sum = m_pimpl->m_blockchain.consensus_sum();
+                        sync_response.block_number = block_header.block_number;
+                        sync_response.consensus_sum = block_header.consensus_sum;
 
                         if (sync_response.block_number > sync_request.block_number ||
                             (sync_response.block_number == sync_request.block_number &&
@@ -776,10 +779,22 @@ bool node::run()
                 }
                 case SyncResponse::rtt:
                 {
-                    SyncResponse sync_response;
-                    std::move(ref_packet).get(sync_response);
+                    if (it == interface_type::p2p)
+                    {
+                        //check if request was sent
+                        //TODO
 
-                    m_pimpl->sync_vector.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
+                        SyncResponse sync_response;
+                        std::move(ref_packet).get(sync_response);
+
+                        m_pimpl->sync_vector.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
+                    }
+                    else
+                    {
+                        RemoteError remote_error;
+                        remote_error.message = "Wrong request!";
+                        psk->send(peerid, remote_error);
+                    }
                     break;
                 }
                 case ConsensusRequest::rtt:
@@ -789,14 +804,13 @@ bool node::run()
                         ConsensusRequest consensus_request;
                         std::move(ref_packet).get(consensus_request);
 
-                        uint64_t tmp_delta;
-                        uint64_t tmp_number;
+                        BlockHeader tmp_header;
 
-                        if (m_pimpl->m_blockchain.tmp_data(tmp_delta, tmp_number))
+                        if (m_pimpl->m_blockchain.tmp_header(tmp_header))
                         {
-                            if (tmp_number < consensus_request.block_number ||
-                                (tmp_number == consensus_request.block_number &&
-                                    tmp_delta < consensus_request.consensus_delta))
+                            if (tmp_header.block_number < consensus_request.block_number ||
+                                (tmp_header.block_number == consensus_request.block_number &&
+                                    tmp_header.consensus_delta < consensus_request.consensus_delta))
                             {
                                 // someone have better block
                                 m_pimpl->m_blockchain.step_disable();
@@ -805,8 +819,8 @@ bool node::run()
                             {
                                 // I have better block
                                 ConsensusResponse consensus_response;
-                                consensus_response.block_number = tmp_number;
-                                consensus_response.consensus_delta = tmp_delta;
+                                consensus_response.block_number = tmp_header.block_number;
+                                consensus_response.consensus_delta = tmp_header.consensus_delta;
 
                                 psk->send(peerid, consensus_response);
                             }
@@ -830,19 +844,75 @@ bool node::run()
                         ConsensusResponse consensus_response;
                         std::move(ref_packet).get(consensus_response);
 
-                        uint64_t tmp_delta;
-                        uint64_t tmp_number;
+                        BlockHeader tmp_header;
 
-                        if (m_pimpl->m_blockchain.tmp_data(tmp_delta, tmp_number))
+                        if (m_pimpl->m_blockchain.tmp_header(tmp_header))
                         {
-                            if (tmp_number < consensus_response.block_number ||
-                                (tmp_number == consensus_response.block_number &&
-                                    tmp_delta < consensus_response.consensus_delta))
+                            if (tmp_header.block_number < consensus_response.block_number ||
+                                (tmp_header.block_number == consensus_response.block_number &&
+                                    tmp_header.consensus_delta < consensus_response.consensus_delta))
                             {
                                 // some peer have better block
                                 m_pimpl->m_blockchain.step_disable();
                             }
                         }
+                    }
+                    else
+                    {
+                        RemoteError remote_error;
+                        remote_error.message = "Wrong request!";
+                        psk->send(peerid, remote_error);
+                    }
+                    break;
+                }
+                case ChainHeaderRequest::rtt:
+                {
+                    if (it == interface_type::p2p)
+                    {
+                        ChainHeaderRequest header_request;
+                        std::move(ref_packet).get(header_request);
+
+                        uint64_t from = m_pimpl->m_blockchain.length();
+                        from = from < header_request.blocks_from ? from : header_request.blocks_from;
+
+                        uint64_t to = header_request.blocks_to;
+                        to = to > from ? from : to;
+                        //to = to < from - 10 ? from - 10 : to;
+
+                        ChainHeaderResponse header_response;
+                        for (auto index = from; index >= to; --to)
+                        {
+                            SignedBlock signed_block;
+                            m_pimpl->m_blockchain.at(index, signed_block);
+                            
+                            Block block;
+                            std::move(signed_block.block_details).get(block);
+
+                            header_response.block_headers.push_back(std::move(block.block_header));
+                        }
+
+                        psk->send(peerid, header_response);
+                    }
+                    else
+                    {
+                        RemoteError remote_error;
+                        remote_error.message = "Wrong request!";
+                        psk->send(peerid, remote_error);
+                    }
+                    break;
+                }
+                case ChainHeaderResponse::rtt:
+                {
+                    if (it == interface_type::p2p)
+                    {
+                        //1. check if the chainheader was requested
+                        //TODO
+                    
+                        //2. find received and own headers last common point
+                        //TODO
+                    
+                        //3. request chain from found point
+                        //TODO
                     }
                     else
                     {
@@ -871,6 +941,7 @@ bool node::run()
                         {
                             SignedBlock signed_block;
                             m_pimpl->m_blockchain.at(index, signed_block);
+
                             chain_response.signed_blocks.push_back(std::move(signed_block));
                         }
 
@@ -891,7 +962,7 @@ bool node::run()
                         //1. check if the chain was requested
                         //TODO
 
-                        //2. check received chain
+                        //2. check received chain validity
                         ChainResponse chain_response;
                         std::move(ref_packet).get(chain_response);
                         //TODO
@@ -988,10 +1059,13 @@ bool node::run()
 
         // Sync node
         // process collected blocks
+        BlockHeader block_header;
+        m_pimpl->m_blockchain.header(block_header);
+
         SyncRequest sync_request;
-        sync_request.block_number = m_pimpl->m_blockchain.length();
-        sync_request.consensus_sum = m_pimpl->m_blockchain.consensus_sum();
-        beltpp::isocket::peer_id tmp_peer = "tmp";
+        sync_request.block_number = block_header.block_number;
+        sync_request.consensus_sum = block_header.consensus_sum;
+        beltpp::isocket::peer_id tmp_peer = "tmp_peer";
 
         for (auto& it : m_pimpl->sync_vector)
         {
@@ -1007,21 +1081,21 @@ bool node::run()
 
         m_pimpl->sync_vector.clear();
 
-        if (tmp_peer != "tmp")
+        if (tmp_peer != "tmp_peer")
         {
             // request better chain
-            ChainRequest chain_request;
-            chain_request.blocks_from = sync_request.block_number;
-            chain_request.blocks_to = m_pimpl->m_blockchain.length();
-            psk->send(tmp_peer, chain_request);
-
+            ChainHeaderRequest header_request;
+            header_request.blocks_from = sync_request.block_number;
+            header_request.blocks_to = m_pimpl->m_blockchain.length();
+            psk->send(tmp_peer, header_request);
+        
             //TODO store request
         }
         else
         {
             // new sync request 
-            sync_request.block_number = m_pimpl->m_blockchain.length();
-            sync_request.consensus_sum = m_pimpl->m_blockchain.consensus_sum();
+            sync_request.block_number = block_header.block_number;
+            sync_request.consensus_sum = block_header.consensus_sum;
 
             for (auto& it : m_pimpl->m_p2p_peers)
                 psk->send(it, sync_request);
@@ -1033,14 +1107,13 @@ bool node::run()
 
         if (m_pimpl->m_blockchain.mine_block(key, amount, m_pimpl->m_transaction_pool))
         {
-            uint64_t tmp_delta;
-            uint64_t tmp_number;
+            BlockHeader tmp_header;
 
-            if (m_pimpl->m_blockchain.tmp_data(tmp_delta, tmp_number))
+            if (m_pimpl->m_blockchain.tmp_header(tmp_header))
             {
                 ConsensusRequest consensus_request;
-                consensus_request.consensus_delta = tmp_delta;
-                consensus_request.block_number = tmp_number;
+                consensus_request.block_number = tmp_header.block_number;
+                consensus_request.consensus_delta = tmp_header.consensus_delta;
 
                 for (auto& it : m_pimpl->m_p2p_peers)
                     psk->send(it, consensus_request);

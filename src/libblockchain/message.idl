@@ -27,15 +27,19 @@ module BlockchainMessage
         String signature
     }
 
-    class Block
+    class BlockHeader
     {
-		UInt64 block_number
+        UInt64 block_number
         UInt64 consensus_const
         UInt64 consensus_delta
         UInt64 consensus_sum
         String previous_hash
+    }
 
-        Array SignedTransaction signed_transactions
+    class Block
+    {
+		BlockHeader block_header
+        Array SignedTransaction block_transactions
     }
 
     class SignedBlock
@@ -138,6 +142,17 @@ module BlockchainMessage
     {
         UInt64 block_number
         UInt64 consensus_delta
+    }
+
+    class ChainHeaderRequest
+    {
+        UInt64 blocks_from
+        UInt64 blocks_to
+    }
+
+    class ChainHeaderResponse
+    {
+        Array BlockHeader block_headers
     }
 
     class ChainRequest

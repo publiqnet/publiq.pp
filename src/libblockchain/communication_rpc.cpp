@@ -266,7 +266,7 @@ void insert_blocks(std::vector<beltpp::packet>& package_blocks,
         (*it).get(block);
 
         // Check block transactions and calculate new state
-        for (auto &signed_transaction : block.signed_transactions)
+        for (auto &signed_transaction : block.block_transactions)
         {
             // Verify signed_transaction signature
             vector<char> buffer = SignedTransaction::saver(&signed_transaction.transaction_details);
@@ -440,10 +440,10 @@ void revert_blocks(size_t count,
         Block block;
         std::move(signed_block.block_details).get(block);
 
-        auto it = block.signed_transactions.rbegin();
+        auto it = block.block_transactions.rbegin();
 
         // Add block transactions to the pool
-        for (; it != block.signed_transactions.rend(); ++it)
+        for (; it != block.block_transactions.rend(); ++it)
             transaction_pool.insert((*it).transaction_details.action);
 
         // Remove last block from blockchain

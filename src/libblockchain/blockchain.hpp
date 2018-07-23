@@ -23,11 +23,10 @@ public:
     blockchain(boost::filesystem::path const& fs_blockchain);
     ~blockchain();
 
-    void update_consensus_data();
+    void update_header();
 
     uint64_t length() const;
-    uint64_t consensus_sum() const;
-    uint64_t consensus_delta() const;
+    void header(BlockchainMessage::BlockHeader& block_header) const;
 
     void insert(beltpp::packet const& packet);
     bool at(uint64_t number, BlockchainMessage::SignedBlock& signed_block) const;
@@ -36,8 +35,8 @@ public:
     uint64_t calc_delta(std::string key, uint64_t amount, BlockchainMessage::Block& block);
     bool mine_block(std::string key, uint64_t amount, publiqpp::transaction_pool& transaction_pool);
     
-    bool tmp_data(uint64_t& block_delta, uint64_t& block_number);
     bool tmp_block(BlockchainMessage::SignedBlock& signed_block);
+    bool tmp_header(BlockchainMessage::BlockHeader& block_header);
 
     void step_apply();
     void step_disable();
