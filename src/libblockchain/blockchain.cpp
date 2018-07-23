@@ -39,6 +39,11 @@ public:
     uint64_t consensus_sum;
     uint64_t consensus_delta;
 
+    bool step_enabled;
+    uint64_t tmp_delta;
+    uint64_t tmp_number;
+    SignedBlock tmp_block;
+
     filesystem::path m_path;
     number_locked_loader m_length;
 
@@ -58,6 +63,12 @@ public:
         //TODO
         return 10000;
     }
+
+    bool mine_allowed()
+    {
+        //TODO check time after previous block
+        return true;
+    }
 };
 }
 
@@ -65,6 +76,7 @@ blockchain::blockchain(boost::filesystem::path const& fs_blockchain)
     : m_pimpl(new detail::blockchain_internals(fs_blockchain))
 {
     update_consensus_data();
+    m_pimpl->step_enabled = false;
 }
 
 blockchain::~blockchain()
@@ -167,7 +179,7 @@ void blockchain::remove_last_block()
     update_consensus_data();
 }
 
-uint64_t blockchain::calc_delta(string key, BlockchainMessage::Block& block, uint64_t amount)
+uint64_t blockchain::calc_delta(string key, uint64_t amount, BlockchainMessage::Block& block)
 {
     uint64_t d = m_pimpl->dist(key, block.previous_hash);
     uint64_t delta = amount / (d * block.consensus_const);
@@ -178,11 +190,13 @@ uint64_t blockchain::calc_delta(string key, BlockchainMessage::Block& block, uin
     return delta;
 }
 
-void blockchain::mine_block(string key, 
+bool blockchain::mine_block(string key, 
                             uint64_t amount,
-                            publiqpp::transaction_pool& transaction_pool, 
-                            SignedBlock& signed_block)
+                            publiqpp::transaction_pool& transaction_pool)
 {
+    if (false == m_pimpl->mine_allowed())
+        return false;
+
     uint64_t block_number = length();
 
     SignedBlock prev_signed_block;
@@ -191,10 +205,11 @@ void blockchain::mine_block(string key,
     Block prev_block;
     std::move(prev_signed_block.block_details).get(prev_block);
 
-    uint64_t delta = calc_delta(key, prev_block, amount);
+    uint64_t delta = calc_delta(key, amount, prev_block);
 
+    ++block_number;
     Block block;
-    block.block_number = block_number + 1;
+    block.block_number = block_number;
     block.consensus_delta = delta;
     block.consensus_const = prev_block.consensus_const;
     block.consensus_sum = prev_block.consensus_sum + delta;
@@ -255,10 +270,57 @@ void blockchain::mine_block(string key,
         //TODO move transactions to the block
     }
 
-    // sign block to return
+    // save block as tmp
+    SignedBlock signed_block;
     signed_block.authority = key;
     signed_block.signature = "signature"; //TODO
     signed_block.block_details = std::move(block);
+
+    m_pimpl->step_enabled = true;
+    m_pimpl->tmp_delta = delta;
+    m_pimpl->tmp_number = block_number;
+    m_pimpl->tmp_block = std::move(signed_block);
+
+    return true;
+}
+
+bool blockchain::tmp_data(uint64_t& block_delta, uint64_t& block_number)
+{
+    if (length() >= m_pimpl->tmp_number)
+        return false;
+
+    block_delta = m_pimpl->tmp_delta;
+    block_number = m_pimpl->tmp_number;
+
+    return true;
+}
+
+bool blockchain::tmp_block(BlockchainMessage::SignedBlock& signed_block)
+{
+    if (length() >= m_pimpl->tmp_number)
+        return false;
+
+    signed_block = m_pimpl->tmp_block;
+
+    return true;
+}
+
+void blockchain::step_apply()
+{
+    if (false == m_pimpl->step_enabled)
+        return;
+
+    SignedBlock signed_block;
+
+    if (tmp_block(signed_block))
+        insert(std::move(signed_block));
+
+    step_disable();
+}
+
+void blockchain::step_disable()
+{
+    m_pimpl->step_enabled = false;
 }
 
 }

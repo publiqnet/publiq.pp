@@ -142,12 +142,13 @@ module BlockchainMessage
 
     class ChainRequest
     {
-
+        UInt64 blocks_from
+        UInt64 blocks_to
     }
 
     class ChainResponse
     {
-
+        Array SignedBlock signed_blocks
     }
 
     ///
