@@ -25,6 +25,7 @@ add_library(blockchain
     communication_rpc.hpp
     data.hpp
     data.gen.hpp
+    http.hpp
     message.hpp
     message.gen.hpp
     node.cpp
