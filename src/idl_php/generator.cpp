@@ -272,7 +272,8 @@ void analyze(   state_holder& state,
     InterfaceFolder.append("ValidatorInterface.php");
     boost::filesystem::ofstream validator(InterfaceFolder);
 
-    validator<< R"file_template(interface ValidatorInterface
+    validator<< R"file_template(<?php
+interface ValidatorInterface
 {
     public function validate(stdClass $data);
 }
@@ -347,7 +348,8 @@ void analyze(   state_holder& state,
     boost::filesystem::path RttFilePath = BaseFolder.string() + "/" + "RTT.php";
     boost::filesystem::ofstream RTT(RttFilePath);
     RTT<<
-    R"file_template(class Rtt
+    R"file_template(<?php
+class Rtt
 {
     CONST types = [
 )file_template";
@@ -405,7 +407,8 @@ void analyze(   state_holder& state,
     boost::filesystem::path RttSerializableTraitFilePath = TraitFolder.string() + "/" + "RttSerializableTrait.php";
     boost::filesystem::ofstream RttSerializableTrait(RttSerializableTraitFilePath);
     RttSerializableTrait<<
-R"file_template(trait RttSerializableTrait
+R"file_template(<?php
+trait RttSerializableTrait
 {
     public function jsonSerialize()
     {
@@ -422,7 +425,8 @@ R"file_template(trait RttSerializableTrait
     boost::filesystem::path RttToJsonTraitFilePath = TraitFolder.string() + "/" + "RttToJsonTrait.php";
     boost::filesystem::ofstream RttToJsonTrait(RttToJsonTraitFilePath);
     RttToJsonTrait<<
-R"file_template(trait RttToJsonTrait
+R"file_template(<?php
+trait RttToJsonTrait
 {
     public function convertToJson()
     {
@@ -482,6 +486,7 @@ void analyze_struct(    state_holder& state,
     boost::filesystem::path FilePath = ModelFolder.string() + "/" + type_name + ".php";
     boost::filesystem::ofstream model(FilePath);
     model<<
+            "<?php\n"
             "namespace " + VendorName + "\\" + PackageName + "\\Model;\n" +
             "use " + VendorName + "\\" + PackageName +  "\\Interface\\ValidatorInterface;\n\n" +
             "class " + type_name + " implements ValidatorInterface, JsonSerializable\n"+
