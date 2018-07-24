@@ -749,15 +749,19 @@ bool node::run()
                         // validate received headers
                         auto it = header_response.block_headers.begin();
                         bool bad_data = header_response.block_headers.empty();
-                        bad_data = bad_data || !m_pimpl->header_vector.empty() && tmp_header.block_number != (*it).block_number;
+                        bad_data = bad_data ||
+                                (!m_pimpl->header_vector.empty() &&
+                                 tmp_header.block_number != (*it).block_number);
 
                         for (++it; !bad_data && it != header_response.block_headers.end(); ++it)
                         {
                             bad_data = bad_data || (*(it - 1)).block_number != (*it).block_number + 1;
                             bad_data = bad_data || (*(it - 1)).consensus_sum <= (*it).consensus_sum;
                             bad_data = bad_data || (*(it - 1)).consensus_sum != (*(it - 1)).consensus_delta + (*it).consensus_sum;
-                            bad_data = bad_data || (*(it - 1)).consensus_const != (*it).consensus_const &&
-                                                   (*(it - 1)).consensus_const != 2 * (*it).consensus_const;
+                            bad_data = bad_data || (
+                                        (*(it - 1)).consensus_const != (*it).consensus_const &&
+                                        (*(it - 1)).consensus_const != 2 * (*it).consensus_const
+                                    );
                         }
 
                         if(bad_data)
