@@ -398,6 +398,12 @@ public:
             throw std::runtime_error("only one request is supported at a time");
     }
 
+    void clear_state()
+    {
+        block_vector.clear();
+        header_vector.clear();
+    }
+
     std::vector<beltpp::isocket::peer_id> do_step()
     {
         vector<beltpp::isocket::peer_id> result;
@@ -426,6 +432,9 @@ public:
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
+
+    vector<SignedBlock> block_vector;
+    vector<BlockHeader> header_vector;
     vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_vector;
 };
 }
@@ -865,11 +874,11 @@ bool node::run()
                     }
                     break;
                 }
-                case ChainHeaderRequest::rtt:
+                case BlockHeaderRequest::rtt:
                 {
                     if (it == interface_type::p2p)
                     {
-                        ChainHeaderRequest header_request;
+                        BlockHeaderRequest header_request;
                         std::move(ref_packet).get(header_request);
 
                         uint64_t from = m_pimpl->m_blockchain.length();
@@ -877,9 +886,9 @@ bool node::run()
 
                         uint64_t to = header_request.blocks_to;
                         to = to > from ? from : to;
-                        //to = to < from - 10 ? from - 10 : to;
+                        to = to < from - 10 ? from - 10 : to;
 
-                        ChainHeaderResponse header_response;
+                        BlockHeaderResponse header_response;
                         for (auto index = from; index >= to; --to)
                         {
                             SignedBlock signed_block;
@@ -901,18 +910,116 @@ bool node::run()
                     }
                     break;
                 }
-                case ChainHeaderResponse::rtt:
+                case BlockHeaderResponse::rtt:
                 {
                     if (it == interface_type::p2p)
                     {
-                        //1. check if the chainheader was requested
+                        // check if the blockheader was requested
                         //TODO
-                    
-                        //2. find received and own headers last common point
-                        //TODO
-                    
-                        //3. request chain from found point
-                        //TODO
+
+                        // find needed header from own data
+                        BlockHeader tmp_header;
+                        m_pimpl->m_blockchain.header(tmp_header);
+
+                        if (!m_pimpl->header_vector.empty() && // we have something received before
+                            tmp_header.block_number >= m_pimpl->header_vector.rbegin()->block_number)
+                        {
+                            // load next mot checked header
+                            m_pimpl->m_blockchain.header_at(m_pimpl->header_vector.rbegin()->block_number - 1, tmp_header);
+                        }
+
+                        BlockHeaderResponse header_response;
+                        std::move(ref_packet).get(header_response);
+
+                        // validate received headers
+                        auto it = header_response.block_headers.begin();
+                        bool bad_data = header_response.block_headers.empty();
+                        bad_data = bad_data || !m_pimpl->header_vector.empty() && tmp_header.block_number != (*it).block_number;
+
+                        for (++it; !bad_data && it != header_response.block_headers.end(); ++it)
+                        {
+                            bad_data = bad_data || (*(it - 1)).block_number != (*it).block_number + 1;
+                            bad_data = bad_data || (*(it - 1)).consensus_sum <= (*it).consensus_sum;
+                            bad_data = bad_data || (*(it - 1)).consensus_sum != (*(it - 1)).consensus_delta + (*it).consensus_sum;
+                            bad_data = bad_data || (*(it - 1)).consensus_const != (*it).consensus_const &&
+                                                   (*(it - 1)).consensus_const != 2 * (*it).consensus_const;
+                        }
+
+                        if(bad_data)
+                        {
+                            psk->send(peerid, Drop());
+                            m_pimpl->remove_peer(peerid);
+                            m_pimpl->clear_state();
+                            break;
+                        }
+
+                        // find last common header
+                        bool found = false;
+                        it = header_response.block_headers.begin();
+                        while (!found && it != header_response.block_headers.end())
+                        {
+                            if (tmp_header.block_number < (*it).block_number)
+                            {
+                                // store for possible use
+                                m_pimpl->header_vector.push_back(std::move(*it));
+                                ++it;
+                            }
+                            else
+                                found = true;
+                        }
+
+                        bool lcb_found = false;
+
+                        if (found)
+                        {
+                            for (; !lcb_found && it != header_response.block_headers.end(); ++it)
+                            {
+                                if (tmp_header == (*it))
+                                {
+                                    lcb_found = true;
+                                    continue;
+                                }
+                                else if (tmp_header.consensus_sum < (*it).consensus_sum)
+                                {
+                                    // store for possible use
+                                    m_pimpl->header_vector.push_back(std::move(*it));
+                                    m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);
+                                }
+                            }
+
+                            if (lcb_found)
+                            {
+                                if (m_pimpl->block_vector.empty())
+                                {
+                                    // nothing new! interrup connection
+                                    psk->send(peerid, Drop());
+                                    m_pimpl->remove_peer(peerid);
+                                    m_pimpl->clear_state();
+                                    break;
+                                }
+
+                                //3. request blockchain from found point
+                                BlockChainRequest blockchain_request;
+                                blockchain_request.blocks_from = m_pimpl->header_vector.begin()->block_number;
+                                blockchain_request.blocks_to = m_pimpl->header_vector.rbegin()->block_number;
+                            
+                                psk->send(peerid, blockchain_request);
+                            
+                                //TODO store request
+                            }
+                        }
+                        
+                        if(!found || !lcb_found)
+                        {
+                            // request more headers
+                            BlockHeaderRequest header_request;
+                            header_request.blocks_from = m_pimpl->header_vector.rbegin()->block_number - 1;
+                            header_request.blocks_to = header_request.blocks_from - 10;
+
+                            psk->send(peerid, header_request);
+
+                            //TODO store request
+                        }
                     }
                     else
                     {
@@ -922,11 +1029,11 @@ bool node::run()
                     }
                     break;
                 }
-                case ChainRequest::rtt:
+                case BlockChainRequest::rtt:
                 {
                     if (it == interface_type::p2p)
                     {
-                        ChainRequest chain_request;
+                        BlockChainRequest chain_request;
                         std::move(ref_packet).get(chain_request);
 
                         uint64_t from = m_pimpl->m_blockchain.length();
@@ -936,7 +1043,7 @@ bool node::run()
                         to = to > from ? from : to;
                         to = to < from - 10 ? from - 10 : to;
 
-                        ChainResponse chain_response;
+                        BlockChainResponse chain_response;
                         for (auto index = from; index >= to; --to)
                         {
                             SignedBlock signed_block;
@@ -955,7 +1062,7 @@ bool node::run()
                     }
                     break;
                 }
-                case ChainResponse::rtt:
+                case BlockChainResponse::rtt:
                 {
                     if (it == interface_type::p2p)
                     {
@@ -963,7 +1070,7 @@ bool node::run()
                         //TODO
 
                         //2. check received chain validity
-                        ChainResponse chain_response;
+                        BlockChainResponse chain_response;
                         std::move(ref_packet).get(chain_response);
                         //TODO
 
@@ -1084,7 +1191,7 @@ bool node::run()
         if (tmp_peer != "tmp_peer")
         {
             // request better chain
-            ChainHeaderRequest header_request;
+            BlockHeaderRequest header_request;
             header_request.blocks_from = sync_request.block_number;
             header_request.blocks_to = m_pimpl->m_blockchain.length();
             psk->send(tmp_peer, header_request);

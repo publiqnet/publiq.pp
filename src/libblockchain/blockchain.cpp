@@ -90,12 +90,15 @@ blockchain::~blockchain()
 
 void blockchain::update_header()
 {
-    SignedBlock signed_block;
-    at(length(), signed_block);
+    if (length() > 0)
+    {
+        SignedBlock signed_block;
+        at(length() - 1, signed_block);
 
-    Block block;
-    std::move(signed_block.block_details).get(block);
-    m_pimpl->m_header = std::move(block.block_header);
+        Block block;
+        std::move(signed_block.block_details).get(block);
+        m_pimpl->m_header = std::move(block.block_header);
+    }
 }
 
 
@@ -106,7 +109,16 @@ uint64_t blockchain::length() const
 
 void blockchain::header(BlockchainMessage::BlockHeader& block_header) const
 {
-    block_header = m_pimpl->m_header;
+    if(length() > 0)
+        block_header = m_pimpl->m_header;
+    else
+    {
+        block_header.block_number = 0;
+        block_header.consensus_sum = 0;
+        block_header.consensus_delta = 0;
+        block_header.consensus_const = 1;
+        block_header.previous_hash = "Ice Age";
+    }
 }
 
 void blockchain::insert(beltpp::packet const& packet)
@@ -122,7 +134,7 @@ void blockchain::insert(beltpp::packet const& packet)
 
     uint64_t block_number = block.block_header.block_number;
 
-    if (block_number != length() + 1)
+    if (block_number != length())
         throw std::runtime_error("Wrong block is goinf to insert! number:" + std::to_string(block_number));
 
     string hash_id = m_pimpl->get_df_id(block_number);
@@ -130,18 +142,17 @@ void blockchain::insert(beltpp::packet const& packet)
 
     blockchain_data_loader file_data(m_pimpl->m_path / file_name);
 
+    m_pimpl->m_header = block.block_header;
+    m_pimpl->m_length->value = block_number + 1;
     file_data->blocks[block_number] = signed_block;
-    m_pimpl->m_length->value = block_number;
 
     file_data.save();
     m_pimpl->m_length.save();
-
-    m_pimpl->m_header = block.block_header;
 }
 
 bool blockchain::at(uint64_t number, SignedBlock& signed_block) const
 {
-    if (number > length())
+    if (number >= length())
         return false;
 
     string hash_id = m_pimpl->get_df_id(number);
@@ -154,12 +165,33 @@ bool blockchain::at(uint64_t number, SignedBlock& signed_block) const
     return true;
 }
 
+bool blockchain::header_at(uint64_t number, BlockHeader& block_header) const
+{
+    if (number >= length())
+        return false;
+
+    string hash_id = m_pimpl->get_df_id(number);
+    string file_name("df" + hash_id + ".bchain");
+
+    blockchain_data_loader file_data(m_pimpl->m_path / file_name);
+
+    SignedBlock signed_block;
+    file_data->blocks[number].get(signed_block);
+
+    Block block;
+    std::move(signed_block.block_details).get(block);
+
+    block_header = std::move(block.block_header);
+
+    return true;
+}
+
 void blockchain::remove_last_block()
 {
-    uint64_t number = length();
+    uint64_t number = length() - 1;
 
     if (number == 0)
-        throw std::runtime_error("Unable remove genesis block");
+        throw std::runtime_error("Nothing to remove!");
 
     string hash_id = m_pimpl->get_df_id(number);
     string file_name("df" + hash_id + ".bchain");
@@ -167,7 +199,7 @@ void blockchain::remove_last_block()
     blockchain_data_loader file_data(m_pimpl->m_path / file_name);
 
     file_data->blocks.erase(number);
-    m_pimpl->m_length->value = number - 1;
+    m_pimpl->m_length->value = number;
 
     file_data.save();
     m_pimpl->m_length.save();

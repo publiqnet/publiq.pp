@@ -30,6 +30,7 @@ public:
 
     void insert(beltpp::packet const& packet);
     bool at(uint64_t number, BlockchainMessage::SignedBlock& signed_block) const;
+    bool header_at(uint64_t number, BlockchainMessage::BlockHeader& block_header) const;
     void remove_last_block();
 
     uint64_t calc_delta(std::string key, uint64_t amount, BlockchainMessage::Block& block);

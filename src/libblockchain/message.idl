@@ -144,24 +144,24 @@ module BlockchainMessage
         UInt64 consensus_delta
     }
 
-    class ChainHeaderRequest
+    class BlockHeaderRequest
     {
         UInt64 blocks_from
         UInt64 blocks_to
     }
 
-    class ChainHeaderResponse
+    class BlockHeaderResponse
     {
         Array BlockHeader block_headers
     }
 
-    class ChainRequest
+    class BlockChainRequest
     {
         UInt64 blocks_from
         UInt64 blocks_to
     }
 
-    class ChainResponse
+    class BlockChainResponse
     {
         Array SignedBlock signed_blocks
     }
