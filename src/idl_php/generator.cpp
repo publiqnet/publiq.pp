@@ -18,6 +18,8 @@ using std::unordered_set;
 using std::pair;
 using std::runtime_error;
 
+#include <boost/filesystem.hpp>
+using namespace boost::filesystem;
 state_holder::state_holder()
     : namespace_name()
     , map_types{{"String", "string"},
@@ -236,39 +238,48 @@ void construct_type_name(expression_tree const* member_type,
     }
 }
 
-string analyze(state_holder& state,
-               expression_tree const* pexpression)
+void analyze(   state_holder& state,
+                expression_tree const* pexpression,
+                std::string const& outputFilePath,
+                std::string const& VendorName,
+                std::string const& PackageName)
 {
+
     size_t rtt = 0;
-    string result=R"file_template(
-interface Validator
+    assert(pexpression);
+
+
+    //////////////// create Interface Folder ////////////////
+
+    std::string src = "src";
+    std::string Interface = "Interface";
+    boost::filesystem::path InterfaceFolder = outputFilePath;
+    boost::filesystem::create_directory(InterfaceFolder);
+
+    InterfaceFolder.append(VendorName);
+    boost::filesystem::create_directory(InterfaceFolder);
+
+    InterfaceFolder.append(PackageName);
+    boost::filesystem::create_directory(InterfaceFolder);
+
+    InterfaceFolder.append(src);
+    boost::filesystem::create_directory(InterfaceFolder);
+
+    InterfaceFolder.append(Interface);
+    boost::filesystem::create_directory(InterfaceFolder);
+
+
+    InterfaceFolder.append("ValidatorInterface.php");
+    boost::filesystem::ofstream validator(InterfaceFolder);
+
+    validator<< R"file_template(interface ValidatorInterface
 {
     public function validate(stdClass $data);
 }
-trait RttSerializableTrait
-{
-    public function jsonSerialize()
-    {
-        $vars = get_object_vars($this);
-        $vars['rtt'] = array_search(static::class, Rtt::types);
+                )file_template";
 
-        return $vars;
-     }
-}
+    ///////////////////////////////////////////////////////
 
-trait RttToJsonTrait
-{
-    public function convertToJson()
-    {
-        return json_encode($this);
-    }
-}
-
-class Rtt
-{
-    CONST types = [)file_template";
-
-    assert(pexpression);
 
     unordered_map<size_t, string> class_names;
     string resultMid;
@@ -280,6 +291,15 @@ class Rtt
         throw runtime_error("wtf");
     else
     {
+
+        //////////////// create Model Folder ////////////////////
+
+        std::string Model = "Model";
+        boost::filesystem::path ModelFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + src + "/" + Model;
+        boost::filesystem::create_directory(ModelFolder);
+
+        ////////////////////////////////////////////////////////
+
         string module_name = pexpression->children.front()->lexem.value;
         state.namespace_name = module_name;
 
@@ -292,11 +312,15 @@ class Rtt
                     item->children.back()->lexem.rtt != scope_brace::rtt)
                     throw runtime_error("type syntax is wrong");
 
-                string type_name = item->children.front()->lexem.value;
-                resultMid += analyze_struct(state,
-                                         item->children.back(),
-                                         type_name);
-                class_names.insert(std::make_pair(rtt, type_name));
+                        string type_name = item->children.front()->lexem.value;
+                        analyze_struct(     state,
+                                            item->children.back(),
+                                            type_name,
+                                            VendorName,
+                                            PackageName,
+                                            ModelFolder);
+
+                        class_names.insert(std::make_pair(rtt, type_name));
 
             }
             ++rtt;
@@ -313,16 +337,29 @@ class Rtt
             max_rtt = class_item.first;
     }
 
-    result += "\n";
+    //////////////// create Base Folder ////////////////////
+
+    std::string Base = "Base";
+    boost::filesystem::path BaseFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + src + "/" + Base;
+    boost::filesystem::create_directory(BaseFolder);
+
+    ///////////////// create RTT.php file ////////////////////
+    boost::filesystem::path RttFilePath = BaseFolder.string() + "/" + "RTT.php";
+    boost::filesystem::ofstream RTT(RttFilePath);
+    RTT<<
+    R"file_template(class Rtt
+{
+    CONST types = [
+)file_template";
+
 
     for (size_t index = 0; index < max_rtt + 1; ++index)
     {
         if(!(class_names[index].empty()))
-            result += "\t"+std::to_string(index)+" => '"+class_names[index]+"',\n";
+            RTT<<  "\t"+std::to_string(index)+" => '"+class_names[index]+"',\n";
 
     }
-    result += R"file_template(
-    ];
+    RTT<< R"file_template(  ];
 
     /**
     * @param string|object $jsonObj
@@ -359,12 +396,51 @@ class Rtt
 }
 )file_template";
 
-    return result + resultMid;
+    ////////////////// create Trait Folder ////////////////////////
+    boost::filesystem::path TraitFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + "src" + "/" + "Trait";
+    boost::filesystem::create_directory(TraitFolder);
+
+    ////////////////// create RttSerializableTrait.php file /////////////////
+
+    boost::filesystem::path RttSerializableTraitFilePath = TraitFolder.string() + "/" + "RttSerializableTrait.php";
+    boost::filesystem::ofstream RttSerializableTrait(RttSerializableTraitFilePath);
+    RttSerializableTrait<<
+R"file_template(trait RttSerializableTrait
+{
+    public function jsonSerialize()
+    {
+        $vars = get_object_vars($this);
+        $vars['rtt'] = array_search(static::class, Rtt::types);
+
+        return $vars;
+    }
+}
+)file_template";
+
+    ////////////////// create RttToJsonTrait.php file /////////////////
+
+    boost::filesystem::path RttToJsonTraitFilePath = TraitFolder.string() + "/" + "RttToJsonTrait.php";
+    boost::filesystem::ofstream RttToJsonTrait(RttToJsonTraitFilePath);
+    RttToJsonTrait<<
+R"file_template(trait RttToJsonTrait
+{
+    public function convertToJson()
+    {
+        return json_encode($this);
+    }
+}
+)file_template";
+
 }
 
-string analyze_struct(state_holder& state,
-                      expression_tree const* pexpression,
-                      string const& type_name)
+
+void analyze_struct(    state_holder& state,
+                        expression_tree const* pexpression,
+                        string const& type_name,
+                        std::string const& VendorName,
+                        std::string const& PackageName,
+                        boost::filesystem::path const& ModelFolder
+                        )
 {
     if (state.namespace_name.empty())
         throw runtime_error("please specify package name");
@@ -402,10 +478,16 @@ string analyze_struct(state_holder& state,
     string mixedTypes;
     string hashCase;
 
-    result += "class " + type_name + " implements Validator, JsonSerializable\n";
-    result += "{\n";
-    result += "    use RttSerializableTrait;\n"
-              "    use RttToJsonTrait;\n";
+
+    boost::filesystem::path FilePath = ModelFolder.string() + "/" + type_name + ".php";
+    boost::filesystem::ofstream model(FilePath);
+    model<<
+            "namespace " + VendorName + "\\" + PackageName + "\\Model;\n" +
+            "use " + VendorName + "\\" + PackageName +  "\\Interface\\ValidatorInterface;\n\n" +
+            "class " + type_name + " implements ValidatorInterface, JsonSerializable\n"+
+            "{\n" +
+            "    use RttSerializableTrait;\n" +
+            "    use RttToJsonTrait;\n";
 
     for (auto member_pair : members)
     {
@@ -580,9 +662,8 @@ string analyze_struct(state_holder& state,
                                 + objectTypes + trivialTypes + arrayCase + mixedTypes + hashCase +
                        "    } \n";
 
-    result += params + setFunction + getFunction + addFunction + validation;
-    result += "} \n";
+    model<< params + setFunction + getFunction + addFunction + validation;
+    model<< "} \n";
 
-    return result;
 /////////////////
 }
