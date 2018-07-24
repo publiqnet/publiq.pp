@@ -17,7 +17,7 @@ module BlockchainMessage
         TimePoint creation
         TimePoint expiry
         UInt64 fee
-        Object action  //  Transfer or ...
+        Object action  //  Transfer, File or Page
     }
 
     class SignedTransaction
@@ -38,7 +38,7 @@ module BlockchainMessage
 
     class Block
     {
-		BlockHeader block_header
+        BlockHeader block_header
         Array SignedTransaction block_transactions
     }
 
@@ -64,6 +64,18 @@ module BlockchainMessage
         String from
         String to
         UInt64 amount
+    }
+
+    class File
+    {
+        String author
+        String uri
+    }
+
+    class Page
+    {
+        String channel
+        Array String file_uris
     }
 
     //  request/response
@@ -187,13 +199,20 @@ module BlockchainMessage
     //  this is admin tool for RPC testing
     class LogTransaction
     {
-        Object action  //  Transfer or Reward
+        Object action  //  Reward, Transfer, File or Page
     }
 
     class RevertLastLoggedAction {}
 
     //  special testing message
     class Shutdown {}
+
+    //  distributed storage related
+    class StorageFile
+    {
+        String mime_type
+        String data
+    }
 
     //  blockchain storage data
     class BlockchainFileData

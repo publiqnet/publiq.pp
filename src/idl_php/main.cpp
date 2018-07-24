@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
     {
         if (argc >= 2)
         {
-            ifstream file_definition(argv[1]);
+            std::ifstream file_definition(argv[1]);
             if (file_definition)
             {
                 file_definition.seekg(0, std::ios::end);
@@ -113,21 +113,13 @@ int main(int argc, char* argv[])
             throw runtime_error("expected tree max depth 30 is exceeded");
 
         state_holder state;
-        string generated = analyze(state, ptr_expression.get());
 
-        bool generation_success = false;
-        if (argc >= 3)
+        if(argc>=5)
         {
-            ofstream file_generate(argv[2]);
-            if (file_generate)
-            {
-                file_generate << generated;
-                file_generate.close();
-                generation_success = true;
-            }
-        }
-        if (false == generation_success){
-            cout << generated;
+            string outputFilePath = argv[2];
+            string VendorName = argv[3];
+            string PackageName = argv[4];
+            analyze(state, ptr_expression.get(), outputFilePath, VendorName, PackageName);
         }
     }
     catch(std::exception const& ex)
