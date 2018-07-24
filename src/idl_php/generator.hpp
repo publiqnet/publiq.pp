@@ -4,12 +4,8 @@
 
 #include <string>
 #include <unordered_map>
-
-using expression_tree = beltpp::expression_tree<lexers, std::string>;
-
 #include <boost/filesystem.hpp>
-using namespace boost::filesystem;
-
+using expression_tree = beltpp::expression_tree<lexers, std::string>;
 
 class state_holder
 {

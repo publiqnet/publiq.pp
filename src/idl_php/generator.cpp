@@ -8,9 +8,8 @@
 #include <utility>
 #include<iostream>
 #include<string>
+#include <boost/filesystem.hpp>
 
-using std::cout;
-using std::endl;
 using std::string;
 using std::vector;
 using std::unordered_map;
@@ -18,8 +17,7 @@ using std::unordered_set;
 using std::pair;
 using std::runtime_error;
 
-#include <boost/filesystem.hpp>
-using namespace boost::filesystem;
+
 state_holder::state_holder()
     : namespace_name()
     , map_types{{"String", "string"},
@@ -43,6 +41,7 @@ state_holder::state_holder()
 
 namespace
 {
+
 enum g_type_info {
                 type_empty = 0x0,
                 type_simple = 0x1,
@@ -200,7 +199,6 @@ void construct_type_name(expression_tree const* member_type,
     else if (member_type->lexem.rtt == keyword_array::rtt &&
              member_type->children.size() == 1 )
     {
-
         result[0] = "array";
         int count = 1;
         auto it = member_type->children.front();
@@ -248,7 +246,6 @@ void analyze(   state_holder& state,
     size_t rtt = 0;
     assert(pexpression);
 
-
     //////////////// create Interface Folder ////////////////
 
     std::string src = "src";
@@ -268,9 +265,8 @@ void analyze(   state_holder& state,
     InterfaceFolder.append(Interface);
     boost::filesystem::create_directory(InterfaceFolder);
 
-
-    InterfaceFolder.append("ValidatorInterface.php");
-    boost::filesystem::ofstream validator(InterfaceFolder);
+    boost::filesystem::path ValidatorInterfaceFilePath = InterfaceFolder.string() + "/" + "ValidatorInterface.php";
+    boost::filesystem::ofstream validator(ValidatorInterfaceFilePath);
 
     validator<< R"file_template(<?php
 interface ValidatorInterface
@@ -280,7 +276,6 @@ interface ValidatorInterface
                 )file_template";
 
     ///////////////////////////////////////////////////////
-
 
     unordered_map<size_t, string> class_names;
     string resultMid;
@@ -345,6 +340,7 @@ interface ValidatorInterface
     boost::filesystem::create_directory(BaseFolder);
 
     ///////////////// create RTT.php file ////////////////////
+
     boost::filesystem::path RttFilePath = BaseFolder.string() + "/" + "RTT.php";
     boost::filesystem::ofstream RTT(RttFilePath);
     RTT<<
@@ -399,6 +395,7 @@ class Rtt
 )file_template";
 
     ////////////////// create Trait Folder ////////////////////////
+
     boost::filesystem::path TraitFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + "src" + "/" + "Trait";
     boost::filesystem::create_directory(TraitFolder);
 
@@ -470,8 +467,7 @@ void analyze_struct(    state_holder& state,
     }
 
 
- /////////////////////
-    string result;
+    /////////////////////
     string params;
     string setFunction;
     string getFunction;
@@ -482,17 +478,19 @@ void analyze_struct(    state_holder& state,
     string mixedTypes;
     string hashCase;
 
+    /////////////////////////// create module files //////////////////////////////////
 
     boost::filesystem::path FilePath = ModelFolder.string() + "/" + type_name + ".php";
     boost::filesystem::ofstream model(FilePath);
     model<<
-            "<?php\n"
-            "namespace " + VendorName + "\\" + PackageName + "\\Model;\n" +
-            "use " + VendorName + "\\" + PackageName +  "\\Interface\\ValidatorInterface;\n\n" +
-            "class " + type_name + " implements ValidatorInterface, JsonSerializable\n"+
-            "{\n" +
-            "    use RttSerializableTrait;\n" +
-            "    use RttToJsonTrait;\n";
+             "<?php\n"
+             "namespace " + VendorName + "\\" + PackageName + "\\Model;\n" +
+             "use " + VendorName + "\\" + PackageName +  "\\Interface\\ValidatorInterface;\n\n" +
+
+             "class " + type_name + " implements ValidatorInterface, JsonSerializable\n"+
+             "{\n" +
+             "    use RttSerializableTrait;\n" +
+             "    use RttToJsonTrait;\n";
 
     for (auto member_pair : members)
     {

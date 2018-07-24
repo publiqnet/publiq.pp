@@ -114,33 +114,13 @@ int main(int argc, char* argv[])
 
         state_holder state;
 
-
         if(argc>=5)
         {
             string outputFilePath = argv[2];
             string VendorName = argv[3];
             string PackageName = argv[4];
-
             analyze(state, ptr_expression.get(), outputFilePath, VendorName, PackageName);
-
         }
-
-
-
-//        bool generation_success = false;
-//        if (argc >= 3)
-//        {
-//            ofstream file_generate(argv[2]);
-//            if (file_generate)
-//            {
-//                file_generate << generated;
-//                file_generate.close();
-//                generation_success = true;
-//            }
-//        }
-//        if (false == generation_success){
-//            cout << generated;
-//        }
     }
     catch(std::exception const& ex)
     {
