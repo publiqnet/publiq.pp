@@ -11,6 +11,8 @@ target_link_libraries(blockchain_client PRIVATE
     belt.pp
     utility)
 
+add_dependencies(blockchain_client blockchain)
+
 # what to do on make install
 install(TARGETS blockchain_client
         EXPORT publiq.pp.package
