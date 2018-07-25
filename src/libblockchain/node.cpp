@@ -479,8 +479,7 @@ bool node::run()
                     SignedBlock signed_block;
                     broadcast_block.items[1]->get(signed_block);
 
-                    vector<char> buffer = SignedBlock::saver(&signed_block.block_details);
-                    meshpp::signature sg(meshpp::public_key(signed_block.authority), buffer, signed_block.signature);
+                    meshpp::signature sg(meshpp::public_key(signed_block.authority), signed_block.block_details.save(), signed_block.signature);
 
                     sg.check();
 

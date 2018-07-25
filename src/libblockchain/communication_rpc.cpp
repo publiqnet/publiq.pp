@@ -129,10 +129,8 @@ void get_hash(beltpp::packet const& packet,
     DigestRequest msg_get_hash;
     packet.get(msg_get_hash);
 
-    vector<char> buffer = msg_get_hash.package.save();
-
     Digest msg_hash_result;
-    msg_hash_result.base58_hash = meshpp::hash(buffer.begin(), buffer.end());
+    msg_hash_result.base58_hash = meshpp::hash(msg_get_hash.package.save());
     msg_hash_result.package = std::move(msg_get_hash.package);
 
     sk.send(peerid, msg_hash_result);
@@ -223,8 +221,8 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         throw exception_authority(signed_transaction.authority, transfer.from);
 
     // Check pool
-    vector<char> packet_vec = package_transfer.save();
-    string transfer_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+    string packet_vec = package_transfer.save();
+    string transfer_hash = meshpp::hash(packet_vec);
 
     if (false == transaction_pool.contains(transfer_hash))
     {
@@ -269,14 +267,13 @@ void insert_blocks(std::vector<beltpp::packet>& package_blocks,
         for (auto &signed_transaction : block.block_transactions)
         {
             // Verify signed_transaction signature
-            vector<char> buffer = SignedTransaction::saver(&signed_transaction.transaction_details);
+            string buffer = Transaction::string_saver(signed_transaction.transaction_details);
             meshpp::signature sg(meshpp::public_key(signed_transaction.authority), buffer, signed_transaction.signature);
 
             sg.check();
 
             beltpp::packet package_transaction = std::move(signed_transaction.transaction_details.action);
-            vector<char> packet_vec = package_transaction.save();
-            string transfer_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+            string transfer_hash = meshpp::hash(package_transaction.save());
 
             string key;
             uint64_t amount;
