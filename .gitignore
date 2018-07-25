@@ -1,3 +1,6 @@
+CMakeLists.txt.user
 /src/exe_publiqd/pid.gen.hpp
 /src/libblockchain/data.gen.hpp
 /src/libblockchain/message.gen.hpp
+.vs
+/CMakeSettings.json

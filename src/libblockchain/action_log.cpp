@@ -7,8 +7,16 @@
 
 #include <string>
 
+using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
+
+namespace
+{
+using logged_action_loader = meshpp::file_loader<BlockchainMessage::LoggedTransaction,
+                                                 &BlockchainMessage::LoggedTransaction::string_loader,
+                                                 &BlockchainMessage::LoggedTransaction::string_saver>;
+}
 
 namespace publiqpp
 {
@@ -20,18 +28,14 @@ class action_log_internals
 public:
     action_log_internals(filesystem::path const& path)
         : m_path(path)
-        , m_length(path / "length.txt")
-        , m_scanned(path / "scanned.txt")
-    {
-
-    }
+        , m_length(path / "action_log.act.length")
+    {}
 
     using number_loader = meshpp::file_loader<Data::Number, &Data::Number::string_loader, &Data::Number::string_saver>;
     using number_locked_loader = meshpp::file_locker<number_loader>;
 
     filesystem::path m_path;
     number_locked_loader m_length;
-    number_locked_loader m_scanned;
 };
 }
 
@@ -47,42 +51,69 @@ action_log::~action_log()
 
 size_t action_log::length() const
 {
-    return m_pimpl->m_length->value;
+    return m_pimpl->m_length.as_const()->value;
 }
 
-size_t action_log::scanned() const
+void action_log::insert(BlockchainMessage::LoggedTransaction const& action_info)
 {
-    return m_pimpl->m_scanned->value;
-}
+    size_t index = m_pimpl->m_length.as_const()->value;
+    string file_name(std::to_string(index) + ".act");
 
-void action_log::insert(BlockchainMessage::Reward const& msg_reward)
-{
-    using reward_loader = meshpp::file_loader<BlockchainMessage::Reward,
-                                                &BlockchainMessage::Reward::string_loader,
-                                                &BlockchainMessage::Reward::string_saver>;
-
-    string file_name(std::to_string(length()));
-
-    reward_loader rw(m_pimpl->m_path / file_name);
-    *rw = msg_reward;
-    rw.save();
+    logged_action_loader fl(m_pimpl->m_path / file_name);
+    *fl = action_info;
+    if (true == action_info.applied_reverted)   //  apply
+        fl->index = index;
+    fl.save();
 
     m_pimpl->m_length->value++;
     m_pimpl->m_length.save();
 }
 
-void action_log::insert(BlockchainMessage::NewArticle const& msg_new_article)
+bool action_log::at(size_t index, BlockchainMessage::LoggedTransaction& action_info) const
 {
-    using new_article_loader = meshpp::file_loader<BlockchainMessage::NewArticle,
-                                                    &BlockchainMessage::NewArticle::string_loader,
-                                                    &BlockchainMessage::NewArticle::string_saver>;
+    if (index >= m_pimpl->m_length->value)
+        return false;
 
-    string file_name(std::to_string(length()));
-    new_article_loader na(m_pimpl->m_path / file_name);
-    *na = msg_new_article;
-    na.save();
+    string file_name(std::to_string(index) + ".act");
+    logged_action_loader fl(m_pimpl->m_path / file_name);
+    action_info = *fl.as_const();
 
-    m_pimpl->m_length->value++;
-    m_pimpl->m_length.save();
+    return true;
 }
+
+void action_log::revert()
+{
+    int revert_mark = 0;
+    size_t index = length() - 1;
+    bool revert = true;
+
+    while (revert)
+    {
+        LoggedTransaction action_info;
+        at(index, action_info);
+
+        revert = (action_info.applied_reverted == false);
+
+        if (revert)
+            ++revert_mark;
+        else
+            --revert_mark;
+
+        if (revert_mark >= 0)
+        {
+            if (index == 0)
+                throw std::runtime_error("Nothing to revert!");
+
+            --index;
+            revert = true;
+        }
+    }
+
+    // revert last valid action
+    LoggedTransaction action_revert_info;
+    at(index, action_revert_info);
+    action_revert_info.applied_reverted = false;   //  revert
+    insert(action_revert_info);
+}
+
 }

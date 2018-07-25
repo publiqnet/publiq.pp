@@ -6,6 +6,7 @@
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 #include <publiq.pp/node.hpp>
 
@@ -42,33 +43,13 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory);
 
 bool g_termination_handled = false;
+publiqpp::node* g_pnode = nullptr;
 void termination_handler(int signum)
 {
     g_termination_handled = true;
+    if (g_pnode)
+        g_pnode->terminate();
 }
-
-/*#include <mesh.pp/cryptopp_byte.hpp>
-#include <cryptopp/sha.h>
-#include <cryptopp/filters.h>
-#include <cryptopp/base64.h>
-#include <cryptopp/hex.h>
-
-std::string SHA256HashString(std::string aString)
-{
-    CryptoPP::byte digest[CryptoPP::SHA256::DIGESTSIZE];
-
-    CryptoPP::byte const* pb = (CryptoPP::byte const*)aString.c_str();
-    CryptoPP::SHA256().CalculateDigest(digest, pb, aString.length());
-
-    CryptoPP::HexEncoder encoder;
-    std::string output;
-
-    encoder.Attach( new CryptoPP::StringSink( output ) );
-    encoder.Put( digest, sizeof(digest) );
-    encoder.MessageEnd();
-
-    return output;
-}*/
 
 class port2pid_helper
 {
@@ -140,11 +121,11 @@ private:
 
 int main(int argc, char** argv)
 {
-    /*cout << SHA256HashString("a") << endl;
-    return 0;*/
     //  boost filesystem UTF-8 support
     std::locale::global(boost::locale::generator().generate(""));
     boost::filesystem::path::imbue(std::locale());
+    //
+    meshpp::config::set_public_key_prefix("PBQ");
     //
     settings::settings::set_application_name("publiqd");
     settings::settings::set_data_directory(settings::config_directory_path().string());
@@ -165,12 +146,13 @@ int main(int argc, char** argv)
         settings::settings::set_data_directory(data_directory);
 
 #ifdef B_OS_WINDOWS
-    //TODO
+    // will work after wait retuns, not immediately !
+    signal(SIGINT, termination_handler);
 #else
     struct sigaction signal_handler;
     signal_handler.sa_handler = termination_handler;
     ::sigaction(SIGINT, &signal_handler, nullptr);
-    ::sigaction(SIGINT, &signal_handler, nullptr);
+    ::sigaction(SIGTERM, &signal_handler, nullptr);
 #endif
 
     try
@@ -190,11 +172,16 @@ int main(int argc, char** argv)
 
         auto fs_blockchain = settings::data_directory_path("blockchain");
         auto fs_action_log = settings::data_directory_path("action_log");
+        auto fs_storage = settings::data_directory_path("storage");
+        auto fs_transaction_pool = settings::data_directory_path("transaction_pool");
+        auto fs_state = settings::data_directory_path("state");
+        //auto fs_logfile = fs_storage / "log.txt";
 
         cout << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
             cout << item.to_string() << endl;
 
+        //beltpp::ilog_ptr plogger_p2p = beltpp::file_logger("exe_publiqd_p2p", fs_logfile.native());
         beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p");
         plogger_p2p->disable();
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
@@ -205,12 +192,17 @@ int main(int argc, char** argv)
                             p2p_connect_to_addresses,
                             fs_blockchain,
                             fs_action_log,
+                            fs_storage,
+                            fs_transaction_pool,
+                            fs_state,
                             plogger_p2p.get(),
                             plogger_rpc.get());
 
         cout << endl;
         cout << "Node: " << node.name()/*.substr(0, 5)*/ << endl;
         cout << endl;
+
+        g_pnode = &node;
 
         while (true)
         {

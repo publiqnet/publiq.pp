@@ -4,4 +4,9 @@ module Data
     {
         UInt64 value
     }
+
+    class StringSet
+    {
+        Set String dictionary
+    }
 }

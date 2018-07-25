@@ -22,6 +22,7 @@ target_link_libraries(exe_publiqd PRIVATE
     belt.pp
     blockchain
     utility
+    cryptoutility
     log
     )
 

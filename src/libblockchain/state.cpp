@@ -1,63 +1,104 @@
 #include "state.hpp"
-#include "blockchain.hpp"
-#include "action_log.hpp"
 
-#include <cryptopp/sha.h>
-#include <cryptopp/filters.h>
-#include <cryptopp/base64.h>
+#include "message.hpp"
 
-std::string SHA256HashString(std::string aString){
-    std::string digest;
-    CryptoPP::SHA256 hash;
+#include <mesh.pp/fileutility.hpp>
 
-    CryptoPP::StringSource foo(aString, true,
-    new CryptoPP::HashFilter(hash,
-      new CryptoPP::Base64Encoder (
-         new CryptoPP::StringSink(digest))));
+#include <string>
 
-    return digest;
-}
-
+using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
-using std::unique_ptr;
+using std::string;
+using std::vector;
+
+using state_data_loader = meshpp::file_loader<StateFileData,
+                                              &StateFileData::string_loader,
+                                              &StateFileData::string_saver>;
 
 namespace publiqpp
 {
 namespace detail
 {
+
 class state_internals
 {
 public:
-    state_internals(filesystem::path const& fs_blockchain,
-                    filesystem::path const& fs_action_log)
-        : m_blockchain(fs_blockchain)
-        , m_action_log(fs_action_log)
+    state_internals(filesystem::path const& path)
+        : m_path(path)
+        , m_state(path / "accounts.state")
     {}
 
-    publiqpp::blockchain m_blockchain;
-    publiqpp::action_log m_action_log;
+    filesystem::path m_path;
+    state_data_loader m_state;
 };
 }
 
-state::state(filesystem::path const& fs_blockchain,
-             boost::filesystem::path const& fs_action_log)
-    : m_pimpl(new detail::state_internals(fs_blockchain, fs_action_log))
+state::state(filesystem::path const& fs_state)
+    : m_pimpl(new detail::state_internals(fs_state))
 {
-
 }
 
 state::~state()
 {
-
 }
 
-publiqpp::blockchain& state::blockchain()
+uint64_t state::get_balance(std::string const& key) const
 {
-    return m_pimpl->m_blockchain;
+    if (m_pimpl->m_state->accounts.find(key) != m_pimpl->m_state->accounts.end())
+        return m_pimpl->m_state->accounts[key];
+
+    return 0; // all accounts not included have 0 balance
 }
 
-publiqpp::action_log& state::action_log()
+bool state::check_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const
 {
-    return m_pimpl->m_action_log;
+    if (transfer.amount == 0)
+        throw std::runtime_error("0 amount transfer is restricted!");
+
+    if (m_pimpl->m_state->accounts.find(transfer.from) != m_pimpl->m_state->accounts.end())
+    {
+        uint64_t balance = m_pimpl->m_state->accounts[transfer.from];
+
+        if (balance >= transfer.amount + fee)
+            return true;
+    }
+
+    return false; // all accounts not included have 0 balance
 }
+
+void state::apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee)
+{
+    if (!check_transfer(transfer, fee))
+        throw std::runtime_error("Transfer balance is not enough!");
+
+    // decrease "from" balance
+    uint64_t balance = m_pimpl->m_state->accounts[transfer.from];
+
+    // balance is checked above
+    balance = balance - transfer.amount - fee;
+
+    if (balance == 0)
+        m_pimpl->m_state->accounts.erase(transfer.from);
+    else
+        m_pimpl->m_state->accounts[transfer.from] = balance;
+    
+    // increase "to" balance
+    balance = m_pimpl->m_state->accounts[transfer.to];
+    m_pimpl->m_state->accounts[transfer.to] = balance + transfer.amount;
+
+    // save state to file after each change
+    m_pimpl->m_state.save();
+}
+
+void state::merge_block(std::unordered_map<string, uint64_t> const& tmp_state)
+{
+    for (auto &it : tmp_state)
+    {
+        if (it.second == 0)
+            m_pimpl->m_state->accounts.erase(it.first);
+        else
+            m_pimpl->m_state->accounts[it.first] = it.second;
+    }
+}
+
 }

@@ -1,13 +1,12 @@
 #pragma once
 
 #include "global.hpp"
-
-#include "blockchain.hpp"
-#include "action_log.hpp"
+#include "message.hpp"
 
 #include <boost/filesystem/path.hpp>
 
 #include <memory>
+#include <vector>
 
 namespace publiqpp
 {
@@ -18,12 +17,14 @@ class state_internals;
 class state
 {
 public:
-    state(boost::filesystem::path const& fs_blockchain,
-          boost::filesystem::path const& fs_action_log);
+    state(boost::filesystem::path const& fs_state);
     ~state();
 
-    publiqpp::blockchain& blockchain();
-    publiqpp::action_log& action_log();
+    uint64_t get_balance(std::string const& key) const;
+
+    bool check_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const;
+    void apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee);
+    void merge_block(std::unordered_map<std::string, uint64_t> const& tmp_state);
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
 };

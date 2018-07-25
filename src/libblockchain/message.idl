@@ -1,105 +1,239 @@
 module BlockchainMessage
 {
-    //  standard socket messages
-    type Join {}
-    type Drop {}
-    type Error {}
-
-    //  dummy, testing
-    class Hellow
-    {
-        String text
-        UInt64 index
-    }
-
-    //  container messages
+    ///
+    //  core functions
+    ///
     class Broadcast
     {
-        Object value
+        UInt64 echoes
+        Object package
     }
-
-    //  special testing shutdown message
-    class Shutdown {}
 
     ///
-    /// RPC interface
+    //  core entities
     ///
-    //  GetChainInfo request, response should be ChainInfo
-    class GetChainInfo {}
-
-    //  ChainInfo
-    class ChainInfo
-    {
-        UInt64 length
-    }
-
-    class GetNews
-    {
-    }
-
-    class News
-    {
-        Array Object list
-    }
-
-    //  this is admin tool for RPC testing
-    class SubmitNews
-    {
-        Object item
-    }
-
-    class Bin64
-    {
-        String value
-    }
-
-    class TransactionHash
-    {
-        Bin64 value
-        UInt64 block_index
-    }
-
-    class Address
-    {
-        String value
-    }
-
-    class Coin
-    {
-        UInt64 value
-    }
-
     class Transaction
     {
-        TimePoint tm
-        UInt64 nonce
-        Coin fee
-        Object obj
+        TimePoint creation
+        TimePoint expiry
+        UInt64 fee
+        Object action  //  Transfer, File or Page
     }
 
     class SignedTransaction
     {
-        Array TransactionHash inputs
-        Transaction obj
+        Transaction transaction_details
+        String authority
         String signature
+    }
+
+    class BlockHeader
+    {
+        UInt64 block_number
+        UInt64 consensus_const
+        UInt64 consensus_delta
+        UInt64 consensus_sum
+        String previous_hash
+    }
+
+    class Block
+    {
+        BlockHeader block_header
+        Array SignedTransaction block_transactions
+    }
+
+    class SignedBlock
+    {
+        Object block_details
+        String authority
+        String signature
+    }
+
+    ///
+    //  blockchain transactions
+    ///
+    class Reward
+    {   //  in fact no authority can issue
+        //  this transaction
+        UInt64 amount
+        String to
     }
 
     class Transfer
     {
-        Address from
-        Coin amount
-        Address to
+        String from
+        String to
+        UInt64 amount
     }
 
-    class Reward
+    class File
     {
-        Coin amount
-        Address to
+        String author
+        String uri
     }
 
-    class NewArticle
+    class Page
     {
-        String title
-        Array String hash
+        String channel
+        Array String file_uris
     }
+
+    //  request/response
+    class DigestRequest { Object package }
+    class Digest
+    {
+        String base58_hash
+        Object package
+    }
+
+    class ChainInfoRequest {}
+    class ChainInfo { UInt64 length }
+
+    class LoggedTransaction //  just a structure for below request/response
+    {
+        Bool applied_reverted
+        UInt64 index
+        Object action
+    }
+    class LoggedTransactionsRequest { UInt64 start_index }
+    class LoggedTransactions { Array LoggedTransaction actions }
+
+    class MasterKeyRequest {}
+    class MasterKey
+    {
+        String master_key
+    }
+
+    class KeyPairRequest
+    {
+        String master_key
+        UInt64 index
+    }
+
+    class KeyPair
+    {
+        String master_key
+        UInt64 index
+        String public_key
+        String private_key
+    }
+
+    class SignRequest
+    {
+        String private_key
+        Object package
+    }
+
+    class Signature
+    {
+        String public_key
+        String signature
+        Object package
+    }
+
+
+    class SyncRequest
+    {
+        UInt64 block_number
+        UInt64 consensus_sum
+    }
+
+    class SyncResponse
+    {
+        UInt64 block_number
+        UInt64 consensus_sum
+    }
+
+    class ConsensusRequest
+    {
+        UInt64 block_number
+        UInt64 consensus_delta
+    }
+
+    class ConsensusResponse
+    {
+        UInt64 block_number
+        UInt64 consensus_delta
+    }
+
+    class BlockHeaderRequest
+    {
+        UInt64 blocks_from
+        UInt64 blocks_to
+    }
+
+    class BlockHeaderResponse
+    {
+        Array BlockHeader block_headers
+    }
+
+    class BlockChainRequest
+    {
+        UInt64 blocks_from
+        UInt64 blocks_to
+    }
+
+    class BlockChainResponse
+    {
+        Array SignedBlock signed_blocks
+    }
+
+    ///
+    //  response codes
+    ///
+    class Done {}
+    class InvalidPublicKey { String public_key }
+    class InvalidPrivateKey { String private_key }
+    class InvalidSignature { Signature details }
+    class InvalidAuthority
+    {
+        String authority_provided
+        String authority_required
+    }
+    class RemoteError { String message }
+
+    ///
+    //  action log relevant
+    ///
+
+    //  this is admin tool for RPC testing
+    class LogTransaction
+    {
+        Object action  //  Reward, Transfer, File or Page
+    }
+
+    class RevertLastLoggedAction {}
+
+    //  special testing message
+    class Shutdown {}
+
+    //  distributed storage related
+    class StorageFile
+    {
+        String mime_type
+        String data
+    }
+
+    //  blockchain storage data
+    class BlockchainFileData
+    {
+        Hash UInt64 Object blocks
+    }
+
+    //  transaction pool storage data
+    class TransactionFileData
+    {
+        Hash String Object actions
+    }
+
+    //  state storage data
+    class StateFileData
+    {
+        Hash String UInt64 accounts
+    }
+
+    //  standard socket messages
+    type Join {}
+    type Drop {}
+    type Error {}
 }
