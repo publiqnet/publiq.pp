@@ -101,7 +101,6 @@ void blockchain::update_header()
     }
 }
 
-
 uint64_t blockchain::length() const
 {
     return m_pimpl->m_length.as_const()->value;
@@ -121,10 +120,13 @@ void blockchain::header(BlockchainMessage::BlockHeader& block_header) const
     }
 }
 
-void blockchain::insert(beltpp::packet const& packet)
+bool blockchain::insert(beltpp::packet const& packet)
 {
     if (packet.type() != SignedBlock::rtt)
-        throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
+    {
+        return false;
+        //throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
+    }
 
     SignedBlock signed_block;
     packet.get(signed_block);
@@ -135,7 +137,10 @@ void blockchain::insert(beltpp::packet const& packet)
     uint64_t block_number = block.block_header.block_number;
 
     if (block_number != length())
-        throw std::runtime_error("Wrong block is goinf to insert! number:" + std::to_string(block_number));
+    {
+        return false;
+        //throw std::runtime_error("Wrong block is goinf to insert! number:" + std::to_string(block_number));
+    }
 
     string hash_id = m_pimpl->get_df_id(block_number);
     string file_name("df" + hash_id + ".bchain");
@@ -148,6 +153,8 @@ void blockchain::insert(beltpp::packet const& packet)
 
     file_data.save();
     m_pimpl->m_length.save();
+
+    return true;
 }
 
 bool blockchain::at(uint64_t number, SignedBlock& signed_block) const

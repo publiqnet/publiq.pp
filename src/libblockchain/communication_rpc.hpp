@@ -47,15 +47,6 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
                       publiqpp::transaction_pool& transaction_pool,
                       publiqpp::state& state);
 
-void insert_blocks(std::vector<beltpp::packet>& package_blocks,
-                   publiqpp::action_log& action_log,
-                   publiqpp::transaction_pool& transaction_pool,
-                   publiqpp::state& state);
-
-void revert_blocks(size_t count,
-                   publiqpp::blockchain& blockchain,
-                   publiqpp::transaction_pool& transaction_pool);
-
 void broadcast(beltpp::packet& package_broadcast,
                beltpp::isocket::peer_id const& self,
                beltpp::isocket::peer_id const& from,

@@ -28,7 +28,7 @@ public:
     uint64_t length() const;
     void header(BlockchainMessage::BlockHeader& block_header) const;
 
-    void insert(beltpp::packet const& packet);
+    bool insert(beltpp::packet const& packet);
     bool at(uint64_t number, BlockchainMessage::SignedBlock& signed_block) const;
     bool header_at(uint64_t number, BlockchainMessage::BlockHeader& block_header) const;
     void remove_last_block();

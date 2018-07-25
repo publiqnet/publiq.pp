@@ -3,8 +3,10 @@
 #include "message.hpp"
 
 #include <string>
+#include <vector>
 
 using std::string;
+using std::vector;
 
 namespace publiqpp
 {
@@ -20,6 +22,7 @@ public:
     e_status status;
 };
 
+inline
 vector<char> save_header(beltpp::detail::session_special_data& ssd,
                          vector<char> const& message_stream)
 {
@@ -34,6 +37,7 @@ vector<char> save_header(beltpp::detail::session_special_data& ssd,
     return vector<char>(str_result.begin(), str_result.end());
 }
 
+inline
 beltpp::iterator_wrapper<char const>
 check_begin(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
             beltpp::iterator_wrapper<char const> const& iter_scan_end,
@@ -62,6 +66,7 @@ check_begin(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
     return it_scan;
 }
 
+inline
 beltpp::iterator_wrapper<char const>
 check_end(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
           beltpp::iterator_wrapper<char const> const& iter_scan_end,
@@ -102,6 +107,7 @@ check_end(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
     return it_scan;
 }
 
+inline
 beltpp::detail::pmsg_all message_list_load(
         beltpp::iterator_wrapper<char const>& iter_scan_begin,
         beltpp::iterator_wrapper<char const> const& iter_scan_end,
