@@ -42,19 +42,31 @@ beltpp::void_unique_ptr get_putl()
 storage::storage(boost::filesystem::path const& fs_storage)
     : m_pimpl(new detail::storage_internals(fs_storage))
 {
-    meshpp::map_loader<BlockchainMessage::StorageFile> map("storage", m_pimpl->m_path, detail::get_putl());
+#if 0
+    meshpp::map_loader<BlockchainMessage::StorageFile> map1("1storage", m_pimpl->m_path, detail::get_putl());
+    meshpp::map_loader<BlockchainMessage::StorageFile> map2("2storage", m_pimpl->m_path, detail::get_putl());
+#endif
+#if 0
     BlockchainMessage::StorageFile temp;
     temp.mime_type = "app/text";
-    temp.data = "1";
-    map.insert("hellothere1", temp);
-    temp.mime_type = "app/text";
-    temp.data = "2";
-    map.insert("hellothere2", temp);
-    temp.data = "3";
-    map.insert("hellothere2", temp);
-    map.insert("bellothere3", temp);
 
-    map.save();
+    for (int i = 0; i < 20000; ++i)
+    {
+        temp.data = std::to_string(i);
+        map1.insert(temp.data, temp);
+    }
+    map1.save();
+    map2.discard();
+#endif
+#if 0
+    for (auto const& key : map1.keys())
+    {
+        map2.insert(key, map1.at(key));
+    }
+    map1.discard();
+    map2.save();
+#endif
+
 }
 storage::~storage()
 {
