@@ -4,10 +4,12 @@
 #include "message.hpp"
 
 #include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
+using std::vector;
 
 using number_loader = meshpp::file_loader<Data::Number, &Data::Number::string_loader, &Data::Number::string_saver>;
 using number_locked_loader = meshpp::file_locker<number_loader>;
@@ -123,10 +125,7 @@ void blockchain::header(BlockchainMessage::BlockHeader& block_header) const
 bool blockchain::insert(beltpp::packet const& packet)
 {
     if (packet.type() != SignedBlock::rtt)
-    {
         return false;
-        //throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
-    }
 
     SignedBlock signed_block;
     packet.get(signed_block);
@@ -137,10 +136,7 @@ bool blockchain::insert(beltpp::packet const& packet)
     uint64_t block_number = block.block_header.block_number;
 
     if (block_number != length())
-    {
         return false;
-        //throw std::runtime_error("Wrong block is goinf to insert! number:" + std::to_string(block_number));
-    }
 
     string hash_id = m_pimpl->get_df_id(block_number);
     string file_name("df" + hash_id + ".bchain");
@@ -240,8 +236,12 @@ bool blockchain::mine_block(string key,
     SignedBlock prev_signed_block;
     at(block_number, prev_signed_block);
 
+    beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
+    vector<char> packet_vec = package_prev_block.save();
+    string prev_block_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+
     Block prev_block;
-    std::move(prev_signed_block.block_details).get(prev_block);
+    package_prev_block.get(prev_block);
 
     uint64_t delta = calc_delta(key, amount, prev_block);
 
@@ -251,7 +251,7 @@ bool blockchain::mine_block(string key,
     block_header.consensus_delta = delta;
     block_header.consensus_const = prev_block.block_header.consensus_const;
     block_header.consensus_sum = prev_block.block_header.consensus_sum + delta;
-    block_header.previous_hash = "previous_hash"; //TODO
+    block_header.previous_hash = prev_block_hash;
 
     if (delta > m_pimpl->delta_up)
     {

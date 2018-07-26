@@ -4,19 +4,11 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
-//#include <stack>
-//#include <vector>
-//#include <chrono>
-
-//using std::vector;
-//using std::stack;
-//using std::string;
-//namespace chrono = std::chrono;
-//using system_clock = chrono::system_clock;
-
 using namespace BlockchainMessage;
 
 ///////////////////////////////////////////////////////////////////////////////////
+//                            Internal Finctions
+
 bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
@@ -37,29 +29,17 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
         // Check block transactions and calculate new state
         for (auto &signed_transaction : block.block_transactions)
         {
-            // Verify signed_transaction signature
-            vector<char> buffer = SignedTransaction::saver(&signed_transaction.transaction_details);
-            meshpp::signature sg(meshpp::public_key(signed_transaction.authority), buffer, signed_transaction.signature);
-            
-            sg.check();
-            
-            beltpp::packet package_transaction = std::move(signed_transaction.transaction_details.action);
-            vector<char> packet_vec = package_transaction.save();
-            string transfer_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
-
-            string key;
-            uint64_t amount;
-
             Transaction transaction;
-            std::move(package_transaction).get(transaction);
-
-            beltpp::packet package_transfer = std::move(transaction.action);
+            std::move(signed_transaction.transaction_details.action).get(transaction);
 
             Transfer transfer;
-            std::move(package_transfer).get(transfer);
+            std::move(transaction.action).get(transfer);
 
             if (signed_transaction.authority != transfer.from)
                 return false;
+
+            string key;
+            uint64_t amount;
 
             // correct "from" key balance
             key = transfer.from;
@@ -268,6 +248,7 @@ void process_consensus_request(beltpp::packet& package,
         {
             // someone have better block
             m_pimpl->m_blockchain.step_disable();
+            //TODO
         }
         else
         {
@@ -355,8 +336,8 @@ void process_blockheader_response(beltpp::packet& package,
     auto it = header_response.block_headers.begin();
     bool bad_data = header_response.block_headers.empty();
     bad_data = bad_data ||
-        (!m_pimpl->header_vector.empty() &&
-            tmp_header.block_number != (*it).block_number);
+               (!m_pimpl->header_vector.empty() &&
+                tmp_header.block_number != (*it).block_number);
 
     for (++it; !bad_data && it != header_response.block_headers.end(); ++it)
     {
@@ -364,9 +345,9 @@ void process_blockheader_response(beltpp::packet& package,
         bad_data = bad_data || (*(it - 1)).consensus_sum <= (*it).consensus_sum;
         bad_data = bad_data || (*(it - 1)).consensus_sum != (*(it - 1)).consensus_delta + (*it).consensus_sum;
         bad_data = bad_data || (
-            (*(it - 1)).consensus_const != (*it).consensus_const &&
-            (*(it - 1)).consensus_const != 2 * (*it).consensus_const
-            );
+                                (*(it - 1)).consensus_const != (*it).consensus_const &&
+                                (*(it - 1)).consensus_const != 2 * (*it).consensus_const
+                               );
     }
 
     if (bad_data)
@@ -393,7 +374,6 @@ void process_blockheader_response(beltpp::packet& package,
     }
 
     bool lcb_found = false;
-
     if (found)
     {
         for (; !lcb_found && it != header_response.block_headers.end(); ++it)
@@ -508,30 +488,60 @@ void process_blockchain_response(beltpp::packet& package,
     std::move(prev_signed_block.block_details).get(prev_block);
 
     bool bad_data = blockchain_response.signed_blocks.empty() ||
-        blockchain_response.signed_blocks.size() > m_pimpl->header_vector.size() -
-        m_pimpl->block_vector.size();
+                    blockchain_response.signed_blocks.size() > m_pimpl->header_vector.size() -
+                                                               m_pimpl->block_vector.size();
 
     for (auto it = m_pimpl->block_vector.begin(); !bad_data && it != m_pimpl->block_vector.end(); ++it)
     {
+        // verify block signature
         SignedBlock signed_block = *it;
-        //TODO check signature
+        vector<char> buffer = Block::saver(&signed_block.block_details);
+        meshpp::signature sg(meshpp::public_key(signed_block.authority), buffer, signed_block.signature);
+        
+        bad_data = bad_data || !sg.verify();
+        if (bad_data) continue;
 
         Block block;
         std::move(signed_block.block_details).get(block);
 
+        // verifu block number
         bad_data = bad_data || block.block_header.block_number != prev_block.block_header.block_number + 1;
+        if (bad_data) continue;
 
-        //TODO check previous_hash
-        //TODO check consensus_delta
-        //TODO check consensus_sum
-        //TODO check consensus_const
+        // verify previous_hash
+        beltpp::packet package_block;
+        package_block.set(prev_block);
+        vector<char> packet_vec = package_block.save();
+        string block_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
 
-        //TODO check block transaction signatures
+        bad_data = bad_data || block_hash != block.block_header.previous_hash;
+        if (bad_data) continue;
+
+        // verify consensus_delta
+        //TODO
+
+        // verify consensus_sum
+        bad_data = bad_data || block.block_header.consensus_sum != (block.block_header.consensus_delta + 
+                                                                    prev_block.block_header.consensus_sum);
+        if (bad_data) continue;
+
+        // verify consensus_const
+        //TODO
+
+        // verify block transactions signature
+        for (auto &signed_transaction : block.block_transactions)
+        {
+            vector<char> buffer = Transaction::saver(&signed_transaction.transaction_details);
+            meshpp::signature sg(meshpp::public_key(signed_transaction.authority), buffer, signed_transaction.signature);
+            
+            bad_data = bad_data || !sg.verify();
+            if (bad_data) break;
+        }
 
         prev_block = std::move(block);
     }
 
-    if (bad_data)
+    if (bad_data) // zibil en dayax arel
     {
         sk.send(peerid, Drop());
         m_pimpl->remove_peer(peerid);

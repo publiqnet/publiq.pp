@@ -2,19 +2,8 @@
 
 #include "node_internals.hpp"
 
-//#include "action_log.hpp"
-//#include "blockchain.hpp"
-//#include "transaction_pool.hpp"
-//#include "state.hpp"
-
-//#include <belt.pp/isocket.hpp>
-//#include <belt.pp/ilog.hpp>
-
-//#include <unordered_set>
-//#include <exception>
-
-
 ///////////////////////////////////////////////////////////////////////////////////
+//                            Internal Finctions
 
 bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
