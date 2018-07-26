@@ -669,4 +669,5 @@ void analyze_struct(    state_holder& state,
     model<< "} \n";
 
 /////////////////
+
 }

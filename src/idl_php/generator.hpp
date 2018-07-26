@@ -9,10 +9,10 @@ using expression_tree = beltpp::expression_tree<lexers, std::string>;
 
 class state_holder
 {
-public:
-    state_holder();
-    std::string namespace_name;
-    std::unordered_map<std::string, std::string> map_types;
+    public:
+        state_holder();
+        std::string namespace_name;
+        std::unordered_map<std::string, std::string> map_types;
 };
 
 void analyze(   state_holder& state,
