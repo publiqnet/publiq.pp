@@ -22,9 +22,8 @@ packet& contained_member(SignedTransaction& pck)
 {
     meshpp::public_key pb_key(pck.authority);
     meshpp::signature signature_check(pb_key,
-                                      detail::saver(pck.transaction_details),
+                                      pck.transaction_details.to_string(),
                                       pck.signature);
-    signature_check.check();
 
     return pck.transaction_details.action;
 }

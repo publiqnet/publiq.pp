@@ -495,9 +495,11 @@ void process_blockchain_response(beltpp::packet& package,
     {
         // verify block signature
         SignedBlock signed_block = *it;
-        meshpp::signature sg(meshpp::public_key(signed_block.authority), signed_block.block_details.to_string(), signed_block.signature);
+        bool sb_verify = meshpp::verify_signature(meshpp::public_key(signed_block.authority),
+                                                  signed_block.block_details.to_string(),
+                                                  signed_block.signature);
         
-        bad_data = bad_data || !sg.verify();
+        bad_data = bad_data || (false == sb_verify);
         if (bad_data) continue;
 
         Block block;
@@ -529,11 +531,11 @@ void process_blockchain_response(beltpp::packet& package,
         // verify block transactions signature
         for (auto &signed_transaction : block.block_transactions)
         {
-            meshpp::signature sg(meshpp::public_key(signed_transaction.authority),
-                                 signed_transaction.transaction_details.to_string(),
-                                 signed_transaction.signature);
+            bool st_verify = meshpp::verify_signature(meshpp::public_key(signed_transaction.authority),
+                                                      signed_transaction.transaction_details.to_string(),
+                                                      signed_transaction.signature);
             
-            bad_data = bad_data || !sg.verify();
+            bad_data = bad_data || (false == st_verify);
             if (bad_data) break;
         }
 
