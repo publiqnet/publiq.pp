@@ -35,10 +35,10 @@ public:
 
     }
 
-    const size_t delta_step = 10;
-    const uint64_t delta_max = 120000000;
-    const uint64_t delta_up = 100000000;
-    const uint64_t delta_down = 80000000;
+    //const size_t delta_step = 10;
+    //const uint64_t delta_max = 120000000;
+    //const uint64_t delta_up = 100000000;
+    //const uint64_t delta_down = 80000000;
     const uint64_t mine_amount = 100000000;
 
     bool step_enabled;
@@ -217,8 +217,8 @@ uint64_t blockchain::calc_delta(string key, uint64_t amount, BlockchainMessage::
     uint64_t d = m_pimpl->dist(key, block.block_header.previous_hash);
     uint64_t delta = amount / (d * block.block_header.consensus_const);
     
-    if (delta > m_pimpl->delta_max)
-        delta = m_pimpl->delta_max;
+    if (delta > DELTA_MAX)
+        delta = DELTA_MAX;
 
     return delta;
 }
@@ -254,12 +254,12 @@ bool blockchain::mine_block(string key,
     block_header.consensus_sum = prev_block.block_header.consensus_sum + delta;
     block_header.previous_hash = prev_block_hash;
 
-    if (delta > m_pimpl->delta_up)
+    if (delta > DELTA_UP)
     {
-        size_t step = 1;
+        size_t step = 0;
         uint64_t _delta = delta;
 
-        while (_delta > m_pimpl->delta_up && step < m_pimpl->delta_step && block_number > 0)
+        while (_delta > DELTA_UP && step < DELTA_STEP && block_number > 0)
         {
             SignedBlock _prev_signed_block;
             at(block_number, _prev_signed_block);
@@ -272,16 +272,16 @@ bool blockchain::mine_block(string key,
             _delta = _prev_block.block_header.consensus_delta;
         }
 
-        if (step >= m_pimpl->delta_step)
+        if (step >= DELTA_STEP)
             block_header.consensus_const = prev_block.block_header.consensus_const * 2;
     }
     else
-    if (delta < m_pimpl->delta_down && block_header.consensus_const > 1)
+    if (delta < DELTA_DOWN && block_header.consensus_const > 1)
     {
-        size_t step = 1;
+        size_t step = 0;
         uint64_t _delta = delta;
 
-        while (_delta < m_pimpl->delta_down && step < m_pimpl->delta_step && block_number > 0)
+        while (_delta < DELTA_DOWN && step < DELTA_STEP && block_number > 0)
         {
             SignedBlock _prev_signed_block;
             at(block_number, _prev_signed_block);
@@ -294,7 +294,7 @@ bool blockchain::mine_block(string key,
             _delta = _prev_block.block_header.consensus_delta;
         }
 
-        if (step >= m_pimpl->delta_step)
+        if (step >= DELTA_STEP)
             block_header.consensus_const = prev_block.block_header.consensus_const / 2;
     }
 

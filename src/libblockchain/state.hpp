@@ -1,12 +1,8 @@
 #pragma once
 
-#include "global.hpp"
 #include "message.hpp"
 
 #include <boost/filesystem/path.hpp>
-
-#include <memory>
-#include <vector>
 
 namespace publiqpp
 {

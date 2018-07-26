@@ -1,10 +1,6 @@
 #include "state.hpp"
 
-#include "message.hpp"
-
 #include <mesh.pp/fileutility.hpp>
-
-#include <string>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
