@@ -192,7 +192,6 @@ void verify_signature(beltpp::packet const& packet,
     packet.get(msg);
 
     meshpp::signature signed_msg(msg.public_key, msg.package.to_string(), msg.signature);
-    signed_msg.check();
 
     sk.send(peerid, Done());
 }
