@@ -87,8 +87,7 @@ void transaction_pool::insert(beltpp::packet const& packet)
     if (packet.type() != Transaction::rtt)
         throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
 
-    vector<char> packet_vec = packet.save();
-    string packet_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+    string packet_hash = meshpp::hash(packet.save());
     string hash_id = m_pimpl->get_df_id(packet_hash);
     string file_name("df" + hash_id + ".tpool");
 

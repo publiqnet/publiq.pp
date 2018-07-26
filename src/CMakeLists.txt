@@ -36,6 +36,7 @@ add_subdirectory(libblockchain)
 add_subdirectory(publiq.pp)
 add_subdirectory(exe_publiqd)
 add_subdirectory(idl_php)
+add_subdirectory(blockchain_client)
 
 # following is used for find_package functionality
 install(FILES publiq.pp-config.cmake DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})

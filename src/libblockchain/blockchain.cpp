@@ -237,8 +237,7 @@ bool blockchain::mine_block(string key,
     at(block_number, prev_signed_block);
 
     beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
-    vector<char> packet_vec = package_prev_block.save();
-    string prev_block_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+    string prev_block_hash = meshpp::hash(package_prev_block.save());
 
     Block prev_block;
     package_prev_block.get(prev_block);

@@ -23,8 +23,8 @@ public:
 };
 
 inline
-vector<char> save_header(beltpp::detail::session_special_data& ssd,
-                         vector<char> const& message_stream)
+string save_header(beltpp::detail::session_special_data& ssd,
+                   string const& message_stream)
 {
     ssd.session_specal_handler = nullptr;
     string str_result;
@@ -34,7 +34,7 @@ vector<char> save_header(beltpp::detail::session_special_data& ssd,
     str_result += std::to_string(message_stream.size());
     str_result += "\r\n\r\n";
 
-    return vector<char>(str_result.begin(), str_result.end());
+    return str_result;
 }
 
 inline
