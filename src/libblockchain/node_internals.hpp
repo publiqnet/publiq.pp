@@ -55,9 +55,9 @@ using p2p_sf = meshpp::p2psocket_family_t<
     &beltpp::new_void_unique_ptr<Error>,
     &beltpp::new_void_unique_ptr<Join>,
     &beltpp::new_void_unique_ptr<Drop>,
-    &Error::saver,
-    &Join::saver,
-    &Drop::saver
+    &Error::pvoid_saver,
+    &Join::pvoid_saver,
+    &Drop::pvoid_saver
 >;
 
 using rpc_sf = beltpp::socket_family_t<
@@ -67,9 +67,9 @@ using rpc_sf = beltpp::socket_family_t<
     &beltpp::new_void_unique_ptr<Error>,
     &beltpp::new_void_unique_ptr<Join>,
     &beltpp::new_void_unique_ptr<Drop>,
-    &Error::saver,
-    &Join::saver,
-    &Drop::saver,
+    &Error::pvoid_saver,
+    &Join::pvoid_saver,
+    &Drop::pvoid_saver,
     &http::message_list_load
 >;
 

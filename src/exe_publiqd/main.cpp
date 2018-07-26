@@ -54,8 +54,8 @@ void termination_handler(int signum)
 class port2pid_helper
 {
     using Loader = meshpp::file_locker<meshpp::file_loader<Config::Port2PID,
-                                                            &Config::Port2PID::string_loader,
-                                                            &Config::Port2PID::string_saver>>;
+                                                            &Config::Port2PID::from_string,
+                                                            &Config::Port2PID::to_string>>;
 public:
     port2pid_helper(boost::filesystem::path const& _path, unsigned short _port)
         : port(_port)
@@ -146,7 +146,6 @@ int main(int argc, char** argv)
         settings::settings::set_data_directory(data_directory);
 
 #ifdef B_OS_WINDOWS
-    // will work after wait retuns, not immediately !
     signal(SIGINT, termination_handler);
 #else
     struct sigaction signal_handler;
@@ -162,7 +161,9 @@ int main(int argc, char** argv)
 
         unique_ptr<port2pid_helper> port2pid(new port2pid_helper(settings::config_file_path("pid"), p2p_bind_to_address.local.port));
 
-        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<Config::DataDirAttribute, &Config::DataDirAttribute::string_loader, &Config::DataDirAttribute::string_saver>>;
+        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<Config::DataDirAttribute,
+                                                                                &Config::DataDirAttribute::from_string,
+                                                                                &Config::DataDirAttribute::to_string>>;
         DataDirAttributeLoader dda(settings::data_file_path("running.txt"));
         Config::RunningDuration item;
         item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());

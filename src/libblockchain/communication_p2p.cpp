@@ -495,7 +495,7 @@ void process_blockchain_response(beltpp::packet& package,
     {
         // verify block signature
         SignedBlock signed_block = *it;
-        meshpp::signature sg(meshpp::public_key(signed_block.authority), signed_block.block_details.save(), signed_block.signature);
+        meshpp::signature sg(meshpp::public_key(signed_block.authority), signed_block.block_details.to_string(), signed_block.signature);
         
         bad_data = bad_data || !sg.verify();
         if (bad_data) continue;
@@ -503,14 +503,14 @@ void process_blockchain_response(beltpp::packet& package,
         Block block;
         std::move(signed_block.block_details).get(block);
 
-        // verifu block number
+        // verify block number
         bad_data = bad_data || block.block_header.block_number != prev_block.block_header.block_number + 1;
         if (bad_data) continue;
 
         // verify previous_hash
         beltpp::packet package_block;
         package_block.set(prev_block);
-        string block_hash = meshpp::hash(package_block.save());
+        string block_hash = meshpp::hash(package_block.to_string());
 
         bad_data = bad_data || block_hash != block.block_header.previous_hash;
         if (bad_data) continue;
@@ -529,8 +529,9 @@ void process_blockchain_response(beltpp::packet& package,
         // verify block transactions signature
         for (auto &signed_transaction : block.block_transactions)
         {
-            string buffer = Transaction::string_saver(signed_transaction.transaction_details);
-            meshpp::signature sg(meshpp::public_key(signed_transaction.authority), buffer, signed_transaction.signature);
+            meshpp::signature sg(meshpp::public_key(signed_transaction.authority),
+                                 signed_transaction.transaction_details.to_string(),
+                                 signed_transaction.signature);
             
             bad_data = bad_data || !sg.verify();
             if (bad_data) break;

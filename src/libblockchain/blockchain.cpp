@@ -11,12 +11,14 @@ namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
 
-using number_loader = meshpp::file_loader<Data::Number, &Data::Number::string_loader, &Data::Number::string_saver>;
+using number_loader = meshpp::file_loader<Data::Number,
+                                          &Data::Number::from_string,
+                                          &Data::Number::to_string>;
 using number_locked_loader = meshpp::file_locker<number_loader>;
 
 using blockchain_data_loader = meshpp::file_loader<BlockchainFileData,
-                                                   &BlockchainFileData::string_loader,
-                                                   &BlockchainFileData::string_saver>;
+                                                   &BlockchainFileData::from_string,
+                                                   &BlockchainFileData::to_string>;
 
 namespace publiqpp
 {
@@ -237,7 +239,7 @@ bool blockchain::mine_block(string key,
     at(block_number, prev_signed_block);
 
     beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
-    string prev_block_hash = meshpp::hash(package_prev_block.save());
+    string prev_block_hash = meshpp::hash(package_prev_block.to_string());
 
     Block prev_block;
     package_prev_block.get(prev_block);

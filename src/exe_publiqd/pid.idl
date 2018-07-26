@@ -16,5 +16,4 @@ module Config
         Array RunningDuration history
     }
 }
-
-
+///
