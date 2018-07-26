@@ -147,12 +147,9 @@ bool node::run()
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_transaction;
-                open_container_packet<Broadcast, SignedBlock> broadcast_block;
                 open_container_packet<Broadcast> broadcast_anything;
-                bool is_container =
-                        (broadcast_transaction.open(received_packet, composition) ||
-                         broadcast_block.open(received_packet, composition) ||
-                         broadcast_anything.open(received_packet, composition));
+                bool is_container = broadcast_transaction.open(received_packet, composition) ||
+                                    broadcast_anything.open(received_packet, composition);
 
                 if (is_container == false)
                 {
@@ -255,41 +252,6 @@ bool node::run()
                     psk->send(peerid, Done());
                     break;
                 }
-                case Block::rtt:
-                {
-                    //if (broadcast_block.items.empty())
-                    //    throw std::runtime_error("will process only \"broadcast signed block\"");
-                    //
-                    //// Verify block signature
-                    //SignedBlock signed_block;
-                    //broadcast_block.items[1]->get(signed_block);
-                    //
-                    //vector<char> buffer = SignedBlock::saver(&signed_block.block_details);
-                    //meshpp::signature sg(meshpp::public_key(signed_block.authority), buffer, signed_block.signature);
-                    //
-                    //sg.check();
-                    //
-                    ////Check consensus
-                    ////TODO
-                    //
-                    //std::vector<beltpp::packet> package_blocks;
-                    //package_blocks.push_back(std::move(ref_packet));
-                    //
-                    //insert_blocks(package_blocks,
-                    //              m_pimpl->m_action_log,
-                    //              m_pimpl->m_transaction_pool,
-                    //              m_pimpl->m_state);
-                    //
-                    ////TODO add to blockchain
-                    //
-                    ////TODO broadcast
-                    //
-                    //psk->send(peerid, Done());
-                    //
-                    ////TODO manage exceptions
-
-                    break;
-                }
                 case ChainInfoRequest::rtt:
                 {
                     ChainInfo chaininfo_msg;
@@ -375,12 +337,16 @@ bool node::run()
                 {
                     if (it == interface_type::p2p)
                     {
-                        //check if request was sent
-                        //TODO
+                        m_pimpl->reset_stored_request(peerid);
+                        if (stored_packet.type() != SyncRequest::rtt)
+                        {
+                            psk->send(peerid, Drop());
+                            m_pimpl->remove_peer(peerid);
+                            break;
+                        }
 
                         SyncResponse sync_response;
                         std::move(ref_packet).get(sync_response);
-
                         m_pimpl->sync_vector.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
                     }
                     else
@@ -409,8 +375,13 @@ bool node::run()
                 {
                     if (it == interface_type::p2p)
                     {
-                        //check if request was sent
-                        //TODO
+                        m_pimpl->reset_stored_request(peerid);
+                        if (stored_packet.type() != ConsensusRequest::rtt)
+                        {
+                            psk->send(peerid, Drop());
+                            m_pimpl->remove_peer(peerid);
+                            break;
+                        }
 
                         process_consensus_response(ref_packet, m_pimpl);
                     }
@@ -440,8 +411,13 @@ bool node::run()
                 {
                     if (it == interface_type::p2p)
                     {
-                        // check if the blockheader was requested
-                        //TODO
+                        m_pimpl->reset_stored_request(peerid);
+                        if (stored_packet.type() != BlockHeaderRequest::rtt)
+                        {
+                            psk->send(peerid, Drop());
+                            m_pimpl->remove_peer(peerid);
+                            break;
+                        }
 
                         process_blockheader_response(ref_packet, m_pimpl, *psk, peerid);
                     }
@@ -471,8 +447,13 @@ bool node::run()
                 {
                     if (it == interface_type::p2p)
                     {
-                        //1. check if the blockchain was requested
-                        //TODO
+                        m_pimpl->reset_stored_request(peerid);
+                        if (stored_packet.type() != BlockChainRequest::rtt)
+                        {
+                            psk->send(peerid, Drop());
+                            m_pimpl->remove_peer(peerid);
+                            break;
+                        }
                         
                         process_blockchain_response(ref_packet, m_pimpl, *psk, peerid);
                     }

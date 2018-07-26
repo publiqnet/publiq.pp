@@ -197,7 +197,7 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
     return true;
 }
 
-void revert_blocks(size_t count,
+void revert_blocks(size_t count, 
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     for (size_t i = 0; i < count; ++i)
@@ -428,8 +428,7 @@ void process_blockheader_response(beltpp::packet& package,
             blockchain_request.blocks_to = m_pimpl->header_vector.begin()->block_number;
 
             sk.send(peerid, blockchain_request);
-
-            //TODO store request
+            m_pimpl->store_request(peerid, blockchain_request);
         }
     }
 
@@ -441,8 +440,7 @@ void process_blockheader_response(beltpp::packet& package,
         header_request.blocks_to = header_request.blocks_from - 10;
 
         sk.send(peerid, header_request);
-
-        //TODO store request
+        m_pimpl->store_request(peerid, header_request);
     }
 }
 
@@ -552,8 +550,7 @@ void process_blockchain_response(beltpp::packet& package,
         blockchain_request.blocks_to = m_pimpl->header_vector.begin()->block_number;
 
         sk.send(peerid, blockchain_request);
-
-        //TODO store request
+        m_pimpl->store_request(peerid, blockchain_request);
 
         return;
     }
