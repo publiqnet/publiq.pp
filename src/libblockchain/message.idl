@@ -237,4 +237,4 @@ module BlockchainMessage
     type Drop {}
     type Error {}
 }
-///
+

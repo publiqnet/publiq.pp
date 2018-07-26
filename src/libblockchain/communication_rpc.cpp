@@ -46,7 +46,8 @@ void submit_action(beltpp::packet&& package,
             //meshpp::public_key temp1(msg_transfer.to);
             //meshpp::public_key temp2(msg_transfer.from);
 
-            transaction_pool.insert(msg_transfer);
+            //  comment out for now
+            //transaction_pool.insert(msg_transfer);
         }
 
         LoggedTransaction action_info;
@@ -61,6 +62,8 @@ void submit_action(beltpp::packet&& package,
         throw std::runtime_error("Unsupported action!");
         break;
     }
+
+    sk.send(peerid, Done());
 }
 
 void get_actions(beltpp::packet const& package,
