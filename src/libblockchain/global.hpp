@@ -13,6 +13,8 @@
 
 // Block mine delay in minutes
 #define MINE_DELAY 10
+// Step apply delay in seconds
+#define STEP_DELAY 30
 
 // Consensus delta definitions
 #define DELTA_STEP  10

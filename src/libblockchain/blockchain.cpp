@@ -87,8 +87,21 @@ public:
 
     bool apply_allowed()
     {
-        //TODO check time after previous mine
-        return true;
+        // check time after previous mine
+
+        system_clock::time_point current_time_point = system_clock::now();
+        system_clock::time_point previous_block_time_point = system_clock::from_time_t(tmp_header.sign_time.tm);
+
+        //  both previous_block_time_point and current_time_point keep track of UTC time
+
+        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_block_time_point);
+        auto num_seconds = diff_seconds.count();
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_block_time_point);
+        auto num_minutes = diff_minutes.count();
+        chrono::minutes diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_block_time_point);
+        auto num_hours = diff_hours.count();
+
+        return num_seconds >= STEP_DELAY || num_minutes > 0 || num_hours > 0;
     }
 };
 }
@@ -225,7 +238,8 @@ void blockchain::remove_last_block()
     update_header();
 }
 
-uint64_t blockchain::calc_delta(string key, uint64_t amount, BlockchainMessage::Block& block)
+uint64_t blockchain::calc_delta(string key, uint64_t amount, 
+                                BlockchainMessage::Block& block)
 {
     uint64_t d = m_pimpl->dist(key, block.block_header.previous_hash);
     uint64_t delta = amount / (d * block.block_header.consensus_const);
@@ -236,8 +250,7 @@ uint64_t blockchain::calc_delta(string key, uint64_t amount, BlockchainMessage::
     return delta;
 }
 
-bool blockchain::mine_block(meshpp::private_key pv_key,
-                            uint64_t amount,
+bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
                             publiqpp::transaction_pool& transaction_pool)
 {
     if (amount < m_pimpl->mine_amount)
