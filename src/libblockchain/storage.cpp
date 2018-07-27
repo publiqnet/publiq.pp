@@ -15,18 +15,6 @@ namespace publiqpp
 
 namespace detail
 {
-class storage_internals
-{
-public:
-    storage_internals(filesystem::path const& path)
-        : m_path(path)
-    {
-
-    }
-
-    filesystem::path m_path;
-};
-
 inline
 beltpp::void_unique_ptr get_putl()
 {
@@ -38,6 +26,19 @@ beltpp::void_unique_ptr get_putl()
 
     return ptr_utl;
 }
+
+class storage_internals
+{
+public:
+    storage_internals(filesystem::path const& path)
+        : map("storage", path, detail::get_putl())
+    {
+
+    }
+
+    meshpp::map_loader<BlockchainMessage::StorageFile> map;
+};
+
 }
 
 storage::storage(boost::filesystem::path const& fs_storage)
@@ -72,6 +73,29 @@ storage::storage(boost::filesystem::path const& fs_storage)
 storage::~storage()
 {
 
+}
+
+BlockchainMessage::Digest storage::put(BlockchainMessage::StorageFile&& file)
+{
+    BlockchainMessage::Digest hash;
+    hash.base58_hash = meshpp::hash(file.to_string());
+    m_pimpl->map.insert(hash.base58_hash, file);
+
+    m_pimpl->map.save();
+    return hash;
+}
+
+bool storage::get(BlockchainMessage::Digest const& hash, BlockchainMessage::StorageFile& file)
+{
+    auto keys = m_pimpl->map.keys();
+    auto it = keys.find(hash.base58_hash);
+    if (it == keys.end())
+        return false;
+
+    file = std::move(m_pimpl->map.at(hash.base58_hash));
+    m_pimpl->map.discard();
+
+    return true;
 }
 
 

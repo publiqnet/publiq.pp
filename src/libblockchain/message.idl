@@ -215,6 +215,11 @@ module BlockchainMessage
         String data
     }
 
+    class RetrieveFile
+    {
+        Digest uri
+    }
+
     //  blockchain storage data
     class BlockchainFileData
     {

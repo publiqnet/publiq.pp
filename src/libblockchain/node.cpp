@@ -290,6 +290,23 @@ bool node::run()
                     }
                     break;
                 }
+                case StorageFile::rtt:
+                {
+                    StorageFile file;
+                    std::move(ref_packet).get(file);
+                    Digest hash = m_pimpl->m_storage.put(std::move(file));
+                    psk->send(peerid, std::move(hash));
+                    break;
+                }
+                case RetrieveFile::rtt:
+                {
+                    RetrieveFile rf;
+                    std::move(ref_packet).get(rf);
+                    StorageFile file;
+                    m_pimpl->m_storage.get(rf.uri, file);
+                    psk->send(peerid, std::move(file));
+                    break;
+                }
                 case LoggedTransactionsRequest::rtt:
                 {
                     if (it == interface_type::rpc)
