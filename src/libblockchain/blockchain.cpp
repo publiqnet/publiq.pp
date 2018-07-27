@@ -3,13 +3,19 @@
 #include "data.hpp"
 #include "message.hpp"
 
+#include <belt.pp/utility.hpp>
+
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
+
+#include <chrono>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
+namespace chrono = std::chrono;
+using chrono::system_clock;
 
 using number_loader = meshpp::file_loader<Data::Number,
                                           &Data::Number::from_string,
@@ -64,7 +70,28 @@ public:
 
     bool mine_allowed()
     {
-        //TODO check time after previous block
+        //  TODO check time after previous block
+        //  time point value used in protocol is a string representing the UTC time
+
+        BlockchainMessage::ctime previous_block_time;
+        beltpp::gm_string_to_gm_time_t("2018-07-27 10:47:36", previous_block_time.tm);
+
+        system_clock::time_point previous_block_time_point = system_clock::from_time_t(previous_block_time.tm);
+        system_clock::time_point current_time_point = system_clock::now();
+
+        //  both previous_block_time_point and current_time_point keep track of UTC time
+
+        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_block_time_point);
+        auto num_seconds = diff_seconds.count();
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_block_time_point);
+        auto num_minutes = diff_minutes.count();
+        chrono::minutes diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_block_time_point);
+        auto num_hours = diff_hours.count();
+
+        B_UNUSED(num_seconds);
+        B_UNUSED(num_minutes);
+        B_UNUSED(num_hours);
+
         return true;
     }
 
