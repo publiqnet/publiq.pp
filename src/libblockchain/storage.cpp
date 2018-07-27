@@ -3,6 +3,7 @@
 #include "message.hpp"
 
 #include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 #include <string>
 

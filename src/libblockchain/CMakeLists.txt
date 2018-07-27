@@ -23,7 +23,7 @@ add_library(blockchain
     blockchain.hpp
     communication_rpc.cpp
     communication_rpc.hpp
-	communication_p2p.cpp
+    communication_p2p.cpp
     communication_p2p.hpp
     data.hpp
     data.gen.hpp
@@ -32,7 +32,7 @@ add_library(blockchain
     message.gen.hpp
     node.cpp
     node.hpp
-	node_internals.hpp
+    node_internals.hpp
     open_container_packet.hpp
     state.cpp
     state.hpp
