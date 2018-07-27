@@ -51,7 +51,8 @@ node::node(ip_address const& rpc_bind_to_address,
            boost::filesystem::path const& fs_transaction_pool,
            boost::filesystem::path const& fs_state,
            beltpp::ilog* plogger_p2p,
-           beltpp::ilog* plogger_node)
+           beltpp::ilog* plogger_node,
+           meshpp::private_key pv_key)
     : m_pimpl(new detail::node_internals(rpc_bind_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,
@@ -61,7 +62,8 @@ node::node(ip_address const& rpc_bind_to_address,
                                          fs_transaction_pool,
                                          fs_state,
                                          plogger_p2p,
-                                         plogger_node))
+                                         plogger_node,
+                                         pv_key))
 {
 
 }
@@ -577,9 +579,10 @@ bool node::run()
                 BlockHeaderRequest header_request;
                 header_request.blocks_from = sync_request.block_number;
                 header_request.blocks_to = block_header.block_number;
-                psk->send(tmp_peer, header_request);
 
-                //TODO store request
+                psk->send(tmp_peer, header_request);
+                m_pimpl->reset_stored_request(tmp_peer);
+                m_pimpl->store_request(tmp_peer, header_request);
             }
             else
             {
@@ -588,14 +591,17 @@ bool node::run()
                 sync_request.consensus_sum = block_header.consensus_sum;
 
                 for (auto& it : m_pimpl->m_p2p_peers)
+                {
                     psk->send(it, sync_request);
+                    m_pimpl->reset_stored_request(it);
+                    m_pimpl->store_request(it, sync_request);
+                }
             }
 
             // Mine block
-            string key; // TODO assign
-            uint64_t amount = m_pimpl->m_state.get_balance(key);
+            uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
-            if (m_pimpl->m_blockchain.mine_block(key, amount, m_pimpl->m_transaction_pool))
+            if (m_pimpl->m_blockchain.mine_block(m_pimpl->private_key, amount, m_pimpl->m_transaction_pool))
             {
                 BlockHeader tmp_header;
 
@@ -606,7 +612,11 @@ bool node::run()
                     consensus_request.consensus_delta = tmp_header.consensus_delta;
 
                     for (auto& it : m_pimpl->m_p2p_peers)
+                    {
                         psk->send(it, consensus_request);
+                        m_pimpl->reset_stored_request(it);
+                        m_pimpl->store_request(it, consensus_request);
+                    }
                 }
             }
 

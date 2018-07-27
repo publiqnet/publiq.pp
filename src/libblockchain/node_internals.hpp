@@ -15,6 +15,7 @@
 #include <belt.pp/message_global.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 #include <boost/filesystem/path.hpp>
 
@@ -107,7 +108,8 @@ public:
         filesystem::path const& fs_transaction_pool,
         filesystem::path const& fs_state,
         beltpp::ilog* _plogger_p2p,
-        beltpp::ilog* _plogger_node)
+        beltpp::ilog* _plogger_node,
+        meshpp::private_key pv_key)
         : plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
         , m_ptr_eh(new beltpp::event_handler())
@@ -127,6 +129,7 @@ public:
         , m_storage(fs_storage)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)
+        , private_key(pv_key)
     {
         m_ptr_eh->set_timer(chrono::seconds(30));
 
@@ -235,6 +238,7 @@ public:
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
 
+    meshpp::private_key private_key;
     vector<SignedBlock> block_vector;
     vector<BlockHeader> header_vector;
     vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_vector;

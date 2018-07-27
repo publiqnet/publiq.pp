@@ -5,6 +5,8 @@
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/isocket.hpp>
 
+#include <mesh.pp/cryptoutility.hpp>
+
 #include <boost/filesystem/path.hpp>
 
 #include <memory>
@@ -29,7 +31,8 @@ public:
          boost::filesystem::path const& fs_transaction_pool,
          boost::filesystem::path const& fs_state,
          beltpp::ilog* plogger_p2p,
-         beltpp::ilog* plogger_node);
+         beltpp::ilog* plogger_node,
+         meshpp::private_key pv_key);
     node(node&& other);
     ~node();
 

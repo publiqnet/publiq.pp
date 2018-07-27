@@ -9,6 +9,8 @@
 #endif
 
 //temp
+#define TRANSFER_LENGTH 10
+
 #define DELTA_STEP  10
 #define DELTA_MAX   120000000
 #define DELTA_UP    100000000

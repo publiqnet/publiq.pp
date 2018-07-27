@@ -296,7 +296,7 @@ void process_blockheader_request(beltpp::packet& package,
 
     uint64_t to = header_request.blocks_to;
     to = to > from ? from : to;
-    to = to < from - 10 ? from - 10 : to;
+    to = to < from - TRANSFER_LENGTH ? from - TRANSFER_LENGTH : to;
 
     BlockHeaderResponse header_response;
     for (auto index = from; index >= to; --to)
@@ -471,7 +471,7 @@ void process_blockheader_response(beltpp::packet& package,
         // request more headers
         BlockHeaderRequest header_request;
         header_request.blocks_from = m_pimpl->header_vector.rbegin()->block_number - 1;
-        header_request.blocks_to = header_request.blocks_from - 10;
+        header_request.blocks_to = header_request.blocks_from - TRANSFER_LENGTH;
 
         sk.send(peerid, header_request);
         m_pimpl->store_request(peerid, header_request);
@@ -492,7 +492,7 @@ void process_blockchain_request(beltpp::packet& package,
 
     uint64_t to = blockchain_request.blocks_to;
     to = to < from ? from : to;
-    to = to > from + 10 ? from + 10 : to;
+    to = to > from + TRANSFER_LENGTH ? from + TRANSFER_LENGTH : to;
     to = to > number ? number : to;
 
     BlockChainResponse chain_response;

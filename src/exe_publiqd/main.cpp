@@ -188,6 +188,9 @@ int main(int argc, char** argv)
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
         //plogger_rpc->disable();
 
+        meshpp::random_seed seed;
+        meshpp::private_key pv_key = seed.get_private_key(0);
+
         publiqpp::node node(rpc_bind_to_address,
                             p2p_bind_to_address,
                             p2p_connect_to_addresses,
@@ -197,7 +200,8 @@ int main(int argc, char** argv)
                             fs_transaction_pool,
                             fs_state,
                             plogger_p2p.get(),
-                            plogger_rpc.get());
+                            plogger_rpc.get(),
+                            pv_key);
 
         cout << endl;
         cout << "Node: " << node.name()/*.substr(0, 5)*/ << endl;

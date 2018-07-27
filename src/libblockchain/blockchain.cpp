@@ -35,10 +35,6 @@ public:
 
     }
 
-    //const size_t delta_step = 10;
-    //const uint64_t delta_max = 120000000;
-    //const uint64_t delta_up = 100000000;
-    //const uint64_t delta_down = 80000000;
     const uint64_t mine_amount = 100000000;
 
     bool step_enabled;
@@ -223,7 +219,7 @@ uint64_t blockchain::calc_delta(string key, uint64_t amount, BlockchainMessage::
     return delta;
 }
 
-bool blockchain::mine_block(string key, 
+bool blockchain::mine_block(meshpp::private_key pv_key,
                             uint64_t amount,
                             publiqpp::transaction_pool& transaction_pool)
 {
@@ -244,6 +240,7 @@ bool blockchain::mine_block(string key,
     Block prev_block;
     package_prev_block.get(prev_block);
 
+    string key = pv_key.get_public_key().to_string();
     uint64_t delta = calc_delta(key, amount, prev_block);
 
     ++block_number;
@@ -312,9 +309,11 @@ bool blockchain::mine_block(string key,
     }
 
     // save block as tmp
+    meshpp::signature sgn = pv_key.sign(block.to_string());
+
     SignedBlock signed_block;
-    signed_block.authority = key;
-    signed_block.signature = "signature"; //TODO
+    signed_block.signature = sgn.base64;
+    signed_block.authority = sgn.pb_key.to_string();
     signed_block.block_details = std::move(block);
 
     m_pimpl->step_enabled = true;
