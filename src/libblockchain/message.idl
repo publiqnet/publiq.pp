@@ -34,6 +34,7 @@ module BlockchainMessage
         UInt64 consensus_delta
         UInt64 consensus_sum
         String previous_hash
+        TimePoint sign_time
     }
 
     class Block

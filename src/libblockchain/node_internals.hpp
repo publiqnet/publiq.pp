@@ -203,7 +203,7 @@ public:
             throw std::runtime_error("only one request is supported at a time");
     }
 
-    void clear_state()
+    void clear_sync_state()
     {
         block_vector.clear();
         header_vector.clear();

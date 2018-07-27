@@ -504,6 +504,13 @@ bool node::run()
                 psk->send(peerid, msg);
                 throw;
             }
+            catch (wrong_data_exception)
+            {
+                psk->send(peerid, Drop());
+                m_pimpl->remove_peer(peerid);
+                m_pimpl->clear_sync_state();
+                throw;
+            }
             catch (exception_authority const& e)
             {
                 InvalidAuthority msg;

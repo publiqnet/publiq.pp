@@ -351,12 +351,7 @@ void process_blockheader_response(beltpp::packet& package,
     }
 
     if (bad_data)
-    {
-        sk.send(peerid, Drop());
-        m_pimpl->remove_peer(peerid);
-        m_pimpl->clear_state();
-        return;
-    }
+        throw wrong_data_exception("process_blockheader_response. incorrect data in header!");
 
     // find last common header
     bool found = false;
@@ -448,13 +443,7 @@ void process_blockheader_response(beltpp::packet& package,
             }
 
             if (bad_data)
-            {
-                // nothing new! interrup connection
-                sk.send(peerid, Drop());
-                m_pimpl->remove_peer(peerid);
-                m_pimpl->clear_state();
-                return;
-            }
+                throw wrong_data_exception("process_blockheader_response. nothing new!");
 
             //3. request blockchain from found point
             BlockChainRequest blockchain_request;
@@ -523,13 +512,7 @@ void process_blockchain_response(beltpp::packet& package,
         uint64_t number = (*m_pimpl->header_vector.rbegin()).block_number;
 
         if (number == 0)
-        {
-            // uzum en qcen! interrup connection
-            sk.send(peerid, Drop());
-            m_pimpl->remove_peer(peerid);
-            m_pimpl->clear_state();
-            return;
-        }
+            throw wrong_data_exception("process_blockheader_response. uzum en qcen!");
 
         m_pimpl->m_blockchain.at(number - 1, prev_signed_block);
     }
@@ -656,13 +639,8 @@ void process_blockchain_response(beltpp::packet& package,
         prev_block = std::move(block);
     }
 
-    if (bad_data) // zibil en dayax arel
-    {
-        sk.send(peerid, Drop());
-        m_pimpl->remove_peer(peerid);
-        m_pimpl->clear_state();
-        return;
-    }
+    if (bad_data) 
+        throw wrong_data_exception("process_blockheader_response. zibil en dayax arel!");
 
     //2. add received blockchain to blocks_vector for future process
     for (auto it = m_pimpl->block_vector.begin(); it != m_pimpl->block_vector.end(); ++it)
@@ -697,3 +675,21 @@ void process_blockchain_response(beltpp::packet& package,
         if (!insert_blocks(revert_block_vector, m_pimpl))
             throw std::runtime_error("Something wrong happenes. Cant't insert back own chain!");
 }
+
+//---------------- Exceptions -----------------------
+wrong_data_exception::wrong_data_exception(string const& _message)
+    : runtime_error("Zibil en uxxarkel! message: " + _message)
+    , message(_message)
+{}
+wrong_data_exception::wrong_data_exception(wrong_data_exception const& other) noexcept
+    : runtime_error(other)
+    , message(other.message)
+{}
+wrong_data_exception& wrong_data_exception::operator=(wrong_data_exception const& other) noexcept
+{
+    dynamic_cast<runtime_error*>(this)->operator =(other);
+    message = other.message;
+    return *this;
+}
+wrong_data_exception::~wrong_data_exception() noexcept
+{}

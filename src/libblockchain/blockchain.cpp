@@ -70,29 +70,19 @@ public:
 
     bool mine_allowed()
     {
-        //  TODO check time after previous block
-        //  time point value used in protocol is a string representing the UTC time
+        // check time after previous block
 
-        BlockchainMessage::ctime previous_block_time;
-        beltpp::gm_string_to_gm_time_t("2018-07-27 10:47:36", previous_block_time.tm);
-
-        system_clock::time_point previous_block_time_point = system_clock::from_time_t(previous_block_time.tm);
         system_clock::time_point current_time_point = system_clock::now();
+        system_clock::time_point previous_block_time_point = system_clock::from_time_t(m_header.sign_time.tm);
 
         //  both previous_block_time_point and current_time_point keep track of UTC time
 
-        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_block_time_point);
-        auto num_seconds = diff_seconds.count();
         chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_block_time_point);
         auto num_minutes = diff_minutes.count();
         chrono::minutes diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_block_time_point);
         auto num_hours = diff_hours.count();
 
-        B_UNUSED(num_seconds);
-        B_UNUSED(num_minutes);
-        B_UNUSED(num_hours);
-
-        return true;
+        return num_minutes >= MINE_DELAY || num_hours > 0;
     }
 
     bool apply_allowed()
@@ -277,6 +267,7 @@ bool blockchain::mine_block(meshpp::private_key pv_key,
     block_header.consensus_const = prev_block.block_header.consensus_const;
     block_header.consensus_sum = prev_block.block_header.consensus_sum + delta;
     block_header.previous_hash = prev_block_hash;
+    block_header.sign_time.tm = system_clock::to_time_t(system_clock::now());
 
     if (delta > DELTA_UP)
     {
@@ -342,7 +333,7 @@ bool blockchain::mine_block(meshpp::private_key pv_key,
     signed_block.signature = sgn.base64;
     signed_block.authority = sgn.pb_key.to_string();
     signed_block.block_details = std::move(block);
-
+    
     m_pimpl->step_enabled = true;
     m_pimpl->tmp_block = std::move(signed_block);
     m_pimpl->tmp_header = std::move(block_header);
