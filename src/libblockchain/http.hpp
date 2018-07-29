@@ -16,23 +16,32 @@ class scan_status
 {
 public:
     enum e_status {clean, http_request_progress, http_properties_progress, http_done};
+    enum e_type {get, post};
     scan_status()
         : status(clean)
+        , type(post)
+        , http_header_scanning(0)
     {}
     e_status status;
+    e_type type;
+    size_t http_header_scanning;
+    string resourse;
 };
 
 inline
-string save_header(beltpp::detail::session_special_data& ssd,
-                   string const& message_stream)
+string http_response(beltpp::detail::session_special_data& ssd,
+                     beltpp::packet const& pc)
 {
+    string buffer = pc.to_string();
+
     ssd.session_specal_handler = nullptr;
     string str_result;
     str_result += "HTTP/1.1 200 OK\r\n";
     str_result += "Content-Type: application/json\r\n";
     str_result += "Content-Length: ";
-    str_result += std::to_string(message_stream.size());
+    str_result += std::to_string(buffer.size());
     str_result += "\r\n\r\n";
+    str_result += buffer;
 
     return str_result;
 }
@@ -118,37 +127,46 @@ beltpp::detail::pmsg_all message_list_load(
         ssd.ptr_data = beltpp::new_void_unique_ptr<scan_status>();
     auto it_backup = iter_scan_begin;
 
-    size_t http_header_scanning = 0;
-
     scan_status& ss = *reinterpret_cast<scan_status*>(ssd.ptr_data.get());
-    if (scan_status::clean == ss.status ||
-        scan_status::http_done == ss.status)
+    size_t& http_header_scanning = ss.http_header_scanning;
+
+    string value_post = "POST ", value_get = "GET ";
+    if (scan_status::clean == ss.status)
     {
-        string value_check = "POST ";
-        auto iter_scan = check_begin(iter_scan_begin, iter_scan_end, value_check);
+        auto iter_scan = check_begin(iter_scan_begin, iter_scan_end, value_post);
+        if (iter_scan_begin == iter_scan)
+            iter_scan = check_begin(iter_scan_begin, iter_scan_end, value_get);
+
         if (iter_scan_begin != iter_scan)
-        {
+        {   //  even if "P" or "G" occured switch to http mode
             string temp(iter_scan_begin, iter_scan);
-            //  even if "P" occured switch to http mode
             ss.status = scan_status::http_request_progress;
         }
     }
     if (scan_status::http_request_progress == ss.status)
     {
-        string value_check = "POST ";
-        auto iter_scan1 = check_begin(iter_scan_begin, iter_scan_end, value_check);
-        if (value_check == string(iter_scan_begin, iter_scan1))
-        {
-            bool full = false;
-            auto iter_scan2 = check_end(iter_scan_begin, iter_scan_end, "\r\n", full);
+        bool full = false;
+        auto iter_scan1 = check_begin(iter_scan_begin, iter_scan_end, value_post);
+        if (iter_scan_begin == iter_scan1)
+            iter_scan1 = check_begin(iter_scan_begin, iter_scan_end, value_get);
+        auto iter_scan2 = check_end(iter_scan_begin, iter_scan_end, " HTTP/1.1\r\n", full);
 
+        string scanned_begin(iter_scan_begin, iter_scan1);
+
+        if (value_post == scanned_begin ||
+            value_get == scanned_begin)
+        {
             string temp(iter_scan_begin, iter_scan2);
-            http_header_scanning += temp.length();
 
             if (full)
             {
+                if (scanned_begin == value_get)
+                    ss.type = scan_status::get;
+                http_header_scanning += temp.length();
                 iter_scan_begin = iter_scan2;
                 ss.status = scan_status::http_properties_progress;
+                string temp2(iter_scan1, iter_scan2);
+                ss.resourse = temp2.substr(0, temp2.length() - 11);
             }
         }
     }
@@ -159,15 +177,15 @@ beltpp::detail::pmsg_all message_list_load(
         auto iter_scan2 = check_end(iter_scan_begin, iter_scan_end, "\r\n", full);
 
         string temp(iter_scan_begin, iter_scan2);
-        http_header_scanning += temp.length();
 
         if (full)
         {
+            http_header_scanning += temp.length();
             iter_scan_begin = iter_scan2;
             if (temp.length() == 2)
             {
                 ss.status = scan_status::http_done;
-                ssd.session_specal_handler = &save_header;
+                ssd.session_specal_handler = &http_response;
             }
         }
         else
@@ -196,7 +214,20 @@ beltpp::detail::pmsg_all message_list_load(
                                           nullptr);
     }
     else
-        return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+    {
+        ss.status = scan_status::clean;
+        if (ss.type == scan_status::get)
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::RetrieveFile>();
+            BlockchainMessage::RetrieveFile& ref = *reinterpret_cast<BlockchainMessage::RetrieveFile*>(p.get());
+            ref.uri.base58_hash = ss.resourse.substr(1);
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::RetrieveFile::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::RetrieveFile::pvoid_saver);
+        }
+        else
+            return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+    }
 }
 }
 }
