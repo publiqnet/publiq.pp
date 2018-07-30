@@ -88,7 +88,8 @@ int main(int argc, char* argv[])
         auto it_begin = definition.begin();
         auto it_end = definition.end();
         auto it_begin_keep = it_begin;
-        while (beltpp::parse(ptr_expression, it_begin, it_end))
+        while (beltpp::e_three_state_result::success ==
+               beltpp::parse(ptr_expression, it_begin, it_end))
         {
             if (it_begin == it_begin_keep)
                 break;
