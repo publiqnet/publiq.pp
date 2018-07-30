@@ -75,24 +75,24 @@ storage::~storage()
 
 }
 
-BlockchainMessage::Digest storage::put(BlockchainMessage::StorageFile&& file)
+string storage::put(BlockchainMessage::StorageFile&& file)
 {
-    BlockchainMessage::Digest hash;
-    hash.base58_hash = meshpp::hash(file.to_string());
-    m_pimpl->map.insert(hash.base58_hash, file);
+    string hash;
+    hash = meshpp::hash(file.data);
+    m_pimpl->map.insert(hash, file);
 
     m_pimpl->map.save();
     return hash;
 }
 
-bool storage::get(BlockchainMessage::Digest const& hash, BlockchainMessage::StorageFile& file)
+bool storage::get(string const& hash, BlockchainMessage::StorageFile& file)
 {
     auto keys = m_pimpl->map.keys();
-    auto it = keys.find(hash.base58_hash);
+    auto it = keys.find(hash);
     if (it == keys.end())
         return false;
 
-    file = std::move(m_pimpl->map.at(hash.base58_hash));
+    file = std::move(m_pimpl->map.at(hash));
     m_pimpl->map.discard();
 
     return true;

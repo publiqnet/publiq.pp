@@ -47,6 +47,49 @@ string http_response(beltpp::detail::session_special_data& ssd,
 }
 
 inline
+string file_response(beltpp::detail::session_special_data& ssd,
+                     beltpp::packet const& pc)
+{
+    ssd.session_specal_handler = nullptr;
+    if (pc.type() == BlockchainMessage::StorageFile::rtt)
+    {
+        string str_result;
+        BlockchainMessage::StorageFile const* pFile = nullptr;
+        pc.get(pFile);
+
+        str_result += "HTTP/1.1 200 OK\r\n";
+        if (false == pFile->mime_type.empty())
+            str_result += "Content-Type: " + pFile->mime_type + "\r\n";
+        str_result += "Content-Length: ";
+        str_result += std::to_string(pFile->data.length());
+        str_result += "\r\n\r\n";
+        str_result += pFile->data;
+
+        return str_result;
+    }
+    else
+    {
+        string str_result;
+        string message;
+        if (pc.type() == BlockchainMessage::FileNotFound::rtt)
+        {
+            BlockchainMessage::FileNotFound const* pError = nullptr;
+            pc.get(pError);
+            message = "404 Not Found\r\n"
+                    "requested file: " + pError->uri;
+        }
+        else
+            message = "internal error";
+
+        str_result += "HTTP/1.1 404 Not Found\r\n";
+        str_result += "Content-Type: text/plain\r\n";
+        str_result += "Content-Length: " + std::to_string(message.length()) + "\r\n\r\n";
+        str_result += message;
+        return str_result;
+    }
+}
+
+inline
 beltpp::iterator_wrapper<char const>
 check_begin(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
             beltpp::iterator_wrapper<char const> const& iter_scan_end,
@@ -185,7 +228,10 @@ beltpp::detail::pmsg_all message_list_load(
             if (temp.length() == 2)
             {
                 ss.status = scan_status::http_done;
-                ssd.session_specal_handler = &http_response;
+                if (ss.type == scan_status::get)
+                    ssd.session_specal_handler = &file_response;
+                else
+                    ssd.session_specal_handler = &http_response;
             }
         }
         else
@@ -218,12 +264,12 @@ beltpp::detail::pmsg_all message_list_load(
         ss.status = scan_status::clean;
         if (ss.type == scan_status::get)
         {
-            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::RetrieveFile>();
-            BlockchainMessage::RetrieveFile& ref = *reinterpret_cast<BlockchainMessage::RetrieveFile*>(p.get());
-            ref.uri.base58_hash = ss.resourse.substr(1);
-            return ::beltpp::detail::pmsg_all(BlockchainMessage::RetrieveFile::rtt,
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFileAddress>();
+            BlockchainMessage::StorageFileAddress& ref = *reinterpret_cast<BlockchainMessage::StorageFileAddress*>(p.get());
+            ref.uri = ss.resourse.substr(1);
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFileAddress::rtt,
                                               std::move(p),
-                                              &BlockchainMessage::RetrieveFile::pvoid_saver);
+                                              &BlockchainMessage::StorageFileAddress::pvoid_saver);
         }
         else
             return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);

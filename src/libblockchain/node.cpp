@@ -294,17 +294,24 @@ bool node::run()
                 {
                     StorageFile file;
                     std::move(ref_packet).get(file);
-                    Digest hash = m_pimpl->m_storage.put(std::move(file));
-                    psk->send(peerid, std::move(hash));
+                    StorageFileAddress addr;
+                    addr.uri = m_pimpl->m_storage.put(std::move(file));
+                    psk->send(peerid, std::move(addr));
                     break;
                 }
-                case RetrieveFile::rtt:
+                case StorageFileAddress::rtt:
                 {
-                    RetrieveFile rf;
-                    std::move(ref_packet).get(rf);
+                    StorageFileAddress addr;
+                    std::move(ref_packet).get(addr);
                     StorageFile file;
-                    m_pimpl->m_storage.get(rf.uri, file);
-                    psk->send(peerid, std::move(file));
+                    if (m_pimpl->m_storage.get(addr.uri, file))
+                        psk->send(peerid, std::move(file));
+                    else
+                    {
+                        FileNotFound error;
+                        error.uri = addr.uri;
+                        psk->send(peerid, std::move(error));
+                    }
                     break;
                 }
                 case LoggedTransactionsRequest::rtt:

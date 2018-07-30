@@ -191,6 +191,7 @@ module BlockchainMessage
         String authority_provided
         String authority_required
     }
+    class FileNotFound { String uri }
     class RemoteError { String message }
 
     ///
@@ -215,9 +216,9 @@ module BlockchainMessage
         String data
     }
 
-    class RetrieveFile
+    class StorageFileAddress
     {
-        Digest uri
+        String uri
     }
 
     //  blockchain storage data
