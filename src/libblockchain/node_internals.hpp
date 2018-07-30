@@ -174,6 +174,7 @@ public:
 
     void remove_peer(socket::peer_id const& peerid)
     {
+        clear_sync_state(peerid);
         reset_stored_request(peerid);
         if (0 == m_p2p_peers.erase(peerid))
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
@@ -203,10 +204,41 @@ public:
             throw std::runtime_error("only one request is supported at a time");
     }
 
-    void clear_sync_state()
+    bool sync_free()
     {
-        block_vector.clear();
-        header_vector.clear();
+        if (sync_peerid.empty())
+            return true;
+
+        system_clock::time_point current_time_point = system_clock::now();
+        system_clock::time_point previous_time_point = system_clock::from_time_t(sync_time.tm);
+
+        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
+        auto num_seconds = diff_seconds.count();
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
+        auto num_minutes = diff_minutes.count();
+        chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
+        auto num_hours = diff_hours.count();
+
+        if (num_seconds >= SYNC_STEP_TIMEOUT || num_minutes > 0 || num_hours > 0)
+            clear_sync_state(sync_peerid);
+
+        return true;
+    }
+
+    void update_sync_time()
+    {
+        sync_time.tm = system_clock::to_time_t(system_clock::now());
+    }
+
+    void clear_sync_state(beltpp::isocket::peer_id peerid)
+    {
+        if (peerid == sync_peerid)
+        {
+            sync_peerid.clear();
+            sync_block_vector.clear();
+            sync_header_vector.clear();
+            sync_response_vector.clear();
+        }
     }
 
     std::vector<beltpp::isocket::peer_id> do_step()
@@ -239,9 +271,12 @@ public:
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
 
     meshpp::private_key private_key;
-    vector<SignedBlock> block_vector;
-    vector<BlockHeader> header_vector;
-    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_vector;
+
+    BlockchainMessage::ctime sync_time;
+    beltpp::isocket::peer_id sync_peerid;
+    vector<SignedBlock> sync_block_vector;
+    vector<BlockHeader> sync_header_vector;
+    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_response_vector;
 };
 
 }

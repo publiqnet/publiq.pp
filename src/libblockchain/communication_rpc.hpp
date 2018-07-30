@@ -83,3 +83,16 @@ public:
 
     std::string account;
 };
+
+class wrong_request_exception : public std::runtime_error
+{
+public:
+    explicit wrong_request_exception(std::string const& _message);
+
+    wrong_request_exception(wrong_request_exception const&) noexcept;
+    wrong_request_exception& operator=(wrong_request_exception const&) noexcept;
+
+    virtual ~wrong_request_exception() noexcept;
+
+    std::string message;
+};

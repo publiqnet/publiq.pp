@@ -348,15 +348,10 @@ bool node::run()
                 case SyncRequest::rtt:
                 {
                     if (it == interface_type::p2p)
-                    {
                         process_sync_request(ref_packet, m_pimpl, *psk, peerid);
-                    }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("SyncRequest");
+
                     break;
                 }
                 case SyncResponse::rtt:
@@ -365,36 +360,24 @@ bool node::run()
                     {
                         m_pimpl->reset_stored_request(peerid);
                         if (stored_packet.type() != SyncRequest::rtt)
-                        {
-                            psk->send(peerid, Drop());
-                            m_pimpl->remove_peer(peerid);
-                            break;
-                        }
+                            throw wrong_data_exception("SyncResponse");
 
                         SyncResponse sync_response;
                         std::move(ref_packet).get(sync_response);
-                        m_pimpl->sync_vector.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
+                        m_pimpl->sync_response_vector.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
                     }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("SyncResponse");
+
                     break;
                 }
                 case ConsensusRequest::rtt:
                 {
                     if (it == interface_type::p2p)
-                    {
                         process_consensus_request(ref_packet, m_pimpl, *psk, peerid);
-                    }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("ConsensusRequest");
+
                     break;
                 }
                 case ConsensusResponse::rtt:
@@ -403,34 +386,22 @@ bool node::run()
                     {
                         m_pimpl->reset_stored_request(peerid);
                         if (stored_packet.type() != ConsensusRequest::rtt)
-                        {
-                            psk->send(peerid, Drop());
-                            m_pimpl->remove_peer(peerid);
-                            break;
-                        }
+                            throw wrong_data_exception("ConsensusResponse");
 
                         process_consensus_response(ref_packet, m_pimpl);
                     }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("ConsensusResponse");
+
                     break;
                 }
                 case BlockHeaderRequest::rtt:
                 {
                     if (it == interface_type::p2p)
-                    {
                         process_blockheader_request(ref_packet, m_pimpl, *psk, peerid);
-                    }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("BlockHeaderRequest");
+
                     break;
                 }
                 case BlockHeaderResponse::rtt:
@@ -439,34 +410,22 @@ bool node::run()
                     {
                         m_pimpl->reset_stored_request(peerid);
                         if (stored_packet.type() != BlockHeaderRequest::rtt)
-                        {
-                            psk->send(peerid, Drop());
-                            m_pimpl->remove_peer(peerid);
-                            break;
-                        }
+                            throw wrong_data_exception("BlockHeaderResponse");
 
                         process_blockheader_response(ref_packet, m_pimpl, *psk, peerid);
                     }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("BlockHeaderResponse");
+
                     break;
                 }
                 case BlockChainRequest::rtt:
                 {
                     if (it == interface_type::p2p)
-                    {
                         process_blockchain_request(ref_packet, m_pimpl, *psk, peerid);
-                    }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("BlockChainRequest");
+
                     break;
                 }
                 case BlockChainResponse::rtt:
@@ -475,20 +434,13 @@ bool node::run()
                     {
                         m_pimpl->reset_stored_request(peerid);
                         if (stored_packet.type() != BlockChainRequest::rtt)
-                        {
-                            psk->send(peerid, Drop());
-                            m_pimpl->remove_peer(peerid);
-                            break;
-                        }
+                            throw wrong_data_exception("BlockChainResponse");
                         
                         process_blockchain_response(ref_packet, m_pimpl, *psk, peerid);
                     }
                     else
-                    {
-                        RemoteError remote_error;
-                        remote_error.message = "Wrong request!";
-                        psk->send(peerid, remote_error);
-                    }
+                        wrong_request_exception("BlockChainResponse");
+
                     break;
                 }
                 default:
@@ -532,7 +484,13 @@ bool node::run()
             {
                 psk->send(peerid, Drop());
                 m_pimpl->remove_peer(peerid);
-                m_pimpl->clear_sync_state();
+                throw;
+            }
+            catch (wrong_request_exception const& e)
+            {
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, remote_error);
                 throw;
             }
             catch (exception_authority const& e)
@@ -578,7 +536,7 @@ bool node::run()
         beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
 
         // there is no ongoing sync process
-        if (m_pimpl->header_vector.empty())
+        if (m_pimpl->sync_free())
         {
             // Sync node
             // process collected SyncResponse data
@@ -588,9 +546,9 @@ bool node::run()
             SyncRequest sync_request;
             sync_request.block_number = block_header.block_number;
             sync_request.consensus_sum = block_header.consensus_sum;
-            beltpp::isocket::peer_id tmp_peer = "tmp_peer";
+            beltpp::isocket::peer_id tmp_peer;
 
-            for (auto& it : m_pimpl->sync_vector)
+            for (auto& it : m_pimpl->sync_response_vector)
             {
                 if (sync_request.block_number < it.second.block_number ||
                     (sync_request.block_number == it.second.block_number &&
@@ -602,10 +560,12 @@ bool node::run()
                 }
             }
 
-            m_pimpl->sync_vector.clear();
+            m_pimpl->sync_response_vector.clear();
 
-            if (tmp_peer != "tmp_peer")
+            if (!tmp_peer.empty())
             {
+                m_pimpl->sync_peerid = tmp_peer;
+
                 // request better chain
                 BlockHeaderRequest header_request;
                 header_request.blocks_from = sync_request.block_number;

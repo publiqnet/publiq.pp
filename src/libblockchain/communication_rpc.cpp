@@ -372,3 +372,20 @@ exception_balance& exception_balance::operator=(exception_balance const& other) 
 }
 exception_balance::~exception_balance() noexcept
 {}
+
+wrong_request_exception::wrong_request_exception(string const& _message)
+    : runtime_error("Sxal request mi areq! message: " + _message)
+    , message(_message)
+{}
+wrong_request_exception::wrong_request_exception(wrong_request_exception const& other) noexcept
+    : runtime_error(other)
+    , message(other.message)
+{}
+wrong_request_exception& wrong_request_exception::operator=(wrong_request_exception const& other) noexcept
+{
+    dynamic_cast<runtime_error*>(this)->operator =(other);
+    message = other.message;
+    return *this;
+}
+wrong_request_exception::~wrong_request_exception() noexcept
+{}

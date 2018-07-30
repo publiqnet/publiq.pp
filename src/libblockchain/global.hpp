@@ -12,9 +12,11 @@
 #define TRANSFER_LENGTH 10
 
 // Block mine delay in minutes
-#define MINE_DELAY 10
+#define BLOCK_MINE_DELAY 10
 // Step apply delay in seconds
-#define STEP_DELAY 30
+#define BLOCK_APPLY_DELAY 30
+// Sync process request/response maximum dely
+#define SYNC_STEP_TIMEOUT 3
 
 // Consensus delta definitions
 #define DELTA_STEP  10

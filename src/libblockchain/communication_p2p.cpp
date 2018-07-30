@@ -322,11 +322,11 @@ void process_blockheader_response(beltpp::packet& package,
     BlockHeader tmp_header;
     m_pimpl->m_blockchain.header(tmp_header);
 
-    if (!m_pimpl->header_vector.empty() && // we have something received before
-        tmp_header.block_number >= m_pimpl->header_vector.rbegin()->block_number)
+    if (!m_pimpl->sync_header_vector.empty() && // we have something received before
+        tmp_header.block_number >= m_pimpl->sync_header_vector.rbegin()->block_number)
     {
         // load next mot checked header
-        m_pimpl->m_blockchain.header_at(m_pimpl->header_vector.rbegin()->block_number - 1, tmp_header);
+        m_pimpl->m_blockchain.header_at(m_pimpl->sync_header_vector.rbegin()->block_number - 1, tmp_header);
     }
 
     BlockHeaderResponse header_response;
@@ -336,7 +336,7 @@ void process_blockheader_response(beltpp::packet& package,
     auto it = header_response.block_headers.begin();
     bool bad_data = header_response.block_headers.empty();
     bad_data = bad_data ||
-               (!m_pimpl->header_vector.empty() &&
+               (!m_pimpl->sync_header_vector.empty() &&
                 tmp_header.block_number != (*it).block_number);
 
     for (++it; !bad_data && it != header_response.block_headers.end(); ++it)
@@ -361,7 +361,7 @@ void process_blockheader_response(beltpp::packet& package,
         if (tmp_header.block_number < (*it).block_number)
         {
             // store for possible use
-            m_pimpl->header_vector.push_back(std::move(*it));
+            m_pimpl->sync_header_vector.push_back(std::move(*it));
             ++it;
         }
         else
@@ -381,24 +381,24 @@ void process_blockheader_response(beltpp::packet& package,
             else if (tmp_header.consensus_sum < (*it).consensus_sum)
             {
                 // store for possible use
-                m_pimpl->header_vector.push_back(std::move(*it));
+                m_pimpl->sync_header_vector.push_back(std::move(*it));
                 m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);
             }
         }
 
         if (lcb_found)
         {
-            bad_data = m_pimpl->header_vector.empty();
+            bad_data = m_pimpl->sync_header_vector.empty();
 
             // verify consensus_const
             if (!bad_data)
             {
                 vector<pair<uint64_t, uint64_t>> delta_vector;
 
-                for (auto it = m_pimpl->header_vector.begin(); it != m_pimpl->header_vector.end(); ++it)
+                for (auto it = m_pimpl->sync_header_vector.begin(); it != m_pimpl->sync_header_vector.end(); ++it)
                     delta_vector.push_back(pair<uint64_t, uint64_t>(it->consensus_delta, it->consensus_const));
 
-                uint64_t number = m_pimpl->header_vector.rbegin()->block_number - 1;
+                uint64_t number = m_pimpl->sync_header_vector.rbegin()->block_number - 1;
                 uint64_t delta_step = number < DELTA_STEP ? number : DELTA_STEP;
 
                 for (uint64_t i = 0; i < delta_step; ++i)
@@ -447,8 +447,8 @@ void process_blockheader_response(beltpp::packet& package,
 
             //3. request blockchain from found point
             BlockChainRequest blockchain_request;
-            blockchain_request.blocks_from = m_pimpl->header_vector.rbegin()->block_number;
-            blockchain_request.blocks_to = m_pimpl->header_vector.begin()->block_number;
+            blockchain_request.blocks_from = m_pimpl->sync_header_vector.rbegin()->block_number;
+            blockchain_request.blocks_to = m_pimpl->sync_header_vector.begin()->block_number;
 
             sk.send(peerid, blockchain_request);
             m_pimpl->store_request(peerid, blockchain_request);
@@ -459,7 +459,7 @@ void process_blockheader_response(beltpp::packet& package,
     {
         // request more headers
         BlockHeaderRequest header_request;
-        header_request.blocks_from = m_pimpl->header_vector.rbegin()->block_number - 1;
+        header_request.blocks_from = m_pimpl->sync_header_vector.rbegin()->block_number - 1;
         header_request.blocks_to = header_request.blocks_from - TRANSFER_LENGTH;
 
         sk.send(peerid, header_request);
@@ -507,9 +507,9 @@ void process_blockchain_response(beltpp::packet& package,
 
     // find previous block
     SignedBlock prev_signed_block;
-    if (m_pimpl->block_vector.empty())
+    if (m_pimpl->sync_block_vector.empty())
     {
-        uint64_t number = (*m_pimpl->header_vector.rbegin()).block_number;
+        uint64_t number = (*m_pimpl->sync_header_vector.rbegin()).block_number;
 
         if (number == 0)
             throw wrong_data_exception("process_blockheader_response. uzum en qcen!");
@@ -518,15 +518,15 @@ void process_blockchain_response(beltpp::packet& package,
     }
     else
     {
-        prev_signed_block = *m_pimpl->block_vector.rbegin();
+        prev_signed_block = *m_pimpl->sync_block_vector.rbegin();
     }
 
     Block prev_block;
     std::move(prev_signed_block.block_details).get(prev_block);
 
     bool bad_data = blockchain_response.signed_blocks.empty() ||
-                    blockchain_response.signed_blocks.size() > m_pimpl->header_vector.size() -
-                                                               m_pimpl->block_vector.size();
+                    blockchain_response.signed_blocks.size() > m_pimpl->sync_header_vector.size() -
+                                                               m_pimpl->sync_block_vector.size();
 
     std::unordered_map<string, uint64_t> accounts_diff;
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
@@ -580,7 +580,7 @@ void process_blockchain_response(beltpp::packet& package,
         accounts_diff[signed_block.authority] = balance;
     }
 
-    for (auto it = m_pimpl->block_vector.begin(); !bad_data && it != m_pimpl->block_vector.end(); ++it)
+    for (auto it = m_pimpl->sync_block_vector.begin(); !bad_data && it != m_pimpl->sync_block_vector.end(); ++it)
     {
         // verify block signature
         SignedBlock signed_block = *it;
@@ -643,14 +643,14 @@ void process_blockchain_response(beltpp::packet& package,
         throw wrong_data_exception("process_blockheader_response. zibil en dayax arel!");
 
     //2. add received blockchain to blocks_vector for future process
-    for (auto it = m_pimpl->block_vector.begin(); it != m_pimpl->block_vector.end(); ++it)
-        m_pimpl->block_vector.push_back(std::move(*it));
+    for (auto it = m_pimpl->sync_block_vector.begin(); it != m_pimpl->sync_block_vector.end(); ++it)
+        m_pimpl->sync_block_vector.push_back(std::move(*it));
 
-    if (m_pimpl->block_vector.size() < m_pimpl->header_vector.size())
+    if (m_pimpl->sync_block_vector.size() < m_pimpl->sync_header_vector.size())
     {
         BlockChainRequest blockchain_request;
         blockchain_request.blocks_from = prev_block.block_header.block_number + 1;
-        blockchain_request.blocks_to = m_pimpl->header_vector.begin()->block_number;
+        blockchain_request.blocks_to = m_pimpl->sync_header_vector.begin()->block_number;
 
         sk.send(peerid, blockchain_request);
         m_pimpl->store_request(peerid, blockchain_request);
@@ -660,7 +660,7 @@ void process_blockchain_response(beltpp::packet& package,
 
     //3. apply received chain
     vector<SignedBlock> revert_block_vector;
-    uint64_t from = m_pimpl->header_vector.rbegin()->block_number;
+    uint64_t from = m_pimpl->sync_header_vector.rbegin()->block_number;
     for (auto i = m_pimpl->m_blockchain.length() - 1; i >= from; --i)
     {
         SignedBlock signed_block;
@@ -671,7 +671,7 @@ void process_blockchain_response(beltpp::packet& package,
 
     revert_blocks(m_pimpl->m_blockchain.length() - from, m_pimpl);
 
-    if(!insert_blocks(m_pimpl->block_vector, m_pimpl))
+    if(!insert_blocks(m_pimpl->sync_block_vector, m_pimpl))
         if (!insert_blocks(revert_block_vector, m_pimpl))
             throw std::runtime_error("Something wrong happenes. Cant't insert back own chain!");
 }

@@ -73,16 +73,16 @@ public:
         // check time after previous block
 
         system_clock::time_point current_time_point = system_clock::now();
-        system_clock::time_point previous_block_time_point = system_clock::from_time_t(m_header.sign_time.tm);
+        system_clock::time_point previous_time_point = system_clock::from_time_t(m_header.sign_time.tm);
 
-        //  both previous_block_time_point and current_time_point keep track of UTC time
+        //  both previous_time_point and current_time_point keep track of UTC time
 
-        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_block_time_point);
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
         auto num_minutes = diff_minutes.count();
-        chrono::minutes diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_block_time_point);
+        chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
         auto num_hours = diff_hours.count();
 
-        return num_minutes >= MINE_DELAY || num_hours > 0;
+        return num_minutes >= BLOCK_MINE_DELAY || num_hours > 0;
     }
 
     bool apply_allowed()
@@ -90,18 +90,18 @@ public:
         // check time after previous mine
 
         system_clock::time_point current_time_point = system_clock::now();
-        system_clock::time_point previous_block_time_point = system_clock::from_time_t(tmp_header.sign_time.tm);
+        system_clock::time_point previous_time_point = system_clock::from_time_t(tmp_header.sign_time.tm);
 
-        //  both previous_block_time_point and current_time_point keep track of UTC time
+        //  both previous_time_point and current_time_point keep track of UTC time
 
-        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_block_time_point);
+        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
         auto num_seconds = diff_seconds.count();
-        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_block_time_point);
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
         auto num_minutes = diff_minutes.count();
-        chrono::minutes diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_block_time_point);
+        chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
         auto num_hours = diff_hours.count();
 
-        return num_seconds >= STEP_DELAY || num_minutes > 0 || num_hours > 0;
+        return num_seconds >= BLOCK_APPLY_DELAY || num_minutes > 0 || num_hours > 0;
     }
 };
 }
