@@ -572,6 +572,7 @@ bool node::run()
                 header_request.blocks_to = block_header.block_number;
 
                 psk->send(tmp_peer, header_request);
+                m_pimpl->update_sync_time();
                 m_pimpl->reset_stored_request(tmp_peer);
                 m_pimpl->store_request(tmp_peer, header_request);
             }

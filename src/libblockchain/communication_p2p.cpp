@@ -451,6 +451,7 @@ void process_blockheader_response(beltpp::packet& package,
             blockchain_request.blocks_to = m_pimpl->sync_header_vector.begin()->block_number;
 
             sk.send(peerid, blockchain_request);
+            m_pimpl->update_sync_time();
             m_pimpl->store_request(peerid, blockchain_request);
         }
     }
@@ -463,6 +464,7 @@ void process_blockheader_response(beltpp::packet& package,
         header_request.blocks_to = header_request.blocks_from - TRANSFER_LENGTH;
 
         sk.send(peerid, header_request);
+        m_pimpl->update_sync_time();
         m_pimpl->store_request(peerid, header_request);
     }
 }
@@ -653,6 +655,7 @@ void process_blockchain_response(beltpp::packet& package,
         blockchain_request.blocks_to = m_pimpl->sync_header_vector.begin()->block_number;
 
         sk.send(peerid, blockchain_request);
+        m_pimpl->update_sync_time();
         m_pimpl->store_request(peerid, blockchain_request);
 
         return;
