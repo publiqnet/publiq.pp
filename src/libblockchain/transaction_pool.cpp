@@ -53,7 +53,6 @@ public:
 
     filesystem::path m_path;
     hash_index_locked_loader m_index;
-    std::unordered_map<string, Reward> m_rewards;
     std::unordered_map<string, SignedTransaction> m_transactions;
 
     string get_df_id(string const& hash) const
@@ -160,6 +159,8 @@ void transaction_pool::get_amounts(std::string const& key, std::vector<std::pair
 
 void transaction_pool::get_keys(std::vector<std::string> &keys) const
 {
+    keys.clear();
+
     for (auto &it : m_pimpl->m_transactions)
         keys.push_back(it.first);
 }

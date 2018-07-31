@@ -10,6 +10,34 @@ module BlockchainMessage
     }
 
     ///
+    //  blockchain transactions
+    ///
+    class Reward
+    {   
+        UInt64 amount
+        String to
+    }
+
+    class Transfer
+    {
+        String from
+        String to
+        UInt64 amount
+    }
+
+    class File
+    {
+        String author
+        String uri
+    }
+
+    class Page
+    {
+        String channel
+        Array String file_uris
+    }
+
+    ///
     //  core entities
     ///
     class Transaction
@@ -39,8 +67,9 @@ module BlockchainMessage
 
     class Block
     {
-        BlockHeader block_header
-        Array SignedTransaction block_transactions
+        BlockHeader header
+        Array Reward rewards
+        Array SignedTransaction signed_transactions
     }
 
     class SignedBlock
@@ -48,35 +77,6 @@ module BlockchainMessage
         Object block_details
         String authority
         String signature
-    }
-
-    ///
-    //  blockchain transactions
-    ///
-    class Reward
-    {   //  in fact no authority can issue
-        //  this transaction
-        UInt64 amount
-        String to
-    }
-
-    class Transfer
-    {
-        String from
-        String to
-        UInt64 amount
-    }
-
-    class File
-    {
-        String author
-        String uri
-    }
-
-    class Page
-    {
-        String channel
-        Array String file_uris
     }
 
     //  request/response

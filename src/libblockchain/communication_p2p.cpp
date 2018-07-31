@@ -9,10 +9,9 @@ using namespace BlockchainMessage;
 ///////////////////////////////////////////////////////////////////////////////////
 //                            Internal Finctions
 
-bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
-                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+bool insert_blocks(vector<SignedBlock>& signed_block_vector,
+                   unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    std::unordered_set<string> used_key_set;
     std::unordered_set<string> erase_tpool_set;
     std::unordered_map<string, uint64_t> tmp_state;
     std::vector<LoggedTransaction> logged_transactions;
@@ -27,7 +26,7 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
         signed_block.block_details.get(block);
 
         // Check block transactions and calculate new state
-        for (auto &signed_transaction : block.block_transactions)
+        for (auto &signed_transaction : block.signed_transactions)
         {
             Transaction transaction;
             std::move(signed_transaction.transaction_details.action).get(transaction);
@@ -43,11 +42,9 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
 
             // correct "from" key balance
             key = transfer.from;
-            tmp_state[key] = m_pimpl->m_state.get_balance(key);
-
-            if (used_key_set.find(key) == used_key_set.end())
+            if(tmp_state.find(key) == tmp_state.end())
             {
-                used_key_set.insert(key);
+                tmp_state[key] = m_pimpl->m_state.get_balance(key);
 
                 // process "key" output transfers
                 amounts.clear();
@@ -86,11 +83,9 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
 
             // correct to_key balance
             key = transfer.to;
-            tmp_state[key] = m_pimpl->m_state.get_balance(key);
-
-            if (used_key_set.find(key) == used_key_set.end())
+            if (tmp_state.find(key) == tmp_state.end())
             {
-                used_key_set.insert(key);
+                tmp_state[key] = m_pimpl->m_state.get_balance(key);
 
                 // process "key" output transfers
                 amounts.clear();
@@ -130,6 +125,21 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
             action_info.index = 0;
             action_info.action = std::move(transaction);
             logged_transactions.push_back(std::move(action_info));
+        }
+
+        // apply rewards to tmp_state
+        for (auto& reward : block.rewards)
+        {
+            uint64_t amount = 0;
+            string key = reward.to;
+
+            auto it = tmp_state.find(key);
+            if (it != tmp_state.end())
+                amount = it->second;
+            else
+                amount = m_pimpl->m_state.get_balance(key);
+
+            tmp_state[key] = amount + reward.amount;
         }
     }
 
@@ -177,9 +187,11 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
 void revert_blocks(size_t count, 
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    std::unordered_map<string, uint64_t> tmp_state;
+
     for (size_t i = 0; i < count; ++i)
     {
-        uint64_t number = m_pimpl->m_blockchain.length();
+        uint64_t number = m_pimpl->m_blockchain.length() - 1;
 
         SignedBlock signed_block;
         m_pimpl->m_blockchain.at(number, signed_block);
@@ -187,17 +199,34 @@ void revert_blocks(size_t count,
         Block block;
         std::move(signed_block.block_details).get(block);
 
-        auto it = block.block_transactions.rbegin();
+        auto it = block.signed_transactions.begin();
 
         // Add block transactions to the pool
-        for (; it != block.block_transactions.rend(); ++it)
+        for (; it != block.signed_transactions.end(); ++it)
             m_pimpl->m_transaction_pool.insert(*it);
 
         // Remove last block from blockchain
         m_pimpl->m_blockchain.remove_last_block();
+
+        // Correct state, remove block rewards
+        for (auto& reward : block.rewards)
+        {
+            uint64_t amount = 0;
+            string key = reward.to;
+
+            auto it = tmp_state.find(key);
+            if (it != tmp_state.end())
+                amount = it->second;
+            else
+                amount = m_pimpl->m_state.get_balance(key);
+
+            // txur klni ete amount < reward.amount ;)
+            tmp_state[key] = amount - reward.amount;
+        }
     }
 
-    // State shoul be correct :)
+    // Correct state
+    m_pimpl->m_state.merge_block(tmp_state);
 
     // Action log should be correct :)
 }
@@ -245,7 +274,6 @@ void process_consensus_request(beltpp::packet& package,
         {
             // someone have better block
             m_pimpl->m_blockchain.step_disable();
-            //TODO
         }
         else
         {
@@ -304,7 +332,7 @@ void process_blockheader_request(beltpp::packet& package,
         Block block;
         std::move(signed_block.block_details).get(block);
 
-        header_response.block_headers.push_back(std::move(block.block_header));
+        header_response.block_headers.push_back(std::move(block.header));
     }
 
     sk.send(peerid, header_response);
@@ -345,6 +373,16 @@ void process_blockheader_response(beltpp::packet& package,
                                 (*(it - 1)).consensus_const != (*it).consensus_const &&
                                 (*(it - 1)).consensus_const != 2 * (*it).consensus_const
                                );
+        
+        system_clock::time_point time_point1 = system_clock::from_time_t((*(it)).sign_time.tm);
+        system_clock::time_point time_point2 = system_clock::from_time_t((*(it - 1)).sign_time.tm);
+
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(time_point1 - time_point2);
+        auto num_minutes = diff_minutes.count();
+        chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(time_point1 - time_point2);
+        auto num_hours = diff_hours.count();
+
+        bad_data = bad_data || num_minutes < BLOCK_MINE_DELAY && num_hours == 0;
     }
 
     if (bad_data)
@@ -420,7 +458,7 @@ void process_blockheader_response(beltpp::packet& package,
                         }
 
                         if (step >= DELTA_STEP)
-                            bad_data = it->second != (it+1)->second * 2;
+                            bad_data = it->second != (it + 1)->second * 2;
                     }
                     else if (it->first < DELTA_DOWN && it->second > 1)
                     {
@@ -529,7 +567,7 @@ void process_blockchain_response(beltpp::packet& package,
 
     std::unordered_map<string, uint64_t> accounts_diff;
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
-    while (block_number > prev_block.block_header.block_number)
+    while (block_number > prev_block.header.block_number)
     {
         SignedBlock signed_block;
         m_pimpl->m_blockchain.at(block_number, signed_block);
@@ -540,7 +578,7 @@ void process_blockchain_response(beltpp::packet& package,
         uint64_t fee = 0;
         uint64_t balance;
 
-        for (auto it = block.block_transactions.rbegin(); it != block.block_transactions.rend(); ++it)
+        for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
             Transaction transaction;
             std::move(it->transaction_details.action).get(transaction);
@@ -594,7 +632,7 @@ void process_blockchain_response(beltpp::packet& package,
         std::move(signed_block.block_details).get(block);
 
         // verify block number
-        bad_data = bad_data || block.block_header.block_number != prev_block.block_header.block_number + 1;
+        bad_data = bad_data || block.header.block_number != prev_block.header.block_number + 1;
         if (bad_data) continue;
 
         // verify previous_hash
@@ -602,7 +640,7 @@ void process_blockchain_response(beltpp::packet& package,
         package_block.set(prev_block);
         string block_hash = meshpp::hash(package_block.to_string());
 
-        bad_data = bad_data || block_hash != block.block_header.previous_hash;
+        bad_data = bad_data || block_hash != block.header.previous_hash;
         if (bad_data) continue;
 
         // verify consensus_delta
@@ -614,16 +652,16 @@ void process_blockchain_response(beltpp::packet& package,
 
         uint64_t delta = m_pimpl->m_blockchain.calc_delta(signed_block.authority, amount, prev_block);
 
-        bad_data = bad_data || delta != block.block_header.consensus_delta;
+        bad_data = bad_data || delta != block.header.consensus_delta;
         if (bad_data) continue;
 
         // verify consensus_sum
-        bad_data = bad_data || block.block_header.consensus_sum != 
-                               (block.block_header.consensus_delta + prev_block.block_header.consensus_sum);
+        bad_data = bad_data || block.header.consensus_sum != 
+                               (block.header.consensus_delta + prev_block.header.consensus_sum);
         if (bad_data) continue;
 
         // verify block transactions signature
-        for (auto &signed_transaction : block.block_transactions)
+        for (auto &signed_transaction : block.signed_transactions)
         {
             bool st_verify = meshpp::verify_signature(meshpp::public_key(signed_transaction.authority),
                                                       signed_transaction.transaction_details.to_string(),
@@ -648,7 +686,7 @@ void process_blockchain_response(beltpp::packet& package,
     if (m_pimpl->sync_block_vector.size() < m_pimpl->sync_header_vector.size())
     {
         BlockChainRequest blockchain_request;
-        blockchain_request.blocks_from = prev_block.block_header.block_number + 1;
+        blockchain_request.blocks_from = prev_block.header.block_number + 1;
         blockchain_request.blocks_to = m_pimpl->sync_header_vector.begin()->block_number;
 
         sk.send(peerid, blockchain_request);

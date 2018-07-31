@@ -591,8 +591,10 @@ bool node::run()
             // Mine block
             uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
-            if (m_pimpl->m_blockchain.mine_block(m_pimpl->private_key, amount, m_pimpl->m_transaction_pool))
+            if (amount >= MINE_THRESHOLD && m_pimpl->m_blockchain.mine_allowed())
             {
+                m_pimpl->m_blockchain.mine_block(m_pimpl->private_key, amount, m_pimpl->m_transaction_pool);
+                
                 BlockHeader tmp_header;
 
                 if (m_pimpl->m_blockchain.tmp_header(tmp_header))
@@ -611,7 +613,28 @@ bool node::run()
             }
 
             // Apply own block
-            m_pimpl->m_blockchain.step_apply();
+            if (m_pimpl->m_blockchain.apply_allowed())
+            {
+                SignedBlock signed_block;
+
+                if (m_pimpl->m_blockchain.tmp_block(signed_block))
+                {
+                    vector<SignedBlock> signed_block_vector;
+                    signed_block_vector.push_back(signed_block);
+
+                    if (insert_blocks(signed_block_vector, m_pimpl))
+                    {
+                        vector<string> tmp_keys;
+                        m_pimpl->m_blockchain.tmp_keys(tmp_keys);
+
+                        for (auto& key : tmp_keys)
+                            m_pimpl->m_transaction_pool.remove(key);
+                    }
+                }
+
+                // allow new mine process
+                m_pimpl->m_blockchain.step_disable();
+            }
         }
     }
 

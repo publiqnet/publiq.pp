@@ -95,6 +95,9 @@ void state::merge_block(std::unordered_map<string, uint64_t> const& tmp_state)
         else
             m_pimpl->m_state->accounts[it.first] = it.second;
     }
+
+    // save state to file after merge complete
+    m_pimpl->m_state.save();
 }
 
 }

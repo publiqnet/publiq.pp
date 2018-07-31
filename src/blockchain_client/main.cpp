@@ -15,8 +15,6 @@
 #include <memory>
 #include <exception>
 
-#include <unistd.h> //for sleep() function
-
 using namespace BlockchainMessage;
 using pr_id = beltpp::socket::peer_id;
 //namespace program_options = boost::program_options;
@@ -160,7 +158,7 @@ void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
                 LoggedTransactions logTrans;
                 pc.get(logTrans);
 
-                auto index = 0;
+                uint64_t index = 0;
                 if(logTrans.actions.size() > 0)
                    index = logTrans.actions[0].index;
                 cout << "The start_index is = " << index << endl << endl;

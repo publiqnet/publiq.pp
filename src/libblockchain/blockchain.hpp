@@ -36,13 +36,17 @@ public:
     void remove_last_block();
 
     uint64_t calc_delta(std::string const& key, uint64_t amount, BlockchainMessage::Block const& block) const;
-    bool mine_block(meshpp::private_key const& pv_key, uint64_t amount, publiqpp::transaction_pool const& transaction_pool);
+    void mine_block(meshpp::private_key const& pv_key, uint64_t amount, 
+                    publiqpp::transaction_pool const& transaction_pool);
     
     bool tmp_block(BlockchainMessage::SignedBlock& signed_block) const;
     bool tmp_header(BlockchainMessage::BlockHeader& block_header) const;
+    void tmp_keys(std::vector<std::string> &keys) const;
 
-    void step_apply();
     void step_disable();
+    bool mine_allowed() const;
+    bool apply_allowed() const;
+
 private:
     std::unique_ptr<detail::blockchain_internals> m_pimpl;
 };
