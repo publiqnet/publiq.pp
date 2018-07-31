@@ -1,15 +1,8 @@
 #pragma once
 
-#include "action_log.hpp"
-#include "blockchain.hpp"
+#include "node_internals.hpp"
+
 #include "transaction_pool.hpp"
-#include "state.hpp"
-
-#include <belt.pp/isocket.hpp>
-#include <belt.pp/ilog.hpp>
-
-#include <unordered_set>
-#include <exception>
 
 void submit_action(beltpp::packet&& package,
                    publiqpp::action_log& action_log,
@@ -43,9 +36,7 @@ void verify_signature(beltpp::packet const& packet,
 
 void process_transfer(beltpp::packet const& package_signed_transaction,
                       beltpp::packet const& package_transfer,
-                      publiqpp::action_log& action_log,
-                      publiqpp::transaction_pool& transaction_pool,
-                      publiqpp::state& state);
+                      std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 void broadcast(beltpp::packet& package_broadcast,
                beltpp::isocket::peer_id const& self,

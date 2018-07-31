@@ -157,18 +157,15 @@ bool insert_blocks(std::vector<SignedBlock>& signed_block_vector,
 
     for (auto &it : keys)
     {
-        beltpp::packet packet;
-        m_pimpl->m_transaction_pool.at(it, packet);
+        SignedTransaction signed_transaction;
+        m_pimpl->m_transaction_pool.at(it, signed_transaction);
 
-        Transaction transaction;
-        packet.get(transaction);
-
-        if (now > system_clock::from_time_t(transaction.expiry.tm))
+        if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
         {
             LoggedTransaction action_info;
             action_info.applied_reverted = true;
             action_info.index = 0;
-            action_info.action = std::move(packet);
+            action_info.action = std::move(signed_transaction.transaction_details.action);
 
             m_pimpl->m_action_log.insert(action_info);
         }
@@ -194,7 +191,7 @@ void revert_blocks(size_t count,
 
         // Add block transactions to the pool
         for (; it != block.block_transactions.rend(); ++it)
-            m_pimpl->m_transaction_pool.insert((*it).transaction_details.action);
+            m_pimpl->m_transaction_pool.insert(*it);
 
         // Remove last block from blockchain
         m_pimpl->m_blockchain.remove_last_block();

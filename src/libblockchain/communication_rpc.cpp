@@ -1,19 +1,8 @@
 #include "communication_rpc.hpp"
-#include "message.hpp"
-
-#include <mesh.pp/cryptoutility.hpp>
 
 #include <stack>
-#include <vector>
-#include <chrono>
 
-using std::vector;
 using std::stack;
-using std::string;
-namespace chrono = std::chrono;
-using system_clock = chrono::system_clock;
-
-using namespace BlockchainMessage;
 
 void submit_action(beltpp::packet&& package,
                    publiqpp::action_log& action_log,
@@ -29,7 +18,6 @@ void submit_action(beltpp::packet&& package,
     {
     case Reward::rtt: //  check reward for testing
     case Transfer::rtt: // check transaction for testing
-    //case NewArticle::rtt:
     {
         if (Reward::rtt == ref_action.type())
         {
@@ -201,10 +189,11 @@ void verify_signature(beltpp::packet const& packet,
 
 void process_transfer(beltpp::packet const& package_signed_transaction,
                       beltpp::packet const& package_transfer,
-                      publiqpp::action_log& action_log,
-                      publiqpp::transaction_pool& transaction_pool,
-                      publiqpp::state& state)
+                      std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    if (package_signed_transaction.type() != SignedTransaction::rtt)
+        throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(package_signed_transaction.type()));
+
     SignedTransaction signed_transaction;
     package_signed_transaction.get(signed_transaction);
 
@@ -225,17 +214,17 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
     // Check pool
     string transfer_hash = meshpp::hash(package_transfer.to_string());
 
-    if (false == transaction_pool.contains(transfer_hash))
+    if (false == m_pimpl->m_transaction_pool.contains(transfer_hash))
     {
         // Validate state
-        if (!state.check_transfer(transfer, signed_transaction.transaction_details.fee))
+        if (!m_pimpl->m_state.check_transfer(transfer, signed_transaction.transaction_details.fee))
             throw std::runtime_error("Balance is not enough!");
 
         // Add to the pool
-        transaction_pool.insert(signed_transaction.transaction_details.action);
+        m_pimpl->m_transaction_pool.insert(signed_transaction);
 
         // Apply state
-        state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
+        m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
 
         // Add to action log
         LoggedTransaction action_info;
@@ -243,7 +232,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         action_info.index = 0; // will be set automatically
         action_info.action = std::move(transfer);
 
-        action_log.insert(action_info);
+        m_pimpl->m_action_log.insert(action_info);
     }
 }
 

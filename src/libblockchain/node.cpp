@@ -234,13 +234,11 @@ bool node::run()
                 case Transfer::rtt:
                 {
                     if (broadcast_transaction.items.empty())
-                        throw std::runtime_error("will process only \"broadcast signed transfer\"");
+                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
                 
                     process_transfer(*broadcast_transaction.items[1],
                                      ref_packet,
-                                     m_pimpl->m_action_log,
-                                     m_pimpl->m_transaction_pool,
-                                     m_pimpl->m_state);
+                                     m_pimpl);
 
 
                     broadcast(received_packet,
