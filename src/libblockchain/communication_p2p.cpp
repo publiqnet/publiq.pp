@@ -382,7 +382,7 @@ void process_blockheader_response(beltpp::packet& package,
         chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(time_point1 - time_point2);
         auto num_hours = diff_hours.count();
 
-        bad_data = bad_data || num_minutes < BLOCK_MINE_DELAY && num_hours == 0;
+        bad_data = bad_data || (num_minutes < BLOCK_MINE_DELAY && num_hours == 0);
     }
 
     if (bad_data)

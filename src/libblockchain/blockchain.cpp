@@ -9,8 +9,7 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <chrono>
-
-#include <map>;
+#include <map>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
