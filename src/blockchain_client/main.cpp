@@ -31,8 +31,7 @@ using chrono::steady_clock;
 using std::runtime_error;
 
 beltpp::socket openChannel(char** argv, pr_id& channel_id, beltpp::event_handler& evH);
-template<typename T>
-void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
+void SendReceive(beltpp::packet evType, beltpp::socket& sk, pr_id channel_id,
                                                 beltpp::event_handler& evH);
 
 //  MSVS does not instansiate template function only because its address
@@ -132,14 +131,12 @@ beltpp::socket openChannel(char** argv, pr_id& channel_id, beltpp::event_handler
     return sk;
 }
 
-template<typename T>
-void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
+void SendReceive(beltpp::packet evType, beltpp::socket& sk, pr_id channel_id,
                                                     beltpp::event_handler& eh)
 {
-    sk.send(channel_id, evType);
+    sk.send(channel_id, std::move(evType));
 
-    bool isContinue{true};
-    while(isContinue)
+    while(true)
     {
         beltpp::isocket::packets pcs;
         std::unordered_set<beltpp::ievent_item const*> set_items;
@@ -153,18 +150,16 @@ void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
             {
             case Join::rtt:
                 std::cout << "The event type is Join: " << endl << endl;
-                isContinue = false;
                 break;
             case LoggedTransactions::rtt:
             {
                 LoggedTransactions logTrans;
                 pc.get(logTrans);
 
-                auto index = 0;
+                uint64_t index{0};
                 if(logTrans.actions.size() > 0)
                    index = logTrans.actions[0].index;
                 cout << "The start_index is = " << index << endl << endl;
-                isContinue = false;
                 break;
             }
             case ChainInfo::rtt:
@@ -172,7 +167,6 @@ void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
                 ChainInfo chainInfo;
                 pc.get(chainInfo);
                 cout << "The ChainInfo length = " << chainInfo.length << endl << endl;
-                isContinue = false;
                 break;
             }
             case KeyPair::rtt:
@@ -183,7 +177,6 @@ void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
                 cout << "The KeyPair public_key = " << keyP.public_key << endl;
                 cout << "The KeyPair private_key = " << keyP.private_key << endl;
                 cout << "The KeyPair master_key = " << keyP.master_key << endl << endl;
-                isContinue = false;
                 break;
             }
             case Digest::rtt:
@@ -191,7 +184,6 @@ void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
                 Digest digest;
                 pc.get(digest);
                 cout << "The Digest base58_hash = " << digest.base58_hash << endl << endl;
-                isContinue = false;
                 break;
             }
             case Signature::rtt:
@@ -200,7 +192,6 @@ void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
                 pc.get(sign);
                 cout << "The Signature public_key = " << sign.public_key << endl;
                 cout << "The Signature signature = " << sign.signature << endl << endl;
-                isContinue = false;
                 break;
             }
             case RemoteError::rtt:
@@ -208,22 +199,19 @@ void SendReceive(T &evType, beltpp::socket& sk, pr_id channel_id,
                 //pc.get(error);
                 //cout << "RemoteError: " << rError.message <<endl;
                 cout << "Received a RemoteError!!!" << endl << endl;
-                isContinue = false;
                 break;
             case Drop::rtt:
                 cout << "The process was Dropped!" << endl << endl;
-                isContinue = false;
                 break;
             case Done::rtt:
                 cout << "The Send-Receive process was Shutted Down!" << endl << endl;
-                isContinue = false;
                 break;
             default:
                 cout << "Nothing for receive.!" << endl;
-                isContinue = false;
                 break;
             }
         }
+        break;
     }
 }
 
