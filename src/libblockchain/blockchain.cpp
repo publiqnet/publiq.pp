@@ -28,7 +28,6 @@ using blockchain_data_loader = meshpp::file_loader<BlockchainFileData,
 
 namespace publiqpp
 {
-
 namespace detail
 {
 class blockchain_internals
@@ -41,7 +40,7 @@ public:
 
     }
 
-    const uint64_t mine_amount = 100000000;
+    const uint64_t mine_threshold = 100000000;
 
     bool step_enabled;
     SignedBlock tmp_block;
@@ -62,13 +61,15 @@ public:
         //return "0000"; //Debug mode
     }
 
-    uint64_t dist(string key, string hash)
+    uint64_t dist(string const& key, string const& hash) const
     {
-        //TODO
-        return 10000;
+        // quick solution, may be not the best
+        string key_hash = meshpp::hash(key);
+
+        return meshpp::distance(key_hash, hash);
     }
 
-    bool mine_allowed()
+    bool mine_allowed() const
     {
         // check time after previous block
 
@@ -85,7 +86,7 @@ public:
         return num_minutes >= BLOCK_MINE_DELAY || num_hours > 0;
     }
 
-    bool apply_allowed()
+    bool apply_allowed() const
     {
         // check time after previous mine
 
@@ -238,8 +239,8 @@ void blockchain::remove_last_block()
     update_header();
 }
 
-uint64_t blockchain::calc_delta(string key, uint64_t amount, 
-                                BlockchainMessage::Block& block)
+uint64_t blockchain::calc_delta(string const& key, uint64_t amount, 
+                                BlockchainMessage::Block const& block) const
 {
     uint64_t d = m_pimpl->dist(key, block.block_header.previous_hash);
     uint64_t delta = amount / (d * block.block_header.consensus_const);
@@ -250,16 +251,18 @@ uint64_t blockchain::calc_delta(string key, uint64_t amount,
     return delta;
 }
 
-bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
-                            publiqpp::transaction_pool& transaction_pool)
+bool blockchain::mine_block(meshpp::private_key const& pv_key, uint64_t amount,
+                            publiqpp::transaction_pool const& transaction_pool)
 {
-    if (amount < m_pimpl->mine_amount)
+    // miner node must have minimal amount in balance
+    if (amount < m_pimpl->mine_threshold)
         return false;
 
+    // between two blocks BLOCK_MINE_DELAY must pass
     if (false == m_pimpl->mine_allowed())
         return false;
 
-    uint64_t block_number = length();
+    uint64_t block_number = length() - 1;
 
     SignedBlock prev_signed_block;
     at(block_number, prev_signed_block);
@@ -268,11 +271,12 @@ bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
     string prev_block_hash = meshpp::hash(package_prev_block.to_string());
 
     Block prev_block;
-    package_prev_block.get(prev_block);
+    std::move(package_prev_block).get(prev_block);
 
     string key = pv_key.get_public_key().to_string();
     uint64_t delta = calc_delta(key, amount, prev_block);
 
+    // fill new block header data
     ++block_number;
     BlockHeader block_header;
     block_header.block_number = block_number;
@@ -282,22 +286,18 @@ bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
     block_header.previous_hash = prev_block_hash;
     block_header.sign_time.tm = system_clock::to_time_t(system_clock::now());
 
+    // update consensus_const if needed
     if (delta > DELTA_UP)
     {
         size_t step = 0;
-        uint64_t _delta = delta;
+        BlockHeader prev_header;
+        header_at(block_number, prev_header);
 
-        while (_delta > DELTA_UP && step < DELTA_STEP && block_number > 0)
+        while (prev_header.consensus_delta > DELTA_UP && 
+               step < DELTA_STEP && prev_header.block_number > 0)
         {
-            SignedBlock _prev_signed_block;
-            at(block_number, _prev_signed_block);
-
-            Block _prev_block;
-            std::move(_prev_signed_block.block_details).get(_prev_block);
-
-            --block_number;
             ++step;
-            _delta = _prev_block.block_header.consensus_delta;
+            header_at(prev_header.block_number - 1, prev_header);
         }
 
         if (step >= DELTA_STEP)
@@ -307,19 +307,14 @@ bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
     if (delta < DELTA_DOWN && block_header.consensus_const > 1)
     {
         size_t step = 0;
-        uint64_t _delta = delta;
+        BlockHeader prev_header;
+        header_at(block_number, prev_header);
 
-        while (_delta < DELTA_DOWN && step < DELTA_STEP && block_number > 0)
+        while (prev_header.consensus_delta < DELTA_DOWN && 
+               step < DELTA_STEP && prev_header.block_number > 0)
         {
-            SignedBlock _prev_signed_block;
-            at(block_number, _prev_signed_block);
-
-            Block _prev_block;
-            std::move(_prev_signed_block.block_details).get(_prev_block);
-
-            --block_number;
             ++step;
-            _delta = _prev_block.block_header.consensus_delta;
+            header_at(prev_header.block_number - 1, prev_header);
         }
 
         if (step >= DELTA_STEP)
@@ -327,7 +322,10 @@ bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
     }
 
     Block block;
-    block.block_header = block_header;
+    block.block_header = block_header; // move is not allowed
+
+    //TODO manage rewards
+
     // copy transactions from pool to block
     std::vector<std::string> keys;
     transaction_pool.get_keys(keys);
@@ -354,7 +352,7 @@ bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
     return true;
 }
 
-bool blockchain::tmp_header(BlockchainMessage::BlockHeader& block_header)
+bool blockchain::tmp_header(BlockchainMessage::BlockHeader& block_header) const
 {
     if (length() >= m_pimpl->tmp_header.block_number)
         return false;
@@ -364,7 +362,7 @@ bool blockchain::tmp_header(BlockchainMessage::BlockHeader& block_header)
     return true;
 }
 
-bool blockchain::tmp_block(BlockchainMessage::SignedBlock& signed_block)
+bool blockchain::tmp_block(BlockchainMessage::SignedBlock& signed_block) const
 {
     if (length() >= m_pimpl->tmp_header.block_number)
         return false;

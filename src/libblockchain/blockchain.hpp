@@ -35,11 +35,11 @@ public:
     bool header_at(uint64_t number, BlockchainMessage::BlockHeader& block_header) const;
     void remove_last_block();
 
-    uint64_t calc_delta(std::string key, uint64_t amount, BlockchainMessage::Block& block);
-    bool mine_block(meshpp::private_key pv_key, uint64_t amount, publiqpp::transaction_pool& transaction_pool);
+    uint64_t calc_delta(std::string const& key, uint64_t amount, BlockchainMessage::Block const& block) const;
+    bool mine_block(meshpp::private_key const& pv_key, uint64_t amount, publiqpp::transaction_pool const& transaction_pool);
     
-    bool tmp_block(BlockchainMessage::SignedBlock& signed_block);
-    bool tmp_header(BlockchainMessage::BlockHeader& block_header);
+    bool tmp_block(BlockchainMessage::SignedBlock& signed_block) const;
+    bool tmp_header(BlockchainMessage::BlockHeader& block_header) const;
 
     void step_apply();
     void step_disable();

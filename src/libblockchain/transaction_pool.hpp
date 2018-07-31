@@ -1,6 +1,7 @@
 #pragma once
 
 #include "global.hpp"
+#include "message.hpp"
 
 #include <belt.pp/packet.hpp>
 
@@ -25,15 +26,15 @@ public:
     ~transaction_pool();
 
     size_t length() const;
-    void insert(beltpp::packet const& packet);
-    bool at(std::string const& key, beltpp::packet& transaction) const;
+    bool insert(beltpp::packet const& package);
+    bool at(std::string const& key, BlockchainMessage::SignedTransaction& signed_transaction) const;
     bool remove(std::string const& key);
 
     bool contains(std::string const& key) const;
-    void get_keys(std::vector<std::string> &keys);
+    void get_keys(std::vector<std::string> &keys) const;
     void get_amounts(std::string const& key, 
                      std::vector<std::pair<std::string, uint64_t>>& amounts, 
-                     bool in_out);
+                     bool in_out) const;
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };
