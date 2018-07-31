@@ -47,15 +47,6 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
                       publiqpp::transaction_pool& transaction_pool,
                       publiqpp::state& state);
 
-void insert_blocks(std::vector<beltpp::packet>& package_blocks,
-                   publiqpp::action_log& action_log,
-                   publiqpp::transaction_pool& transaction_pool,
-                   publiqpp::state& state);
-
-void revert_blocks(size_t count,
-                   publiqpp::blockchain& blockchain,
-                   publiqpp::transaction_pool& transaction_pool);
-
 void broadcast(beltpp::packet& package_broadcast,
                beltpp::isocket::peer_id const& self,
                beltpp::isocket::peer_id const& from,
@@ -91,4 +82,17 @@ public:
     virtual ~exception_balance() noexcept;
 
     std::string account;
+};
+
+class wrong_request_exception : public std::runtime_error
+{
+public:
+    explicit wrong_request_exception(std::string const& _message);
+
+    wrong_request_exception(wrong_request_exception const&) noexcept;
+    wrong_request_exception& operator=(wrong_request_exception const&) noexcept;
+
+    virtual ~wrong_request_exception() noexcept;
+
+    std::string message;
 };

@@ -1,10 +1,6 @@
 #include "state.hpp"
 
-#include "message.hpp"
-
 #include <mesh.pp/fileutility.hpp>
-
-#include <string>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -12,8 +8,8 @@ using std::string;
 using std::vector;
 
 using state_data_loader = meshpp::file_loader<StateFileData,
-                                              &StateFileData::string_loader,
-                                              &StateFileData::string_saver>;
+                                              &StateFileData::from_string,
+                                              &StateFileData::to_string>;
 
 namespace publiqpp
 {

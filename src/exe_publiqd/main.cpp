@@ -54,8 +54,8 @@ void termination_handler(int signum)
 class port2pid_helper
 {
     using Loader = meshpp::file_locker<meshpp::file_loader<Config::Port2PID,
-                                                            &Config::Port2PID::string_loader,
-                                                            &Config::Port2PID::string_saver>>;
+                                                            &Config::Port2PID::from_string,
+                                                            &Config::Port2PID::to_string>>;
 public:
     port2pid_helper(boost::filesystem::path const& _path, unsigned short _port)
         : port(_port)
@@ -146,7 +146,6 @@ int main(int argc, char** argv)
         settings::settings::set_data_directory(data_directory);
 
 #ifdef B_OS_WINDOWS
-    // will work after wait retuns, not immediately !
     signal(SIGINT, termination_handler);
 #else
     struct sigaction signal_handler;
@@ -162,7 +161,9 @@ int main(int argc, char** argv)
 
         unique_ptr<port2pid_helper> port2pid(new port2pid_helper(settings::config_file_path("pid"), p2p_bind_to_address.local.port));
 
-        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<Config::DataDirAttribute, &Config::DataDirAttribute::string_loader, &Config::DataDirAttribute::string_saver>>;
+        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<Config::DataDirAttribute,
+                                                                                &Config::DataDirAttribute::from_string,
+                                                                                &Config::DataDirAttribute::to_string>>;
         DataDirAttributeLoader dda(settings::data_file_path("running.txt"));
         Config::RunningDuration item;
         item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -187,6 +188,9 @@ int main(int argc, char** argv)
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
         //plogger_rpc->disable();
 
+        meshpp::random_seed seed;
+        meshpp::private_key pv_key = seed.get_private_key(0);
+
         publiqpp::node node(rpc_bind_to_address,
                             p2p_bind_to_address,
                             p2p_connect_to_addresses,
@@ -196,7 +200,8 @@ int main(int argc, char** argv)
                             fs_transaction_pool,
                             fs_state,
                             plogger_p2p.get(),
-                            plogger_rpc.get());
+                            plogger_rpc.get(),
+                            pv_key);
 
         cout << endl;
         cout << "Node: " << node.name()/*.substr(0, 5)*/ << endl;

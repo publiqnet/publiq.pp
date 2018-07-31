@@ -3,18 +3,28 @@
 #include "data.hpp"
 #include "message.hpp"
 
+#include <belt.pp/utility.hpp>
+
 #include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
+
+#include <chrono>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
+using std::vector;
+namespace chrono = std::chrono;
+using chrono::system_clock;
 
-using number_loader = meshpp::file_loader<Data::Number, &Data::Number::string_loader, &Data::Number::string_saver>;
+using number_loader = meshpp::file_loader<Data::Number,
+                                          &Data::Number::from_string,
+                                          &Data::Number::to_string>;
 using number_locked_loader = meshpp::file_locker<number_loader>;
 
 using blockchain_data_loader = meshpp::file_loader<BlockchainFileData,
-                                                   &BlockchainFileData::string_loader,
-                                                   &BlockchainFileData::string_saver>;
+                                                   &BlockchainFileData::from_string,
+                                                   &BlockchainFileData::to_string>;
 
 namespace publiqpp
 {
@@ -31,10 +41,6 @@ public:
 
     }
 
-    const size_t delta_step = 10;
-    const uint64_t delta_max = 120000000;
-    const uint64_t delta_up = 100000000;
-    const uint64_t delta_down = 80000000;
     const uint64_t mine_amount = 100000000;
 
     bool step_enabled;
@@ -64,14 +70,38 @@ public:
 
     bool mine_allowed()
     {
-        //TODO check time after previous block
-        return true;
+        // check time after previous block
+
+        system_clock::time_point current_time_point = system_clock::now();
+        system_clock::time_point previous_time_point = system_clock::from_time_t(m_header.sign_time.tm);
+
+        //  both previous_time_point and current_time_point keep track of UTC time
+
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
+        auto num_minutes = diff_minutes.count();
+        chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
+        auto num_hours = diff_hours.count();
+
+        return num_minutes >= BLOCK_MINE_DELAY || num_hours > 0;
     }
 
     bool apply_allowed()
     {
-        //TODO check time after previous mine
-        return true;
+        // check time after previous mine
+
+        system_clock::time_point current_time_point = system_clock::now();
+        system_clock::time_point previous_time_point = system_clock::from_time_t(tmp_header.sign_time.tm);
+
+        //  both previous_time_point and current_time_point keep track of UTC time
+
+        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
+        auto num_seconds = diff_seconds.count();
+        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
+        auto num_minutes = diff_minutes.count();
+        chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
+        auto num_hours = diff_hours.count();
+
+        return num_seconds >= BLOCK_APPLY_DELAY || num_minutes > 0 || num_hours > 0;
     }
 };
 }
@@ -101,7 +131,6 @@ void blockchain::update_header()
     }
 }
 
-
 uint64_t blockchain::length() const
 {
     return m_pimpl->m_length.as_const()->value;
@@ -121,10 +150,10 @@ void blockchain::header(BlockchainMessage::BlockHeader& block_header) const
     }
 }
 
-void blockchain::insert(beltpp::packet const& packet)
+bool blockchain::insert(beltpp::packet const& packet)
 {
     if (packet.type() != SignedBlock::rtt)
-        throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
+        return false;
 
     SignedBlock signed_block;
     packet.get(signed_block);
@@ -135,7 +164,7 @@ void blockchain::insert(beltpp::packet const& packet)
     uint64_t block_number = block.block_header.block_number;
 
     if (block_number != length())
-        throw std::runtime_error("Wrong block is goinf to insert! number:" + std::to_string(block_number));
+        return false;
 
     string hash_id = m_pimpl->get_df_id(block_number);
     string file_name("df" + hash_id + ".bchain");
@@ -148,6 +177,8 @@ void blockchain::insert(beltpp::packet const& packet)
 
     file_data.save();
     m_pimpl->m_length.save();
+
+    return true;
 }
 
 bool blockchain::at(uint64_t number, SignedBlock& signed_block) const
@@ -207,19 +238,19 @@ void blockchain::remove_last_block()
     update_header();
 }
 
-uint64_t blockchain::calc_delta(string key, uint64_t amount, BlockchainMessage::Block& block)
+uint64_t blockchain::calc_delta(string key, uint64_t amount, 
+                                BlockchainMessage::Block& block)
 {
     uint64_t d = m_pimpl->dist(key, block.block_header.previous_hash);
     uint64_t delta = amount / (d * block.block_header.consensus_const);
     
-    if (delta > m_pimpl->delta_max)
-        delta = m_pimpl->delta_max;
+    if (delta > DELTA_MAX)
+        delta = DELTA_MAX;
 
     return delta;
 }
 
-bool blockchain::mine_block(string key, 
-                            uint64_t amount,
+bool blockchain::mine_block(meshpp::private_key pv_key, uint64_t amount,
                             publiqpp::transaction_pool& transaction_pool)
 {
     if (amount < m_pimpl->mine_amount)
@@ -233,9 +264,13 @@ bool blockchain::mine_block(string key,
     SignedBlock prev_signed_block;
     at(block_number, prev_signed_block);
 
-    Block prev_block;
-    std::move(prev_signed_block.block_details).get(prev_block);
+    beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
+    string prev_block_hash = meshpp::hash(package_prev_block.to_string());
 
+    Block prev_block;
+    package_prev_block.get(prev_block);
+
+    string key = pv_key.get_public_key().to_string();
     uint64_t delta = calc_delta(key, amount, prev_block);
 
     ++block_number;
@@ -244,14 +279,15 @@ bool blockchain::mine_block(string key,
     block_header.consensus_delta = delta;
     block_header.consensus_const = prev_block.block_header.consensus_const;
     block_header.consensus_sum = prev_block.block_header.consensus_sum + delta;
-    block_header.previous_hash = "previous_hash"; //TODO
+    block_header.previous_hash = prev_block_hash;
+    block_header.sign_time.tm = system_clock::to_time_t(system_clock::now());
 
-    if (delta > m_pimpl->delta_up)
+    if (delta > DELTA_UP)
     {
-        size_t step = 1;
+        size_t step = 0;
         uint64_t _delta = delta;
 
-        while (_delta > m_pimpl->delta_up && step < m_pimpl->delta_step && block_number > 0)
+        while (_delta > DELTA_UP && step < DELTA_STEP && block_number > 0)
         {
             SignedBlock _prev_signed_block;
             at(block_number, _prev_signed_block);
@@ -264,16 +300,16 @@ bool blockchain::mine_block(string key,
             _delta = _prev_block.block_header.consensus_delta;
         }
 
-        if (step >= m_pimpl->delta_step)
+        if (step >= DELTA_STEP)
             block_header.consensus_const = prev_block.block_header.consensus_const * 2;
     }
     else
-    if (delta < m_pimpl->delta_down && block_header.consensus_const > 1)
+    if (delta < DELTA_DOWN && block_header.consensus_const > 1)
     {
-        size_t step = 1;
+        size_t step = 0;
         uint64_t _delta = delta;
 
-        while (_delta < m_pimpl->delta_down && step < m_pimpl->delta_step && block_number > 0)
+        while (_delta < DELTA_DOWN && step < DELTA_STEP && block_number > 0)
         {
             SignedBlock _prev_signed_block;
             at(block_number, _prev_signed_block);
@@ -286,7 +322,7 @@ bool blockchain::mine_block(string key,
             _delta = _prev_block.block_header.consensus_delta;
         }
 
-        if (step >= m_pimpl->delta_step)
+        if (step >= DELTA_STEP)
             block_header.consensus_const = prev_block.block_header.consensus_const / 2;
     }
 
@@ -304,11 +340,13 @@ bool blockchain::mine_block(string key,
     }
 
     // save block as tmp
-    SignedBlock signed_block;
-    signed_block.authority = key;
-    signed_block.signature = "signature"; //TODO
-    signed_block.block_details = std::move(block);
+    meshpp::signature sgn = pv_key.sign(block.to_string());
 
+    SignedBlock signed_block;
+    signed_block.signature = sgn.base64;
+    signed_block.authority = sgn.pb_key.to_string();
+    signed_block.block_details = std::move(block);
+    
     m_pimpl->step_enabled = true;
     m_pimpl->tmp_block = std::move(signed_block);
     m_pimpl->tmp_header = std::move(block_header);

@@ -34,6 +34,7 @@ module BlockchainMessage
         UInt64 consensus_delta
         UInt64 consensus_sum
         String previous_hash
+        TimePoint sign_time
     }
 
     class Block
@@ -190,6 +191,7 @@ module BlockchainMessage
         String authority_provided
         String authority_required
     }
+    class FileNotFound { String uri }
     class RemoteError { String message }
 
     ///
@@ -212,6 +214,11 @@ module BlockchainMessage
     {
         String mime_type
         String data
+    }
+
+    class StorageFileAddress
+    {
+        String uri
     }
 
     //  blockchain storage data
@@ -237,3 +244,4 @@ module BlockchainMessage
     type Drop {}
     type Error {}
 }
+

@@ -14,13 +14,13 @@ namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
 using hash_index_loader = meshpp::file_loader<Data::StringSet, 
-                                              &Data::StringSet::string_loader,
-                                              &Data::StringSet::string_saver>;
+                                              &Data::StringSet::from_string,
+                                              &Data::StringSet::to_string>;
 using hash_index_locked_loader = meshpp::file_locker<hash_index_loader>;
 
 using transaction_data_loader = meshpp::file_loader<TransactionFileData,
-                                                    &TransactionFileData::string_loader,
-                                                    &TransactionFileData::string_saver>;
+                                                    &TransactionFileData::from_string,
+                                                    &TransactionFileData::to_string>;
 
 namespace publiqpp
 {
@@ -87,8 +87,7 @@ void transaction_pool::insert(beltpp::packet const& packet)
     if (packet.type() != Transaction::rtt)
         throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(packet.type()));
 
-    vector<char> packet_vec = packet.save();
-    string packet_hash = meshpp::hash(packet_vec.begin(), packet_vec.end());
+    string packet_hash = meshpp::hash(packet.to_string());
     string hash_id = m_pimpl->get_df_id(packet_hash);
     string file_name("df" + hash_id + ".tpool");
 

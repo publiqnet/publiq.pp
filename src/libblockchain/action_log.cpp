@@ -14,8 +14,8 @@ using std::string;
 namespace
 {
 using logged_action_loader = meshpp::file_loader<BlockchainMessage::LoggedTransaction,
-                                                 &BlockchainMessage::LoggedTransaction::string_loader,
-                                                 &BlockchainMessage::LoggedTransaction::string_saver>;
+                                                 &BlockchainMessage::LoggedTransaction::from_string,
+                                                 &BlockchainMessage::LoggedTransaction::to_string>;
 }
 
 namespace publiqpp
@@ -31,7 +31,7 @@ public:
         , m_length(path / "action_log.act.length")
     {}
 
-    using number_loader = meshpp::file_loader<Data::Number, &Data::Number::string_loader, &Data::Number::string_saver>;
+    using number_loader = meshpp::file_loader<Data::Number, &Data::Number::from_string, &Data::Number::to_string>;
     using number_locked_loader = meshpp::file_locker<number_loader>;
 
     filesystem::path m_path;

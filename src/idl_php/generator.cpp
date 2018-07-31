@@ -68,7 +68,7 @@ string handleArrayForPrimitives(int count, string member_name)
         item = item + std::to_string(i);
     }
         arrayCase +=
-                  "            $this->add" + ((char)( member_name.at(0)-32 ) + member_name.substr( 1, member_name.length()-1 )) + "($" + item + ");\n";
+                   "            $this->add" + ((char)( member_name.at(0)-32 ) + member_name.substr( 1, member_name.length()-1 )) + "($" + item + ");\n";
 
     for( int i = 1; i != count; i++)
     {
@@ -94,9 +94,20 @@ string handleArrayForObjects(int count, string member_name, string object_name)
                        "          foreach ($" + item + " as $" + item + std::to_string(i) + ") { \n";
             item = item + std::to_string(i);
         }
+
+        if( object_name == "::beltpp::packet")
+        {
+            arrayCase +=
+                       "    Rtt::validate($data->" +  member_name + ");\n";
+        }
+        else
+        {
             arrayCase +=
                        "              $" + item + "Obj = new " + object_name + "(); \n"
-                       "              $" + item + "Obj->validate($" + item + "); \n";
+                       "              $" + item + "Obj->validate($" + item + "); \n"+
+                       "              $this->" + member_name + "[] = $" + item + "Obj";
+        }
+
 
         for( int i = 1; i != count; i++)
         {
@@ -119,9 +130,9 @@ void handleHashForPrimitives(string info[], string& setFunction, string& hashCas
      "    /**\n"
      "    * @param string  $" + member_name + "Key\n"
      "    */\n"
-     "    public function set" + member_name + "Key(string $key)\n"
+     "    public function set" + member_name + "Key(string $" + member_name + "Key)\n"
      "    {\n"
-     "        $this->" + member_name + "Key = $key;\n"
+     "        $this->" + member_name + "Key = $" + member_name + "Key;\n"
      "    }\n"
 
      "    /**\n"
@@ -154,20 +165,27 @@ void handleHashForObjects(string info[], string& setFunction, string& hashCase, 
                 "    /**\n"
                 "    * @param string  $" + member_name + "Key\n"
                 "    */\n"
-                "    public function set" + member_name + "Key(string $key)\n"
+                "    public function set" + member_name + "Key(string  $" + member_name + "Key)\n"
                 "    {\n"
-                "        $this->" + member_name + "Key = $key;\n"
+                "        $this->" + member_name + "Key = $" + member_name + "Key;\n"
                 "    }\n";
 
-        string ObjType = info[3];
         if(info[3] == "::beltpp::packet")
-            ObjType = "Object";
+        {
+            hashCase +=
+                       "        Rtt::validate($data->" +  member_name + ");\n";
+        }
+        else
+        {
+          string item = member_name +"Item";
           hashCase +=
                     "        foreach ($data->hash as $key => $value) {\n"
                     "            $this->set" + member_name + "Key($key);\n"
-                    "            $hashItemObj = new " + ObjType + "();\n"
+                    "            $hashItemObj = new " + info[3] + "();\n"
                     "            $hashItemObj->validate($value);\n"
+                    "            $this->" + member_name + "[] = $" + item + "Obj"
                     "         }\n";
+        }
 
 }
 
@@ -248,37 +266,38 @@ void analyze(   state_holder& state,
 
     //////////////// create Interface Folder ////////////////
 
+
+    boost::filesystem::path root = outputFilePath;
+
+    root.append(VendorName);
+    boost::filesystem::create_directory(root);
+
+    root.append(PackageName);
+    boost::filesystem::create_directory(root);
+
     std::string src = "src";
-    std::string Interface = "Interface";
-    boost::filesystem::path InterfaceFolder = outputFilePath;
-    boost::filesystem::create_directory(InterfaceFolder);
+    root.append(src);
+    boost::filesystem::create_directory(root);
 
-    InterfaceFolder.append(VendorName);
-    boost::filesystem::create_directory(InterfaceFolder);
+    //////////////// create Base Folder ////////////////////
+    boost::filesystem::path BaseFolderPath = root.string() + "/" + "Base";
+    boost::filesystem::create_directory(BaseFolderPath);
 
-    InterfaceFolder.append(PackageName);
-    boost::filesystem::create_directory(InterfaceFolder);
-
-    InterfaceFolder.append(src);
-    boost::filesystem::create_directory(InterfaceFolder);
-
-    InterfaceFolder.append(Interface);
-    boost::filesystem::create_directory(InterfaceFolder);
-
-    boost::filesystem::path ValidatorInterfaceFilePath = InterfaceFolder.string() + "/" + "ValidatorInterface.php";
+    boost::filesystem::path ValidatorInterfaceFilePath = BaseFolderPath.string() + "/" + "ValidatorInterface.php";
     boost::filesystem::ofstream validator(ValidatorInterfaceFilePath);
 
-    validator<< R"file_template(<?php
+    validator <<"<?php\n" <<
+                "namespace " << VendorName <<"\\" << PackageName << "\\Base;\n";
+    validator<< R"file_template(
 interface ValidatorInterface
 {
-    public function validate(stdClass $data);
+    public function validate(\stdClass $data);
 }
                 )file_template";
 
     ///////////////////////////////////////////////////////
 
     unordered_map<size_t, string> class_names;
-    string resultMid;
     if (pexpression->lexem.rtt != keyword_module::rtt ||
         pexpression->children.size() != 2 ||
         pexpression->children.front()->lexem.rtt != identifier::rtt ||
@@ -333,18 +352,20 @@ interface ValidatorInterface
             max_rtt = class_item.first;
     }
 
-    //////////////// create Base Folder ////////////////////
+
 
     std::string Base = "Base";
     boost::filesystem::path BaseFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + src + "/" + Base;
     boost::filesystem::create_directory(BaseFolder);
 
-    ///////////////// create RTT.php file ////////////////////
+    ///////////////// create Rtt.php file ////////////////////
 
-    boost::filesystem::path RttFilePath = BaseFolder.string() + "/" + "RTT.php";
+    boost::filesystem::path RttFilePath = BaseFolderPath.string() + "/" + "Rtt.php";
     boost::filesystem::ofstream RTT(RttFilePath);
+    RTT <<"<?php\n" <<
+          "namespace " << VendorName << "\\" << PackageName << "\\Base;\n";
     RTT<<
-    R"file_template(<?php
+    R"file_template(
 class Rtt
 {
     CONST types = [
@@ -380,49 +401,59 @@ class Rtt
             return false;
         }
         try {
-            $className = Rtt::types[$jsonObj->rtt];
+            $className = ')file_template";
+    RTT<< VendorName<<"\\\\"<<PackageName<<"\\\\Model\\\\' . Rtt::types[$jsonObj->rtt];";
+          RTT<<R"file_template(
             /**
-            * @var Validator $class
+            * @var ValidatorInterface $class
             */
             $class = new $className;
             $class->validate($jsonObj);
-            return true;
-        } catch (Throwable $e) {
+            return $class;
+        } catch (\Throwable $e) {
             return $e->getMessage();
         }
     }
 }
 )file_template";
 
-    ////////////////// create Trait Folder ////////////////////////
 
-    boost::filesystem::path TraitFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + "src" + "/" + "Trait";
-    boost::filesystem::create_directory(TraitFolder);
 
     ////////////////// create RttSerializableTrait.php file /////////////////
 
-    boost::filesystem::path RttSerializableTraitFilePath = TraitFolder.string() + "/" + "RttSerializableTrait.php";
+    boost::filesystem::path RttSerializableTraitFilePath = BaseFolderPath.string() + "/" + "RttSerializableTrait.php";
     boost::filesystem::ofstream RttSerializableTrait(RttSerializableTraitFilePath);
+    RttSerializableTrait <<"<?php\n" <<
+                           "namespace " << VendorName << "\\" << PackageName << "\\Base;\n";
     RttSerializableTrait<<
-R"file_template(<?php
+R"file_template(
 trait RttSerializableTrait
-{
-    public function jsonSerialize()
     {
-        $vars = get_object_vars($this);
-        $vars['rtt'] = array_search(static::class, Rtt::types);
+       public function jsonSerialize()
+       {
+           $vars = get_object_vars($this);
 
-        return $vars;
+
+           $path = explode('\\', static::class);
+           $className = array_pop($path);
+           if (!$className) {
+               throw new \Exception("Cannot find class in rtt list");
+           }
+           $vars['rtt'] = array_search($className, Rtt::types);
+
+           return $vars;
+       }
     }
-}
 )file_template";
 
     ////////////////// create RttToJsonTrait.php file /////////////////
 
-    boost::filesystem::path RttToJsonTraitFilePath = TraitFolder.string() + "/" + "RttToJsonTrait.php";
+    boost::filesystem::path RttToJsonTraitFilePath = BaseFolderPath.string() + "/" + "RttToJsonTrait.php";
     boost::filesystem::ofstream RttToJsonTrait(RttToJsonTraitFilePath);
+    RttToJsonTrait <<"<?php\n" <<
+                     "namespace " << VendorName << "\\" << PackageName << "\\Base;\n";
     RttToJsonTrait<<
-R"file_template(<?php
+R"file_template(
 trait RttToJsonTrait
 {
     public function convertToJson()
@@ -484,10 +515,16 @@ void analyze_struct(    state_holder& state,
     boost::filesystem::ofstream model(FilePath);
     model<<
              "<?php\n"
-             "namespace " + VendorName + "\\" + PackageName + "\\Model;\n" +
-             "use " + VendorName + "\\" + PackageName +  "\\Interface\\ValidatorInterface;\n\n" +
 
-             "class " + type_name + " implements ValidatorInterface, JsonSerializable\n"+
+             "namespace " + VendorName + "\\" + PackageName + "\\Model;\n" +
+             "use " + VendorName + "\\" + PackageName +  "\\Base\\RttSerializableTrait;\n" +
+             "use " + VendorName + "\\" + PackageName +  "\\Base\\RttToJsonTrait;\n" +
+             "use " + VendorName + "\\" + PackageName +  "\\Base\\ValidatorInterface;\n" +
+             "use " + VendorName + "\\" + PackageName +  "\\Base\\Rtt;\n" +
+
+
+
+             "class " + type_name + " implements ValidatorInterface, \\JsonSerializable\n"+
              "{\n" +
              "    use RttSerializableTrait;\n" +
              "    use RttToJsonTrait;\n";
@@ -504,7 +541,7 @@ void analyze_struct(    state_holder& state,
         string info[4];
         construct_type_name(member_type, state, type_detail, info);
 
-        if (info[0] == "::beltpp::packet")
+        if ( info[0] == "::beltpp::packet" )
         {
 
             params +=
@@ -645,11 +682,11 @@ void analyze_struct(    state_holder& state,
             setFunction +="; \n"
                         "    } \n";
         }
-        else if( !(info[0] == "::beltpp::packet") )
+        else if( !(info[0] == "::beltpp::packet")  && !(info[0] == "hash") && !(info[0] == "array") )
         {
             objectTypes +=
-                         "        $" + member_name.value + "Obj = new "+ info[0] + "();\n"
-                         "        $" + member_name.value + "Obj -> validate($data-> "+ member_name.value  + ");\n";
+                         "        $this->" + member_name.value + " = new "+ info[0] + "();\n"
+                         "        $this->" + member_name.value + " -> validate($data-> "+ member_name.value  + ");\n";
         }
 
         getFunction +=
@@ -660,7 +697,7 @@ void analyze_struct(    state_holder& state,
     }
 
     string  validation =
-                       "    public function validate(stdClass $data) \n"
+                       "    public function validate(\\stdClass $data) \n"
                        "    { \n"
                                 + objectTypes + trivialTypes + arrayCase + mixedTypes + hashCase +
                        "    } \n";
@@ -669,4 +706,5 @@ void analyze_struct(    state_holder& state,
     model<< "} \n";
 
 /////////////////
+
 }
