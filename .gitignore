@@ -6,3 +6,4 @@ CMakeLists.txt.user
 /.vscode
 /build
 /CMakeSettings.json
+*.DS_Store
