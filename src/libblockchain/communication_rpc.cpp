@@ -269,12 +269,11 @@ void broadcast(beltpp::packet& package_broadcast,
     BlockchainMessage::Broadcast msg_broadcast;
     package_broadcast.get(msg_broadcast);
 
-    uint64_t echoes = msg_broadcast.echoes;
     if (from_rpc)
     {
         if (plog)
             plog->message("will broadcast to all");
-        echoes = 2;
+        msg_broadcast.echoes = 2;
     }
     if (chance_to_reflect)
     {
@@ -283,39 +282,40 @@ void broadcast(beltpp::packet& package_broadcast,
         if (msg_broadcast.echoes == 0)
         {
             if (plog)
-                plog->message("    oh no!");
+                plog->message("    oh no! reflections are expired");
             chance_to_reflect = false;
         }
     }
+    if (msg_broadcast.echoes > 2)
+        msg_broadcast.echoes = 2;
 
+    auto filtered_peers = all_peers;
     for (auto const& peer : all_peers)
     {
-        bool do_reflect = false;
         auto direction2 = str_compare(self, peer);
         if (false == from_rpc &&
             direction == direction2)
-        {
-            if (false == chance_to_reflect)
-            {
-                if (plog)
-                    plog->message("skip: " + self.substr(0,2) + ", " + peer.substr(0,2) + ": " + std::to_string(direction2));
-                continue;
-            }
-            else
-                do_reflect = true;
-        }
+            filtered_peers.erase(peer);
+    }
 
-        msg_broadcast.echoes = echoes;
-        if (do_reflect)
-        {
-            if (plog)
-            {
-                plog->message("will reflect broadcast to: " + peer.substr(0, 5));
-                plog->message("    " + std::to_string(msg_broadcast.echoes));
-            }
-            --msg_broadcast.echoes;
-        }
-        else if (plog)
+    if (filtered_peers.empty() &&
+        chance_to_reflect)
+    {
+        if (plog)
+            plog->message("since all peers would be skipped by reflection, "
+                          "use the chance to reflect, and broadcast to everyone");
+        filtered_peers = all_peers;
+        --msg_broadcast.echoes;
+    }
+    else if (filtered_peers.empty())
+    {
+        if (plog)
+            plog->message("all peers will be skipped by direction");
+    }
+
+    for (auto const& peer : filtered_peers)
+    {
+        if (plog)
             plog->message("will rebroadcast to: " + peer.substr(0, 5));
 
         psk->send(peer, msg_broadcast);
