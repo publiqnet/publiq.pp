@@ -1,36 +1,27 @@
 ﻿#include "../libblockchain/message.hpp"
 
-#include <belt.pp/log.hpp>
-#include <belt.pp/packet.hpp>
 #include <belt.pp/socket.hpp>
-#include <belt.pp/event.hpp>
 
-#include <boost/program_options.hpp>
-
-#include <memory>
 #include <iostream>
-#include <vector>
-#include <sstream>
 #include <chrono>
-#include <memory>
-#include <exception>
 
 using namespace BlockchainMessage;
-using pr_id = beltpp::socket::peer_id;
-//namespace program_options = boost::program_options;
+using peer_id = beltpp::socket::peer_id;
 
-using std::unique_ptr;
-using std::string;
 using std::cout;
 using std::endl;
-using std::vector;
 namespace chrono = std::chrono;
-using chrono::steady_clock;
-using std::runtime_error;
+using std::chrono::system_clock;
 
-beltpp::socket openChannel(char** argv, pr_id& channel_id, beltpp::event_handler& evH);
-void SendReceive(beltpp::packet evType, beltpp::socket& sk, pr_id channel_id,
+peer_id openChannel(char** argv, beltpp::socket& sk, beltpp::event_handler& evH);
+void SendReceive(beltpp::packet evType, beltpp::socket& sk, peer_id channel_id,
                                                 beltpp::event_handler& evH);
+
+void Send(beltpp::packet& send_package,
+          beltpp::packet& receive_package,
+          beltpp::socket& sk,
+          peer_id peerid,
+          beltpp::event_handler& eh);
 
 //  MSVS does not instansiate template function only because its address
 //  is needed, so let's force it
@@ -53,83 +44,121 @@ using sf = beltpp::socket_family_t<
 
 int main(int argc, char** argv)
 {
-    pr_id channel_id;
+    beltpp::socket::peer_id peerid;
     beltpp::event_handler eh;
-    beltpp::socket sk = openChannel(argv, channel_id, eh);
 
-    cout << channel_id << endl;
+    beltpp::socket sk = beltpp::getsocket<sf>(eh);
+    eh.add(sk);
 
-    //
-    LoggedTransactionsRequest logTransR;
-    logTransR.start_index = 5;
-    //
-    ChainInfoRequest chainIR;
-    //
-    KeyPairRequest keyPR;
-    keyPR.index = 2;
-    keyPR.master_key = "master_key = 000001";
-    //
-    SignRequest signR;
-    signR.private_key = "5JNncPzzupdnuCtXT1y91WJoUhevSF6GSinPUmdb8L2fNVdrkig";
-    //
-    DigestRequest digestR;
-    //
-    /*
-    MasterKeyRequest masterKeyR;
-    //
-    SyncRequest syncReq;
-    syncReq.block_number = 5;
-    syncReq.consensus_sum = 5;
-    //
-    BlockChainRequest blockChainReq;
-    blockChainReq.blocks_from = 0;
-    blockChainReq.blocks_to = 5;
-    */
+    peerid = openChannel(argv, sk, eh);
 
-    SendReceive(logTransR, sk, channel_id, eh);
-    SendReceive(logTransR, sk, channel_id, eh);
-    SendReceive(logTransR, sk, channel_id, eh);
-    SendReceive(chainIR, sk, channel_id, eh);
-    SendReceive(keyPR, sk, channel_id, eh);
-    SendReceive(keyPR, sk, channel_id, eh);
-    SendReceive(keyPR, sk, channel_id, eh);
-    SendReceive(digestR, sk, channel_id, eh);
-    SendReceive(digestR, sk, channel_id, eh);
-    SendReceive(signR, sk, channel_id, eh);
-    Shutdown shutDown;
-    SendReceive(shutDown, sk, channel_id, eh);
+    beltpp::packet send_package;
+    beltpp::packet receive_package;
+
+    cout << endl << peerid << endl;
+
+    KeyPairRequest key_pair_request;
+    key_pair_request.index = 0;
+    key_pair_request.master_key = "TEST";
+
+    send_package.set(key_pair_request);
+    Send(send_package, receive_package, sk, peerid, eh);
+    cout << endl << receive_package.to_string() << endl;
+
+    KeyPair key_pair;
+    receive_package.get(key_pair);
+
+    Transfer transfer;
+    transfer.from = key_pair.public_key;
+    transfer.to = key_pair.public_key;
+    transfer.amount = 0;
+
+    Transaction transaction;
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+    transaction.fee = 0;
+    transaction.action = transfer;
+
+    SignRequest sign_request;
+    sign_request.private_key = key_pair.private_key;
+    sign_request.package = transaction;
+
+    send_package.set(sign_request);
+    Send(send_package, receive_package, sk, peerid, eh);
+    cout << endl << receive_package.to_string() << endl;
+
+    Signature signature;
+    receive_package.get(signature);
+
+    SignedTransaction signed_transaction;
+    signed_transaction.authority = key_pair.public_key;
+    signed_transaction.signature = signature.signature;
+    signed_transaction.transaction_details = transaction;
+
+    Broadcast broadcast;
+    broadcast.echoes = 2;
+    broadcast.package = signed_transaction;
+    
+    send_package.set(broadcast);
+    Send(send_package, receive_package, sk, peerid, eh);
+    cout << endl << receive_package.to_string() << endl;
 
     return 0;
 }
 
-beltpp::socket openChannel(char** argv, pr_id& channel_id, beltpp::event_handler& eh)
+void Send(beltpp::packet& send_package,
+          beltpp::packet& receive_package,
+          beltpp::socket& sk,
+          peer_id peerid,
+          beltpp::event_handler& eh)
 {
-    beltpp::socket sk = beltpp::getsocket<sf>(eh);
-    eh.add(sk);
+       sk.send(peerid, std::move(send_package));
+    
+       while (true)
+       {
+           beltpp::isocket::packets packets;
+           std::unordered_set<beltpp::ievent_item const*> set_items;
+    
+           if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
+               packets = sk.receive(peerid);
+    
+           if (peerid.empty() || packets.empty())
+               continue;
+    
+           ::detail::assign_packet(receive_package, packets.front());
+           
+           break;
+       }
+}
 
+peer_id openChannel(char** argv, beltpp::socket& sk, beltpp::event_handler& eh)
+{
     beltpp::ip_address address_item;
     address_item.from_string(argv[1]);
-    beltpp::ip_address open_address("", 0, address_item.local.address,
-                                                       address_item.local.port,
-                                                       beltpp::ip_address::e_type::ipv4);
+    beltpp::ip_address open_address("", 0, 
+                                    address_item.local.address,
+                                    address_item.local.port,
+                                    beltpp::ip_address::e_type::ipv4);
     sk.open(open_address);
 
+    peer_id channel_id;
     beltpp::isocket::packets pcs;
     std::unordered_set<beltpp::ievent_item const*> set_items;
     while(true)
     {
         if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
             pcs = sk.receive(channel_id);
+
         if (channel_id.empty() && pcs.empty())
             continue;
-        else
-            break;
+        
+        break;
     }
 
-    return sk;
+    return channel_id;
 }
 
-void SendReceive(beltpp::packet evType, beltpp::socket& sk, pr_id channel_id,
+void SendReceive(beltpp::packet evType, beltpp::socket& sk, peer_id channel_id,
                                                     beltpp::event_handler& eh)
 {
     sk.send(channel_id, std::move(evType));

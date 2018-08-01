@@ -11,10 +11,10 @@
 // Blocks and headers max count per one request
 #define TRANSFER_LENGTH 10
 
-// Block mine delay in minutes
-#define BLOCK_MINE_DELAY 10
+// Block mine delay in seconds
+#define BLOCK_MINE_DELAY 600
 // Step apply delay in seconds
-#define BLOCK_APPLY_DELAY 30
+#define BLOCK_APPLY_DELAY 10
 // Sync process request/response maximum dely
 #define SYNC_STEP_TIMEOUT 3
 

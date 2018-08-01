@@ -48,8 +48,8 @@ uint64_t state::get_balance(std::string const& key) const
 
 bool state::check_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const
 {
-    if (transfer.amount == 0)
-        throw std::runtime_error("0 amount transfer is restricted!");
+    //if (transfer.amount == 0)
+    //    throw std::runtime_error("0 amount transfer is restricted!");
 
     if (m_pimpl->m_state->accounts.find(transfer.from) != m_pimpl->m_state->accounts.end())
     {

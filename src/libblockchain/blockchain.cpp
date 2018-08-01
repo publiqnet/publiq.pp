@@ -365,12 +365,9 @@ bool blockchain::mine_allowed() const
 
     //  both previous_time_point and current_time_point keep track of UTC time
 
-    chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
-    auto num_minutes = diff_minutes.count();
-    chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
-    auto num_hours = diff_hours.count();
+    chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
 
-    return num_minutes >= BLOCK_MINE_DELAY || num_hours > 0;
+    return diff_seconds.count() >= BLOCK_MINE_DELAY;
 }
 
 bool blockchain::apply_allowed() const
@@ -386,13 +383,8 @@ bool blockchain::apply_allowed() const
     //  both previous_time_point and current_time_point keep track of UTC time
 
     chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
-    auto num_seconds = diff_seconds.count();
-    chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
-    auto num_minutes = diff_minutes.count();
-    chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
-    auto num_hours = diff_hours.count();
 
-    return num_seconds >= BLOCK_APPLY_DELAY || num_minutes > 0 || num_hours > 0;
+    return diff_seconds.count() >= BLOCK_APPLY_DELAY;
 }
 
 

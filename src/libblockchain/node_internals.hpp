@@ -213,13 +213,8 @@ public:
         system_clock::time_point previous_time_point = system_clock::from_time_t(sync_time.tm);
 
         chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
-        auto num_seconds = diff_seconds.count();
-        chrono::minutes diff_minutes = chrono::duration_cast<chrono::minutes>(current_time_point - previous_time_point);
-        auto num_minutes = diff_minutes.count();
-        chrono::hours diff_hours = chrono::duration_cast<chrono::hours>(current_time_point - previous_time_point);
-        auto num_hours = diff_hours.count();
 
-        if (num_seconds >= SYNC_STEP_TIMEOUT || num_minutes > 0 || num_hours > 0)
+        if (diff_seconds.count() >= SYNC_STEP_TIMEOUT)
             clear_sync_state(sync_peerid);
 
         return true;
