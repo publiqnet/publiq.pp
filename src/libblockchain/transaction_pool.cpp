@@ -106,7 +106,7 @@ bool transaction_pool::insert(beltpp::packet const& package)
 
 bool transaction_pool::at(string const& key, SignedTransaction& signed_transaction) const
 {
-    if (contains(key))
+    if (!contains(key))
         return false;
 
     signed_transaction = m_pimpl->m_transactions[key];
@@ -116,7 +116,7 @@ bool transaction_pool::at(string const& key, SignedTransaction& signed_transacti
 
 bool transaction_pool::remove(string const& key)
 {
-    if (contains(key))
+    if (!contains(key))
         return false;
 
     string hash_id = m_pimpl->get_df_id(key);

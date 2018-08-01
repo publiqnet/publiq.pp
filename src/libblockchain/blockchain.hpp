@@ -35,7 +35,8 @@ public:
     bool header_at(uint64_t number, BlockchainMessage::BlockHeader& block_header) const;
     void remove_last_block();
 
-    uint64_t calc_delta(std::string const& key, uint64_t amount, BlockchainMessage::Block const& block) const;
+    uint64_t calc_delta(std::string const& key, uint64_t amount, 
+                        BlockchainMessage::BlockHeader const& block_header) const;
     void mine_block(meshpp::private_key const& pv_key, uint64_t amount, 
                     publiqpp::transaction_pool const& transaction_pool);
     

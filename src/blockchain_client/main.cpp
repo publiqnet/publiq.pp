@@ -59,8 +59,15 @@ int main(int argc, char** argv)
 
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
-    key_pair_request.master_key = "ROB";
 
+    key_pair_request.master_key = "NODE";
+    send_package.set(key_pair_request);
+    Send(send_package, receive_package, sk, peerid, eh);
+
+    KeyPair node_key;
+    receive_package.get(node_key);
+
+    key_pair_request.master_key = "ROB";
     send_package.set(key_pair_request);
     Send(send_package, receive_package, sk, peerid, eh);
 
@@ -68,7 +75,6 @@ int main(int argc, char** argv)
     receive_package.get(rob_key);
 
     key_pair_request.master_key = "SERZ";
-
     send_package.set(key_pair_request);
     Send(send_package, receive_package, sk, peerid, eh);
 
@@ -77,12 +83,17 @@ int main(int argc, char** argv)
 
 
     Reward reward;
-    reward.amount = 100000;
-    reward.to = rob_key.public_key;
-
     LogTransaction log_transaction;
-    log_transaction.action = reward;
 
+    reward.amount = 10000000000;
+    reward.to = node_key.public_key;
+    log_transaction.action = reward;
+    send_package.set(log_transaction);
+    Send(send_package, receive_package, sk, peerid, eh);
+
+    reward.amount = 10000;
+    reward.to = rob_key.public_key;
+    log_transaction.action = reward;
     send_package.set(log_transaction);
     Send(send_package, receive_package, sk, peerid, eh);
 

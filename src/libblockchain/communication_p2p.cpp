@@ -17,22 +17,21 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
     std::vector<LoggedTransaction> logged_transactions;
     std::vector<std::pair<std::string, uint64_t>> amounts;
 
-    auto it = signed_block_vector.begin();
-    for (; it != signed_block_vector.end(); ++it)
+    for (auto it = signed_block_vector.begin(); it != signed_block_vector.end(); ++it)
     {
-        SignedBlock signed_block = std::move(*it);
+        uint64_t fee = 0;
+        SignedBlock signed_block = *it;
 
         Block block;
-        signed_block.block_details.get(block);
+        std::move(signed_block.block_details).get(block);
 
         // Check block transactions and calculate new state
         for (auto &signed_transaction : block.signed_transactions)
         {
-            Transaction transaction;
-            std::move(signed_transaction.transaction_details.action).get(transaction);
+            Transaction transaction = std::move(signed_transaction.transaction_details);
 
             Transfer transfer;
-            std::move(transaction.action).get(transfer);
+            transaction.action.get(transfer);
 
             if (signed_transaction.authority != transfer.from)
                 return false;
@@ -77,7 +76,10 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
             // remove transfer amount and fee from sender balance
             amount = tmp_state[key];
             if (amount >= transfer.amount + transaction.fee)
+            {
                 tmp_state[key] = amount - transfer.amount - transaction.fee;
+                fee += transaction.fee;
+            }
             else
                 return false;
 
@@ -133,15 +135,29 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
             uint64_t amount = 0;
             string key = reward.to;
 
-            auto it = tmp_state.find(key);
-            if (it != tmp_state.end())
-                amount = it->second;
+            auto state_it = tmp_state.find(key);
+            if (state_it != tmp_state.end())
+                amount = state_it->second;
             else
                 amount = m_pimpl->m_state.get_balance(key);
 
             tmp_state[key] = amount + reward.amount;
         }
+
+        // add fee to miner balance
+        uint64_t amount = 0;
+        auto state_it = tmp_state.find(signed_block.authority);
+        if (state_it != tmp_state.end())
+            amount = state_it->second;
+        else
+            amount = m_pimpl->m_state.get_balance(signed_block.authority);
+
+        tmp_state[signed_block.authority] = amount + fee;
     }
+
+    // Insert blocks
+    for (auto it = signed_block_vector.begin(); it != signed_block_vector.end(); ++it)
+        m_pimpl->m_blockchain.insert(std::move(*it));
 
     // Correct state
     m_pimpl->m_state.merge_block(tmp_state);
@@ -650,7 +666,7 @@ void process_blockchain_response(beltpp::packet& package,
         else
             amount = m_pimpl->m_state.get_balance(signed_block.authority);
 
-        uint64_t delta = m_pimpl->m_blockchain.calc_delta(signed_block.authority, amount, prev_block);
+        uint64_t delta = m_pimpl->m_blockchain.calc_delta(signed_block.authority, amount, prev_block.header);
 
         bad_data = bad_data || delta != block.header.consensus_delta;
         if (bad_data) continue;

@@ -14,9 +14,9 @@
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
-using std::map;
 using std::string;
 using std::vector;
+using std::multimap;
 
 namespace chrono = std::chrono;
 using chrono::system_clock;
@@ -114,7 +114,7 @@ void blockchain::header(BlockHeader& block_header) const
         block_header.consensus_sum = 0;
         block_header.consensus_delta = 0;
         block_header.consensus_const = 1;
-        block_header.previous_hash = "Ice Age";
+        block_header.previous_hash = meshpp::hash("Ice Age");;
     }
 }
 
@@ -151,6 +151,10 @@ bool blockchain::insert(beltpp::packet const& packet)
 
 bool blockchain::at(uint64_t number, SignedBlock& signed_block) const
 {
+    // corner case, untill genesis will be create
+    if (number == 0)
+        return true;
+
     if (number >= length())
         return false;
 
@@ -207,10 +211,10 @@ void blockchain::remove_last_block()
 }
 
 uint64_t blockchain::calc_delta(string const& key, uint64_t amount, 
-                                Block const& block) const
+                                BlockHeader const& block_header) const
 {
-    uint64_t d = m_pimpl->dist(key, block.header.previous_hash);
-    uint64_t delta = amount / (d * block.header.consensus_const);
+    uint64_t d = m_pimpl->dist(key, block_header.previous_hash);
+    uint64_t delta = amount / (d * block_header.consensus_const);
     
     if (delta > DELTA_MAX)
         delta = DELTA_MAX;
@@ -221,27 +225,30 @@ uint64_t blockchain::calc_delta(string const& key, uint64_t amount,
 void blockchain::mine_block(meshpp::private_key const& pv_key, uint64_t amount,
                             publiqpp::transaction_pool const& transaction_pool)
 {
-    uint64_t block_number = length() - 1;
-
     SignedBlock prev_signed_block;
-    at(block_number, prev_signed_block);
+    uint64_t block_number = length();
+
+    // corner case, managed
+    if (block_number == 0)
+        at(block_number, prev_signed_block);
+    else
+        at(block_number - 1, prev_signed_block);
 
     beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
     string prev_block_hash = meshpp::hash(package_prev_block.to_string());
 
-    Block prev_block;
-    std::move(package_prev_block).get(prev_block);
+    BlockHeader prev_block_header;
+    header(prev_block_header);
 
     string key = pv_key.get_public_key().to_string();
-    uint64_t delta = calc_delta(key, amount, prev_block);
+    uint64_t delta = calc_delta(key, amount, prev_block_header);
 
     // fill new block header data
-    ++block_number;
     BlockHeader block_header;
     block_header.block_number = block_number;
     block_header.consensus_delta = delta;
-    block_header.consensus_const = prev_block.header.consensus_const;
-    block_header.consensus_sum = prev_block.header.consensus_sum + delta;
+    block_header.consensus_const = prev_block_header.consensus_const;
+    block_header.consensus_sum = prev_block_header.consensus_sum + delta;
     block_header.previous_hash = prev_block_hash;
     block_header.sign_time.tm = system_clock::to_time_t(system_clock::now());
 
@@ -260,7 +267,7 @@ void blockchain::mine_block(meshpp::private_key const& pv_key, uint64_t amount,
         }
 
         if (step >= DELTA_STEP)
-            block_header.consensus_const = prev_block.header.consensus_const * 2;
+            block_header.consensus_const = prev_block_header.consensus_const * 2;
     }
     else
     if (delta < DELTA_DOWN && block_header.consensus_const > 1)
@@ -277,7 +284,7 @@ void blockchain::mine_block(meshpp::private_key const& pv_key, uint64_t amount,
         }
 
         if (step >= DELTA_STEP)
-            block_header.consensus_const = prev_block.header.consensus_const / 2;
+            block_header.consensus_const = prev_block_header.consensus_const / 2;
     }
 
     Block block;
@@ -294,14 +301,15 @@ void blockchain::mine_block(meshpp::private_key const& pv_key, uint64_t amount,
     
     transaction_pool.get_keys(m_pimpl->tmp_keys);
 
-    map<BlockchainMessage::ctime, SignedTransaction> transaction_map;
+    multimap<BlockchainMessage::ctime, SignedTransaction> transaction_map;
 
     for (auto& it : m_pimpl->tmp_keys)
     {
         SignedTransaction signed_transaction;
         transaction_pool.at(it, signed_transaction);
         
-        transaction_map[signed_transaction.transaction_details.creation] = signed_transaction;
+        transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(signed_transaction.transaction_details.creation, 
+                                                                                      signed_transaction));
     }
 
     for (auto it = transaction_map.begin(); it != transaction_map.end(); ++it)
@@ -322,7 +330,7 @@ void blockchain::mine_block(meshpp::private_key const& pv_key, uint64_t amount,
 
 bool blockchain::tmp_header(BlockHeader& block_header) const
 {
-    if (length() >= m_pimpl->tmp_header.block_number)
+    if (length() > m_pimpl->tmp_header.block_number)
         return false;
 
     block_header = m_pimpl->tmp_header;

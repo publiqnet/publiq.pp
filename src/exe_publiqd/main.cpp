@@ -188,8 +188,12 @@ int main(int argc, char** argv)
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
         //plogger_rpc->disable();
 
-        meshpp::random_seed seed;
-        meshpp::private_key pv_key = seed.get_private_key(0);
+        //__debugbreak();
+
+        //NODE key
+        //meshpp::random_seed seed;
+        //meshpp::private_key pv_key = seed.get_private_key(0);
+        meshpp::private_key pv_key = "5KkLPX9oWvZR5tkoXGWqSiASxSB7PdjheacT351QcAQMjXUmVmi";
 
         publiqpp::node node(rpc_bind_to_address,
                             p2p_bind_to_address,
