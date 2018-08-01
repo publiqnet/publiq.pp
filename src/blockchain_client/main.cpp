@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <thread>
 
 using namespace BlockchainMessage;
 using peer_id = beltpp::socket::peer_id;
@@ -58,17 +59,26 @@ int main(int argc, char** argv)
 
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
-    key_pair_request.master_key = "TEST";
+    key_pair_request.master_key = "ROB";
 
     send_package.set(key_pair_request);
     Send(send_package, receive_package, sk, peerid, eh);
 
-    KeyPair key_pair;
-    receive_package.get(key_pair);
+    KeyPair rob_key;
+    receive_package.get(rob_key);
+
+    key_pair_request.master_key = "SERZ";
+
+    send_package.set(key_pair_request);
+    Send(send_package, receive_package, sk, peerid, eh);
+
+    KeyPair serz_key;
+    receive_package.get(serz_key);
+
 
     Reward reward;
-    reward.amount = 10;
-    reward.to = key_pair.public_key;
+    reward.amount = 100000;
+    reward.to = rob_key.public_key;
 
     LogTransaction log_transaction;
     log_transaction.action = reward;
@@ -76,38 +86,43 @@ int main(int argc, char** argv)
     send_package.set(log_transaction);
     Send(send_package, receive_package, sk, peerid, eh);
 
-    Transfer transfer;
-    transfer.from = key_pair.public_key;
-    transfer.to = key_pair.public_key;
-    transfer.amount = 1;
+    for (auto i = 0; i < 10; ++i)
+    {
+        Transfer transfer;
+        transfer.from = rob_key.public_key;
+        transfer.to = serz_key.public_key;
+        transfer.amount = 10 + i;
 
-    Transaction transaction;
-    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-    transaction.fee = 0;
-    transaction.action = transfer;
+        Transaction transaction;
+        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+        transaction.fee = 1;
+        transaction.action = transfer;
 
-    SignRequest sign_request;
-    sign_request.private_key = key_pair.private_key;
-    sign_request.package = transaction;
+        SignRequest sign_request;
+        sign_request.private_key = rob_key.private_key;
+        sign_request.package = transaction;
 
-    send_package.set(sign_request);
-    Send(send_package, receive_package, sk, peerid, eh);
+        send_package.set(sign_request);
+        Send(send_package, receive_package, sk, peerid, eh);
 
-    Signature signature;
-    receive_package.get(signature);
+        Signature signature;
+        receive_package.get(signature);
 
-    SignedTransaction signed_transaction;
-    signed_transaction.authority = key_pair.public_key;
-    signed_transaction.signature = signature.signature;
-    signed_transaction.transaction_details = transaction;
+        SignedTransaction signed_transaction;
+        signed_transaction.authority = rob_key.public_key;
+        signed_transaction.signature = signature.signature;
+        signed_transaction.transaction_details = transaction;
 
-    Broadcast broadcast;
-    broadcast.echoes = 2;
-    broadcast.package = signed_transaction;
-    
-    send_package.set(broadcast);
-    Send(send_package, receive_package, sk, peerid, eh);
+        Broadcast broadcast;
+        broadcast.echoes = 2;
+        broadcast.package = signed_transaction;
+
+        send_package.set(broadcast);
+        Send(send_package, receive_package, sk, peerid, eh);
+
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
 
     return 0;
 }
