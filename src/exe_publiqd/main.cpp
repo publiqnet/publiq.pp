@@ -40,7 +40,8 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& p2p_bind_to_address,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
-                          string& data_directory);
+                          string& data_directory,
+                          meshpp::private_key& pv_key);
 
 bool g_termination_handled = false;
 publiqpp::node* g_pnode = nullptr;
@@ -134,12 +135,16 @@ int main(int argc, char** argv)
     beltpp::ip_address rpc_bind_to_address;
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
+    //  node key
+    meshpp::random_seed seed;
+    meshpp::private_key pv_key = seed.get_private_key(0);
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
                                       p2p_connect_to_addresses,
                                       rpc_bind_to_address,
-                                      data_directory))
+                                      data_directory,
+                                      pv_key))
         return 1;
 
     if (false == data_directory.empty())
@@ -189,11 +194,6 @@ int main(int argc, char** argv)
         //plogger_rpc->disable();
 
         //__debugbreak();
-
-        //NODE key
-        //meshpp::random_seed seed;
-        //meshpp::private_key pv_key = seed.get_private_key(0);
-        meshpp::private_key pv_key = "5KkLPX9oWvZR5tkoXGWqSiASxSB7PdjheacT351QcAQMjXUmVmi";
 
         publiqpp::node node(rpc_bind_to_address,
                             p2p_bind_to_address,
@@ -253,10 +253,12 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& p2p_bind_to_address,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
-                          string& data_directory)
+                          string& data_directory,
+                          meshpp::private_key& pv_key)
 {
     string p2p_local_interface;
     string rpc_local_interface;
+    string str_pv_key;
     vector<string> hosts;
     program_options::options_description options_description;
     try
@@ -270,7 +272,8 @@ bool process_command_line(int argc, char** argv,
             ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface)->required(),
                             "The local network interface and port to bind to")
             ("data_directory,d", program_options::value<string>(&data_directory),
-                            "Data directory path");
+                            "Data directory path")
+            ("node_private_key,k", program_options::value<string>(&str_pv_key));
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -294,6 +297,9 @@ bool process_command_line(int argc, char** argv,
             address_item.from_string(item);
             p2p_connect_to_addresses.push_back(address_item);
         }
+
+        if (false == str_pv_key.empty())
+            pv_key = meshpp::private_key(str_pv_key);
     }
     catch (std::exception const& ex)
     {
