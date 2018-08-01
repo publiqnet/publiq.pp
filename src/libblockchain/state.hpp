@@ -23,7 +23,7 @@ public:
     void merge_block(std::unordered_map<std::string, uint64_t> const& tmp_state);
 
     // for test only
-    void state::apply_reward(BlockchainMessage::Reward const& reward);
+    void apply_reward(BlockchainMessage::Reward const& reward);
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
 };
