@@ -5,8 +5,7 @@
 using std::stack;
 
 void submit_action(beltpp::packet&& package,
-                   publiqpp::action_log& action_log,
-                   publiqpp::transaction_pool& transaction_pool,
+                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                    beltpp::isocket& sk,
                    beltpp::isocket::peer_id const& peerid)
 {
@@ -25,6 +24,8 @@ void submit_action(beltpp::packet&& package,
             ref_action.get(msg_reward);
             // following will throw on invalid public key
             meshpp::public_key temp(msg_reward.to);
+
+            m_pimpl->m_state.apply_reward(msg_reward);
         }
         else if (Transfer::rtt == ref_action.type())
         {
@@ -43,7 +44,7 @@ void submit_action(beltpp::packet&& package,
         action_info.index = 0; // will be set automatically
         action_info.action = std::move(ref_action);
 
-        action_log.insert(action_info);
+        m_pimpl->m_action_log.insert(action_info);
         break;
     }
     default:

@@ -75,14 +75,6 @@ node::~node()
 
 }
 
-/*void node::send(peer_id const& peer,
-                packet&& pack)
-{
-    Other wrapper;
-    wrapper.contents = std::move(pack);
-    m_pimpl->m_ptr_p2p_socket->send(peer, std::move(wrapper));
-}*/
-
 void node::terminate()
 {
     m_pimpl->m_ptr_eh->terminate();
@@ -99,9 +91,7 @@ bool node::run()
 
     unordered_set<beltpp::ievent_item const*> wait_sockets;
 
-    //m_pimpl->writeln_node("eh.wait");
     auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
-    //m_pimpl->writeln_node("eh.wait - done");
 
     enum class interface_type {p2p, rpc};
 
@@ -273,8 +263,7 @@ bool node::run()
                 {
                     if (it == interface_type::rpc)
                         submit_action(std::move(ref_packet),
-                                      m_pimpl->m_action_log,
-                                      m_pimpl->m_transaction_pool,
+                                      m_pimpl,
                                       *psk,
                                       peerid);
                     break;

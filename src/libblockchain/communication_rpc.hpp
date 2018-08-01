@@ -5,8 +5,7 @@
 #include "transaction_pool.hpp"
 
 void submit_action(beltpp::packet&& package,
-                   publiqpp::action_log& action_log,
-                   publiqpp::transaction_pool& transaction_pool,
+                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                    beltpp::isocket& sk,
                    beltpp::isocket::peer_id const& peerid);
 

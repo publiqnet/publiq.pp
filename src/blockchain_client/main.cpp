@@ -51,11 +51,10 @@ int main(int argc, char** argv)
     eh.add(sk);
 
     peerid = openChannel(argv, sk, eh);
+    cout << endl << peerid << endl;
 
     beltpp::packet send_package;
     beltpp::packet receive_package;
-
-    cout << endl << peerid << endl;
 
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
@@ -63,15 +62,24 @@ int main(int argc, char** argv)
 
     send_package.set(key_pair_request);
     Send(send_package, receive_package, sk, peerid, eh);
-    cout << endl << receive_package.to_string() << endl;
 
     KeyPair key_pair;
     receive_package.get(key_pair);
 
+    Reward reward;
+    reward.amount = 10;
+    reward.to = key_pair.public_key;
+
+    LogTransaction log_transaction;
+    log_transaction.action = reward;
+
+    send_package.set(log_transaction);
+    Send(send_package, receive_package, sk, peerid, eh);
+
     Transfer transfer;
     transfer.from = key_pair.public_key;
     transfer.to = key_pair.public_key;
-    transfer.amount = 0;
+    transfer.amount = 1;
 
     Transaction transaction;
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
@@ -85,7 +93,6 @@ int main(int argc, char** argv)
 
     send_package.set(sign_request);
     Send(send_package, receive_package, sk, peerid, eh);
-    cout << endl << receive_package.to_string() << endl;
 
     Signature signature;
     receive_package.get(signature);
@@ -101,7 +108,6 @@ int main(int argc, char** argv)
     
     send_package.set(broadcast);
     Send(send_package, receive_package, sk, peerid, eh);
-    cout << endl << receive_package.to_string() << endl;
 
     return 0;
 }
@@ -112,23 +118,27 @@ void Send(beltpp::packet& send_package,
           peer_id peerid,
           beltpp::event_handler& eh)
 {
-       sk.send(peerid, std::move(send_package));
-    
-       while (true)
-       {
-           beltpp::isocket::packets packets;
-           std::unordered_set<beltpp::ievent_item const*> set_items;
-    
-           if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
-               packets = sk.receive(peerid);
-    
-           if (peerid.empty() || packets.empty())
-               continue;
-    
-           ::detail::assign_packet(receive_package, packets.front());
-           
-           break;
-       }
+   cout << endl << endl << "Package sent -> "<< endl << send_package.to_string() << endl;
+
+   sk.send(peerid, std::move(send_package));
+
+   while (true)
+   {
+       beltpp::isocket::packets packets;
+       std::unordered_set<beltpp::ievent_item const*> set_items;
+
+       if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
+           packets = sk.receive(peerid);
+
+       if (peerid.empty() || packets.empty())
+           continue;
+
+       ::detail::assign_packet(receive_package, packets.front());
+       
+       break;
+   }
+
+   cout << endl << "Package received -> " << endl << receive_package.to_string() << endl;
 }
 
 peer_id openChannel(char** argv, beltpp::socket& sk, beltpp::event_handler& eh)

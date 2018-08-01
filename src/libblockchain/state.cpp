@@ -48,13 +48,13 @@ uint64_t state::get_balance(std::string const& key) const
 
 bool state::check_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const
 {
-    //if (transfer.amount == 0)
-    //    throw std::runtime_error("0 amount transfer is restricted!");
-
+    if (transfer.amount == 0)
+        throw std::runtime_error("0 amount transfer is restricted!");
+    
     if (m_pimpl->m_state->accounts.find(transfer.from) != m_pimpl->m_state->accounts.end())
     {
         uint64_t balance = m_pimpl->m_state->accounts[transfer.from];
-
+    
         if (balance >= transfer.amount + fee)
             return true;
     }
@@ -81,6 +81,20 @@ void state::apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t
     // increase "to" balance
     balance = m_pimpl->m_state->accounts[transfer.to];
     m_pimpl->m_state->accounts[transfer.to] = balance + transfer.amount;
+
+    // save state to file after each change
+    m_pimpl->m_state.save();
+}
+
+void state::apply_reward(BlockchainMessage::Reward const& reward)
+{
+    if (reward.amount == 0)
+        throw std::runtime_error("0 amount reward is humiliatingly!");
+
+    uint64_t balance = get_balance(reward.to);
+
+    balance = balance + reward.amount;
+    m_pimpl->m_state->accounts[reward.to] = balance;
 
     // save state to file after each change
     m_pimpl->m_state.save();
