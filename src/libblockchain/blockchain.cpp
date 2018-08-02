@@ -290,15 +290,21 @@ void blockchain::mine_block(meshpp::private_key const& pv_key, uint64_t amount,
     Block block;
     block.header = block_header; // move is not allowed
 
+    // grant rewards and move to block
     vector<Reward> rewards;
-    //TODO fill rewards
+    transaction_pool.grant_rewards(rewards);
 
-    // copy rewards to block
     for (auto& it : rewards)
         block.rewards.push_back(std::move(it));
 
+    // grant miner reward himself
+    Reward own_reward;
+    own_reward.amount = MINER_REWARD;
+    own_reward.to = key;
+
+    block.rewards.push_back(own_reward);
+
     // copy transactions from pool to block
-    
     transaction_pool.get_keys(m_pimpl->tmp_keys);
 
     multimap<BlockchainMessage::ctime, SignedTransaction> transaction_map;

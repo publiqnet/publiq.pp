@@ -25,3 +25,4 @@
 #define DELTA_DOWN  80000000
 
 #define MINE_THRESHOLD 1
+#define MINER_REWARD 100

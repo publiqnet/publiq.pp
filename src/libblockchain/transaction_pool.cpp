@@ -10,6 +10,7 @@ using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 using std::string;
+using std::vector;
 
 using hash_index_loader = meshpp::file_loader<Data::StringSet, 
                                               &Data::StringSet::from_string,
@@ -163,6 +164,13 @@ void transaction_pool::get_keys(std::vector<std::string> &keys) const
 
     for (auto &it : m_pimpl->m_transactions)
         keys.push_back(it.first);
+}
+
+void transaction_pool::grant_rewards(vector<Reward>& rewards) const
+{
+    rewards.clear();
+
+    //TODO add something meaningfull
 }
 
 }

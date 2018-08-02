@@ -35,6 +35,8 @@ public:
     void get_amounts(std::string const& key, 
                      std::vector<std::pair<std::string, uint64_t>>& amounts, 
                      bool in_out) const;
+
+    void grant_rewards(std::vector<BlockchainMessage::Reward>& rewards) const;
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };
