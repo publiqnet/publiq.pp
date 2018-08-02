@@ -627,6 +627,15 @@ bool node::run()
         }
     }
 
+    int64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(m_pimpl->m_timer.elapsed()).count();
+    //if (milliseconds > 500)
+        m_pimpl->writeln_node("timer elapsed " + std::to_string(milliseconds) + " milliseconds");
+    if (m_pimpl->m_timer.expired())
+    {
+        m_pimpl->writeln_node("timer expired");
+        m_pimpl->m_timer.update();
+    }
+
     return code;
 }
 

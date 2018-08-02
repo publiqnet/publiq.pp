@@ -13,6 +13,7 @@
 #include <belt.pp/utility.hpp>
 #include <belt.pp/scope_helper.hpp>
 #include <belt.pp/message_global.hpp>
+#include <belt.pp/timer.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
 #include <mesh.pp/cryptoutility.hpp>
@@ -124,6 +125,8 @@ public:
             beltpp::getsocket<rpc_sf>(*m_ptr_eh)
         ))
 
+        , m_timer()
+
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log)
         , m_storage(fs_storage)
@@ -132,6 +135,8 @@ public:
         , private_key(pv_key)
     {
         m_ptr_eh->set_timer(chrono::seconds(30));
+
+        m_timer.set(chrono::seconds(1));
 
         m_ptr_rpc_socket->listen(rpc_bind_to_address);
 
@@ -255,6 +260,8 @@ public:
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
+
+    beltpp::timer m_timer;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
