@@ -18,12 +18,10 @@ class state_holder
 void analyze(   state_holder& state,
                 expression_tree const* pexpression,
                 std::string const& outputFilePath,
-                std::string const& VendorName,
                 std::string const& PackageName);
 
 void analyze_struct(    state_holder& state,
                         expression_tree const* pexpression,
                         std::string const& type_name,
-                        std::string const& VendorName,
                         std::string const& PackageName,
                         boost::filesystem::path const& ModelFolder);

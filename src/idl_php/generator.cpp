@@ -105,7 +105,7 @@ string handleArrayForObjects(int count, string member_name, string object_name)
             arrayCase +=
                        "              $" + item + "Obj = new " + object_name + "(); \n"
                        "              $" + item + "Obj->validate($" + item + "); \n"+
-                       "              $this->" + member_name + "[] = $" + item + "Obj";
+                       "              $this->" + member_name + "[] = $" + item + "Obj;\n";
         }
 
 
@@ -257,7 +257,6 @@ void construct_type_name(expression_tree const* member_type,
 void analyze(   state_holder& state,
                 expression_tree const* pexpression,
                 std::string const& outputFilePath,
-                std::string const& VendorName,
                 std::string const& PackageName)
 {
 
@@ -268,9 +267,6 @@ void analyze(   state_holder& state,
 
 
     boost::filesystem::path root = outputFilePath;
-
-    root.append(VendorName);
-    boost::filesystem::create_directory(root);
 
     root.append(PackageName);
     boost::filesystem::create_directory(root);
@@ -287,7 +283,7 @@ void analyze(   state_holder& state,
     boost::filesystem::ofstream validator(ValidatorInterfaceFilePath);
 
     validator <<"<?php\n" <<
-                "namespace " << VendorName <<"\\" << PackageName << "\\Base;\n";
+                "namespace " << PackageName << "\\Base;\n";
     validator<< R"file_template(
 interface ValidatorInterface
 {
@@ -310,7 +306,7 @@ interface ValidatorInterface
         //////////////// create Model Folder ////////////////////
 
         std::string Model = "Model";
-        boost::filesystem::path ModelFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + src + "/" + Model;
+        boost::filesystem::path ModelFolder = outputFilePath + "/" + PackageName + "/" + src + "/" + Model;
         boost::filesystem::create_directory(ModelFolder);
 
         ////////////////////////////////////////////////////////
@@ -331,7 +327,6 @@ interface ValidatorInterface
                         analyze_struct(     state,
                                             item->children.back(),
                                             type_name,
-                                            VendorName,
                                             PackageName,
                                             ModelFolder);
 
@@ -355,7 +350,7 @@ interface ValidatorInterface
 
 
     std::string Base = "Base";
-    boost::filesystem::path BaseFolder = outputFilePath + "/" + VendorName + "/" + PackageName + "/" + src + "/" + Base;
+    boost::filesystem::path BaseFolder = outputFilePath + "/" + PackageName + "/" + src + "/" + Base;
     boost::filesystem::create_directory(BaseFolder);
 
     ///////////////// create Rtt.php file ////////////////////
@@ -363,7 +358,7 @@ interface ValidatorInterface
     boost::filesystem::path RttFilePath = BaseFolderPath.string() + "/" + "Rtt.php";
     boost::filesystem::ofstream RTT(RttFilePath);
     RTT <<"<?php\n" <<
-          "namespace " << VendorName << "\\" << PackageName << "\\Base;\n";
+          "namespace "  << PackageName << "\\Base;\n";
     RTT<<
     R"file_template(
 class Rtt
@@ -402,7 +397,7 @@ class Rtt
         }
         try {
             $className = ')file_template";
-    RTT<< VendorName<<"\\\\"<<PackageName<<"\\\\Model\\\\' . Rtt::types[$jsonObj->rtt];";
+    RTT<<PackageName<<"\\\\Model\\\\' . Rtt::types[$jsonObj->rtt];";
           RTT<<R"file_template(
             /**
             * @var ValidatorInterface $class
@@ -424,7 +419,7 @@ class Rtt
     boost::filesystem::path RttSerializableTraitFilePath = BaseFolderPath.string() + "/" + "RttSerializableTrait.php";
     boost::filesystem::ofstream RttSerializableTrait(RttSerializableTraitFilePath);
     RttSerializableTrait <<"<?php\n" <<
-                           "namespace " << VendorName << "\\" << PackageName << "\\Base;\n";
+                           "namespace " << PackageName << "\\Base;\n";
     RttSerializableTrait<<
 R"file_template(
 trait RttSerializableTrait
@@ -451,7 +446,7 @@ trait RttSerializableTrait
     boost::filesystem::path RttToJsonTraitFilePath = BaseFolderPath.string() + "/" + "RttToJsonTrait.php";
     boost::filesystem::ofstream RttToJsonTrait(RttToJsonTraitFilePath);
     RttToJsonTrait <<"<?php\n" <<
-                     "namespace " << VendorName << "\\" << PackageName << "\\Base;\n";
+                     "namespace " << PackageName << "\\Base;\n";
     RttToJsonTrait<<
 R"file_template(
 trait RttToJsonTrait
@@ -469,7 +464,6 @@ trait RttToJsonTrait
 void analyze_struct(    state_holder& state,
                         expression_tree const* pexpression,
                         string const& type_name,
-                        std::string const& VendorName,
                         std::string const& PackageName,
                         boost::filesystem::path const& ModelFolder
                         )
@@ -516,11 +510,11 @@ void analyze_struct(    state_holder& state,
     model<<
              "<?php\n"
 
-             "namespace " + VendorName + "\\" + PackageName + "\\Model;\n" +
-             "use " + VendorName + "\\" + PackageName +  "\\Base\\RttSerializableTrait;\n" +
-             "use " + VendorName + "\\" + PackageName +  "\\Base\\RttToJsonTrait;\n" +
-             "use " + VendorName + "\\" + PackageName +  "\\Base\\ValidatorInterface;\n" +
-             "use " + VendorName + "\\" + PackageName +  "\\Base\\Rtt;\n" +
+             "namespace " + PackageName + "\\Model;\n" +
+             "use " + PackageName +  "\\Base\\RttSerializableTrait;\n" +
+             "use " + PackageName +  "\\Base\\RttToJsonTrait;\n" +
+             "use " + PackageName +  "\\Base\\ValidatorInterface;\n" +
+             "use " + PackageName +  "\\Base\\Rtt;\n" +
 
 
 

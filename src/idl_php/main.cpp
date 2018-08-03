@@ -115,12 +115,11 @@ int main(int argc, char* argv[])
 
         state_holder state;
 
-        if(argc>=5)
+        if(argc>=2)
         {
             string outputFilePath = argv[2];
-            string VendorName = argv[3];
-            string PackageName = argv[4];
-            analyze(state, ptr_expression.get(), outputFilePath, VendorName, PackageName);
+            string PackageName = argv[3];
+            analyze(state, ptr_expression.get(), outputFilePath,  PackageName);
         }
     }
     catch(std::exception const& ex)

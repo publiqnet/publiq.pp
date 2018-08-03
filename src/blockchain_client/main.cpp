@@ -5,7 +5,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-
+#include <boost/filesystem.hpp>
 using namespace BlockchainMessage;
 using peer_id = beltpp::socket::peer_id;
 
@@ -56,6 +56,23 @@ int main(int argc, char** argv)
 
     beltpp::packet send_package;
     beltpp::packet receive_package;
+
+  /*  StorageFile file;
+    file.mime_type = "audio/mpeg";
+
+    boost::filesystem::ifstream fl;
+    fl.open("/Users/sona/Downloads/3.mp3", std::ios_base::binary);
+    if (fl)
+    {
+        auto end = std::istreambuf_iterator<char>();
+        auto begin = std::istreambuf_iterator<char>(fl);
+        file.data.assign(begin, end);
+        file.data.resize(10000);
+    }
+
+    send_package.set(file);
+    Send(send_package, receive_package, sk, peerid, eh);*/
+
 
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
@@ -211,6 +228,10 @@ void SendReceive(beltpp::packet evType, beltpp::socket& sk, peer_id channel_id,
         {
             switch(pc.type())
             {
+            case StorageFile::rtt:
+            {
+                std::cout<<"The event type is  StorageFile: "<<std::endl;
+            }
             case Join::rtt:
                 std::cout << "The event type is Join: " << endl << endl;
                 break;
