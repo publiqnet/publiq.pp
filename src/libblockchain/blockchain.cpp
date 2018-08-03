@@ -135,10 +135,6 @@ bool blockchain::insert(beltpp::packet const& packet)
 
 bool blockchain::at(uint64_t number, SignedBlock& signed_block) const
 {
-    // corner case, untill genesis will be create
-    if (number == 0)
-        return true;
-
     if (number >= length())
         return false;
 

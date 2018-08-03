@@ -170,11 +170,7 @@ bool node::run()
                         m_pimpl->add_peer(peerid);
 
                         guard.dismiss();
-
-                        m_pimpl->store_request(peerid, ChainInfoRequest());
-                        psk->send(peerid, ChainInfoRequest());
                     }
-
                     break;
                 }
                 case Drop::rtt:
@@ -576,7 +572,7 @@ bool node::run()
     {
         m_pimpl->m_sync_timer.update();
 
-        if (m_pimpl->sync_free())
+        if (m_pimpl->sync_free() && m_pimpl->sync_timeout())
             m_pimpl->new_sync_request();
     }
 

@@ -420,18 +420,20 @@ void process_blockheader_request(beltpp::packet& package,
 
     uint64_t to = header_request.blocks_to;
     to = to > from ? from : to;
-    to = to < from - TRANSFER_LENGTH ? from - TRANSFER_LENGTH : to;
+    to = from > TRANSFER_LENGTH && to < from - TRANSFER_LENGTH ? from - TRANSFER_LENGTH : to;
 
     BlockHeaderResponse header_response;
-    for (auto index = from; index >= to; --to)
+    for (auto index = from; index >= to;)
     {
-        SignedBlock signed_block;
-        m_pimpl->m_blockchain.at(index, signed_block);
+        BlockHeader header;
+        m_pimpl->m_blockchain.header_at(index, header);
 
-        Block block;
-        std::move(signed_block.block_details).get(block);
+        header_response.block_headers.push_back(std::move(header));
 
-        header_response.block_headers.push_back(std::move(block.header));
+        if (index > 0)
+            --index;
+        else
+            break;
     }
 
     sk.send(peerid, header_response);
@@ -446,22 +448,24 @@ void process_blockheader_response(beltpp::packet& package,
     BlockHeader tmp_header;
     m_pimpl->m_blockchain.header(tmp_header);
 
-    if (!m_pimpl->sync_header_vector.empty() && // we have something received before
-        tmp_header.block_number >= m_pimpl->sync_header_vector.rbegin()->block_number)
-    {
-        // load next mot checked header
-        m_pimpl->m_blockchain.header_at(m_pimpl->sync_header_vector.rbegin()->block_number - 1, tmp_header);
-    }
-
     BlockHeaderResponse header_response;
     std::move(package).get(header_response);
 
     // validate received headers
     auto it = header_response.block_headers.begin();
     bool bad_data = header_response.block_headers.empty();
-    bad_data = bad_data ||
-               (!m_pimpl->sync_header_vector.empty() &&
-                tmp_header.block_number != (*it).block_number);
+
+    if (!m_pimpl->sync_header_vector.empty() && // we have something received before
+        tmp_header.block_number >= m_pimpl->sync_header_vector.rbegin()->block_number)
+    {
+        // load next mot checked header
+        m_pimpl->m_blockchain.header_at(m_pimpl->sync_header_vector.rbegin()->block_number - 1, tmp_header);
+
+        bad_data = bad_data || tmp_header.block_number != (*it).block_number;
+    }
+
+    if (bad_data)
+        throw wrong_data_exception("process_blockheader_response. empty data in header!");
 
     if (m_pimpl->sync_header_vector.empty())
     {
@@ -474,6 +478,9 @@ void process_blockheader_response(beltpp::packet& package,
 
         bad_data = bad_data || diff_seconds.count() < BLOCK_MINE_DELAY;
     }
+
+    if (bad_data)
+        throw wrong_data_exception("process_blockheader_response. incorrect data in header!");
 
     for (++it; !bad_data && it != header_response.block_headers.end(); ++it)
     {
@@ -488,9 +495,9 @@ void process_blockheader_response(beltpp::packet& package,
         system_clock::time_point time_point1 = system_clock::from_time_t((*(it)).sign_time.tm);
         system_clock::time_point time_point2 = system_clock::from_time_t((*(it - 1)).sign_time.tm);
 
-        bad_data = bad_data || time_point1 < time_point2;
+        bad_data = bad_data || time_point1 > time_point2;
 
-        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(time_point1 - time_point2);
+        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(time_point2 - time_point1);
 
         bad_data = bad_data || diff_seconds.count() < BLOCK_MINE_DELAY;
     }
@@ -518,77 +525,78 @@ void process_blockheader_response(beltpp::packet& package,
     {
         for (; !lcb_found && it != header_response.block_headers.end(); ++it)
         {
-            if (tmp_header == (*it))
+            if (tmp_header.previous_hash == it->previous_hash)
             {
                 lcb_found = true;
-                continue;
+                break;
             }
-            else if (tmp_header.consensus_sum < (*it).consensus_sum)
-            {
-                // store for possible use
-                m_pimpl->sync_header_vector.push_back(std::move(*it));
-                m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);
-            }
+
+            if (it->block_number == 0) // remove after genesis made
+                lcb_found = true;
+
+            // store for possible use
+            m_pimpl->sync_header_vector.push_back(std::move(*it));
+            m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);
         }
 
         if (lcb_found)
         {
             bad_data = m_pimpl->sync_header_vector.empty();
 
-            // verify consensus_const
-            if (!bad_data)
-            {
-                vector<pair<uint64_t, uint64_t>> delta_vector;
-
-                for (auto it = m_pimpl->sync_header_vector.begin(); it != m_pimpl->sync_header_vector.end(); ++it)
-                    delta_vector.push_back(pair<uint64_t, uint64_t>(it->consensus_delta, it->consensus_const));
-
-                uint64_t number = m_pimpl->sync_header_vector.rbegin()->block_number - 1;
-                uint64_t delta_step = number < DELTA_STEP ? number : DELTA_STEP;
-
-                for (uint64_t i = 0; i < delta_step; ++i)
-                {
-                    BlockHeader block_header;
-                    m_pimpl->m_blockchain.header_at(number - i, block_header);
-
-                    delta_vector.push_back(pair<uint64_t, uint64_t>(block_header.consensus_delta, block_header.consensus_const));
-                }
-
-                for (auto it = delta_vector.begin(); !bad_data && it + delta_step != delta_vector.end(); ++it)
-                {
-                    if (it->first > DELTA_UP)
-                    {
-                        size_t step = 0;
-                        uint64_t _delta = it->first;
-
-                        while (_delta > DELTA_UP && step < DELTA_STEP && it + step != delta_vector.end())
-                        {
-                            ++step;
-                            _delta = (it + step)->first;
-                        }
-
-                        if (step >= DELTA_STEP)
-                            bad_data = it->second != (it + 1)->second * 2;
-                    }
-                    else if (it->first < DELTA_DOWN && it->second > 1)
-                    {
-                        size_t step = 0;
-                        uint64_t _delta = it->first;
-
-                        while (_delta < DELTA_DOWN && step < DELTA_STEP && it + step != delta_vector.end())
-                        {
-                            ++step;
-                            _delta = (it + step)->first;
-                        }
-
-                        if (step >= DELTA_STEP)
-                            bad_data = it->second != (it + 1)->second / 2;
-                    }
-                }
-            }
-
-            if (bad_data)
-                throw wrong_data_exception("process_blockheader_response. nothing new!");
+            //// verify consensus_const
+            //if (!bad_data)
+            //{
+            //    vector<pair<uint64_t, uint64_t>> delta_vector;
+            //
+            //    for (auto it = m_pimpl->sync_header_vector.begin(); it != m_pimpl->sync_header_vector.end(); ++it)
+            //        delta_vector.push_back(pair<uint64_t, uint64_t>(it->consensus_delta, it->consensus_const));
+            //
+            //    uint64_t number = m_pimpl->sync_header_vector.rbegin()->block_number - 1;
+            //    uint64_t delta_step = number < DELTA_STEP ? number : DELTA_STEP;
+            //
+            //    for (uint64_t i = 0; i < delta_step; ++i)
+            //    {
+            //        BlockHeader block_header;
+            //        m_pimpl->m_blockchain.header_at(number - i, block_header);
+            //
+            //        delta_vector.push_back(pair<uint64_t, uint64_t>(block_header.consensus_delta, block_header.consensus_const));
+            //    }
+            //
+            //    for (auto it = delta_vector.begin(); !bad_data && it + delta_step != delta_vector.end(); ++it)
+            //    {
+            //        if (it->first > DELTA_UP)
+            //        {
+            //            size_t step = 0;
+            //            uint64_t _delta = it->first;
+            //
+            //            while (_delta > DELTA_UP && step < DELTA_STEP && it + step != delta_vector.end())
+            //            {
+            //                ++step;
+            //                _delta = (it + step)->first;
+            //            }
+            //
+            //            if (step >= DELTA_STEP)
+            //                bad_data = it->second != (it + 1)->second * 2;
+            //        }
+            //        else if (it->first < DELTA_DOWN && it->second > 1)
+            //        {
+            //            size_t step = 0;
+            //            uint64_t _delta = it->first;
+            //
+            //            while (_delta < DELTA_DOWN && step < DELTA_STEP && it + step != delta_vector.end())
+            //            {
+            //                ++step;
+            //                _delta = (it + step)->first;
+            //            }
+            //
+            //            if (step >= DELTA_STEP)
+            //                bad_data = it->second != (it + 1)->second / 2;
+            //        }
+            //    }
+            //}
+            //
+            //if (bad_data)
+            //    throw wrong_data_exception("process_blockheader_response. nothing new!");
 
             //3. request blockchain from found point
             BlockChainRequest blockchain_request;
@@ -606,7 +614,7 @@ void process_blockheader_response(beltpp::packet& package,
         // request more headers
         BlockHeaderRequest header_request;
         header_request.blocks_from = m_pimpl->sync_header_vector.rbegin()->block_number - 1;
-        header_request.blocks_to = header_request.blocks_from - TRANSFER_LENGTH;
+        header_request.blocks_to = header_request.blocks_from > TRANSFER_LENGTH ? header_request.blocks_from - TRANSFER_LENGTH : 0;
 
         sk.send(peerid, header_request);
         m_pimpl->update_sync_time();
@@ -662,16 +670,19 @@ void process_blockchain_response(beltpp::packet& package,
     // find last common block
     uint64_t block_number = (*m_pimpl->sync_header_vector.rbegin()).block_number;
 
-    if (block_number == 0)
-        throw wrong_data_exception("process_blockheader_response. uzum en qcen!");
+    //if (block_number == 0)
+    //    throw wrong_data_exception("process_blockheader_response. uzum en qcen!");
 
     SignedBlock prev_signed_block;
+    if(block_number > 0) //corner if
     m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
 
     Block prev_block;
+    if (block_number > 0) //corner if
     std::move(prev_signed_block.block_details).get(prev_block);
 
     std::unordered_map<string, uint64_t> accounts_diff;
+    if (block_number > 0) //corner if
     block_number = m_pimpl->m_blockchain.length() - 1;
 
     //-----------------------------------------------------//
@@ -702,6 +713,7 @@ void process_blockchain_response(beltpp::packet& package,
     //-----------------------------------------------------//
 
     // calculate back to get accounts_diff at LCB point
+    if (block_number > 0) //corner if
     while (block_number > prev_block.header.block_number)
     {
         SignedBlock signed_block;
@@ -777,18 +789,18 @@ void process_blockchain_response(beltpp::packet& package,
     m_pimpl->m_blockchain.header(own_header);
 
     // verify new received blocks
-    for (auto it = response.signed_blocks.begin(); it != response.signed_blocks.end(); ++it)
+    for (auto block_it = response.signed_blocks.begin(); block_it != response.signed_blocks.end(); ++block_it)
     {
         // verify block signature
-        bool sb_verify = meshpp::verify_signature(meshpp::public_key(it->authority),
-                                                  it->block_details.to_string(),
-                                                  it->signature);
+        bool sb_verify = meshpp::verify_signature(meshpp::public_key(block_it->authority),
+                                                  block_it->block_details.to_string(),
+                                                  block_it->signature);
         
         bad_data = !sb_verify;
         if (bad_data) break;
 
         Block block;
-        it->block_details.get(block);
+        block_it->block_details.get(block);
 
         // hankarc sxal headernerov xapac chlnen skzbic
         if (own_header.block_number == block.header.block_number)
@@ -798,49 +810,56 @@ void process_blockchain_response(beltpp::packet& package,
         if (bad_data) break;
 
         // verify block number
+        if (block_number > 0) //corner if
         bad_data = block.header.block_number != prev_block.header.block_number + 1;
         if (bad_data) break;
 
         // verify previous_hash
+        if (block_number > 1) //corner if
         bad_data = block.header.previous_hash != meshpp::hash(prev_block.to_string());
         if (bad_data) break;
 
         // verify consensus_delta
-        uint64_t amount = get_balance(it->authority);
-        uint64_t delta = calc_delta(it->authority, amount, prev_block.header);
-
-        bad_data = delta != block.header.consensus_delta;
-        if (bad_data) break;
+        uint64_t amount = get_balance(block_it->authority);
+        //if (block_number > 1) //corner if
+        //{
+        //    uint64_t delta = calc_delta(block_it->authority, amount, prev_block.header);
+        //
+        //    bad_data = delta != block.header.consensus_delta;
+        //    if (bad_data) break;
+        //}
 
         // verify consensus_sum
+        if (block_number > 1) //corner if
         bad_data = block.header.consensus_sum != (block.header.consensus_delta + prev_block.header.consensus_sum);
         if (bad_data) break;
 
         // verify miner balance at mining point
+        if (block_number > 1) //corner if
         bad_data = amount < MINE_AMOUNT_THRESHOLD;
         if (bad_data) break;
 
         // verify block transactions
         uint64_t fee = 0;
-        for (auto& signed_transaction : block.signed_transactions)
+        for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
-            bool st_verify = meshpp::verify_signature(meshpp::public_key(signed_transaction.authority),
-                                                      signed_transaction.transaction_details.to_string(),
-                                                      signed_transaction.signature);
+            bool st_verify = meshpp::verify_signature(meshpp::public_key(tr_it->authority),
+                                                      tr_it->transaction_details.to_string(),
+                                                      tr_it->signature);
             
             bad_data = !st_verify;
             if (bad_data) break;
 
             Transfer transfer;
-            signed_transaction.transaction_details.action.get(transfer);
+            tr_it->transaction_details.action.get(transfer);
 
-            bad_data = signed_transaction.authority != transfer.from;
+            bad_data = tr_it->authority != transfer.from;
             if (bad_data) break;
 
-            fee += signed_transaction.transaction_details.fee;
+            fee += tr_it->transaction_details.fee;
 
             // decrease "from" balance
-            bad_data = decrease_balance(transfer.from, transfer.amount + signed_transaction.transaction_details.fee);
+            bad_data = !decrease_balance(transfer.from, transfer.amount + tr_it->transaction_details.fee);
             if (bad_data) break;
 
             // increase "to" balance
@@ -850,15 +869,16 @@ void process_blockchain_response(beltpp::packet& package,
         if (bad_data) break;
 
         // increase authority balance
-        increase_balance(it->authority, fee);
+        increase_balance(block_it->authority, fee);
 
         //TODO verify rewards!
 
         // increase all reward amounts to balances
-        for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
-            increase_balance(it->to, it->amount);
+        for (auto reward_it = block.rewards.begin(); reward_it != block.rewards.end(); ++reward_it)
+            increase_balance(reward_it->to, reward_it->amount);
 
         prev_block = std::move(block);
+        ++block_number; // corner
     }
 
     if (bad_data) 
@@ -885,12 +905,18 @@ void process_blockchain_response(beltpp::packet& package,
     //3. apply received chain
     vector<SignedBlock> revert_block_vector;
     uint64_t from = m_pimpl->sync_header_vector.rbegin()->block_number;
-    for (auto i = m_pimpl->m_blockchain.length() - 1; i >= from; --i)
+    if(m_pimpl->m_blockchain.length() > 0) // corner if
+    for (auto i = m_pimpl->m_blockchain.length() - 1; i >= from;)
     {
         SignedBlock signed_block;
         m_pimpl->m_blockchain.at(i, signed_block);
 
         revert_block_vector.push_back(std::move(signed_block));
+
+        if (i > 0)
+            --i;
+        else
+            break;
     }
 
     revert_blocks(m_pimpl->m_blockchain.length() - from, m_pimpl);

@@ -8,11 +8,12 @@
 #define BLOCKCHAINSHARED_EXPORT MESH_IMPORT
 #endif
 
-// Blocks and headers max count per one request
-#define TRANSFER_LENGTH 10
+// Blocks and headers max count per one request - 1
+// corners are included
+#define TRANSFER_LENGTH 9
 
 // Block mine delay in seconds
-#define BLOCK_MINE_DELAY 300
+#define BLOCK_MINE_DELAY 60
 // Sync process request/response maximum dely
 #define SYNC_STEP_TIMEOUT 3
 

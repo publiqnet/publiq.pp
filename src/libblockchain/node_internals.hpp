@@ -186,13 +186,16 @@ public:
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
     }
 
-    void find_stored_request(socket::peer_id const& peerid, beltpp::packet& packet)
+    bool find_stored_request(socket::peer_id const& peerid, beltpp::packet& packet)
     {
         auto it = m_stored_requests.find(peerid);
         if (it != m_stored_requests.end())
         {
             BlockchainMessage::detail::assign_packet(packet, it->second.packet);
+            return true;
         }
+
+        return false;
     }
 
     void reset_stored_request(beltpp::isocket::peer_id const& peerid)
@@ -267,9 +270,15 @@ public:
 
         for (auto& it : m_p2p_peers)
         {
-            psk->send(it, sync_request);
-            reset_stored_request(it);
-            store_request(it, sync_request);
+            // temp solution
+            packet stored_packet;
+
+            if (!find_stored_request(it, stored_packet) || (stored_packet.type() == SyncRequest::rtt))
+            {
+                psk->send(it, sync_request);
+                reset_stored_request(it);
+                store_request(it, sync_request);
+            }
         }
 
         update_sync_time();
