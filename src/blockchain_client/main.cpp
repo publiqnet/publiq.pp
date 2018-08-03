@@ -24,24 +24,7 @@ void Send(beltpp::packet& send_package,
           peer_id peerid,
           beltpp::event_handler& eh);
 
-//  MSVS does not instansiate template function only because its address
-//  is needed, so let's force it
-template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Error>();
-template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Join>();
-template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Drop>();
-
-using sf = beltpp::socket_family_t<
-    Error::rtt,
-    Join::rtt,
-    Drop::rtt,
-    &beltpp::new_void_unique_ptr<Error>,
-    &beltpp::new_void_unique_ptr<Join>,
-    &beltpp::new_void_unique_ptr<Drop>,
-    &Error::pvoid_saver,
-    &Join::pvoid_saver,
-    &Drop::pvoid_saver,
-    &message_list_load
->;
+using sf = beltpp::socket_family_t<&message_list_load>;
 
 int main(int argc, char** argv)
 {
@@ -231,8 +214,9 @@ void SendReceive(beltpp::packet evType, beltpp::socket& sk, peer_id channel_id,
             case StorageFile::rtt:
             {
                 std::cout<<"The event type is  StorageFile: "<<std::endl;
+                break;
             }
-            case Join::rtt:
+            case beltpp::isocket_join::rtt:
                 std::cout << "The event type is Join: " << endl << endl;
                 break;
             case LoggedTransactions::rtt:
@@ -284,7 +268,7 @@ void SendReceive(beltpp::packet evType, beltpp::socket& sk, peer_id channel_id,
                 //cout << "RemoteError: " << rError.message <<endl;
                 cout << "Received a RemoteError!!!" << endl << endl;
                 break;
-            case Drop::rtt:
+            case beltpp::isocket_drop::rtt:
                 cout << "The process was Dropped!" << endl << endl;
                 break;
             case Done::rtt:

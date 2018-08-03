@@ -157,7 +157,7 @@ bool node::run()
                 
                 switch (ref_packet.type())
                 {
-                case Join::rtt:
+                case beltpp::isocket_join::rtt:
                 {
                     m_pimpl->write_node(str_peerid(peerid));
                     m_pimpl->writeln_node("joined");
@@ -165,7 +165,7 @@ bool node::run()
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
                         beltpp::on_failure guard(
-                            [&peerid, &psk] { psk->send(peerid, Drop()); });
+                            [&peerid, &psk] { psk->send(peerid, beltpp::isocket_drop()); });
 
                         m_pimpl->add_peer(peerid);
 
@@ -173,7 +173,7 @@ bool node::run()
                     }
                     break;
                 }
-                case Drop::rtt:
+                case beltpp::isocket_drop::rtt:
                 {
                     m_pimpl->write_node(str_peerid(peerid));
                     m_pimpl->writeln_node("dropped");
@@ -183,11 +183,11 @@ bool node::run()
 
                     break;
                 }
-                case Error::rtt:
+                case beltpp::isocket_error::rtt:
                 {
                     m_pimpl->write_node(str_peerid(peerid));
                     m_pimpl->writeln_node("error");
-                    psk->send(peerid, Drop());
+                    psk->send(peerid, beltpp::isocket_drop());
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                         m_pimpl->remove_peer(peerid);
@@ -405,7 +405,7 @@ bool node::run()
                 default:
                 {
                     m_pimpl->writeln_node("don't know how to handle: dropping " + peerid);
-                    psk->send(peerid, Drop());
+                    psk->send(peerid, beltpp::isocket_drop());
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                         m_pimpl->remove_peer(peerid);
@@ -439,9 +439,9 @@ bool node::run()
                 psk->send(peerid, msg);
                 throw;
             }
-            catch (wrong_data_exception)
+            catch (wrong_data_exception const&)
             {
-                psk->send(peerid, Drop());
+                psk->send(peerid, beltpp::isocket_drop());
                 m_pimpl->remove_peer(peerid);
                 throw;
             }
@@ -488,7 +488,7 @@ bool node::run()
         for (auto const& peerid_to_remove : peerids_to_remove)
         {
             m_pimpl->writeln_node("not answering: dropping " + peerid_to_remove);
-            m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, Drop());
+            m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, beltpp::isocket_drop());
             m_pimpl->remove_peer(peerid_to_remove);
         }
     }

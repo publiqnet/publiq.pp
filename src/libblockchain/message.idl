@@ -226,10 +226,5 @@ module BlockchainMessage
     {
         Hash String UInt64 accounts
     }
-
-    //  standard socket messages
-    type Join {}
-    type Drop {}
-    type Error {}
 }
 

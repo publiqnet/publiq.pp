@@ -41,39 +41,10 @@ namespace chrono = std::chrono;
 using chrono::system_clock;
 using chrono::steady_clock;
 
-//  MSVS does not instansiate template function only because its address
-//  is needed, so let's force it
-template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Error>();
-template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Join>();
-template beltpp::void_unique_ptr beltpp::new_void_unique_ptr<Drop>();
-
 namespace publiqpp
 {
 
-using p2p_sf = meshpp::p2psocket_family_t<
-    Error::rtt,
-    Join::rtt,
-    Drop::rtt,
-    &beltpp::new_void_unique_ptr<Error>,
-    &beltpp::new_void_unique_ptr<Join>,
-    &beltpp::new_void_unique_ptr<Drop>,
-    &Error::pvoid_saver,
-    &Join::pvoid_saver,
-    &Drop::pvoid_saver
->;
-
-using rpc_sf = beltpp::socket_family_t<
-    Error::rtt,
-    Join::rtt,
-    Drop::rtt,
-    &beltpp::new_void_unique_ptr<Error>,
-    &beltpp::new_void_unique_ptr<Join>,
-    &beltpp::new_void_unique_ptr<Drop>,
-    &Error::pvoid_saver,
-    &Join::pvoid_saver,
-    &Drop::pvoid_saver,
-    &http::message_list_load
->;
+using rpc_sf = beltpp::socket_family_t<&http::message_list_load>;
 
 namespace detail
 {
@@ -115,15 +86,15 @@ public:
         , plogger_node(_plogger_node)
         , m_ptr_eh(new beltpp::event_handler())
         , m_ptr_p2p_socket(new meshpp::p2psocket(
-            meshpp::getp2psocket<p2p_sf>(*m_ptr_eh,
-                p2p_bind_to_address,
-                p2p_connect_to_addresses,
-                get_putl(),
-                _plogger_p2p)
+                               meshpp::getp2psocket(*m_ptr_eh,
+                                                    p2p_bind_to_address,
+                                                    p2p_connect_to_addresses,
+                                                    get_putl(),
+                                                    _plogger_p2p)
         ))
         , m_ptr_rpc_socket(new beltpp::socket(
-            beltpp::getsocket<rpc_sf>(*m_ptr_eh)
-        ))
+                               beltpp::getsocket<rpc_sf>(*m_ptr_eh)
+                               ))
         , m_sync_timer()
         , m_check_timer()
 
