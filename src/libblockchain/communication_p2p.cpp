@@ -4,10 +4,144 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
+#include <map>
+
 using namespace BlockchainMessage;
+
+using std::multimap;
 
 ///////////////////////////////////////////////////////////////////////////////////
 //                            Internal Finctions
+
+uint64_t calc_delta(string const& key, uint64_t amount, BlockHeader const& block_header)
+{
+    string key_hash = meshpp::hash(key);
+
+    uint64_t dist = meshpp::distance(key_hash, block_header.previous_hash);
+    uint64_t delta = amount / (dist * block_header.consensus_const);
+
+    if (delta > DELTA_MAX)
+        delta = DELTA_MAX;
+
+    return delta;
+}
+
+void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+{
+    SignedBlock prev_signed_block;
+    uint64_t block_number = m_pimpl->m_blockchain.length();
+
+    // corner case, managed
+    if (block_number == 0)
+        m_pimpl->m_blockchain.at(block_number, prev_signed_block);
+    else
+        m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
+
+    beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
+    string prev_block_hash = meshpp::hash(package_prev_block.to_string());
+
+    BlockHeader prev_block_header;
+    m_pimpl->m_blockchain.header(prev_block_header);
+
+    string own_key = m_pimpl->private_key.get_public_key().to_string();
+    uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
+    uint64_t delta = calc_delta(own_key, amount, prev_block_header);
+
+    // fill new block header data
+    BlockHeader block_header;
+    block_header.block_number = block_number;
+    block_header.consensus_delta = delta;
+    block_header.consensus_const = prev_block_header.consensus_const;
+    block_header.consensus_sum = prev_block_header.consensus_sum + delta;
+    block_header.previous_hash = prev_block_hash;
+    block_header.sign_time.tm = system_clock::to_time_t(system_clock::now());
+
+    // update consensus_const if needed
+    if (delta > DELTA_UP)
+    {
+        size_t step = 0;
+        BlockHeader prev_header;
+        m_pimpl->m_blockchain.header_at(block_number, prev_header);
+
+        while (prev_header.consensus_delta > DELTA_UP &&
+            step < DELTA_STEP && prev_header.block_number > 0)
+        {
+            ++step;
+            m_pimpl->m_blockchain.header_at(prev_header.block_number - 1, prev_header);
+        }
+
+        if (step >= DELTA_STEP)
+            block_header.consensus_const = prev_block_header.consensus_const * 2;
+    }
+    else
+        if (delta < DELTA_DOWN && block_header.consensus_const > 1)
+        {
+            size_t step = 0;
+            BlockHeader prev_header;
+            m_pimpl->m_blockchain.header_at(block_number, prev_header);
+
+            while (prev_header.consensus_delta < DELTA_DOWN &&
+                step < DELTA_STEP && prev_header.block_number > 0)
+            {
+                ++step;
+                m_pimpl->m_blockchain.header_at(prev_header.block_number - 1, prev_header);
+            }
+
+            if (step >= DELTA_STEP)
+                block_header.consensus_const = prev_block_header.consensus_const / 2;
+        }
+
+    Block block;
+    block.header = block_header;
+
+    // grant rewards and move to block
+    vector<Reward> rewards;
+    m_pimpl->m_transaction_pool.grant_rewards(rewards);
+
+    for (auto& it : rewards)
+        block.rewards.push_back(std::move(it));
+
+    // copy transactions from pool to block
+    std::vector<std::string> keys;
+    m_pimpl->m_transaction_pool.get_keys(keys);
+
+    multimap<BlockchainMessage::ctime, SignedTransaction> transaction_map;
+
+    for (auto& key : keys)
+    {
+        SignedTransaction signed_transaction;
+        m_pimpl->m_transaction_pool.at(key, signed_transaction);
+
+        transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(signed_transaction.transaction_details.creation,
+            signed_transaction));
+    }
+
+    for (auto it = transaction_map.begin(); it != transaction_map.end(); ++it)
+        block.signed_transactions.push_back(std::move(it->second));
+
+    if (!block.signed_transactions.empty() || !block.rewards.empty())
+    {
+        // grant miner reward himself
+        Reward own_reward;
+        own_reward.amount = MINER_REWARD;
+        own_reward.to = own_key;
+
+        block.rewards.push_back(own_reward);
+    }
+
+    // sign block and insert to blockchain
+    meshpp::signature sgn = m_pimpl->private_key.sign(block.to_string());
+
+    SignedBlock signed_block;
+    signed_block.signature = sgn.base64;
+    signed_block.authority = sgn.pb_key.to_string();
+    signed_block.block_details = std::move(block);
+
+    vector<SignedBlock> signed_block_vector;
+    signed_block_vector.push_back(signed_block);
+
+    insert_blocks(signed_block_vector, m_pimpl);
+}
 
 bool insert_blocks(vector<SignedBlock>& signed_block_vector,
                    unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
@@ -272,57 +406,6 @@ void process_sync_request(beltpp::packet& package,
     }
 }
 
-void process_consensus_request(beltpp::packet& package,
-                               std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
-                               beltpp::isocket& sk,
-                               beltpp::isocket::peer_id const& peerid)
-{
-    ConsensusRequest consensus_request;
-    std::move(package).get(consensus_request);
-
-    BlockHeader tmp_header;
-
-    if (m_pimpl->m_blockchain.tmp_header(tmp_header))
-    {
-        if (tmp_header.block_number < consensus_request.block_number ||
-            (tmp_header.block_number == consensus_request.block_number &&
-                tmp_header.consensus_delta < consensus_request.consensus_delta))
-        {
-            // someone have better block
-            m_pimpl->m_blockchain.step_disable();
-        }
-        else
-        {
-            // I have better block
-            ConsensusResponse consensus_response;
-            consensus_response.block_number = tmp_header.block_number;
-            consensus_response.consensus_delta = tmp_header.consensus_delta;
-
-            sk.send(peerid, consensus_response);
-        }
-    }
-}
-
-void process_consensus_response(beltpp::packet& package,
-                                std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
-    ConsensusResponse consensus_response;
-    std::move(package).get(consensus_response);
-
-    BlockHeader tmp_header;
-
-    if (m_pimpl->m_blockchain.tmp_header(tmp_header))
-    {
-        if (tmp_header.block_number < consensus_response.block_number ||
-            (tmp_header.block_number == consensus_response.block_number &&
-                tmp_header.consensus_delta < consensus_response.consensus_delta))
-        {
-            // some peer have better block
-            m_pimpl->m_blockchain.step_disable();
-        }
-    }
-}
-
 void process_blockheader_request(beltpp::packet& package,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
@@ -380,6 +463,18 @@ void process_blockheader_response(beltpp::packet& package,
                (!m_pimpl->sync_header_vector.empty() &&
                 tmp_header.block_number != (*it).block_number);
 
+    if (m_pimpl->sync_header_vector.empty())
+    {
+        system_clock::time_point time_point1 = system_clock::from_time_t((*(it)).sign_time.tm);
+        system_clock::time_point time_point2 = system_clock::from_time_t(tmp_header.sign_time.tm);
+
+        bad_data = bad_data || time_point1 < time_point2;
+
+        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(time_point1 - time_point2);
+
+        bad_data = bad_data || diff_seconds.count() < BLOCK_MINE_DELAY;
+    }
+
     for (++it; !bad_data && it != header_response.block_headers.end(); ++it)
     {
         bad_data = bad_data || (*(it - 1)).block_number != (*it).block_number + 1;
@@ -392,6 +487,8 @@ void process_blockheader_response(beltpp::packet& package,
         
         system_clock::time_point time_point1 = system_clock::from_time_t((*(it)).sign_time.tm);
         system_clock::time_point time_point2 = system_clock::from_time_t((*(it - 1)).sign_time.tm);
+
+        bad_data = bad_data || time_point1 < time_point2;
 
         chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(time_point1 - time_point2);
 
@@ -563,14 +660,15 @@ void process_blockchain_response(beltpp::packet& package,
         throw wrong_data_exception("process_blockheader_response. zibil en dayax arel!");
 
     // find last common block
-    Block prev_block;
-    SignedBlock prev_signed_block;
     uint64_t block_number = (*m_pimpl->sync_header_vector.rbegin()).block_number;
 
     if (block_number == 0)
         throw wrong_data_exception("process_blockheader_response. uzum en qcen!");
 
+    SignedBlock prev_signed_block;
     m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
+
+    Block prev_block;
     std::move(prev_signed_block.block_details).get(prev_block);
 
     std::unordered_map<string, uint64_t> accounts_diff;
@@ -675,6 +773,9 @@ void process_blockchain_response(beltpp::packet& package,
         prev_signed_block.block_details.get(prev_block);
     }
 
+    BlockHeader own_header;
+    m_pimpl->m_blockchain.header(own_header);
+
     // verify new received blocks
     for (auto it = response.signed_blocks.begin(); it != response.signed_blocks.end(); ++it)
     {
@@ -689,6 +790,13 @@ void process_blockchain_response(beltpp::packet& package,
         Block block;
         it->block_details.get(block);
 
+        // hankarc sxal headernerov xapac chlnen skzbic
+        if (own_header.block_number == block.header.block_number)
+        {
+            bad_data = own_header.consensus_sum > block.header.consensus_sum;
+        }
+        if (bad_data) break;
+
         // verify block number
         bad_data = block.header.block_number != prev_block.header.block_number + 1;
         if (bad_data) break;
@@ -699,7 +807,7 @@ void process_blockchain_response(beltpp::packet& package,
 
         // verify consensus_delta
         uint64_t amount = get_balance(it->authority);
-        uint64_t delta = m_pimpl->m_blockchain.calc_delta(it->authority, amount, prev_block.header);
+        uint64_t delta = calc_delta(it->authority, amount, prev_block.header);
 
         bad_data = delta != block.header.consensus_delta;
         if (bad_data) break;
@@ -709,7 +817,7 @@ void process_blockchain_response(beltpp::packet& package,
         if (bad_data) break;
 
         // verify miner balance at mining point
-        bad_data = amount < MINE_THRESHOLD;
+        bad_data = amount < MINE_AMOUNT_THRESHOLD;
         if (bad_data) break;
 
         // verify block transactions
@@ -760,7 +868,7 @@ void process_blockchain_response(beltpp::packet& package,
     for (auto it = response.signed_blocks.begin(); it != response.signed_blocks.end(); ++it)
         m_pimpl->sync_block_vector.push_back(std::move(*it));
 
-    // rewuest new chain if needed
+    // request new chain if needed
     if (m_pimpl->sync_block_vector.size() < m_pimpl->sync_header_vector.size())
     {
         BlockChainRequest blockchain_request;

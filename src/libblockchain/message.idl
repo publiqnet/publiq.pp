@@ -145,18 +145,6 @@ module BlockchainMessage
         UInt64 consensus_sum
     }
 
-    class ConsensusRequest
-    {
-        UInt64 block_number
-        UInt64 consensus_delta
-    }
-
-    class ConsensusResponse
-    {
-        UInt64 block_number
-        UInt64 consensus_delta
-    }
-
     class BlockHeaderRequest
     {
         UInt64 blocks_from

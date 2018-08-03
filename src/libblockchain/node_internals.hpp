@@ -124,8 +124,8 @@ public:
         , m_ptr_rpc_socket(new beltpp::socket(
             beltpp::getsocket<rpc_sf>(*m_ptr_eh)
         ))
-
-        , m_timer()
+        , m_sync_timer()
+        , m_check_timer()
 
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log)
@@ -134,9 +134,10 @@ public:
         , m_state(fs_state)
         , private_key(pv_key)
     {
-        m_ptr_eh->set_timer(chrono::seconds(30));
-
-        m_timer.set(chrono::seconds(1));
+        sync_peerid = "Ice Age"; // will triger initial sync
+        m_sync_timer.set(chrono::seconds(SYNC_TIMER));
+        m_check_timer.set(chrono::seconds(CHECK_TIMER));
+        m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
         m_ptr_rpc_socket->listen(rpc_bind_to_address);
 
@@ -214,15 +215,24 @@ public:
         if (sync_peerid.empty())
             return true;
 
+        return false;
+    }
+
+    bool sync_timeout()
+    {
         system_clock::time_point current_time_point = system_clock::now();
         system_clock::time_point previous_time_point = system_clock::from_time_t(sync_time.tm);
 
         chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
 
         if (diff_seconds.count() >= SYNC_STEP_TIMEOUT)
+        {
             clear_sync_state(sync_peerid);
 
-        return true;
+            return true;
+        }
+
+        return false;
     }
 
     void update_sync_time()
@@ -239,6 +249,30 @@ public:
             sync_header_vector.clear();
             sync_response_vector.clear();
         }
+    }
+
+    void new_sync_request()
+    {
+        // clear state
+        clear_sync_state(sync_peerid);
+
+        // send new request to all peers
+        BlockHeader block_header;
+        m_blockchain.header(block_header);
+        beltpp::isocket* psk = m_ptr_p2p_socket.get();
+
+        SyncRequest sync_request;
+        sync_request.block_number = block_header.block_number;
+        sync_request.consensus_sum = block_header.consensus_sum;
+
+        for (auto& it : m_p2p_peers)
+        {
+            psk->send(it, sync_request);
+            reset_stored_request(it);
+            store_request(it, sync_request);
+        }
+
+        update_sync_time();
     }
 
     std::vector<beltpp::isocket::peer_id> do_step()
@@ -261,7 +295,8 @@ public:
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 
-    beltpp::timer m_timer;
+    beltpp::timer m_sync_timer;
+    beltpp::timer m_check_timer;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;

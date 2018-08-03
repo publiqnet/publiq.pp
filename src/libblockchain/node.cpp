@@ -358,30 +358,6 @@ bool node::run()
 
                     break;
                 }
-                case ConsensusRequest::rtt:
-                {
-                    if (it == interface_type::p2p)
-                        process_consensus_request(ref_packet, m_pimpl, *psk, peerid);
-                    else
-                        wrong_request_exception("ConsensusRequest");
-
-                    break;
-                }
-                case ConsensusResponse::rtt:
-                {
-                    if (it == interface_type::p2p)
-                    {
-                        m_pimpl->reset_stored_request(peerid);
-                        if (stored_packet.type() != ConsensusRequest::rtt)
-                            throw wrong_data_exception("ConsensusResponse");
-
-                        process_consensus_response(ref_packet, m_pimpl);
-                    }
-                    else
-                        wrong_request_exception("ConsensusResponse");
-
-                    break;
-                }
                 case BlockHeaderRequest::rtt:
                 {
                     if (it == interface_type::p2p)
@@ -519,13 +495,26 @@ bool node::run()
             m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, Drop());
             m_pimpl->remove_peer(peerid_to_remove);
         }
+    }
+
+    //int64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(m_pimpl->m_timer.elapsed()).count();
+    //if (milliseconds >= 1)
+    //    m_pimpl->writeln_node("timer elapsed " + std::to_string(milliseconds) + " milliseconds");
+
+    if (m_pimpl->m_check_timer.expired())
+    {
+        m_pimpl->m_check_timer.update();
 
         beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
 
-        // there is no ongoing sync process
-        if (m_pimpl->sync_free())
+        if (!m_pimpl->sync_free() && m_pimpl->sync_timeout())
         {
-            // Sync node
+            // something went wrong, init new sync process
+            m_pimpl->new_sync_request();
+            m_pimpl->m_sync_timer.update();
+        }
+        else if (m_pimpl->sync_free() && !m_pimpl->sync_response_vector.empty())
+        {
             // process collected SyncResponse data
             BlockHeader block_header;
             m_pimpl->m_blockchain.header(block_header);
@@ -563,77 +552,32 @@ bool node::run()
                 m_pimpl->reset_stored_request(tmp_peer);
                 m_pimpl->store_request(tmp_peer, header_request);
             }
-            else
+        } 
+        else if(m_pimpl->sync_free())
+        {
+            BlockHeader header;
+            m_pimpl->m_blockchain.header(header);
+
+            system_clock::time_point current_time_point = system_clock::now();
+            system_clock::time_point previous_time_point = system_clock::from_time_t(header.sign_time.tm);
+            chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
+
+            if (diff_seconds.count() >= BLOCK_MINE_DELAY)
             {
-                // new sync request 
-                sync_request.block_number = block_header.block_number;
-                sync_request.consensus_sum = block_header.consensus_sum;
+                uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
-                for (auto& it : m_pimpl->m_p2p_peers)
-                {
-                    psk->send(it, sync_request);
-                    m_pimpl->reset_stored_request(it);
-                    m_pimpl->store_request(it, sync_request);
-                }
-            }
-
-            // Mine block
-            uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
-
-            if (amount >= MINE_THRESHOLD && m_pimpl->m_blockchain.mine_allowed())
-            {
-                m_pimpl->m_blockchain.mine_block(m_pimpl->private_key, amount, m_pimpl->m_transaction_pool);
-                
-                BlockHeader tmp_header;
-
-                if (m_pimpl->m_blockchain.tmp_header(tmp_header))
-                {
-                    ConsensusRequest consensus_request;
-                    consensus_request.block_number = tmp_header.block_number;
-                    consensus_request.consensus_delta = tmp_header.consensus_delta;
-
-                    for (auto& it : m_pimpl->m_p2p_peers)
-                    {
-                        psk->send(it, consensus_request);
-                        m_pimpl->reset_stored_request(it);
-                        m_pimpl->store_request(it, consensus_request);
-                    }
-                }
-            }
-
-            // Apply own block
-            if (m_pimpl->m_blockchain.apply_allowed())
-            {
-                SignedBlock signed_block;
-
-                if (m_pimpl->m_blockchain.tmp_block(signed_block))
-                {
-                    vector<SignedBlock> signed_block_vector;
-                    signed_block_vector.push_back(signed_block);
-
-                    if (insert_blocks(signed_block_vector, m_pimpl))
-                    {
-                        vector<string> tmp_keys;
-                        m_pimpl->m_blockchain.tmp_keys(tmp_keys);
-
-                        for (auto& key : tmp_keys)
-                            m_pimpl->m_transaction_pool.remove(key);
-                    }
-                }
-
-                // allow new mine process
-                m_pimpl->m_blockchain.step_disable();
+                if (amount >= MINE_AMOUNT_THRESHOLD)
+                    mine_block(m_pimpl);
             }
         }
     }
 
-    int64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(m_pimpl->m_timer.elapsed()).count();
-    //if (milliseconds > 500)
-        m_pimpl->writeln_node("timer elapsed " + std::to_string(milliseconds) + " milliseconds");
-    if (m_pimpl->m_timer.expired())
+    if (m_pimpl->m_sync_timer.expired())
     {
-        m_pimpl->writeln_node("timer expired");
-        m_pimpl->m_timer.update();
+        m_pimpl->m_sync_timer.update();
+
+        if (m_pimpl->sync_free())
+            m_pimpl->new_sync_request();
     }
 
     return code;
