@@ -266,11 +266,11 @@ bool process_command_line(int argc, char** argv,
         auto desc_init = options_description.add_options()
             ("help,h", "Print this help message and exit.")
             ("p2p_local_interface,i", program_options::value<string>(&p2p_local_interface)->required(),
-                            "The local network interface and port to bind to")
+                            "(p2p) The local network interface and port to bind to")
             ("p2p_remote_host,p", program_options::value<vector<string>>(&hosts),
                             "Remote nodes addresss with port")
             ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface)->required(),
-                            "The local network interface and port to bind to")
+                            "(rpc) The local network interface and port to bind to")
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
             ("node_private_key,k", program_options::value<string>(&str_pv_key));

@@ -183,15 +183,32 @@ bool node::run()
 
                     break;
                 }
-                case beltpp::isocket_error::rtt:
+                case beltpp::isocket_protocol_error::rtt:
                 {
+                    beltpp::isocket_protocol_error msg;
+                    ref_packet.get(msg);
                     m_pimpl->write_node(str_peerid(peerid));
-                    m_pimpl->writeln_node("error");
+                    m_pimpl->writeln_node("protocol error");
+                    m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::isocket_drop());
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                         m_pimpl->remove_peer(peerid);
 
+                    break;
+                }
+                case beltpp::isocket_open_refused::rtt:
+                {
+                    m_pimpl->write_node(peerid);
+                    m_pimpl->writeln_node("open refused");
+                    break;
+                }
+                case beltpp::isocket_open_error::rtt:
+                {
+                    beltpp::isocket_open_error msg;
+                    ref_packet.get(msg);
+                    m_pimpl->write_node(peerid);
+                    m_pimpl->writeln_node(msg.reason);
                     break;
                 }
                 case Shutdown::rtt:
