@@ -203,8 +203,10 @@ bool node::run()
                 }
                 case beltpp::isocket_open_refused::rtt:
                 {
+                    beltpp::isocket_open_refused msg;
+                    ref_packet.get(msg);
                     m_pimpl->write_node(peerid);
-                    m_pimpl->writeln_node("open refused");
+                    m_pimpl->writeln_node(msg.reason);
                     break;
                 }
                 case beltpp::isocket_open_error::rtt:
