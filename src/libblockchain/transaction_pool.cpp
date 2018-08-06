@@ -56,6 +56,8 @@ public:
     hash_index_locked_loader m_index;
     std::unordered_map<string, SignedTransaction> m_transactions;
 
+    std::vector<Reward> tmp_rewards;
+
     string get_df_id(string const& hash) const
     {
         string _hash = meshpp::base64_to_hex(hash);
@@ -83,6 +85,15 @@ transaction_pool::~transaction_pool()
 
 bool transaction_pool::insert(beltpp::packet const& package)
 {
+    if (package.type() == Reward::rtt) // for test
+    {
+        Reward reward;
+        package.get(reward);
+        m_pimpl->tmp_rewards.push_back(reward);
+
+        return true;
+    }
+
     if (package.type() != SignedTransaction::rtt)
         return false;
 
@@ -169,6 +180,11 @@ void transaction_pool::get_keys(std::vector<std::string> &keys) const
 void transaction_pool::grant_rewards(vector<Reward>& rewards) const
 {
     rewards.clear();
+
+    for (auto reward : m_pimpl->tmp_rewards)
+        rewards.push_back(reward);
+
+    m_pimpl->tmp_rewards.clear();
 
     //TODO add something meaningfull
 }

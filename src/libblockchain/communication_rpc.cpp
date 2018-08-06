@@ -25,7 +25,7 @@ void submit_action(beltpp::packet&& package,
             // following will throw on invalid public key
             meshpp::public_key temp(msg_reward.to);
 
-            m_pimpl->m_state.apply_reward(msg_reward);
+            m_pimpl->m_transaction_pool.insert(ref_action);
         }
         else if (Transfer::rtt == ref_action.type())
         {

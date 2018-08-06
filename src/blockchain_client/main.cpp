@@ -81,7 +81,7 @@ int main(int argc, char** argv)
     log_transaction.action = reward;
     send_package.set(log_transaction);
     Send(send_package, receive_package, sk, peerid, eh);
-
+    return 0;
     for (auto i = 0; i < 10; ++i)
     {
         Transfer transfer;
