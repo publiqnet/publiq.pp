@@ -423,17 +423,12 @@ void process_blockheader_request(beltpp::packet& package,
     to = from > TRANSFER_LENGTH && to < from - TRANSFER_LENGTH ? from - TRANSFER_LENGTH : to;
 
     BlockHeaderResponse header_response;
-    for (auto index = from; index >= to;)
+    for (auto index = from + 1; index > to; --index)
     {
         BlockHeader header;
-        m_pimpl->m_blockchain.header_at(index, header);
+        m_pimpl->m_blockchain.header_at(index - 1, header);
 
         header_response.block_headers.push_back(std::move(header));
-
-        if (index > 0)
-            --index;
-        else
-            break;
     }
 
     sk.send(peerid, header_response);
@@ -724,7 +719,8 @@ void process_blockchain_response(beltpp::packet& package,
         
         // decrease all reward amounts from balances
         for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
-            decrease_balance(it->to, it->amount);
+            if (!decrease_balance(it->to, it->amount))
+                throw std::runtime_error("It's a catastrophe!");
 
         // calculate back transactions
         uint64_t fee = 0;
@@ -738,12 +734,14 @@ void process_blockchain_response(beltpp::packet& package,
             // revert sender balance
             increase_balance(transfer.from, transfer.amount + it->transaction_details.fee);
 
-            // revert receiver balance, hope no problems here ;)
-            decrease_balance(transfer.to, transfer.amount);
+            // revert receiver balance
+            if(!decrease_balance(transfer.to, transfer.amount))
+                throw std::runtime_error("It's a catastrophe!");
         }
 
-        // revert authority balance, hope no problems here ;)
-        decrease_balance(signed_block.authority, fee);
+        // revert authority balance
+        if(!decrease_balance(signed_block.authority, fee))
+            throw std::runtime_error("It's a catastrophe!");
 
         --block_number;
     }
@@ -763,8 +761,9 @@ void process_blockchain_response(beltpp::packet& package,
             Transfer transfer;
             std::move(it->transaction_details.action).get(transfer);
 
-            // calc sender balance, hope no problems here ;)
-            decrease_balance(transfer.from, transfer.amount + it->transaction_details.fee);
+            // calc sender balance
+            if(!decrease_balance(transfer.from, transfer.amount + it->transaction_details.fee))
+                throw std::runtime_error("It's a catastrophe!");
 
             // calc receiver balance
             increase_balance(transfer.to, transfer.amount);
@@ -906,17 +905,12 @@ void process_blockchain_response(beltpp::packet& package,
     vector<SignedBlock> revert_block_vector;
     uint64_t from = m_pimpl->sync_header_vector.rbegin()->block_number;
     if(m_pimpl->m_blockchain.length() > 0) // corner if
-    for (auto i = m_pimpl->m_blockchain.length() - 1; i >= from;)
+    for (auto i = m_pimpl->m_blockchain.length(); i > from; --i)
     {
         SignedBlock signed_block;
-        m_pimpl->m_blockchain.at(i, signed_block);
+        m_pimpl->m_blockchain.at(i - 1, signed_block);
 
         revert_block_vector.push_back(std::move(signed_block));
-
-        if (i > 0)
-            --i;
-        else
-            break;
     }
 
     revert_blocks(m_pimpl->m_blockchain.length() - from, m_pimpl);
