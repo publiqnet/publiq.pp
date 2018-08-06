@@ -14,9 +14,7 @@ using std::endl;
 namespace chrono = std::chrono;
 using std::chrono::system_clock;
 
-peer_id openChannel(char** argv, beltpp::socket& sk, beltpp::event_handler& evH);
-void SendReceive(beltpp::packet evType, beltpp::socket& sk, peer_id channel_id,
-                                                beltpp::event_handler& evH);
+peer_id connect(char** argv, beltpp::socket& sk, beltpp::event_handler& evH);
 
 void Send(beltpp::packet& send_package,
           beltpp::packet& receive_package,
@@ -28,13 +26,14 @@ using sf = beltpp::socket_family_t<&message_list_load>;
 
 int main(int argc, char** argv)
 {
+    //__debugbreak();
     beltpp::socket::peer_id peerid;
     beltpp::event_handler eh;
 
     beltpp::socket sk = beltpp::getsocket<sf>(eh);
     eh.add(sk);
 
-    peerid = openChannel(argv, sk, eh);
+    peerid = connect(argv, sk, eh);
     cout << endl << peerid << endl;
 
     beltpp::packet send_package;
@@ -60,13 +59,6 @@ int main(int argc, char** argv)
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
 
-    key_pair_request.master_key = "NODE";
-    send_package.set(key_pair_request);
-    Send(send_package, receive_package, sk, peerid, eh);
-
-    KeyPair node_key;
-    receive_package.get(node_key);
-
     key_pair_request.master_key = "ROB";
     send_package.set(key_pair_request);
     Send(send_package, receive_package, sk, peerid, eh);
@@ -81,18 +73,11 @@ int main(int argc, char** argv)
     KeyPair serz_key;
     receive_package.get(serz_key);
 
-
     Reward reward;
-    LogTransaction log_transaction;
-
-    reward.amount = 10000000000;
-    reward.to = node_key.public_key;
-    log_transaction.action = reward;
-    send_package.set(log_transaction);
-    Send(send_package, receive_package, sk, peerid, eh);
-
     reward.amount = 10000;
     reward.to = rob_key.public_key;
+
+    LogTransaction log_transaction;
     log_transaction.action = reward;
     send_package.set(log_transaction);
     Send(send_package, receive_package, sk, peerid, eh);
@@ -158,7 +143,10 @@ void Send(beltpp::packet& send_package,
 
        if (peerid.empty() || packets.empty())
            continue;
-
+       
+       if (packets.front().type() == beltpp::isocket_drop::rtt)
+           cout << "Connection dropped!" << endl;
+       
        ::detail::assign_packet(receive_package, packets.front());
        
        break;
@@ -167,7 +155,7 @@ void Send(beltpp::packet& send_package,
    cout << endl << "Package received -> " << endl << receive_package.to_string() << endl;
 }
 
-peer_id openChannel(char** argv, beltpp::socket& sk, beltpp::event_handler& eh)
+peer_id connect(char** argv, beltpp::socket& sk, beltpp::event_handler& eh)
 {
     beltpp::ip_address address_item;
     address_item.from_string(argv[1]);
@@ -193,93 +181,3 @@ peer_id openChannel(char** argv, beltpp::socket& sk, beltpp::event_handler& eh)
 
     return channel_id;
 }
-
-void SendReceive(beltpp::packet evType, beltpp::socket& sk, peer_id channel_id,
-                                                    beltpp::event_handler& eh)
-{
-    sk.send(channel_id, std::move(evType));
-
-    while(true)
-    {
-        beltpp::isocket::packets pcs;
-        std::unordered_set<beltpp::ievent_item const*> set_items;
-        if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
-            pcs = sk.receive(channel_id);
-        if (channel_id.empty() || pcs.empty())
-            continue;
-        for(auto &pc:pcs)
-        {
-            switch(pc.type())
-            {
-            case StorageFile::rtt:
-            {
-                std::cout<<"The event type is  StorageFile: "<<std::endl;
-                break;
-            }
-            case beltpp::isocket_join::rtt:
-                std::cout << "The event type is Join: " << endl << endl;
-                break;
-            case LoggedTransactions::rtt:
-            {
-                LoggedTransactions logTrans;
-                pc.get(logTrans);
-
-                uint64_t index{0};
-                if(logTrans.actions.size() > 0)
-                   index = logTrans.actions[0].index;
-                cout << "The start_index is = " << index << endl << endl;
-                break;
-            }
-            case ChainInfo::rtt:
-            {
-                ChainInfo chainInfo;
-                pc.get(chainInfo);
-                cout << "The ChainInfo length = " << chainInfo.length << endl << endl;
-                break;
-            }
-            case KeyPair::rtt:
-            {
-                KeyPair keyP;
-                pc.get(keyP);
-                cout << "The KeyPair index = " << keyP.index << endl;
-                cout << "The KeyPair public_key = " << keyP.public_key << endl;
-                cout << "The KeyPair private_key = " << keyP.private_key << endl;
-                cout << "The KeyPair master_key = " << keyP.master_key << endl << endl;
-                break;
-            }
-            case Digest::rtt:
-            {
-                Digest digest;
-                pc.get(digest);
-                cout << "The Digest base58_hash = " << digest.base58_hash << endl << endl;
-                break;
-            }
-            case Signature::rtt:
-            {
-                Signature sign;
-                pc.get(sign);
-                cout << "The Signature public_key = " << sign.public_key << endl;
-                cout << "The Signature signature = " << sign.signature << endl << endl;
-                break;
-            }
-            case RemoteError::rtt:
-                //RemoteError error;
-                //pc.get(error);
-                //cout << "RemoteError: " << rError.message <<endl;
-                cout << "Received a RemoteError!!!" << endl << endl;
-                break;
-            case beltpp::isocket_drop::rtt:
-                cout << "The process was Dropped!" << endl << endl;
-                break;
-            case Done::rtt:
-                cout << "The Send-Receive process was Shutted Down!" << endl << endl;
-                break;
-            default:
-                cout << "Nothing for receive.!" << endl;
-                break;
-            }
-        }
-        break;
-    }
-}
-

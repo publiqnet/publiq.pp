@@ -89,6 +89,10 @@ bool node::run()
 {
     bool code = true;
 
+    // temp solution for genesis
+    // will return id chain is not empty
+    insert_genesis(m_pimpl);
+
     unordered_set<beltpp::ievent_item const*> wait_sockets;
 
     auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
@@ -523,6 +527,7 @@ bool node::run()
         if (!m_pimpl->sync_free() && m_pimpl->sync_timeout())
         {
             // something went wrong, init new sync process
+            m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
             m_pimpl->new_sync_request();
             m_pimpl->m_sync_timer.update();
         }
@@ -590,7 +595,10 @@ bool node::run()
         m_pimpl->m_sync_timer.update();
 
         if (m_pimpl->sync_free() && m_pimpl->sync_timeout())
+        {
+            m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
             m_pimpl->new_sync_request();
+        }
     }
 
     return code;

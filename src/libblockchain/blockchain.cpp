@@ -73,14 +73,7 @@ blockchain::~blockchain()
 void blockchain::update_header()
 {
     if (length() > 0)
-    {
-        SignedBlock signed_block;
-        at(length() - 1, signed_block);
-
-        Block block;
-        std::move(signed_block.block_details).get(block);
-        m_pimpl->m_header = std::move(block.header);
-    }
+        header_at(length() - 1, m_pimpl->m_header);
 }
 
 uint64_t blockchain::length() const
@@ -90,16 +83,7 @@ uint64_t blockchain::length() const
 
 void blockchain::header(BlockHeader& block_header) const
 {
-    if(length() > 0)
-        block_header = m_pimpl->m_header;
-    else
-    {
-        block_header.block_number = 0;
-        block_header.consensus_sum = 0;
-        block_header.consensus_delta = 0;
-        block_header.consensus_const = 1;
-        block_header.previous_hash = meshpp::hash("Ice Age");;
-    }
+    block_header = m_pimpl->m_header;
 }
 
 bool blockchain::insert(beltpp::packet const& packet)
@@ -153,13 +137,8 @@ bool blockchain::header_at(uint64_t number, BlockHeader& block_header) const
     if (number >= length())
         return false;
 
-    string hash_id = m_pimpl->get_df_id(number);
-    string file_name("df" + hash_id + ".bchain");
-
-    blockchain_data_loader file_data(m_pimpl->m_path / file_name);
-
     SignedBlock signed_block;
-    file_data->blocks[number].get(signed_block);
+    at(number, signed_block);
 
     Block block;
     std::move(signed_block.block_details).get(block);

@@ -199,14 +199,7 @@ public:
 
         chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
 
-        if (diff_seconds.count() >= SYNC_STEP_TIMEOUT)
-        {
-            clear_sync_state(sync_peerid);
-
-            return true;
-        }
-
-        return false;
+        return diff_seconds.count() >= SYNC_STEP_TIMEOUT;
     }
 
     void update_sync_time()

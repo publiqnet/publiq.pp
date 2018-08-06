@@ -14,6 +14,8 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
 void revert_blocks(size_t count,
                    unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
 ///////////////////////////////////////////////////////////////////////////////////
 
 void process_sync_request(beltpp::packet& package,
