@@ -704,26 +704,22 @@ void process_blockchain_response(beltpp::packet& package,
                     response.signed_blocks.size() > m_pimpl->sync_headers.size() -
                                                     m_pimpl->sync_blocks.size();
 
-    if (bad_data) throw wrong_data_exception("blockheader response. too many blocks in response!");
+    if (bad_data) throw wrong_data_exception("blockchain response. too many blocks in response!");
 
     // find last common block
     uint64_t block_number = (*m_pimpl->sync_headers.rbegin()).block_number;
 
-    if (block_number == 0) throw wrong_data_exception("blockheader response. uzum en qcen!");
+    if (block_number == 0) throw wrong_data_exception("blockchain response. uzum en qcen!");
 
-    SignedBlock prev_signed_block;
+    //2. check and add received blockchain to sync_blocks_vector for future process
+    size_t length = m_pimpl->sync_blocks.size();
 
     // put prev_signed_block in correct place
+    SignedBlock prev_signed_block;
     if (m_pimpl->sync_blocks.empty())
         m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
     else
         prev_signed_block = *m_pimpl->sync_blocks.rbegin();
-
-    Block prev_block;
-    prev_signed_block.block_details.get(prev_block);
-
-    //2. check and add received blockchain to sync_blocks_vector for future process
-    size_t length = m_pimpl->sync_blocks.size();
 
     for (auto it = response.signed_blocks.begin(); it != response.signed_blocks.end(); ++it)
     {
@@ -732,7 +728,7 @@ void process_blockchain_response(beltpp::packet& package,
                                                   it->block_details.to_string(),
                                                   it->signature);
 
-        if (!sb_verify) throw wrong_data_exception("blockheader response. wrong block signature!");;
+        if (!sb_verify) throw wrong_data_exception("blockchain response. wrong block signature!");
 
         // store blocks for future use
         m_pimpl->sync_blocks.push_back(std::move(*it));
@@ -741,21 +737,21 @@ void process_blockchain_response(beltpp::packet& package,
     auto block_it = m_pimpl->sync_blocks.begin() + length;
     auto header_it = m_pimpl->sync_headers.rbegin() + length;
 
-    bad_data = header_it->previous_hash != meshpp::hash(prev_block.to_string());
+    bad_data = header_it->previous_hash != meshpp::hash(prev_signed_block.block_details.to_string());
 
     ++header_it;
-    while (!bad_data && 
-            block_it != m_pimpl->sync_blocks.end() &&
-            header_it != m_pimpl->sync_headers.rend())
+    while (!bad_data && block_it != m_pimpl->sync_blocks.end() && header_it != m_pimpl->sync_headers.rend())
     {
-        Block _block;
-        block_it->block_details.get(_block);
-        bad_data = header_it->previous_hash != meshpp::hash(block_it->block_details.to_string());
+        Block block;
+        block_it->block_details.get(block);
+
+        bad_data = *(header_it - 1) != block.header ||
+                     header_it->previous_hash != meshpp::hash(block_it->block_details.to_string());
         ++block_it;
         ++header_it;
     }
 
-    if(bad_data) throw wrong_data_exception("blockheader response. blocks are not correspond to headers!");
+    if(bad_data) throw wrong_data_exception("blockchain response. blocks are not correspond to headers!");
 
     // request new chain if needed
     if (m_pimpl->sync_blocks.size() < m_pimpl->sync_headers.size())
@@ -801,11 +797,9 @@ void process_blockchain_response(beltpp::packet& package,
     };
     //-----------------------------------------------------//
 
-    // set prev_block to LCB point
-    uint64_t lcb_number = (*m_pimpl->sync_headers.rbegin()).block_number - 1;
-
     // calculate back to get accounts_diff at LCB point
     block_number = m_pimpl->m_blockchain.length() - 1;
+    uint64_t lcb_number = (*m_pimpl->sync_headers.rbegin()).block_number - 1;
     while (block_number > lcb_number)
     {
         SignedBlock signed_block;
@@ -843,62 +837,46 @@ void process_blockchain_response(beltpp::packet& package,
         --block_number;
     }
 
-    // apply sync_block_vector content to accounts_diff
-    for(auto it = m_pimpl->sync_blocks.begin(); it != m_pimpl->sync_blocks.end(); ++it)
-    {
-        Block block;
-        it->block_details.get(block);
-
-        // calculate transactions
-        uint64_t fee = 0;
-        for (auto it = block.signed_transactions.begin(); it != block.signed_transactions.end(); ++it)
-        {
-            fee += it->transaction_details.fee;
-
-            Transfer transfer;
-            std::move(it->transaction_details.action).get(transfer);
-
-            // calc sender balance
-            if(!decrease_balance(transfer.from, transfer.amount + it->transaction_details.fee))
-                throw std::runtime_error("It's a catastrophe!");
-
-            // calc receiver balance
-            increase_balance(transfer.to, transfer.amount);
-        }
-
-        // calc authority balance
-        increase_balance(it->authority, fee);
-
-        // increase all reward amounts to balances
-        for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
-            increase_balance(it->to, it->amount);
-    }
-
-    BlockHeader own_header;
-    m_pimpl->m_blockchain.header(own_header);
-    m_pimpl->m_blockchain.at(lcb_number, prev_signed_block);
-    prev_signed_block.block_details.get(prev_block);
+    //// apply sync_blocks content to accounts_diff
+    //for(auto it = m_pimpl->sync_blocks.begin(); it != m_pimpl->sync_blocks.end(); ++it)
+    //{
+    //    Block block;
+    //    it->block_details.get(block);
+    //
+    //    // calculate transactions
+    //    uint64_t fee = 0;
+    //    for (auto it = block.signed_transactions.begin(); it != block.signed_transactions.end(); ++it)
+    //    {
+    //        fee += it->transaction_details.fee;
+    //
+    //        Transfer transfer;
+    //        std::move(it->transaction_details.action).get(transfer);
+    //
+    //        // calc sender balance
+    //        if(!decrease_balance(transfer.from, transfer.amount + it->transaction_details.fee))
+    //            throw std::runtime_error("It's a catastrophe!");
+    //
+    //        // calc receiver balance
+    //        increase_balance(transfer.to, transfer.amount);
+    //    }
+    //
+    //    // calc authority balance
+    //    increase_balance(it->authority, fee);
+    //
+    //    // increase all reward amounts to balances
+    //    for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
+    //        increase_balance(it->to, it->amount);
+    //}
 
     // verify new received blocks
-    for (auto block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
+    Block prev_block;
+    m_pimpl->m_blockchain.at(lcb_number, prev_signed_block);
+    std::move(prev_signed_block.block_details).get(prev_block);
+
+    for (block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
     {
         Block block;
         block_it->block_details.get(block);
-
-        // hankarc sxal headernerov xapac chlnen skzbic
-        if (own_header.block_number == block.header.block_number)
-        {
-            bad_data = own_header.consensus_sum > block.header.consensus_sum;
-        }
-        if (bad_data) break;
-
-        // verify block number
-        bad_data = block.header.block_number != prev_block.header.block_number + 1;
-        if (bad_data) break;
-
-        // verify previous_hash
-        bad_data = block.header.previous_hash != meshpp::hash(prev_block.to_string());
-        if (bad_data) break;
 
         // verify consensus_delta
         uint64_t amount = get_balance(block_it->authority);
@@ -907,11 +885,7 @@ void process_blockchain_response(beltpp::packet& package,
         bad_data = delta != block.header.consensus_delta;
         if (bad_data) break;
 
-        // verify consensus_sum
-        bad_data = block.header.consensus_sum != (block.header.consensus_delta + prev_block.header.consensus_sum);
-        if (bad_data) break;
-
-        // verify miner balance at mining point
+        // verify miner balance at mining time
         bad_data = amount < MINE_AMOUNT_THRESHOLD;
         if (bad_data) break;
 
@@ -956,23 +930,23 @@ void process_blockchain_response(beltpp::packet& package,
         prev_block = std::move(block);
     }
 
-    if (bad_data) throw wrong_data_exception("blockheader response. wrong data received!");
+    if (bad_data) throw wrong_data_exception("blockchain response. wrong data received!");
 
     //4. apply received chain
-    vector<SignedBlock> revert_block_vector;
+    vector<SignedBlock> backup_blocks;
     uint64_t from = m_pimpl->sync_headers.rbegin()->block_number;
     for (auto i = m_pimpl->m_blockchain.length(); i > from; --i)
     {
         SignedBlock signed_block;
         m_pimpl->m_blockchain.at(i - 1, signed_block);
 
-        revert_block_vector.push_back(std::move(signed_block));
+        backup_blocks.push_back(std::move(signed_block));
     }
 
     revert_blocks(m_pimpl->m_blockchain.length() - from, m_pimpl);
 
     if(!insert_blocks(m_pimpl->sync_blocks, m_pimpl))
-        if (!insert_blocks(revert_block_vector, m_pimpl))
+        if (!insert_blocks(backup_blocks, m_pimpl))
             throw std::runtime_error("Something wrong happenes. Cant't insert back own chain!");
 }
 
