@@ -212,9 +212,9 @@ public:
         if (peerid == sync_peerid)
         {
             sync_peerid.clear();
-            sync_block_vector.clear();
-            sync_header_vector.clear();
-            sync_response_vector.clear();
+            sync_blocks.clear();
+            sync_headers.clear();
+            sync_responses.clear();
         }
     }
 
@@ -234,15 +234,15 @@ public:
 
         for (auto& it : m_p2p_peers)
         {
-            // temp solution
-            packet stored_packet;
-
-            if (!find_stored_request(it, stored_packet) || (stored_packet.type() == SyncRequest::rtt))
-            {
+            //// temp solution
+            //packet stored_packet;
+            //
+            //if (!find_stored_request(it, stored_packet) || (stored_packet.type() == SyncRequest::rtt))
+            //{
                 psk->send(it, sync_request);
                 reset_stored_request(it);
                 store_request(it, sync_request);
-            }
+            //}
         }
 
         update_sync_time();
@@ -284,9 +284,9 @@ public:
 
     BlockchainMessage::ctime sync_time;
     beltpp::isocket::peer_id sync_peerid;
-    vector<SignedBlock> sync_block_vector;
-    vector<BlockHeader> sync_header_vector;
-    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_response_vector;
+    vector<SignedBlock> sync_blocks;
+    vector<BlockHeader> sync_headers;
+    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_responses;
 };
 
 }

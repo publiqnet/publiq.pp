@@ -370,7 +370,7 @@ bool node::run()
 
                         SyncResponse sync_response;
                         std::move(ref_packet).get(sync_response);
-                        m_pimpl->sync_response_vector.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
+                        m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
                     }
                     else
                         wrong_request_exception("SyncResponse");
@@ -533,7 +533,7 @@ bool node::run()
             m_pimpl->new_sync_request();
             m_pimpl->m_sync_timer.update();
         }
-        else if (m_pimpl->sync_free() && !m_pimpl->sync_response_vector.empty())
+        else if (m_pimpl->sync_free() && !m_pimpl->sync_responses.empty())
         {
             // process collected SyncResponse data
             BlockHeader block_header;
@@ -544,7 +544,7 @@ bool node::run()
             sync_request.consensus_sum = block_header.consensus_sum;
             beltpp::isocket::peer_id tmp_peer;
 
-            for (auto& it : m_pimpl->sync_response_vector)
+            for (auto& it : m_pimpl->sync_responses)
             {
                 if (sync_request.block_number < it.second.block_number ||
                     (sync_request.block_number == it.second.block_number &&
@@ -556,7 +556,7 @@ bool node::run()
                 }
             }
 
-            m_pimpl->sync_response_vector.clear();
+            m_pimpl->sync_responses.clear();
 
             if (!tmp_peer.empty())
             {
