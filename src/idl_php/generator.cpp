@@ -9,6 +9,7 @@
 #include<iostream>
 #include<string>
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 using std::string;
 using std::vector;
@@ -148,7 +149,7 @@ void handleHashForPrimitives(string info[], string& setFunction, string& hashCas
      "    }\n";
 
   hashCase +=
-        "        foreach ($data->hash as $key => $value) {\n"
+        "        foreach ($data->" + member_name + " as $key => $value) {\n"
         "            $this->set" + member_name + "Key($key);\n"
         "            $this->set" + member_name + "Value($value);\n"
         "        }\n";
@@ -170,16 +171,22 @@ void handleHashForObjects(string info[], string& setFunction, string& hashCase, 
                 "        $this->" + member_name + "Key = $" + member_name + "Key;\n"
                 "    }\n";
 
+        string item = member_name +"Item";
+
         if(info[3] == "::beltpp::packet")
         {
             hashCase +=
-                       "        $this->" + member_name + " = Rtt::validate($data->" +  member_name + ");\n";
+                      "        foreach ($data->" + member_name + " as $key => $value) {\n"
+                      "            $this->set" + member_name + "Key($key);\n"
+                      "            $this->" + member_name + " = Rtt::validate($data->" +  member_name + ");\n"
+                      "         }\n";
+
         }
         else
         {
-          string item = member_name +"Item";
+
           hashCase +=
-                    "        foreach ($data->hash as $key => $value) {\n"
+                    "        foreach ($data->" + member_name + " as $key => $value) {\n"
                     "            $this->set" + member_name + "Key($key);\n"
                     "            $hashItemObj = new " + info[3] + "();\n"
                     "            $hashItemObj->validate($value);\n"

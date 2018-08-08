@@ -150,7 +150,11 @@ filesystem::path config_directory_path()
 filesystem::path data_directory_path()
 {
     filesystem::path fs_data(settings::data_directory());
+#if BOOST_VERSION >= 106000
     return filesystem::weakly_canonical(fs_data);
+#else
+    return fs_data;
+#endif
 }
 
 void create_config_directory()

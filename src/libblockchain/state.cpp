@@ -1,4 +1,5 @@
 #include "state.hpp"
+#include "common.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 
@@ -38,22 +39,22 @@ state::~state()
 {
 }
 
-uint64_t state::get_balance(std::string const& key) const
+BlockchainMessage::Coin state::get_balance(std::string const& key) const
 {
     if (m_pimpl->m_state->accounts.find(key) != m_pimpl->m_state->accounts.end())
         return m_pimpl->m_state->accounts[key];
 
-    return 0; // all accounts not included have 0 balance
+    return BlockchainMessage::Coin(); // all accounts not included have 0 balance
 }
 
-bool state::check_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee) const
+bool state::check_transfer(BlockchainMessage::Transfer const& transfer, BlockchainMessage::Coin const& fee) const
 {
-    if (transfer.amount == 0)
+    if (coin(transfer.amount).empty())
         throw std::runtime_error("0 amount transfer is restricted!");
     
     if (m_pimpl->m_state->accounts.find(transfer.from) != m_pimpl->m_state->accounts.end())
     {
-        uint64_t balance = m_pimpl->m_state->accounts[transfer.from];
+        coin balance = m_pimpl->m_state->accounts[transfer.from];
     
         if (balance >= transfer.amount + fee)
             return true;
@@ -62,25 +63,26 @@ bool state::check_transfer(BlockchainMessage::Transfer const& transfer, uint64_t
     return false; // all accounts not included have 0 balance
 }
 
-void state::apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t fee)
+void state::apply_transfer(BlockchainMessage::Transfer const& transfer, BlockchainMessage::Coin const& fee)
 {
     if (!check_transfer(transfer, fee))
         throw std::runtime_error("Transfer balance is not enough!");
 
     // decrease "from" balance
-    uint64_t balance = m_pimpl->m_state->accounts[transfer.from];
+    coin balance = m_pimpl->m_state->accounts[transfer.from];
 
     // balance is checked above
-    balance = balance - transfer.amount - fee;
+    balance -= transfer.amount;
+    balance -= fee;
 
-    if (balance == 0)
+    if (balance.empty())
         m_pimpl->m_state->accounts.erase(transfer.from);
     else
-        m_pimpl->m_state->accounts[transfer.from] = balance;
+        m_pimpl->m_state->accounts[transfer.from] = balance.to_Coin();
     
     // increase "to" balance
     balance = m_pimpl->m_state->accounts[transfer.to];
-    m_pimpl->m_state->accounts[transfer.to] = balance + transfer.amount;
+    m_pimpl->m_state->accounts[transfer.to] = (balance + transfer.amount).to_Coin();
 
     // save state to file after each change
     m_pimpl->m_state.save();
@@ -88,23 +90,23 @@ void state::apply_transfer(BlockchainMessage::Transfer const& transfer, uint64_t
 
 void state::apply_reward(BlockchainMessage::Reward const& reward)
 {
-    if (reward.amount == 0)
+    if (coin(reward.amount).empty())
         throw std::runtime_error("0 amount reward is humiliatingly!");
 
-    uint64_t balance = get_balance(reward.to);
+    coin balance = get_balance(reward.to);
 
-    balance = balance + reward.amount;
-    m_pimpl->m_state->accounts[reward.to] = balance;
+    balance += reward.amount;
+    m_pimpl->m_state->accounts[reward.to] = balance.to_Coin();
 
     // save state to file after each change
     m_pimpl->m_state.save();
 }
 
-void state::merge_block(std::unordered_map<string, uint64_t> const& tmp_state)
+void state::merge_block(std::unordered_map<string, BlockchainMessage::Coin> const& tmp_state)
 {
     for (auto &it : tmp_state)
     {
-        if (it.second == 0)
+        if (coin(it.second).empty())
             m_pimpl->m_state->accounts.erase(it.first);
         else
             m_pimpl->m_state->accounts[it.first] = it.second;

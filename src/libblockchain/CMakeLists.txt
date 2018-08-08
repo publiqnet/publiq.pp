@@ -25,6 +25,9 @@ add_library(blockchain
     communication_rpc.hpp
     communication_p2p.cpp
     communication_p2p.hpp
+    coin.cpp
+    coin.hpp
+    common.hpp
     data.hpp
     data.gen.hpp
     http.hpp

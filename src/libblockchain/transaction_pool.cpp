@@ -1,4 +1,5 @@
 #include "transaction_pool.hpp"
+#include "common.hpp"
 
 #include "data.hpp"
 #include "message.hpp"
@@ -155,7 +156,7 @@ bool transaction_pool::contains(string const& key) const
     return m_pimpl->m_index->dictionary.find(key) != m_pimpl->m_index->dictionary.end();
 }
 
-void transaction_pool::get_amounts(std::string const& key, std::vector<std::pair<std::string, uint64_t>>& amounts, bool in_out) const
+void transaction_pool::get_amounts(std::string const& key, std::vector<std::pair<std::string, coin>>& amounts, bool in_out) const
 {
     amounts.clear();
 
@@ -165,9 +166,15 @@ void transaction_pool::get_amounts(std::string const& key, std::vector<std::pair
         item.second.transaction_details.action.get(transfer);
 
         if (in_out && transfer.to == key)
-            amounts.push_back(std::pair<std::string, uint64_t>(item.first, transfer.amount));
+        {
+            amounts.push_back(std::pair<std::string, coin>(item.first, transfer.amount));
+        }
         else if (!in_out && transfer.from == key)
-            amounts.push_back(std::pair<std::string, uint64_t>(item.first, transfer.amount + item.second.transaction_details.fee));
+        {
+            coin temp = transfer.amount;
+            temp += item.second.transaction_details.fee;
+            amounts.push_back(std::pair<std::string, coin>(item.first, temp));
+        }
     }
 }
 

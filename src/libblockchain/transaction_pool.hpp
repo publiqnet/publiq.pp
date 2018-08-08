@@ -2,6 +2,7 @@
 
 #include "global.hpp"
 #include "message.hpp"
+#include "coin.hpp"
 
 #include <belt.pp/packet.hpp>
 
@@ -33,7 +34,7 @@ public:
     bool contains(std::string const& key) const;
     void get_keys(std::vector<std::string> &keys) const;
     void get_amounts(std::string const& key, 
-                     std::vector<std::pair<std::string, uint64_t>>& amounts, 
+                     std::vector<std::pair<std::string, coin>>& amounts,
                      bool in_out) const;
 
     void grant_rewards(std::vector<BlockchainMessage::Reward>& rewards) const;
