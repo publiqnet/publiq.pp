@@ -1,4 +1,6 @@
 #include "node.hpp"
+#include "common.hpp"
+
 #include "node_internals.hpp"
 
 #include "communication_rpc.hpp"
@@ -529,7 +531,6 @@ bool node::run()
         if (!m_pimpl->sync_free() && m_pimpl->sync_timeout())
         {
             // something went wrong, init new sync process
-            m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
             m_pimpl->new_sync_request();
             m_pimpl->m_sync_timer.update();
         }
@@ -584,7 +585,7 @@ bool node::run()
 
             if (diff_seconds.count() >= BLOCK_MINE_DELAY)
             {
-                uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
+                coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
                 if (amount >= MINE_AMOUNT_THRESHOLD)
                     mine_block(m_pimpl);
@@ -597,10 +598,7 @@ bool node::run()
         m_pimpl->m_sync_timer.update();
 
         if (m_pimpl->sync_free() && m_pimpl->sync_timeout())
-        {
-            m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
             m_pimpl->new_sync_request();
-        }
     }
 
     return code;

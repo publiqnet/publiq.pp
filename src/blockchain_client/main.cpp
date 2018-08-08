@@ -1,4 +1,4 @@
-﻿#include "../libblockchain/message.hpp"
+#include "../libblockchain/message.hpp"
 
 #include <belt.pp/socket.hpp>
 
@@ -74,7 +74,7 @@ int main(int argc, char** argv)
     receive_package.get(serz_key);
 
     Reward reward;
-    reward.amount = 10000;
+    reward.amount.fraction = 10000;
     reward.to = rob_key.public_key;
 
     LogTransaction log_transaction;
@@ -87,12 +87,12 @@ int main(int argc, char** argv)
 //        Transfer transfer;
 //        transfer.from = rob_key.public_key;
 //        transfer.to = serz_key.public_key;
-//        transfer.amount = 10 + i;
+//        transfer.amount.fraction = 10 + i;
 
 //        Transaction transaction;
 //        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
 //        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-//        transaction.fee = 1;
+//        transaction.fee.fraction = 1;
 //        transaction.action = transfer;
 
 //        SignRequest sign_request;

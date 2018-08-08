@@ -1,5 +1,6 @@
 #pragma once
 
+#include "common.hpp"
 #include "http.hpp"
 
 #include "state.hpp"

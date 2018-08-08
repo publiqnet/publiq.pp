@@ -1,4 +1,5 @@
 #include "action_log.hpp"
+#include "common.hpp"
 
 #include "data.hpp"
 #include "message.hpp"
