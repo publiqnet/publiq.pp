@@ -1,4 +1,5 @@
 #include "communication_rpc.hpp"
+#include "common.hpp"
 
 #include <stack>
 

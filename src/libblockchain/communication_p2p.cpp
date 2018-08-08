@@ -1,6 +1,8 @@
 #include "communication_p2p.hpp"
+#include "common.hpp"
 
 #include "node_internals.hpp"
+#include "coin.hpp"
 
 #include <mesh.pp/cryptoutility.hpp>
 
@@ -30,13 +32,13 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
                    unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     std::unordered_set<string> erase_tpool_set;
-    std::unordered_map<string, uint64_t> tmp_state;
+    std::unordered_map<string, BlockchainMessage::Coin> tmp_state;
     std::vector<LoggedTransaction> logged_transactions;
-    std::vector<std::pair<std::string, uint64_t>> amounts;
+    std::vector<std::pair<std::string, coin>> amounts;
 
     for (auto it = signed_block_vector.begin(); it != signed_block_vector.end(); ++it)
     {
-        uint64_t fee = 0;
+        coin fee;
         SignedBlock signed_block = *it;
 
         Block block;
@@ -54,7 +56,7 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
                 return false;
 
             string key;
-            uint64_t amount;
+            coin amount;
 
             // correct "from" key balance
             key = transfer.from;
@@ -87,14 +89,14 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
                     else
                         return false;
                 }
-                tmp_state[key] = amount;
+                tmp_state[key] = amount.to_Coin();
             }
 
             // remove transfer amount and fee from sender balance
             amount = tmp_state[key];
             if (amount >= transfer.amount + transaction.fee)
             {
-                tmp_state[key] = amount - transfer.amount - transaction.fee;
+                tmp_state[key] = (amount - transfer.amount - transaction.fee).to_Coin();
                 fee += transaction.fee;
             }
             else
@@ -131,12 +133,12 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
                     else
                         return false;
                 }
-                tmp_state[key] = amount;
+                tmp_state[key] = amount.to_Coin();
             }
 
             // add transfer amount to receiver balance
             amount = tmp_state[key];
-            tmp_state[key] = amount + transfer.amount;
+            tmp_state[key] = (amount + transfer.amount).to_Coin();
 
             // collect action log
             LoggedTransaction action_info;
@@ -149,7 +151,7 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
         // apply rewards to tmp_state
         for (auto& reward : block.rewards)
         {
-            uint64_t amount = 0;
+            coin amount;
             string key = reward.to;
 
             auto state_it = tmp_state.find(key);
@@ -158,8 +160,9 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
             else
                 amount = m_pimpl->m_state.get_balance(key);
 
-            tmp_state[key] = amount + reward.amount;
-
+            tmp_state[key] = (amount + reward.amount).to_Coin();
+            
+            
             //// collect action log
             //LoggedTransaction action_info;
             //action_info.applied_reverted = true;
@@ -169,14 +172,14 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
         }
 
         // add fee to miner balance
-        uint64_t amount = 0;
+        coin amount;
         auto state_it = tmp_state.find(signed_block.authority);
         if (state_it != tmp_state.end())
             amount = state_it->second;
         else
             amount = m_pimpl->m_state.get_balance(signed_block.authority);
 
-        tmp_state[signed_block.authority] = amount + fee;
+        tmp_state[signed_block.authority] = (amount + fee).to_Coin();
     }
 
     // Insert blocks
@@ -227,7 +230,7 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
 void revert_blocks(size_t count,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    std::unordered_map<string, uint64_t> tmp_state;
+    std::unordered_map<string, BlockchainMessage::Coin> tmp_state;
 
     for (size_t i = 0; i < count; ++i)
     {
@@ -251,7 +254,7 @@ void revert_blocks(size_t count,
         // Correct state, remove block rewards
         for (auto& reward : block.rewards)
         {
-            uint64_t amount = 0;
+            coin amount;
             string key = reward.to;
 
             auto it = tmp_state.find(key);
@@ -261,7 +264,7 @@ void revert_blocks(size_t count,
                 amount = m_pimpl->m_state.get_balance(key);
 
             // txur klni ete amount < reward.amount ;)
-            tmp_state[key] = amount - reward.amount;
+            tmp_state[key] = (amount - reward.amount).to_Coin();
         }
     }
 
@@ -308,7 +311,7 @@ void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     meshpp::private_key node_pv = node_rs.get_private_key(0);
 
     Reward reward;
-    reward.amount = 10000000000;
+    reward.amount = coin(100, 0).to_Coin();
     reward.to = node_pv.get_public_key().to_string();
     block.rewards.push_back(std::move(reward));
 
@@ -776,15 +779,15 @@ void process_blockchain_response(beltpp::packet& package,
         if (accounts_diff.find(key) != accounts_diff.end())
             return accounts_diff[key];
         else
-            return m_pimpl->m_state.get_balance(key);
+            return coin(m_pimpl->m_state.get_balance(key));
     };
 
-    auto increase_balance = [&](string& key, uint64_t amount)
+    auto increase_balance = [&](string& key, coin const& amount)
     {
         accounts_diff[key] = get_balance(key) + amount;
     };
 
-    auto decrease_balance = [&](string& key, uint64_t amount)
+    auto decrease_balance = [&](string& key, coin const& amount)
     {
         auto balance = get_balance(key);
 
@@ -814,7 +817,7 @@ void process_blockchain_response(beltpp::packet& package,
                 throw std::runtime_error("It's a catastrophe!");
 
         // calculate back transactions
-        uint64_t fee = 0;
+        coin fee;
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
             fee += it->transaction_details.fee;
@@ -879,8 +882,8 @@ void process_blockchain_response(beltpp::packet& package,
         block_it->block_details.get(block);
 
         // verify consensus_delta
-        uint64_t amount = get_balance(block_it->authority);
-        uint64_t delta = calc_delta(block_it->authority, amount, prev_block.header);
+        coin amount = get_balance(block_it->authority);
+        uint64_t delta = calc_delta(block_it->authority, amount.to_uint64_t(), prev_block.header);
         
         bad_data = delta != block.header.consensus_delta;
         if (bad_data) break;
@@ -890,7 +893,7 @@ void process_blockchain_response(beltpp::packet& package,
         if (bad_data) break;
 
         // verify block transactions
-        uint64_t fee = 0;
+        coin fee;
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
             bool st_verify = meshpp::verify_signature(meshpp::public_key(tr_it->authority),

@@ -1,4 +1,5 @@
 #include "blockchain.hpp"
+#include "common.hpp"
 
 #include "data.hpp"
 #include "message.hpp"

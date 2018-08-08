@@ -1,4 +1,6 @@
 #include "node.hpp"
+#include "common.hpp"
+
 #include "node_internals.hpp"
 
 #include "communication_rpc.hpp"
@@ -583,7 +585,7 @@ bool node::run()
 
             if (diff_seconds.count() >= BLOCK_MINE_DELAY)
             {
-                uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
+                coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
                 if (amount >= MINE_AMOUNT_THRESHOLD)
                     mine_block(m_pimpl);
