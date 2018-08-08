@@ -9,6 +9,7 @@
 #include<iostream>
 #include<string>
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 using std::string;
 using std::vector;
@@ -148,7 +149,7 @@ void handleHashForPrimitives(string info[], string& setFunction, string& hashCas
      "    }\n";
 
   hashCase +=
-        "        foreach ($data->hash as $key => $value) {\n"
+        "        foreach ($data->" + member_name + " as $key => $value) {\n"
         "            $this->set" + member_name + "Key($key);\n"
         "            $this->set" + member_name + "Value($value);\n"
         "        }\n";
