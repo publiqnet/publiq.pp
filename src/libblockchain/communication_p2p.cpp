@@ -348,8 +348,8 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->m_blockchain.header(prev_block_header);
 
     string own_key = m_pimpl->private_key.get_public_key().to_string();
-    uint64_t amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
-    uint64_t delta = calc_delta(own_key, amount, prev_block_header);
+    coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
+    uint64_t delta = calc_delta(own_key, amount.to_uint64_t(), prev_block_header);
 
     // fill new block header data
     BlockHeader block_header;
@@ -427,7 +427,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     {
         // grant miner reward himself
         Reward own_reward;
-        own_reward.amount = MINER_REWARD;
+        own_reward.amount = MINER_REWARD.to_Coin();
         own_reward.to = own_key;
 
         block.rewards.push_back(own_reward);
@@ -771,7 +771,7 @@ void process_blockchain_response(beltpp::packet& package,
     }
 
     //3. all needed blocks received, start to check
-    std::unordered_map<string, uint64_t> accounts_diff;
+    std::unordered_map<string, coin> accounts_diff;
 
     //-----------------------------------------------------//
     auto get_balance = [&](string& key)
