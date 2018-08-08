@@ -157,15 +157,17 @@ bool transaction_pool::contains(string const& key) const
 
 void transaction_pool::get_amounts(std::string const& key, std::vector<std::pair<std::string, uint64_t>>& amounts, bool in_out) const
 {
-    for (auto &it : m_pimpl->m_transactions)
+    amounts.clear();
+
+    for (auto& item : m_pimpl->m_transactions)
     {
         Transfer transfer;
-        it.second.transaction_details.action.get(transfer);
+        item.second.transaction_details.action.get(transfer);
 
         if (in_out && transfer.to == key)
-            amounts.push_back(std::pair<std::string, uint64_t>(it.first, transfer.amount));
+            amounts.push_back(std::pair<std::string, uint64_t>(item.first, transfer.amount));
         else if (!in_out && transfer.from == key)
-            amounts.push_back(std::pair<std::string, uint64_t>(it.first, transfer.amount + it.second.transaction_details.fee));
+            amounts.push_back(std::pair<std::string, uint64_t>(item.first, transfer.amount + item.second.transaction_details.fee));
     }
 }
 
@@ -181,7 +183,7 @@ void transaction_pool::grant_rewards(vector<Reward>& rewards) const
 {
     rewards.clear();
 
-    for (auto reward : m_pimpl->tmp_rewards)
+    for (auto& reward : m_pimpl->tmp_rewards)
         rewards.push_back(reward);
 
     m_pimpl->tmp_rewards.clear();

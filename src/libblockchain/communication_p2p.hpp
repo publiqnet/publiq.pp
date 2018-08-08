@@ -2,18 +2,6 @@
 
 #include "node_internals.hpp"
 
-///////////////////////////////////////////////////////////////////////////////////
-//                            Internal Finctions
-//uint64_t calc_delta(string const& key, uint64_t amount, BlockHeader const& block_header);
-//
-//bool insert_blocks(vector<SignedBlock>& signed_block_vector,
-//                   unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-//
-//void revert_blocks(size_t count,
-//                   unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-//
-///////////////////////////////////////////////////////////////////////////////////
-
 void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl);

@@ -34,6 +34,46 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
     std::vector<LoggedTransaction> logged_transactions;
     std::vector<std::pair<std::string, uint64_t>> amounts;
 
+    //-----------------------------------------------------//
+    auto get_balance = [&](string& key)
+    {
+        auto state_it = tmp_state.find(key);
+        if (state_it != tmp_state.end())
+            return state_it->second;
+        else
+            return m_pimpl->m_state.get_balance(key);
+    };
+
+    auto increase_balance = [&](string& key, uint64_t amount)
+    {
+        auto balance = get_balance(key);
+
+        tmp_state[key] = balance + amount;
+    };
+    
+    auto decrease_balance = [&](string& key, uint64_t amount)
+    {
+        auto balance = get_balance(key);
+    
+        if (balance < amount)
+            return false;
+    
+        tmp_state[key] = balance - amount;
+    
+        return true;
+    };
+
+    auto log_transaction = [&](beltpp::packet action)
+    {
+        LoggedTransaction action_info;
+        action_info.applied_reverted = true;
+        action_info.index = 0;
+        action_info.action = std::move(action);
+
+        logged_transactions.push_back(std::move(action_info));
+    };
+    //-----------------------------------------------------//
+
     for (auto it = signed_block_vector.begin(); it != signed_block_vector.end(); ++it)
     {
         uint64_t fee = 0;
@@ -53,131 +93,83 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
             if (signed_transaction.authority != transfer.from)
                 return false;
 
-            string key;
-            uint64_t amount;
-
             // correct "from" key balance
-            key = transfer.from;
-            if (tmp_state.find(key) == tmp_state.end())
+            if (tmp_state.find(transfer.from) == tmp_state.end())
             {
-                tmp_state[key] = m_pimpl->m_state.get_balance(key);
-
                 // process "key" output transfers
-                amounts.clear();
-                m_pimpl->m_transaction_pool.get_amounts(key, amounts, false);
+                m_pimpl->m_transaction_pool.get_amounts(transfer.from, amounts, false);
 
-                amount = tmp_state[key];
-                for (auto& it : amounts)
+                for (auto& item : amounts)
                 {
-                    amount += it.second;
-                    erase_tpool_set.insert(it.first);
+                    increase_balance(transfer.from, item.second);
+                    erase_tpool_set.insert(item.first);
                 }
 
                 // process "key" input transfers
-                amounts.clear();
-                m_pimpl->m_transaction_pool.get_amounts(key, amounts, true);
+                m_pimpl->m_transaction_pool.get_amounts(transfer.from, amounts, true);
 
-                for (auto& it : amounts)
+                for (auto& item : amounts)
                 {
-                    if (amount >= it.second)
-                    {
-                        amount -= it.second;
-                        erase_tpool_set.insert(it.first);
-                    }
+                    if (decrease_balance(transfer.from, item.second))
+                        erase_tpool_set.insert(item.first);
                     else
                         return false;
                 }
-                tmp_state[key] = amount;
             }
 
             // remove transfer amount and fee from sender balance
-            amount = tmp_state[key];
-            if (amount >= transfer.amount + transaction.fee)
-            {
-                tmp_state[key] = amount - transfer.amount - transaction.fee;
+            if(decrease_balance(transfer.from, transfer.amount + transaction.fee))
                 fee += transaction.fee;
-            }
             else
                 return false;
 
             // correct to_key balance
-            key = transfer.to;
-            if (tmp_state.find(key) == tmp_state.end())
+            if (tmp_state.find(transfer.to) == tmp_state.end())
             {
-                tmp_state[key] = m_pimpl->m_state.get_balance(key);
-
                 // process "key" output transfers
-                amounts.clear();
-                m_pimpl->m_transaction_pool.get_amounts(key, amounts, false);
+                m_pimpl->m_transaction_pool.get_amounts(transfer.to, amounts, false);
 
-                amount = tmp_state[key];
-                for (auto& it : amounts)
+                for (auto& item : amounts)
                 {
-                    amount += it.second;
-                    erase_tpool_set.insert(it.first);
+                    increase_balance(transfer.to, item.second);
+                    erase_tpool_set.insert(item.first);
                 }
 
                 // process "key" input transfers
-                amounts.clear();
-                m_pimpl->m_transaction_pool.get_amounts(key, amounts, true);
+                m_pimpl->m_transaction_pool.get_amounts(transfer.to, amounts, true);
 
-                for (auto& it : amounts)
+                for (auto& item : amounts)
                 {
-                    if (amount >= it.second)
-                    {
-                        amount -= it.second;
-                        erase_tpool_set.insert(it.first);
-                    }
+                    if (decrease_balance(transfer.to, item.second))
+                        erase_tpool_set.insert(item.first);
                     else
                         return false;
                 }
-                tmp_state[key] = amount;
             }
 
             // add transfer amount to receiver balance
-            amount = tmp_state[key];
-            tmp_state[key] = amount + transfer.amount;
+            increase_balance(transfer.to, transfer.amount);
 
             // collect action log
-            LoggedTransaction action_info;
-            action_info.applied_reverted = true;
-            action_info.index = 0;
-            action_info.action = std::move(transaction);
-            logged_transactions.push_back(std::move(action_info));
+            log_transaction(std::move(transfer));
         }
+
+        // add fee to miner balance
+        increase_balance(signed_block.authority, fee);
+
+        //TODO manage fee
 
         // apply rewards to tmp_state
         for (auto& reward : block.rewards)
         {
-            uint64_t amount = 0;
-            string key = reward.to;
+            increase_balance(reward.to, reward.amount);
 
-            auto state_it = tmp_state.find(key);
-            if (state_it != tmp_state.end())
-                amount = state_it->second;
-            else
-                amount = m_pimpl->m_state.get_balance(key);
-
-            tmp_state[key] = amount + reward.amount;
-
-            //// collect action log
-            //LoggedTransaction action_info;
-            //action_info.applied_reverted = true;
-            //action_info.index = 0;
-            //action_info.action = std::move(reward);
-            //logged_transactions.push_back(std::move(action_info));
+            // collect action log
+            log_transaction(std::move(reward));
         }
-
-        // add fee to miner balance
-        uint64_t amount = 0;
-        auto state_it = tmp_state.find(signed_block.authority);
-        if (state_it != tmp_state.end())
-            amount = state_it->second;
-        else
-            amount = m_pimpl->m_state.get_balance(signed_block.authority);
-
-        tmp_state[signed_block.authority] = amount + fee;
     }
+
+    // return false is not allowed after this point!
 
     // Insert blocks
     for (auto it = signed_block_vector.begin(); it != signed_block_vector.end(); ++it)
@@ -192,34 +184,35 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
         m_pimpl->m_action_log.revert();
 
     // Correct action log ( 2. apply block transfers )
-    for (auto &it : logged_transactions)
-        m_pimpl->m_action_log.insert(it);
+    for (auto& item : logged_transactions)
+        m_pimpl->m_action_log.insert(item);
+
+    logged_transactions.clear();
 
     // Correct action log ( 3. apply rest of transaction pool )
-    for (auto &it : erase_tpool_set)
-        m_pimpl->m_transaction_pool.remove(it);
+    for (auto& item : erase_tpool_set)
+        m_pimpl->m_transaction_pool.remove(item);
 
-    std::vector<std::string> keys;
+    vector<string> keys;
     m_pimpl->m_transaction_pool.get_keys(keys);
 
     auto now = system_clock::now();
     system_clock::to_time_t(now);
 
-    for (auto &it : keys)
+    for (auto& key : keys)
     {
         SignedTransaction signed_transaction;
-        m_pimpl->m_transaction_pool.at(it, signed_transaction);
+        m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
         if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
-        {
-            LoggedTransaction action_info;
-            action_info.applied_reverted = true;
-            action_info.index = 0;
-            action_info.action = std::move(signed_transaction.transaction_details.action);
-
-            m_pimpl->m_action_log.insert(action_info);
-        }
+            log_transaction(std::move(signed_transaction.transaction_details.action));
+        else
+            m_pimpl->m_transaction_pool.remove(key);
     }
+
+    // Correct action log. apply pool valid transactions
+    for (auto& item : logged_transactions)
+        m_pimpl->m_action_log.insert(item);
 
     return true;
 }
@@ -227,7 +220,27 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
 void revert_blocks(size_t count,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    std::unordered_map<string, uint64_t> tmp_state;
+    if (count >= m_pimpl->m_blockchain.length() - 1)
+        throw std::runtime_error("Serious bug in algorithm!");
+
+    // revert transaction pool content from action log
+    vector<string> keys;
+    vector<beltpp::packet> actions;
+    m_pimpl->m_transaction_pool.get_keys(keys);
+
+    for (auto& key : keys)
+    {
+        // revert from action_log
+        m_pimpl->m_action_log.revert();
+
+        // store actions for insert to action_log
+        SignedTransaction signed_transaction;
+        m_pimpl->m_transaction_pool.at(key, signed_transaction);
+
+        actions.push_back(std::move(signed_transaction.transaction_details.action));
+    }
+
+    unordered_map<string, uint64_t> tmp_state;
 
     for (size_t i = 0; i < count; ++i)
     {
@@ -239,36 +252,53 @@ void revert_blocks(size_t count,
         Block block;
         std::move(signed_block.block_details).get(block);
 
-        auto it = block.signed_transactions.begin();
-
-        // Add block transactions to the pool
-        for (; it != block.signed_transactions.end(); ++it)
-            m_pimpl->m_transaction_pool.insert(*it);
-
-        // Remove last block from blockchain
-        m_pimpl->m_blockchain.remove_last_block();
-
         // Correct state, remove block rewards
         for (auto& reward : block.rewards)
         {
-            uint64_t amount = 0;
-            string key = reward.to;
+            // revert from action_log
+            m_pimpl->m_action_log.revert();
 
-            auto it = tmp_state.find(key);
+            // correct state
+            uint64_t balance = 0;
+
+            auto it = tmp_state.find(reward.to);
             if (it != tmp_state.end())
-                amount = it->second;
+                balance = it->second;
             else
-                amount = m_pimpl->m_state.get_balance(key);
+                balance = m_pimpl->m_state.get_balance(reward.to);
 
-            // txur klni ete amount < reward.amount ;)
-            tmp_state[key] = amount - reward.amount;
+            if (balance >= reward.amount)
+                tmp_state[reward.to] = balance - reward.amount;
+            else
+                throw std::runtime_error("It's a catastrophe!");
         }
+
+        // Add block transactions to the pool and revert from action_log
+        for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
+        {
+            m_pimpl->m_action_log.revert();
+            m_pimpl->m_transaction_pool.insert(*it);
+
+            actions.push_back(std::move(it->transaction_details.action));
+        }
+
+        // Remove last block from blockchain
+        m_pimpl->m_blockchain.remove_last_block();
     }
 
     // Correct state
     m_pimpl->m_state.merge_block(tmp_state);
 
-    // Action log should be correct :)
+    // Insert actions to action_log
+    for (auto it = actions.rbegin(); it != actions.rend(); ++it)
+    {
+        LoggedTransaction action_info;
+        action_info.applied_reverted = true;
+        action_info.index = 0;
+        action_info.action = std::move(*it);
+
+        m_pimpl->m_action_log.insert(std::move(action_info));
+    }
 }
 
 bool check_headers(BlockHeader& next_header, BlockHeader& header)
@@ -773,15 +803,18 @@ void process_blockchain_response(beltpp::packet& package,
     //-----------------------------------------------------//
     auto get_balance = [&](string& key)
     {
-        if (accounts_diff.find(key) != accounts_diff.end())
-            return accounts_diff[key];
+        auto accounts_it = accounts_diff.find(key);
+        if (accounts_it != accounts_diff.end())
+            return accounts_it->second;
         else
             return m_pimpl->m_state.get_balance(key);
     };
 
     auto increase_balance = [&](string& key, uint64_t amount)
     {
-        accounts_diff[key] = get_balance(key) + amount;
+        auto balance = get_balance(key);
+
+        accounts_diff[key] = balance + amount;
     };
 
     auto decrease_balance = [&](string& key, uint64_t amount)
@@ -836,37 +869,6 @@ void process_blockchain_response(beltpp::packet& package,
 
         --block_number;
     }
-
-    //// apply sync_blocks content to accounts_diff
-    //for(auto it = m_pimpl->sync_blocks.begin(); it != m_pimpl->sync_blocks.end(); ++it)
-    //{
-    //    Block block;
-    //    it->block_details.get(block);
-    //
-    //    // calculate transactions
-    //    uint64_t fee = 0;
-    //    for (auto it = block.signed_transactions.begin(); it != block.signed_transactions.end(); ++it)
-    //    {
-    //        fee += it->transaction_details.fee;
-    //
-    //        Transfer transfer;
-    //        std::move(it->transaction_details.action).get(transfer);
-    //
-    //        // calc sender balance
-    //        if(!decrease_balance(transfer.from, transfer.amount + it->transaction_details.fee))
-    //            throw std::runtime_error("It's a catastrophe!");
-    //
-    //        // calc receiver balance
-    //        increase_balance(transfer.to, transfer.amount);
-    //    }
-    //
-    //    // calc authority balance
-    //    increase_balance(it->authority, fee);
-    //
-    //    // increase all reward amounts to balances
-    //    for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
-    //        increase_balance(it->to, it->amount);
-    //}
 
     // verify new received blocks
     Block prev_block;
