@@ -4,6 +4,10 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+#include <boost/filesystem/operations.hpp>
+#include <publiq.pp/global.hpp>
+
+
 
 #include <vector>
 #include <exception>
