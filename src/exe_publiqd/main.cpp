@@ -122,9 +122,14 @@ private:
 
 int main(int argc, char** argv)
 {
-    //  boost filesystem UTF-8 support
-    std::locale::global(boost::locale::generator().generate(""));
-    boost::filesystem::path::imbue(std::locale());
+    try
+    {
+        //  boost filesystem UTF-8 support
+        std::locale::global(boost::locale::generator().generate(""));
+        boost::filesystem::path::imbue(std::locale());
+    }
+    catch (...)
+    {}  //  don't care for exception, for now
     //
     meshpp::config::set_public_key_prefix("PBQ");
     //
