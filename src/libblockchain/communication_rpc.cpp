@@ -38,14 +38,14 @@ void submit_action(beltpp::packet&& package,
 
             //  comment out for now
             //transaction_pool.insert(msg_transfer);
+
+            LoggedTransaction action_info;
+            action_info.applied_reverted = true;    //  apply
+            action_info.index = 0; // will be set automatically
+            action_info.action = std::move(ref_action);
+
+            m_pimpl->m_action_log.insert(action_info);
         }
-
-        LoggedTransaction action_info;
-        action_info.applied_reverted = true;    //  apply
-        action_info.index = 0; // will be set automatically
-        action_info.action = std::move(ref_action);
-
-        m_pimpl->m_action_log.insert(action_info);
         break;
     }
     default:

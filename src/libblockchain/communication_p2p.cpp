@@ -31,10 +31,10 @@ uint64_t calc_delta(string const& key, uint64_t amount, BlockHeader const& block
 bool insert_blocks(vector<SignedBlock>& signed_block_vector,
                    unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    std::unordered_set<string> erase_tpool_set;
-    std::unordered_map<string, BlockchainMessage::Coin> tmp_state;
-    std::vector<LoggedTransaction> logged_transactions;
-    std::vector<std::pair<std::string, coin>> amounts;
+    unordered_set<string> erase_tpool_set;
+    unordered_map<string, Coin> tmp_state;
+    vector<LoggedTransaction> logged_transactions;
+    vector<std::pair<std::string, coin>> amounts;
 
     //-----------------------------------------------------//
     auto get_balance = [&](string& key)
@@ -48,6 +48,9 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
 
     auto increase_balance = [&](string& key, coin const& amount)
     {
+        if (amount.empty()) 
+            return;
+
         auto balance = get_balance(key);
 
         tmp_state[key] = (balance + amount).to_Coin();
@@ -55,6 +58,9 @@ bool insert_blocks(vector<SignedBlock>& signed_block_vector,
     
     auto decrease_balance = [&](string& key, coin const& amount)
     {
+        if (amount.empty()) 
+            return true;
+
         auto balance = get_balance(key);
     
         if (coin(balance) < amount)
@@ -363,12 +369,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     SignedBlock prev_signed_block;
     uint64_t block_number = m_pimpl->m_blockchain.length();
-
-    // corner case, managed
-    if (block_number == 0)
-        m_pimpl->m_blockchain.at(block_number, prev_signed_block);
-    else
-        m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
+    m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
 
     beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
     string prev_block_hash = meshpp::hash(package_prev_block.to_string());
@@ -435,7 +436,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         block.rewards.push_back(std::move(it));
 
     // copy transactions from pool to block
-    std::vector<std::string> keys;
+    vector<string> keys;
     m_pimpl->m_transaction_pool.get_keys(keys);
 
     multimap<BlockchainMessage::ctime, SignedTransaction> transaction_map;

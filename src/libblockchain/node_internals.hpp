@@ -233,17 +233,11 @@ public:
         sync_request.block_number = block_header.block_number;
         sync_request.consensus_sum = block_header.consensus_sum;
 
-        for (auto& it : m_p2p_peers)
+        for (auto& peerid : m_p2p_peers)
         {
-            //// temp solution
-            //packet stored_packet;
-            //
-            //if (!find_stored_request(it, stored_packet) || (stored_packet.type() == SyncRequest::rtt))
-            //{
-                psk->send(it, sync_request);
-                reset_stored_request(it);
-                store_request(it, sync_request);
-            //}
+            psk->send(peerid, sync_request);
+            reset_stored_request(peerid);
+            store_request(peerid, sync_request);
         }
 
         update_sync_time();

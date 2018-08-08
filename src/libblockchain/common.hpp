@@ -22,8 +22,6 @@
 #define DELTA_UP    100000000
 #define DELTA_DOWN  80000000
 
-//#define MINER_REWARD 100
-//#define MINE_AMOUNT_THRESHOLD 1
-static const coin MINER_REWARD(0, 100);
-static const coin MINE_AMOUNT_THRESHOLD(0, 1);
+static const coin MINER_REWARD(1, 0);
+static const coin MINE_AMOUNT_THRESHOLD(1, 0);
 
