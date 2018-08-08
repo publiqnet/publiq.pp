@@ -513,7 +513,7 @@ void process_blockheader_response(beltpp::packet& package,
     if (bad_data) throw wrong_data_exception("blockheader response. empty response received!");
 
     auto it = header_response.block_headers.begin();
-    if (it->block_number == tmp_header.block_number)
+    if (it->block_number == tmp_header.block_number && m_pimpl->sync_headers.empty())
         bad_data = it->consensus_sum <= tmp_header.consensus_sum;
 
     if (bad_data) throw wrong_data_exception("blockheader response. wrong data received!");
@@ -550,27 +550,27 @@ void process_blockheader_response(beltpp::packet& package,
     while (!found && it != header_response.block_headers.end())
     {
         if (it->block_number > tmp_header.block_number)
-        {
-            m_pimpl->sync_headers.push_back(std::move(*it));
-            ++it;
-        }
+            m_pimpl->sync_headers.push_back(std::move(*it++));
         else
-        {
-            if(it->consensus_sum > tmp_header.consensus_sum)
-                m_pimpl->sync_headers.push_back(std::move(*it));
-
             found = true;
-        }
     }
 
     bool lcb_found = false;
     if (found)
     {
+        while( it != header_response.block_headers.end() &&
+               it->consensus_sum > tmp_header.consensus_sum)
+        {
+            m_pimpl->sync_headers.push_back(std::move(*it++));
+            m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);
+        }
+
         for (; !lcb_found && it != header_response.block_headers.end(); ++it)
         {
             if (tmp_header.previous_hash == it->previous_hash)
                 lcb_found = true;
-            else
+
+            if (tmp_header.block_number > 0)
             {
                 m_pimpl->sync_headers.push_back(std::move(*it));
                 m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);

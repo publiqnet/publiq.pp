@@ -529,7 +529,6 @@ bool node::run()
         if (!m_pimpl->sync_free() && m_pimpl->sync_timeout())
         {
             // something went wrong, init new sync process
-            m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
             m_pimpl->new_sync_request();
             m_pimpl->m_sync_timer.update();
         }
@@ -597,10 +596,7 @@ bool node::run()
         m_pimpl->m_sync_timer.update();
 
         if (m_pimpl->sync_free() && m_pimpl->sync_timeout())
-        {
-            m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
             m_pimpl->new_sync_request();
-        }
     }
 
     return code;
