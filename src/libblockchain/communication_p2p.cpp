@@ -303,7 +303,7 @@ void revert_blocks(size_t count,
     }
 }
 
-bool check_headers(BlockHeader& next_header, BlockHeader& header)
+bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
 {
     bool t = next_header.block_number != header.block_number + 1;
     t = t || next_header.consensus_sum <= header.consensus_sum;
@@ -562,7 +562,7 @@ void process_blockheader_response(beltpp::packet& package,
     if (bad_data) throw wrong_data_exception("blockheader response. unexpected data received!");
 
     //-----------------------------------------------------//
-    auto check_headers_vector = [](vector<BlockHeader>& header_vector)
+    auto check_headers_vector = [](vector<BlockHeader> const& header_vector)
     {
         bool t = false;
         auto it = header_vector.begin();
@@ -803,7 +803,7 @@ void process_blockchain_response(beltpp::packet& package,
     std::unordered_map<string, coin> accounts_diff;
 
     //-----------------------------------------------------//
-    auto get_balance = [&](string& key)
+    auto get_balance = [&](string const& key)
     {
         auto accounts_it = accounts_diff.find(key);
         if (accounts_it != accounts_diff.end())
@@ -812,14 +812,14 @@ void process_blockchain_response(beltpp::packet& package,
             return coin(m_pimpl->m_state.get_balance(key));
     };
 
-    auto increase_balance = [&](string& key, coin const& amount)
+    auto increase_balance = [&](string const& key, coin const& amount)
     {
         auto balance = get_balance(key);
 
         accounts_diff[key] = balance + amount;
     };
 
-    auto decrease_balance = [&](string& key, coin const& amount)
+    auto decrease_balance = [&](string const& key, coin const& amount)
     {
         auto balance = get_balance(key);
 
