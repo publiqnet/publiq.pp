@@ -98,7 +98,7 @@ string handleArrayForObjects(int count, string member_name, string object_name)
         if( object_name == "::beltpp::packet")
         {
             arrayCase +=
-                       "    Rtt::validate($data->" +  member_name + ");\n";
+                       "    $this->" + member_name + " =    Rtt::validate($data->" +  member_name + ");\n";
         }
         else
         {
@@ -173,7 +173,7 @@ void handleHashForObjects(string info[], string& setFunction, string& hashCase, 
         if(info[3] == "::beltpp::packet")
         {
             hashCase +=
-                       "        Rtt::validate($data->" +  member_name + ");\n";
+                       "        $this->" + member_name + " = Rtt::validate($data->" +  member_name + ");\n";
         }
         else
         {
@@ -545,7 +545,7 @@ void analyze_struct(    state_holder& state,
                     "    private $" + member_name.value + ";\n";
 
             mixedTypes +=
-                    "            Rtt::validate($data->" +  member_name.value + ");\n";
+                    "          $this->" + member_name.value + " = Rtt::validate($data->" +  member_name.value + ");\n";
         }
         else if(info[0] == "hash")
         {

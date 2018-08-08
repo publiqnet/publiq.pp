@@ -82,43 +82,43 @@ int main(int argc, char** argv)
     send_package.set(log_transaction);
     Send(send_package, receive_package, sk, peerid, eh);
     return 0;
-    for (auto i = 0; i < 10; ++i)
-    {
-        Transfer transfer;
-        transfer.from = rob_key.public_key;
-        transfer.to = serz_key.public_key;
-        transfer.amount = 10 + i;
+//    for (auto i = 0; i < 10; ++i)
+//    {
+//        Transfer transfer;
+//        transfer.from = rob_key.public_key;
+//        transfer.to = serz_key.public_key;
+//        transfer.amount = 10 + i;
 
-        Transaction transaction;
-        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-        transaction.fee = 1;
-        transaction.action = transfer;
+//        Transaction transaction;
+//        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+//        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+//        transaction.fee = 1;
+//        transaction.action = transfer;
 
-        SignRequest sign_request;
-        sign_request.private_key = rob_key.private_key;
-        sign_request.package = transaction;
+//        SignRequest sign_request;
+//        sign_request.private_key = rob_key.private_key;
+//        sign_request.package = transaction;
 
-        send_package.set(sign_request);
-        Send(send_package, receive_package, sk, peerid, eh);
+//        send_package.set(sign_request);
+//        Send(send_package, receive_package, sk, peerid, eh);
 
-        Signature signature;
-        receive_package.get(signature);
+//        Signature signature;
+//        receive_package.get(signature);
 
-        SignedTransaction signed_transaction;
-        signed_transaction.authority = rob_key.public_key;
-        signed_transaction.signature = signature.signature;
-        signed_transaction.transaction_details = transaction;
+//        SignedTransaction signed_transaction;
+//        signed_transaction.authority = rob_key.public_key;
+//        signed_transaction.signature = signature.signature;
+//        signed_transaction.transaction_details = transaction;
 
-        Broadcast broadcast;
-        broadcast.echoes = 2;
-        broadcast.package = signed_transaction;
+//        Broadcast broadcast;
+//        broadcast.echoes = 2;
+//        broadcast.package = signed_transaction;
 
-        send_package.set(broadcast);
-        Send(send_package, receive_package, sk, peerid, eh);
+//        send_package.set(broadcast);
+//        Send(send_package, receive_package, sk, peerid, eh);
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+//        std::this_thread::sleep_for(std::chrono::seconds(1));
+//    }
 
     return 0;
 }
