@@ -554,13 +554,13 @@ void analyze_struct(    state_holder& state,
             mixedTypes +=
                     "          $this->" + member_name.value + " = Rtt::validate($data->" +  member_name.value + ");\n";
         }
-        else if(info[0] == "hash")
+        else if(info[0] == "hash" || info[0] == "array")
         {
             params +=
                     "    /**\n"
                     "    * @var array \n"
                     "    */ \n"
-                    "    private $" + member_name.value + ";\n";
+                    "    private $" + member_name.value + " = [];\n";
         }
         else
         {
