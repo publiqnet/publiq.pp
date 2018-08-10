@@ -54,13 +54,33 @@ enum g_type_info {
                 type_simple_object_extension = type_simple | type_object_extension
 };
 
+string transformString(string scoreString)
+{
+    string tempString = "";
+    string camelString = "";
+    int charCount = 0;
+    camelString = scoreString;
+    charCount = static_cast<int>(camelString.length());
+
+    for (int x = 0; x < camelString.length(); x++){
+
+            if (camelString[x] == '_'){
+                tempString = camelString.substr(x + 1, 1);
+                transform(tempString.begin(), tempString.end(), tempString.begin(), toupper);
+                camelString.erase(x, 2);
+                camelString.insert(x, tempString);
+            }
+        }
+    return camelString;
+}
+
 string handleArrayForPrimitives(int count, string member_name)
 {
 
     string arrayCase;
-    string item = member_name + "Item";
+    string item = transformString( member_name ) + "Item";
     arrayCase +=
-               "          foreach ($data->" + member_name + " as $" + item + ") { \n";
+               "          foreach ($data->" + transformString( member_name ) + " as $" + item + ") { \n";
 
     for( int i = 1; i != count; i++)
     {
@@ -69,7 +89,7 @@ string handleArrayForPrimitives(int count, string member_name)
         item = item + std::to_string(i);
     }
         arrayCase +=
-                   "            $this->add" + ((char)( member_name.at(0)-32 ) + member_name.substr( 1, member_name.length()-1 )) + "($" + item + ");\n";
+                   "            $this->add" + ((char)( member_name.at(0)-32 ) + transformString( member_name.substr( 1, member_name.length()-1 ))) + "($" + item + ");\n";
 
     for( int i = 1; i != count; i++)
     {
@@ -83,11 +103,13 @@ string handleArrayForPrimitives(int count, string member_name)
 
 string handleArrayForObjects(int count, string member_name, string object_name)
 {
+        string camelCaseMemberName = transformString( member_name );
 
-        string item = member_name +"Item";
+        string item = camelCaseMemberName +"Item";
+
         string arrayCase;
              arrayCase+=
-                       "          foreach ($data->" + member_name + " as $" + item + ") { \n";
+                       "          foreach ($data->" + camelCaseMemberName + " as $" + item + ") { \n";
 
         for( int i = 1; i != count; i++)
         {
@@ -99,14 +121,14 @@ string handleArrayForObjects(int count, string member_name, string object_name)
         if( object_name == "::beltpp::packet")
         {
             arrayCase +=
-                       "    $this->" + member_name + " =    Rtt::validate($data->" +  member_name + ");\n";
+                       "    $this->" + camelCaseMemberName + " =    Rtt::validate($data->" +  member_name + ");\n";
         }
         else
         {
             arrayCase +=
                        "              $" + item + "Obj = new " + object_name + "(); \n"
                        "              $" + item + "Obj->validate($" + item + "); \n"+
-                       "              $this->" + member_name + "[] = $" + item + "Obj;\n";
+                       "              $this->" + camelCaseMemberName + "[] = $" + item + "Obj;\n";
         }
 
 
@@ -123,62 +145,65 @@ string handleArrayForObjects(int count, string member_name, string object_name)
 
 void handleHashForPrimitives(string info[], string& setFunction, string& hashCase, string member_name)
 {
+    string camelCaseMemberName = transformString( member_name );
+    string camleCaseTypeName = transformString( info[3] );
     setFunction +=
      "    /**\n"
      "    * @var string\n"
      "    */\n"
-     "    private $" + member_name + "Key;\n"
+     "    private $" + camelCaseMemberName + "Key;\n"
      "    /**\n"
-     "    * @param string  $" + member_name + "Key\n"
+     "    * @param string  $" + camelCaseMemberName + "Key\n"
      "    */\n"
-     "    public function set" + member_name + "Key(string $" + member_name + "Key)\n"
+     "    public function set" + camelCaseMemberName + "Key(string $" + camelCaseMemberName + "Key)\n"
      "    {\n"
-     "        $this->" + member_name + "Key = $" + member_name + "Key;\n"
+     "        $this->" + camelCaseMemberName + "Key = $" + camelCaseMemberName + "Key;\n"
      "    }\n"
 
      "    /**\n"
-     "    * @var " + info[3] + "\n"
+     "    * @var " + camleCaseTypeName  + "\n"
      "    */\n"
-     "    private $" + member_name + "Value;\n"
+     "    private $" + camelCaseMemberName + "Value;\n"
      "    /**\n"
-     "    * @param " + info[3] + " $" + member_name + "Value\n"
+     "    * @param " + camleCaseTypeName  + " $" + camelCaseMemberName + "Value\n"
      "    */\n"
-     "    public function set" + member_name + "Value(" + info[3] + " $value)\n"
+     "    public function set" + camelCaseMemberName + "Value(" + camleCaseTypeName + " $value)\n"
      "    {\n"
-     "        $this->" + member_name + "Value = $value;\n"
+     "        $this->" + camelCaseMemberName + "Value = $value;\n"
      "    }\n";
 
   hashCase +=
-        "        foreach ($data->" + member_name + " as $key => $value) {\n"
-        "            $this->set" + member_name + "Key($key);\n"
-        "            $this->set" + member_name + "Value($value);\n"
+        "        foreach ($data->" + camelCaseMemberName + " as $key => $value) {\n"
+        "            $this->set" + camelCaseMemberName + "Key($key);\n"
+        "            $this->set" + camelCaseMemberName + "Value($value);\n"
         "        }\n";
 }
 
 void handleHashForObjects(string info[], string& setFunction, string& hashCase, string member_name)
 {
 
+        string camelCaseMemberName = transformString( member_name );
         setFunction +=
                 "    /**\n"
                 "    * @var string\n"
                 "    */\n"
-                "    private $" + member_name + "Key;\n"
+                "    private $" + camelCaseMemberName + "Key;\n"
                 "    /**\n"
-                "    * @param string  $" + member_name + "Key\n"
+                "    * @param string  $" + camelCaseMemberName + "Key\n"
                 "    */\n"
-                "    public function set" + member_name + "Key(string  $" + member_name + "Key)\n"
+                "    public function set" + camelCaseMemberName + "Key(string  $" + camelCaseMemberName + "Key)\n"
                 "    {\n"
-                "        $this->" + member_name + "Key = $" + member_name + "Key;\n"
+                "        $this->" + camelCaseMemberName + "Key = $" + camelCaseMemberName + "Key;\n"
                 "    }\n";
 
-        string item = member_name +"Item";
+        string item = camelCaseMemberName +"Item";
 
         if(info[3] == "::beltpp::packet")
         {
             hashCase +=
-                      "        foreach ($data->" + member_name + " as $key => $value) {\n"
-                      "            $this->set" + member_name + "Key($key);\n"
-                      "            $this->" + member_name + " = Rtt::validate($data->" +  member_name + ");\n"
+                      "        foreach ($data->" + camelCaseMemberName + " as $key => $value) {\n"
+                      "            $this->set" + camelCaseMemberName + "Key($key);\n"
+                      "            $this->" + camelCaseMemberName + " = Rtt::validate($data->" +  member_name + ");\n"
                       "         }\n";
 
         }
@@ -186,11 +211,11 @@ void handleHashForObjects(string info[], string& setFunction, string& hashCase, 
         {
 
           hashCase +=
-                    "        foreach ($data->" + member_name + " as $key => $value) {\n"
-                    "            $this->set" + member_name + "Key($key);\n"
+                    "        foreach ($data->" + camelCaseMemberName + " as $key => $value) {\n"
+                    "            $this->set" + camelCaseMemberName + "Key($key);\n"
                     "            $hashItemObj = new " + info[3] + "();\n"
                     "            $hashItemObj->validate($value);\n"
-                    "            $this->" + member_name + "[] = $" + item + "Obj"
+                    "            $this->" + camelCaseMemberName + "[] = $" + item + "Obj"
                     "         }\n";
         }
 
@@ -542,6 +567,8 @@ void analyze_struct(    state_holder& state,
         string info[4];
         construct_type_name(member_type, state, type_detail, info);
 
+        string camelCaseMemberName = transformString( member_name.value );
+
         if ( info[0] == "::beltpp::packet" )
         {
 
@@ -549,26 +576,26 @@ void analyze_struct(    state_holder& state,
                     "    /**\n"
                     "    * @var mixed \n"
                     "    */ \n"
-                    "    private $" + member_name.value + ";\n";
+                    "    private $" + camelCaseMemberName + ";\n";
 
             mixedTypes +=
-                    "          $this->" + member_name.value + " = Rtt::validate($data->" +  member_name.value + ");\n";
+                    "          $this->" + camelCaseMemberName + " = Rtt::validate($data->" +  member_name.value + ");\n";
         }
         else if(info[0] == "hash" || info[0] == "array")
         {
             params +=
                     "    /**\n"
-                    "    * @var array \n"
+                    "    * @var array\n"
                     "    */ \n"
-                    "    private $" + member_name.value + " = [];\n";
+                    "    private $" + camelCaseMemberName + " = [];\n";
         }
         else
         {
             params +=
                     "    /**\n"
-                    "    * @var "+ info[0] + "\n" +
+                    "    * @var "+ transformString( info[0] ) + "\n" +
                     "    */ \n" +
-                    "    private $" + member_name.value + ";\n";
+                    "    private $" + camelCaseMemberName + ";\n";
         }
 
         if(     info[0] == "array" &&
@@ -597,14 +624,14 @@ void analyze_struct(    state_holder& state,
                  )
         {
 
-            string item = member_name.value + "Item";
+            string item = camelCaseMemberName + "Item";
             addFunction +=
                          "    /**\n"
-                         "    * @param " + info[1] + " $" + item +"\n"
+                         "    * @param " + transformString( info[1] ) + " $" + item +"\n"
                          "    */\n"
-                         "    public function add" + ((char)( member_name.value.at(0)-32 ) + member_name.value.substr( 1, member_name.value.length()-1 ))  +  "(" + info[1] + " $" + item + ")\n"
+                         "    public function add" + ((char)( member_name.value.at(0)-32 ) + transformString( member_name.value.substr( 1, member_name.value.length()-1 )))  +  "(" + info[1] + " $" + item + ")\n"
                          "    {\n"
-                         "        $this->" + member_name.value + "[] = $" + item + ";\n"
+                         "        $this->" + camelCaseMemberName + "[] = $" + item + ";\n"
                          "    }\n";
 
 
@@ -653,7 +680,7 @@ void analyze_struct(    state_holder& state,
                  )
         {
             trivialTypes +=
-                          "          $this->set" + ((char)(member_name.value.at(0)-32) + member_name.value.substr( 1,member_name.value.length()-1) ) + "($data->" + member_name.value + "); \n";
+                          "          $this->set" + ((char)(member_name.value.at(0)-32) + transformString( member_name.value.substr( 1,member_name.value.length()-1) )) + "($data->" + transformString( member_name.value ) + "); \n";
 
             string type;
             if (info[0] == "integer")
@@ -663,11 +690,11 @@ void analyze_struct(    state_holder& state,
 
             setFunction +=
                          "    /** \n"
-                         "    * @param " + type + " $" + member_name.value + "\n"
+                         "    * @param " + type + " $" + camelCaseMemberName + "\n"
                          "    */ \n"
-                         "    public function set" + (char)( member_name.value.at(0)-32 ) + member_name.value.substr( 1,member_name.value.length()-1 ) + "(" + type +" $" + member_name.value + ") \n"
+                         "    public function set" + (char)( member_name.value.at(0)-32 ) + transformString( member_name.value.substr( 1,member_name.value.length()-1 ) ) + "(" + type +" $" + transformString( member_name.value ) + ") \n"
                          "    { \n"
-                         "            $this->" + member_name.value + " = " ;
+                         "            $this->" + camelCaseMemberName + " = " ;
 
             if (!(info[0] == "integer"))
                 setFunction += "$";
@@ -675,7 +702,7 @@ void analyze_struct(    state_holder& state,
             if (info[0] == "integer")
                 setFunction += "strtotime($";
 
-            setFunction += member_name.value;
+            setFunction += camelCaseMemberName;
 
             if (info[0] == "integer")
                 setFunction += ")";
@@ -686,14 +713,14 @@ void analyze_struct(    state_holder& state,
         else if( !(info[0] == "::beltpp::packet")  && !(info[0] == "hash") && !(info[0] == "array") )
         {
             objectTypes +=
-                         "        $this->" + member_name.value + " = new "+ info[0] + "();\n"
-                         "        $this->" + member_name.value + " -> validate($data-> "+ member_name.value  + ");\n";
+                         "        $this->" + camelCaseMemberName + " = new "+ info[0] + "();\n"
+                         "        $this->" + camelCaseMemberName + " -> validate($data-> "+ camelCaseMemberName  + ");\n";
         }
 
         getFunction +=
-                    "    public function get" + ((char)( member_name.value.at(0)-32 ) + member_name.value.substr( 1, member_name.value.length()-1 )) + "() \n"
+                    "    public function get" + ((char)( member_name.value.at(0)-32 ) + transformString(member_name.value.substr( 1, member_name.value.length()-1 ))) + "() \n"
                     "    {\n"
-                    "        return $this->" + member_name.value + ";\n"
+                    "        return $this->" + camelCaseMemberName + ";\n"
                     "    }\n";
     }
 
