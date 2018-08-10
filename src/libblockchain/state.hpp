@@ -16,10 +16,12 @@ public:
     state(boost::filesystem::path const& fs_state);
     ~state();
 
+    void commit();
+    void rollback();
+
     BlockchainMessage::Coin get_balance(std::string const& key) const;
 
-    bool check_transfer(BlockchainMessage::Transfer const& transfer, BlockchainMessage::Coin const& fee) const;
-    void apply_transfer(BlockchainMessage::Transfer const& transfer, BlockchainMessage::Coin const& fee);
+    bool apply_transfer(BlockchainMessage::Transfer const& transfer, BlockchainMessage::Coin const& fee);
     void merge_block(std::unordered_map<std::string, BlockchainMessage::Coin> const& tmp_state);
 
     // for test only

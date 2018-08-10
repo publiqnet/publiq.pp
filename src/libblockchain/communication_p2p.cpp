@@ -34,10 +34,10 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
     if (signed_blocks.size() == 0)
         return true;
 
-    unordered_set<string> erase_tpool_set;
+    vector<LoggedTransaction> actions;
+    vector<pair<string, coin>> amounts;
+    unordered_set<string> erase_tpool;
     unordered_map<string, Coin> tmp_state;
-    vector<LoggedTransaction> logged_transactions;
-    vector<std::pair<std::string, coin>> amounts;
 
     //-----------------------------------------------------//
     auto get_balance = [&](string& key)
@@ -81,7 +81,7 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
         action_info.index = 0;
         action_info.action = std::move(action);
 
-        logged_transactions.push_back(std::move(action_info));
+        actions.push_back(std::move(action_info));
     };
     //-----------------------------------------------------//
 
@@ -113,7 +113,7 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
                 for (auto& item : amounts)
                 {
                     increase_balance(transfer.from, item.second);
-                    erase_tpool_set.insert(item.first);
+                    erase_tpool.insert(item.first);
                 }
 
                 // process "key" input transfers
@@ -122,7 +122,7 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
                 for (auto& item : amounts)
                 {
                     if (decrease_balance(transfer.from, item.second))
-                        erase_tpool_set.insert(item.first);
+                        erase_tpool.insert(item.first);
                     else
                         return false;
                 }
@@ -143,7 +143,7 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
                 for (auto& item : amounts)
                 {
                     increase_balance(transfer.to, item.second);
-                    erase_tpool_set.insert(item.first);
+                    erase_tpool.insert(item.first);
                 }
 
                 // process "key" input transfers
@@ -152,7 +152,7 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
                 for (auto& item : amounts)
                 {
                     if (decrease_balance(transfer.to, item.second))
-                        erase_tpool_set.insert(item.first);
+                        erase_tpool.insert(item.first);
                     else
                         return false;
                 }
@@ -195,13 +195,13 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
         m_pimpl->m_action_log.revert();
 
     // Correct action log ( 2. apply block transfers )
-    for (auto& item : logged_transactions)
-        m_pimpl->m_action_log.insert(item);
+    for (auto& action : actions)
+        m_pimpl->m_action_log.insert(action);
 
-    logged_transactions.clear();
+    actions.clear();
 
     // Correct action log ( 3. apply rest of transaction pool )
-    for (auto& item : erase_tpool_set)
+    for (auto& item : erase_tpool)
         m_pimpl->m_transaction_pool.remove(item);
 
     vector<string> keys;
@@ -222,8 +222,8 @@ bool insert_blocks(vector<SignedBlock>& signed_blocks,
     }
 
     // Correct action log. apply pool valid transactions
-    for (auto& item : logged_transactions)
-        m_pimpl->m_action_log.insert(item);
+    for (auto& action : actions)
+        m_pimpl->m_action_log.insert(action);
 
     return true;
 }

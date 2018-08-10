@@ -231,6 +231,18 @@ public:
         update_sync_time();
     }
 
+    void commit()
+    {
+        // list all members to commit!
+        m_state.commit();
+    }
+
+    void rollback()
+    {
+        // list all members to rollback!
+        m_state.rollback();
+    }
+
     std::vector<beltpp::isocket::peer_id> do_step()
     {
         vector<beltpp::isocket::peer_id> result;

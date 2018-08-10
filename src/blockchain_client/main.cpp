@@ -82,7 +82,7 @@ int main(int argc, char** argv)
     send_package.set(log_transaction);
     Send(send_package, receive_package, sk, peerid, eh);
     
-    return 0;
+    //return 0;
 
     for (auto i = 0; i < 10; ++i)
     {
