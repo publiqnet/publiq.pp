@@ -58,11 +58,10 @@ string transformString(string scoreString)
 {
     string tempString = "";
     string camelString = "";
-    int charCount = 0;
     camelString = scoreString;
-    charCount = static_cast<int>(camelString.length());
 
-    for (int x = 0; x < camelString.length(); x++){
+
+    for (size_t x = 0; x < camelString.length(); x++){
 
             if (camelString[x] == '_'){
                 tempString = camelString.substr(x + 1, 1);
