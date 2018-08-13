@@ -554,8 +554,10 @@ void analyze_struct(    state_holder& state,
              "    use RttSerializableTrait;\n" +
              "    use RttToJsonTrait;\n";
 
+    string memberNamesMap = "";
     for (auto member_pair : members)
     {
+
         auto const& member_name = member_pair.first->lexem;
         auto const& member_type = member_pair.second;
         if (member_name.rtt != identifier::rtt)
@@ -564,9 +566,11 @@ void analyze_struct(    state_holder& state,
         g_type_info type_detail;
 
         string info[4];
-        construct_type_name(member_type, state, type_detail, info);
+        construct_type_name(member_type, state, type_detail, info); 
 
         string camelCaseMemberName = transformString( member_name.value );
+
+        memberNamesMap += "        '" + member_name.value + "'" + " => '" + camelCaseMemberName + "',\n";
 
         if ( info[0] == "::beltpp::packet" )
         {
@@ -686,7 +690,6 @@ void analyze_struct(    state_holder& state,
                 type = "int";
             else
                 type = info[0];
-
             setFunction +=
                          "    /** \n"
                          "    * @param " + type + " $" + camelCaseMemberName + "\n"
@@ -723,14 +726,22 @@ void analyze_struct(    state_holder& state,
                     "    }\n";
     }
 
+
+
     string  validation =
                        "    public function validate(\\stdClass $data) \n"
                        "    { \n"
                                 + objectTypes + trivialTypes + arrayCase + mixedTypes + hashCase +
                        "    } \n";
-
+    model<< " \n    CONST memberNames = [\n"
+              + memberNamesMap +
+            "    ];\n\n";
     model<< params + setFunction + getFunction + addFunction + validation;
-    model<< "} \n";
+    model<< R"file_template(    public function getMemberName(string $camelCaseName)
+    {
+        return array_search($camelCaseName, $this->$memberNames);
+    })file_template";
+    model<< "\n} \n";
 
 /////////////////
 
