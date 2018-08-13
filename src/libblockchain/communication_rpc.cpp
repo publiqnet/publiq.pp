@@ -218,20 +218,18 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     if (!m_pimpl->m_transaction_pool.contains(transfer_hash))
     {
-        // Validate and apply state
+        // Validate and add to state
         if (!m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee))
+        {
+            m_pimpl->rollback();
             throw std::runtime_error("Balance is not enough!");
+        }
 
         // Add to the pool
         m_pimpl->m_transaction_pool.insert(signed_transaction);
 
         // Add to action log
-        LoggedTransaction action_info;
-        action_info.applied_reverted = true;    //  apply
-        action_info.index = 0; // will be set automatically
-        action_info.action = std::move(transfer);
-
-        m_pimpl->m_action_log.insert(action_info);
+        m_pimpl->m_action_log.log(std::move(transfer));
 
         m_pimpl->commit();
     }

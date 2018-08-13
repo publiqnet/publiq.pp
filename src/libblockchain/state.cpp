@@ -66,60 +66,62 @@ Coin state::get_balance(string const& key) const
     return Coin(); // all accounts not included have 0 balance
 }
 
-bool state::apply_transfer(BlockchainMessage::Transfer const& transfer, BlockchainMessage::Coin const& fee)
+bool state::apply_transfer(Transfer const& transfer, Coin const& fee)
 {
     if (coin(transfer.amount).empty())
-        return false;
+        throw std::runtime_error("0 amount transfer is not allowed!");
 
     // decrease "from" balance
-    if (m_pimpl->m_state.keys.find(transfer.from) != m_pimpl->m_state.keys.end())
-    {
-        coin balance = m_pimpl->m_state.at(transfer.from);
-
-        if (balance >= transfer.amount + fee)
-            balance -= transfer.amount + fee;
-        else
-            return false;
-    }
+    if (!decrease_balance(transfer.from, transfer.amount + fee))
+        return false;
     
     // increase "to" balance
-    if (m_pimpl->m_state.keys.find(transfer.to) != m_pimpl->m_state.keys.end())
-    {
-        coin balance = m_pimpl->m_state.at(transfer.to);
-        balance += transfer.amount;
-    }
-    else
-        m_pimpl->m_state.insert(transfer.to, transfer.amount);
+    increase_balance(transfer.to, transfer.amount);
 
     return true;
 }
 
-void state::apply_reward(BlockchainMessage::Reward const& reward)
+void state::apply_reward(Reward const& reward)
 {
     if (coin(reward.amount).empty())
         throw std::runtime_error("0 amount reward is humiliatingly!");
 
-    if (m_pimpl->m_state.keys.find(reward.to) != m_pimpl->m_state.keys.end())
-    {
-        coin balance = m_pimpl->m_state.at(reward.to);
-        balance += reward.amount;
-    }
-    else
-        m_pimpl->m_state.insert(reward.to, reward.amount);
+    increase_balance(reward.to, reward.amount);
 }
 
-void state::merge_block(std::unordered_map<string, BlockchainMessage::Coin> const& tmp_state)
+void state::increase_balance(string const& key, coin const& amount)
 {
-    //for (auto &it : tmp_state)
-    //{
-    //    if (coin(it.second).empty())
-    //        m_pimpl->m_state->accounts.erase(it.first);
-    //    else
-    //        m_pimpl->m_state->accounts[it.first] = it.second;
-    //}
-    //
-    //// save state to file after merge complete
-    //m_pimpl->m_state.save();
+    if (amount.empty())
+        throw std::runtime_error("Increment balance with 0 is not allowed!");
+
+    if (m_pimpl->m_state.keys.find(key) != m_pimpl->m_state.keys.end())
+    {
+        coin balance = m_pimpl->m_state.at(key);
+        balance += amount;
+    }
+    else
+        m_pimpl->m_state.insert(key, amount.to_Coin());
+}
+
+bool state::decrease_balance(string const& key, coin const& amount)
+{
+    if (amount.empty())
+        throw std::runtime_error("Decrement balance with 0 is not allowed!");
+
+    if (m_pimpl->m_state.keys.find(key) == m_pimpl->m_state.keys.end())
+        return false;
+
+    coin balance = m_pimpl->m_state.at(key);
+
+    if (balance < amount)
+        return false;
+
+    balance -= amount;
+
+    if (balance.empty())
+        m_pimpl->m_state.erase(key);
+
+    return true;
 }
 
 }

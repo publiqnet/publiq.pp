@@ -55,6 +55,16 @@ size_t action_log::length() const
     return m_pimpl->m_length.as_const()->value;
 }
 
+void action_log::log(beltpp::packet action)
+{
+    LoggedTransaction action_info;
+    action_info.applied_reverted = true;    //  apply
+    action_info.index = 0; // will be set automatically
+    action_info.action = std::move(action);
+
+    insert(action_info);
+}
+
 void action_log::insert(BlockchainMessage::LoggedTransaction const& action_info)
 {
     size_t index = m_pimpl->m_length.as_const()->value;
