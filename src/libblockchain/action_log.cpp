@@ -12,31 +12,32 @@ using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 using std::string;
 
-namespace
-{
-using logged_action_loader = meshpp::file_loader<BlockchainMessage::LoggedTransaction,
-                                                 &BlockchainMessage::LoggedTransaction::from_string,
-                                                 &BlockchainMessage::LoggedTransaction::to_string>;
-}
-
 namespace publiqpp
 {
 
 namespace detail
 {
+
+inline
+beltpp::void_unique_ptr get_putl()
+{
+    beltpp::message_loader_utility utl;
+    BlockchainMessage::detail::extension_helper(utl);
+
+    auto ptr_utl =
+        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+
+    return ptr_utl;
+}
+
 class action_log_internals
 {
 public:
     action_log_internals(filesystem::path const& path)
-        : m_path(path)
-        , m_length(path / "action_log.act.length")
+        :m_actions("actions", path, detail::get_putl())
     {}
 
-    using number_loader = meshpp::file_loader<Data::Number, &Data::Number::from_string, &Data::Number::to_string>;
-    using number_locked_loader = meshpp::file_locker<number_loader>;
-
-    filesystem::path m_path;
-    number_locked_loader m_length;
+    meshpp::vector_loader<LoggedTransaction> m_actions;
 };
 }
 
@@ -50,13 +51,26 @@ action_log::~action_log()
 
 }
 
+void action_log::commit()
+{
+    m_pimpl->m_actions.save();
+}
+
+void action_log::rollback()
+{
+    m_pimpl->m_actions.discard();
+}
+
 size_t action_log::length() const
 {
-    return m_pimpl->m_length.as_const()->value;
+    return m_pimpl->m_actions.size();
 }
 
 void action_log::log(beltpp::packet action)
 {
+    if (action.type() != Transfer::rtt && action.type() != Reward::rtt)
+        throw std::runtime_error("No logable actio type!");
+
     LoggedTransaction action_info;
     action_info.applied_reverted = true;    //  apply
     action_info.index = 0; // will be set automatically
@@ -65,31 +79,17 @@ void action_log::log(beltpp::packet action)
     insert(action_info);
 }
 
-void action_log::insert(BlockchainMessage::LoggedTransaction const& action_info)
+void action_log::insert(LoggedTransaction const& action_info)
 {
-    size_t index = m_pimpl->m_length.as_const()->value;
-    string file_name(std::to_string(index) + ".act");
-
-    logged_action_loader fl(m_pimpl->m_path / file_name);
-    *fl = action_info;
-    if (true == action_info.applied_reverted)   //  apply
-        fl->index = index;
-    fl.save();
-
-    m_pimpl->m_length->value++;
-    m_pimpl->m_length.save();
+    m_pimpl->m_actions.push_back(action_info);
 }
 
-bool action_log::at(size_t index, BlockchainMessage::LoggedTransaction& action_info) const
+void action_log::at(size_t number, LoggedTransaction& action_info) const
 {
-    if (index >= m_pimpl->m_length->value)
-        return false;
+    if (number >= length())
+        throw std::runtime_error("There is no action at index:" + std::to_string(number));
 
-    string file_name(std::to_string(index) + ".act");
-    logged_action_loader fl(m_pimpl->m_path / file_name);
-    action_info = *fl.as_const();
-
-    return true;
+    action_info = m_pimpl->m_actions.at(number);
 }
 
 void action_log::revert()

@@ -9,7 +9,6 @@
 #include <boost/filesystem/path.hpp>
 
 #include <vector>
-#include <memory>
 #include <string>
 
 namespace publiqpp
@@ -26,17 +25,18 @@ public:
     transaction_pool(boost::filesystem::path const& fs_transaction_pool);
     ~transaction_pool();
 
+    void commit();
+    void rollback();
+
     size_t length() const;
-    bool insert(beltpp::packet const& package);
-    bool at(std::string const& key, BlockchainMessage::SignedTransaction& signed_transaction) const;
-    bool remove(std::string const& key);
+    void insert(BlockchainMessage::SignedTransaction const& signed_transaction);
+    void at(std::string const& key, BlockchainMessage::SignedTransaction& signed_transaction) const;
+    void remove(std::string const& key);
+    void get_keys(std::vector<std::string> &keys) const;
 
     bool contains(std::string const& key) const;
-    void get_keys(std::vector<std::string> &keys) const;
-    void get_amounts(std::string const& key, 
-                     std::vector<std::pair<std::string, coin>>& amounts,
-                     bool in_out) const;
 
+    void insert_reward(BlockchainMessage::Reward const& reward); // for test only
     void grant_rewards(std::vector<BlockchainMessage::Reward>& rewards) const;
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;

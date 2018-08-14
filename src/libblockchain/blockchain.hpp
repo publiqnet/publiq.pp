@@ -23,14 +23,17 @@ public:
     blockchain(boost::filesystem::path const& fs_blockchain);
     ~blockchain();
 
+    void commit();
+    void rollback();
+
     void update_header();
 
     uint64_t length() const;
     void header(BlockchainMessage::BlockHeader& block_header) const;
 
-    bool insert(beltpp::packet const& packet);
-    bool at(uint64_t number, BlockchainMessage::SignedBlock& signed_block) const;
-    bool header_at(uint64_t number, BlockchainMessage::BlockHeader& block_header) const;
+    void insert(BlockchainMessage::SignedBlock const& signed_block);
+    void at(uint64_t number, BlockchainMessage::SignedBlock& signed_block) const;
+    void header_at(uint64_t number, BlockchainMessage::BlockHeader& block_header) const;
     void remove_last_block();
 private:
     std::unique_ptr<detail::blockchain_internals> m_pimpl;

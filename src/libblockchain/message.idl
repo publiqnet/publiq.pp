@@ -92,9 +92,6 @@ module BlockchainMessage
         Object package
     }
 
-    class ChainInfoRequest {}
-    class ChainInfo { UInt64 length }
-
     class LoggedTransaction //  just a structure for below request/response
     {
         Bool applied_reverted
@@ -211,24 +208,6 @@ module BlockchainMessage
     class StorageFileAddress
     {
         String uri
-    }
-
-    //  blockchain storage data
-    class BlockchainFileData
-    {
-        Hash UInt64 Object blocks
-    }
-
-    //  transaction pool storage data
-    class TransactionFileData
-    {
-        Hash String Object actions
-    }
-
-    //  state storage data
-    class StateFileData
-    {
-        Hash String Coin accounts
     }
 }
 ///

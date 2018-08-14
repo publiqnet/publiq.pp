@@ -4,7 +4,7 @@
 
 #include "transaction_pool.hpp"
 
-void submit_action(beltpp::packet&& package,
+void submit_reward(beltpp::packet&& package,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                    beltpp::isocket& sk,
                    beltpp::isocket::peer_id const& peerid);

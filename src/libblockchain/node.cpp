@@ -8,14 +8,14 @@
 
 #include "open_container_packet.hpp"
 
-#include <utility>
-#include <exception>
+#include <vector>
 #include <string>
 #include <memory>
 #include <chrono>
 #include <unordered_set>
 #include <unordered_map>
-#include <vector>
+#include <utility>
+#include <exception>
 
 using namespace BlockchainMessage;
 
@@ -263,27 +263,10 @@ bool node::run()
                     psk->send(peerid, Done());
                     break;
                 }
-                case ChainInfoRequest::rtt:
-                {
-                    ChainInfo chaininfo_msg;
-                    chaininfo_msg.length = m_pimpl->m_blockchain.length();
-                    psk->send(peerid, chaininfo_msg);
-                    break;
-                }
-                case ChainInfo::rtt:
-                {
-                    if (it == interface_type::p2p)
-                    {
-                        m_pimpl->reset_stored_request(peerid);
-                        if (stored_packet.type() != ChainInfoRequest::rtt)
-                            throw std::runtime_error("I didn't ask for chain info");
-                    }
-                    break;
-                }
                 case LogTransaction::rtt:
                 {
                     if (it == interface_type::rpc)
-                        submit_action(std::move(ref_packet),
+                        submit_reward(std::move(ref_packet),
                                       m_pimpl,
                                       *psk,
                                       peerid);
@@ -293,7 +276,12 @@ bool node::run()
                 {
                     if (it == interface_type::rpc)
                     {
+                        beltpp::on_failure guard([&] { m_pimpl->rollback(); });
+
                         m_pimpl->m_action_log.revert();
+
+                        m_pimpl->commit(guard);
+
                         psk->send(peerid, Done());
                     }
                     break;
@@ -517,10 +505,6 @@ bool node::run()
             m_pimpl->remove_peer(peerid_to_remove);
         }
     }
-
-    //int64_t milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(m_pimpl->m_timer.elapsed()).count();
-    //if (milliseconds >= 1)
-    //    m_pimpl->writeln_node("timer elapsed " + std::to_string(milliseconds) + " milliseconds");
 
     if (m_pimpl->m_check_timer.expired())
     {

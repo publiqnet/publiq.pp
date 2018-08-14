@@ -5,7 +5,7 @@
 
 using std::stack;
 
-void submit_action(beltpp::packet&& package,
+void submit_reward(beltpp::packet&& package,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                    beltpp::isocket& sk,
                    beltpp::isocket::peer_id const& peerid)
@@ -17,36 +17,18 @@ void submit_action(beltpp::packet&& package,
     switch (ref_action.type())
     {
     case Reward::rtt: //  check reward for testing
-    case Transfer::rtt: // check transaction for testing
     {
-        if (Reward::rtt == ref_action.type())
-        {
-            Reward msg_reward;
-            ref_action.get(msg_reward);
-            // following will throw on invalid public key
-            meshpp::public_key temp(msg_reward.to);
+        Reward msg_reward;
+        ref_action.get(msg_reward);
 
-            m_pimpl->m_transaction_pool.insert(ref_action);
-        }
-        else if (Transfer::rtt == ref_action.type())
-        {
-            Transfer msg_transfer;
-            ref_action.get(msg_transfer);
-            // following will throw on invalid public key
-            //meshpp::public_key temp1(msg_transfer.to);
-            //meshpp::public_key temp2(msg_transfer.from);
+        // following will throw on invalid public key
+        meshpp::public_key temp(msg_reward.to);
 
-            //  comment out for now
-            //transaction_pool.insert(msg_transfer);
+        beltpp::on_failure guard([&m_pimpl] { m_pimpl->rollback(); });
 
-            LoggedTransaction action_info;
-            action_info.applied_reverted = true;    //  apply
-            action_info.index = 0; // will be set automatically
-            action_info.action = std::move(ref_action);
+        m_pimpl->m_transaction_pool.insert_reward(msg_reward);
 
-            m_pimpl->m_action_log.insert(action_info);
-        }
-        break;
+        m_pimpl->commit(guard);
     }
     default:
         throw std::runtime_error("Unsupported action!");
@@ -218,12 +200,10 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     if (!m_pimpl->m_transaction_pool.contains(transfer_hash))
     {
+        beltpp::on_failure guard([&m_pimpl] { m_pimpl->rollback(); });
+
         // Validate and add to state
-        if (!m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee))
-        {
-            m_pimpl->rollback();
-            throw std::runtime_error("Balance is not enough!");
-        }
+        m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
 
         // Add to the pool
         m_pimpl->m_transaction_pool.insert(signed_transaction);
@@ -231,7 +211,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         // Add to action log
         m_pimpl->m_action_log.log(std::move(transfer));
 
-        m_pimpl->commit();
+        m_pimpl->commit(guard);
     }
 }
 

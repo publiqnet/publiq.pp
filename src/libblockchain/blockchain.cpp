@@ -14,49 +14,33 @@
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
-using std::string;
-using std::vector;
-
-namespace chrono = std::chrono;
-using chrono::system_clock;
-
-using number_loader = meshpp::file_loader<Data::Number,
-                                          &Data::Number::from_string,
-                                          &Data::Number::to_string>;
-using number_locked_loader = meshpp::file_locker<number_loader>;
-
-using blockchain_data_loader = meshpp::file_loader<BlockchainFileData,
-                                                   &BlockchainFileData::from_string,
-                                                   &BlockchainFileData::to_string>;
-
 namespace publiqpp
 {
 namespace detail
 {
+
+inline
+beltpp::void_unique_ptr get_putl()
+{
+    beltpp::message_loader_utility utl;
+    BlockchainMessage::detail::extension_helper(utl);
+
+    auto ptr_utl =
+        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+
+    return ptr_utl;
+}
+
 class blockchain_internals
 {
 public:
     blockchain_internals(filesystem::path const& path)
-        : m_path(path)
-        , m_length(path / "length.txt")
+        :m_blockchain("blockchain", path, detail::get_putl())
     {
-
     }
 
-    filesystem::path m_path;
-    number_locked_loader m_length;
     BlockHeader m_header;
-
-    string get_df_id(uint64_t number) const
-    {
-        int i = 10000 + number % 4096 + 1;
-
-        string s = std::to_string(i);
-
-        return s.substr(1, 4);
-
-        //return "0000"; //Debug mode
-    }
+    meshpp::vector_loader<SignedBlock> m_blockchain;
 };
 }
 
@@ -71,6 +55,16 @@ blockchain::~blockchain()
 
 }
 
+void blockchain::commit()
+{
+    m_pimpl->m_blockchain.save();
+}
+
+void blockchain::rollback()
+{
+    m_pimpl->m_blockchain.discard();
+}
+
 void blockchain::update_header()
 {
     if (length() > 0)
@@ -79,7 +73,7 @@ void blockchain::update_header()
 
 uint64_t blockchain::length() const
 {
-    return m_pimpl->m_length.as_const()->value;
+    return m_pimpl->m_blockchain.size();
 }
 
 void blockchain::header(BlockHeader& block_header) const
@@ -87,56 +81,32 @@ void blockchain::header(BlockHeader& block_header) const
     block_header = m_pimpl->m_header;
 }
 
-bool blockchain::insert(beltpp::packet const& packet)
+void blockchain::insert(SignedBlock const& signed_block)
 {
-    if (packet.type() != SignedBlock::rtt)
-        return false;
-
-    SignedBlock signed_block;
-    packet.get(signed_block);
-
     Block block;
     signed_block.block_details.get(block);
 
     uint64_t block_number = block.header.block_number;
 
     if (block_number != length())
-        return false;
-
-    string hash_id = m_pimpl->get_df_id(block_number);
-    string file_name("df" + hash_id + ".bchain");
-
-    blockchain_data_loader file_data(m_pimpl->m_path / file_name);
+        throw std::runtime_error("Wrong block to insert!");
 
     m_pimpl->m_header = block.header;
-    m_pimpl->m_length->value = block_number + 1;
-    file_data->blocks[block_number] = signed_block;
-
-    file_data.save();
-    m_pimpl->m_length.save();
-
-    return true;
+    m_pimpl->m_blockchain.push_back(signed_block);
 }
 
-bool blockchain::at(uint64_t number, SignedBlock& signed_block) const
+void blockchain::at(uint64_t number, SignedBlock& signed_block) const
 {
     if (number >= length())
-        return false;
+        throw std::runtime_error("There is no block with number:" + std::to_string(number));
 
-    string hash_id = m_pimpl->get_df_id(number);
-    string file_name("df" + hash_id + ".bchain");
-
-    blockchain_data_loader file_data(m_pimpl->m_path / file_name);
-
-    file_data->blocks[number].get(signed_block);
-
-    return true;
+    signed_block = m_pimpl->m_blockchain.at(number);
 }
 
-bool blockchain::header_at(uint64_t number, BlockHeader& block_header) const
+void blockchain::header_at(uint64_t number, BlockHeader& block_header) const
 {
     if (number >= length())
-        return false;
+        throw std::runtime_error("There is no such a block!");
 
     SignedBlock signed_block;
     at(number, signed_block);
@@ -145,27 +115,14 @@ bool blockchain::header_at(uint64_t number, BlockHeader& block_header) const
     std::move(signed_block.block_details).get(block);
 
     block_header = std::move(block.header);
-
-    return true;
 }
 
 void blockchain::remove_last_block()
 {
-    uint64_t number = length() - 1;
-
-    if (number == 0)
+    if (length() == 1)
         throw std::runtime_error("Nothing to remove!");
 
-    string hash_id = m_pimpl->get_df_id(number);
-    string file_name("df" + hash_id + ".bchain");
-
-    blockchain_data_loader file_data(m_pimpl->m_path / file_name);
-
-    file_data->blocks.erase(number);
-    m_pimpl->m_length->value = number;
-
-    file_data.save();
-    m_pimpl->m_length.save();
+    m_pimpl->m_blockchain.pop_back();
 
     update_header();
 }
