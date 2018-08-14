@@ -18,19 +18,6 @@ namespace publiqpp
 {
 namespace detail
 {
-
-inline
-beltpp::void_unique_ptr get_putl()
-{
-    beltpp::message_loader_utility utl;
-    BlockchainMessage::detail::extension_helper(utl);
-
-    auto ptr_utl =
-        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
-
-    return ptr_utl;
-}
-
 class blockchain_internals
 {
 public:
@@ -126,5 +113,4 @@ void blockchain::remove_last_block()
 
     update_header();
 }
-
 }
