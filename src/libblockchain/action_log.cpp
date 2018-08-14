@@ -57,7 +57,7 @@ size_t action_log::length() const
     return m_pimpl->m_actions.as_const().size();
 }
 
-void action_log::log(beltpp::packet action)
+void action_log::log(beltpp::packet&& action)
 {
     if (action.type() != Transfer::rtt && action.type() != Reward::rtt)
         throw std::runtime_error("No logable actio type!");
