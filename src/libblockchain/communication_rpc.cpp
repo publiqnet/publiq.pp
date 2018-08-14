@@ -24,11 +24,9 @@ void submit_reward(beltpp::packet&& package,
         // following will throw on invalid public key
         meshpp::public_key temp(msg_reward.to);
 
-        beltpp::on_failure guard([&m_pimpl] { m_pimpl->rollback(); });
-
         m_pimpl->m_transaction_pool.insert_reward(msg_reward);
 
-        m_pimpl->commit(guard);
+        break;
     }
     default:
         throw std::runtime_error("Unsupported action!");
@@ -200,7 +198,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     if (!m_pimpl->m_transaction_pool.contains(transfer_hash))
     {
-        beltpp::on_failure guard([&m_pimpl] { m_pimpl->rollback(); });
+        beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
         // Validate and add to state
         m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
@@ -211,7 +209,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         // Add to action log
         m_pimpl->m_action_log.log(std::move(transfer));
 
-        m_pimpl->commit(guard);
+        m_pimpl->save(guard);
     }
 }
 

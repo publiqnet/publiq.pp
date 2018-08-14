@@ -260,7 +260,9 @@ bool node::run()
                               m_pimpl->m_p2p_peers,
                               m_pimpl->m_ptr_p2p_socket.get());
                 
-                    psk->send(peerid, Done());
+                    if (it == interface_type::rpc)
+                        psk->send(peerid, Done());
+
                     break;
                 }
                 case LogTransaction::rtt:
@@ -276,11 +278,11 @@ bool node::run()
                 {
                     if (it == interface_type::rpc)
                     {
-                        beltpp::on_failure guard([&] { m_pimpl->rollback(); });
+                        beltpp::on_failure guard([&] { m_pimpl->discard(); });
 
                         m_pimpl->m_action_log.revert();
 
-                        m_pimpl->commit(guard);
+                        m_pimpl->save(guard);
 
                         psk->send(peerid, Done());
                     }

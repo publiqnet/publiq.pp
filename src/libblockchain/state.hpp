@@ -17,8 +17,9 @@ public:
     state(boost::filesystem::path const& fs_state);
     ~state();
 
+    void save();
     void commit();
-    void rollback();
+    void discard();
 
     BlockchainMessage::Coin get_balance(std::string const& key) const;
 

@@ -33,20 +33,25 @@ state::~state()
 {
 }
 
-void state::commit()
+void state::save()
 {
     m_pimpl->m_accounts.save();
 }
 
-void state::rollback()
+void state::commit()
+{
+    m_pimpl->m_accounts.commit();
+}
+
+void state::discard()
 {
     m_pimpl->m_accounts.discard();
 }
 
 Coin state::get_balance(string const& key) const
 {
-    if (m_pimpl->m_accounts.contains(key))
-        return m_pimpl->m_accounts.at(key);
+    if (m_pimpl->m_accounts.as_const().contains(key))
+        return m_pimpl->m_accounts.as_const().at(key);
 
     return Coin(); // all accounts not included have 0 balance
 }
@@ -80,6 +85,7 @@ void state::increase_balance(string const& key, coin const& amount)
     {
         coin balance = m_pimpl->m_accounts.at(key);
         balance += amount;
+        m_pimpl->m_accounts.at(key) = balance.to_Coin();
     }
     else
         m_pimpl->m_accounts.insert(key, amount.to_Coin());
@@ -102,6 +108,8 @@ void state::decrease_balance(string const& key, coin const& amount)
 
     if (balance.empty())
         m_pimpl->m_accounts.erase(key);
+    else
+        m_pimpl->m_accounts.at(key) = balance.to_Coin();
 }
 
 }

@@ -25,8 +25,9 @@ public:
     transaction_pool(boost::filesystem::path const& fs_transaction_pool);
     ~transaction_pool();
 
+    void save();
     void commit();
-    void rollback();
+    void discard();
 
     size_t length() const;
     void insert(BlockchainMessage::SignedTransaction const& signed_transaction);

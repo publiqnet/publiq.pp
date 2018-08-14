@@ -20,8 +20,9 @@ public:
     action_log(boost::filesystem::path const& fs_action_log);
     ~action_log();
 
+    void save();
     void commit();
-    void rollback();
+    void discard();
 
     size_t length() const;
 

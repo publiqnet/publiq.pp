@@ -42,12 +42,17 @@ transaction_pool::~transaction_pool()
 
 }
 
-void transaction_pool::commit()
+void transaction_pool::save()
 {
     m_pimpl->m_transactions.save();
 }
 
-void transaction_pool::rollback()
+void transaction_pool::commit()
+{
+    m_pimpl->m_transactions.commit();
+}
+
+void transaction_pool::discard()
 {
     m_pimpl->m_transactions.discard();
 }
@@ -56,7 +61,7 @@ void transaction_pool::insert(SignedTransaction const& signed_transaction)
 {
     string key = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_transactions.contains(key))
+    if (contains(key))
         throw std::runtime_error("Transaction already exists, or you are so lucky!");
 
     m_pimpl->m_transactions.insert(key, signed_transaction);
@@ -69,10 +74,10 @@ void transaction_pool::insert_reward(Reward const& reward)
 
 void transaction_pool::at(string const& key, SignedTransaction& signed_transaction) const
 {
-    if (!m_pimpl->m_transactions.contains(key))
+    if (!contains(key))
         throw std::runtime_error("There is no such a transaction!");
 
-    signed_transaction = m_pimpl->m_transactions.at(key);
+    signed_transaction = m_pimpl->m_transactions.as_const().at(key);
 }
 
 void transaction_pool::remove(string const& key)
@@ -85,20 +90,20 @@ void transaction_pool::remove(string const& key)
 
 size_t transaction_pool::length() const
 {
-    return m_pimpl->m_transactions.keys().size();
+    return m_pimpl->m_transactions.as_const().keys().size();
 }
 
 void transaction_pool::get_keys(std::vector<std::string> &keys) const
 {
     keys.clear();
 
-    for (auto& key : m_pimpl->m_transactions.keys())
+    for (auto& key : m_pimpl->m_transactions.as_const().keys())
         keys.push_back(key);
 }
 
 bool transaction_pool::contains(std::string const& key) const
 {
-    return m_pimpl->m_transactions.contains(key);
+    return m_pimpl->m_transactions.as_const().contains(key);
 }
 
 void transaction_pool::grant_rewards(vector<Reward>& rewards) const

@@ -23,8 +23,9 @@ public:
     blockchain(boost::filesystem::path const& fs_blockchain);
     ~blockchain();
 
+    void save();
     void commit();
-    void rollback();
+    void discard();
 
     void update_header();
 

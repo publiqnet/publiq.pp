@@ -37,19 +37,24 @@ action_log::~action_log()
 
 }
 
-void action_log::commit()
+void action_log::save()
 {
     m_pimpl->m_actions.save();
 }
 
-void action_log::rollback()
+void action_log::commit()
+{
+    m_pimpl->m_actions.commit();
+}
+
+void action_log::discard()
 {
     m_pimpl->m_actions.discard();
 }
 
 size_t action_log::length() const
 {
-    return m_pimpl->m_actions.size();
+    return m_pimpl->m_actions.as_const().size();
 }
 
 void action_log::log(beltpp::packet action)
@@ -75,7 +80,7 @@ void action_log::at(size_t number, LoggedTransaction& action_info) const
     if (number >= length())
         throw std::runtime_error("There is no action at index:" + std::to_string(number));
 
-    action_info = m_pimpl->m_actions.at(number);
+    action_info = m_pimpl->m_actions.as_const().at(number);
 }
 
 void action_log::revert()
