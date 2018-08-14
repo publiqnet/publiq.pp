@@ -465,9 +465,13 @@ trait RttSerializableTrait
            if (!$className) {
                throw new \Exception("Cannot find class in rtt list");
            }
-           $vars['rtt'] = array_search($className, Rtt::types);
+           $vars2['rtt'] = array_search($className, Rtt::types);
 
-           return $vars;
+           foreach ($vars as  $name => $value)
+           {
+              $vars2[$name] = $className::getMemberName($name);
+           }
+           return $vars2;
        }
     }
 )file_template";
@@ -733,13 +737,13 @@ void analyze_struct(    state_holder& state,
                        "    { \n"
                                 + objectTypes + trivialTypes + arrayCase + mixedTypes + hashCase +
                        "    } \n";
-    model<< " \n    CONST memberNames = [\n"
+    model<< " \n    CONST static memberNames = [\n"
               + memberNamesMap +
             "    ];\n\n";
     model<< params + setFunction + getFunction + addFunction + validation;
-    model<< R"file_template(    public function getMemberName(string $camelCaseName)
+    model<< R"file_template(    public static function getMemberName(string $camelCaseName)
     {
-        return array_search($camelCaseName, $this->$memberNames);
+        return array_search($camelCaseName, self::$memberNames);
     })file_template";
     model<< "\n} \n";
 
