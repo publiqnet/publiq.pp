@@ -1,14 +1,11 @@
 #include "blockchain.hpp"
-#include "common.hpp"
 
+#include "common.hpp"
 #include "message.hpp"
 
 #include <belt.pp/utility.hpp>
 
 #include <mesh.pp/fileutility.hpp>
-#include <mesh.pp/cryptoutility.hpp>
-
-#include <chrono>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;

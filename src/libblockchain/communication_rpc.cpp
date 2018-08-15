@@ -184,7 +184,6 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     // Expiry date check
     auto now = system_clock::now();
-    system_clock::to_time_t(now);
 
     if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
         throw std::runtime_error("Expired transaction!");
@@ -194,7 +193,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         throw exception_authority(signed_transaction.authority, transfer.from);
 
     // Check pool
-    string transfer_hash = meshpp::hash(package_transfer.to_string());
+    string transfer_hash = meshpp::hash(signed_transaction.to_string());
 
     if (!m_pimpl->m_transaction_pool.contains(transfer_hash))
     {
