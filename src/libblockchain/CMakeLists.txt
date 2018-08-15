@@ -5,13 +5,6 @@ add_custom_command (
   COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
 )
 
-# generate data.gen.hpp from data.idl
-add_custom_command (
-  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/data.gen.hpp
-  MAIN_DEPENDENCY data.idl
-  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/data.idl ${CMAKE_CURRENT_SOURCE_DIR}/data.gen.hpp
-)
-
 add_definitions(-DBLOCKCHAIN_LIBRARY)
 
 # define the library
@@ -28,8 +21,6 @@ add_library(blockchain
     coin.cpp
     coin.hpp
     common.hpp
-    data.hpp
-    data.gen.hpp
     http.hpp
     message.hpp
     message.gen.hpp
