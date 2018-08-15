@@ -60,10 +60,8 @@ void transaction_pool::insert(SignedTransaction const& signed_transaction)
 {
     string key = meshpp::hash(signed_transaction.to_string());
 
-    if (contains(key))
-        throw std::runtime_error("Transaction already exists, or you are so lucky!");
-
-    m_pimpl->m_transactions.insert(key, signed_transaction);
+    if (!contains(key))
+        m_pimpl->m_transactions.insert(key, signed_transaction);
 }
 
 void transaction_pool::insert_reward(Reward const& reward)
@@ -81,10 +79,8 @@ void transaction_pool::at(string const& key, SignedTransaction& signed_transacti
 
 void transaction_pool::remove(string const& key)
 {
-    if (!m_pimpl->m_transactions.contains(key))
-        throw std::runtime_error("There is no such a transaction!");
-
-    m_pimpl->m_transactions.erase(key);
+    if (m_pimpl->m_transactions.contains(key))
+        m_pimpl->m_transactions.erase(key);
 }
 
 size_t transaction_pool::length() const

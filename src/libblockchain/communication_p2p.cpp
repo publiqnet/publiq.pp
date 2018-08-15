@@ -28,174 +28,71 @@ uint64_t calc_delta(string const& key, uint64_t const& amount, string const& pre
     return delta;
 }
 
-void insert_blocks(size_t revert_count,
-                   vector<SignedBlock>& signed_blocks,
-                   unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+void insert_block(SignedBlock& signed_block,
+                  unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    uint64_t block_number = m_pimpl->m_blockchain.length();
-
-    if ((revert_count > 0 && revert_count >= block_number) || signed_blocks.size() == 0)
-        throw std::runtime_error("Serious bug in algorithm!");
-
+    // Revert action log and state, revert transaction pool records
     vector<string> pool_keys;
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
-    unordered_map<string, SignedTransaction> pool_transactions;
-
     for (auto& key : pool_keys)
     {
-        // Correct action log, revert transaction pool records
         m_pimpl->m_action_log.revert();
 
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
+        Transfer transfer;
+        std::move(signed_transaction.transaction_details.action).get(transfer);
 
-        pool_transactions.insert(pair<string, SignedTransaction>(key, signed_transaction));
+        // revert sender and receiver balances
+        m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + signed_transaction.transaction_details.fee);
+        m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
     }
-
-    // Revert revert_count blocks from blockchain
-    for (size_t i = 1; i <= revert_count; ++i)
-    {
-        SignedBlock signed_block;
-        m_pimpl->m_blockchain.at(block_number - i, signed_block);
-
-        Block block;
-        std::move(signed_block.block_details).get(block);
-
-        // Correct state, remove block rewards
-        for (auto& reward : block.rewards)
-        {
-            // revert from action_log
-            m_pimpl->m_action_log.revert();
-
-            // correct state
-            m_pimpl->m_state.decrease_balance(reward.to, reward.amount);
-        }
-
-        // Add block transactions to the pool and revert from action_log
-        for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
-        {
-            m_pimpl->m_action_log.revert();
-            m_pimpl->m_transaction_pool.insert(*it);
-        }
-
-        // Remove last block from blockchain
-        m_pimpl->m_blockchain.remove_last_block();
-    }
-
-    unordered_set<string> used_keys;
-    unordered_set<string> erase_tpool;
 
     //------------------------------------------------------//
-
-    auto get_amounts = [&pool_transactions](string const& key, vector<pair<string, coin>>& amounts, bool in_out)
+    auto apply_transaction = [&m_pimpl](Transaction const& transaction)
     {
-        amounts.clear();
+        Transfer transfer;
+        transaction.action.get(transfer);
 
-        for (auto& item : pool_transactions)
-        {
-            Transfer transfer;
-            item.second.transaction_details.action.get(transfer);
+        m_pimpl->m_state.decrease_balance(transfer.from, transfer.amount + transaction.fee);
+        m_pimpl->m_state.increase_balance(transfer.to, transfer.amount);
 
-            if (in_out && transfer.to == key)
-            {
-                amounts.push_back(pair<string, coin>(item.first, transfer.amount));
-            }
-            else if (!in_out && transfer.from == key)
-            {
-                coin temp = transfer.amount;
-                temp += item.second.transaction_details.fee;
-                amounts.push_back(pair<string, coin>(item.first, temp));
-            }
-        }
-    };
-
-    auto correct_pool_state = [&](string const& key)
-    {
-        if (used_keys.find(key) != used_keys.end())
-            return;
-        
-        used_keys.insert(key);
-        vector<pair<string, coin>> amounts;
-
-        // process "key" output transfers
-        get_amounts(key, amounts, false);
-
-        for (auto& item : amounts)
-        {
-            erase_tpool.insert(item.first);
-            m_pimpl->m_state.increase_balance(key, item.second);
-        }
-
-        // process "key" input transfers
-        get_amounts(key, amounts, true);
-
-        for (auto& item : amounts)
-        {
-            erase_tpool.insert(item.first);
-            m_pimpl->m_state.decrease_balance(key, item.second);
-        }
+        // Correct action_log
+        m_pimpl->m_action_log.log(std::move(transfer));
     };
     //------------------------------------------------------//
 
-    for (auto it = signed_blocks.begin(); it != signed_blocks.end(); ++it)
+    Block block;
+    signed_block.block_details.get(block);
+
+    // Check block transactions and calculate new state
+    coin fee;
+    for (auto& signed_transaction : block.signed_transactions)
     {
-        coin fee;
-        Block block;
-        it->block_details.get(block);
-
-        // Check block transactions and calculate new state
-        for (auto &signed_transaction : block.signed_transactions)
-        {
-            Transaction transaction = std::move(signed_transaction.transaction_details);
-            fee += transaction.fee;
-
-            Transfer transfer;
-            std::move(transaction.action).get(transfer);
-
-            if (signed_transaction.authority != transfer.from)
-                throw wrong_data_exception("Wrong authority for transaction!");
-
-            // correct "from" balance and decrease transfer amount
-            correct_pool_state(transfer.from);
-            m_pimpl->m_state.decrease_balance(transfer.from, transfer.amount + transaction.fee);
-
-            // correct "to" balance and increase transfer amount
-            correct_pool_state(transfer.to);
-            m_pimpl->m_state.increase_balance(transfer.to, transfer.amount);
-
-            // collect action log
-            m_pimpl->m_action_log.log(std::move(transfer));
-        }
-
-        // add fee to miner balance
-        m_pimpl->m_state.increase_balance(it->authority, fee);
-
-        //TODO manage fee when it will be written as a transfer in action log
-
-        // apply rewards
-        for (auto& reward : block.rewards)
-        {
-            m_pimpl->m_state.increase_balance(reward.to, reward.amount);
-
-            // collect action log
-            m_pimpl->m_action_log.log(std::move(reward));
-        }
-
-        // Insert to blockchain
-        m_pimpl->m_blockchain.insert(std::move(*it));
+        fee += signed_transaction.transaction_details.fee;
+        apply_transaction(signed_transaction.transaction_details);
+        m_pimpl->m_transaction_pool.remove(meshpp::hash(signed_transaction.to_string()));
     }
 
-    // Correct transaction pool
-    for (auto& item : erase_tpool)
-        m_pimpl->m_transaction_pool.remove(item);
+    // add fee to miner balance
+    if(!fee.empty())
+        m_pimpl->m_state.increase_balance(signed_block.authority, fee);
 
-    vector<string> keys;
-    m_pimpl->m_transaction_pool.get_keys(keys);
+    //TODO manage fee when it will be written as a transfer in action log
+
+    // apply rewards to state and action_log
+    for (auto& reward : block.rewards)
+    {
+        m_pimpl->m_state.increase_balance(reward.to, reward.amount);
+        m_pimpl->m_action_log.log(std::move(reward));
+    }
+
+    // Insert to blockchain
+    m_pimpl->m_blockchain.insert(std::move(signed_block));
 
     auto now = system_clock::now();
-    system_clock::to_time_t(now);
-
-    for (auto& key : keys)
+    m_pimpl->m_transaction_pool.get_keys(pool_keys);
+    for (auto& key : pool_keys)
     {
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
@@ -203,7 +100,7 @@ void insert_blocks(size_t revert_count,
         if (now <= system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
             m_pimpl->m_transaction_pool.remove(key);
         else
-            m_pimpl->m_action_log.log(std::move(signed_transaction.transaction_details.action));
+            apply_transaction(signed_transaction.transaction_details);
     }
 }
 
@@ -257,31 +154,24 @@ void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     signed_block.authority = node_pv.get_public_key().to_string();
     signed_block.block_details = std::move(block);
 
-    vector<SignedBlock> signed_block_vector;
-    signed_block_vector.push_back(signed_block);
-
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
-    insert_blocks(0, signed_block_vector, m_pimpl);
+    insert_block(signed_block, m_pimpl);
 
     m_pimpl->save(guard);
 }
 
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
-
     SignedBlock prev_signed_block;
     uint64_t block_number = m_pimpl->m_blockchain.length();
     m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
-
-    beltpp::packet package_prev_block = std::move(prev_signed_block.block_details);
-    string prev_hash = meshpp::hash(package_prev_block.to_string());
 
     BlockHeader prev_header;
     m_pimpl->m_blockchain.header(prev_header);
 
     string own_key = m_pimpl->private_key.get_public_key().to_string();
+    string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
     coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
     uint64_t delta = calc_delta(own_key, amount.to_uint64_t(), prev_hash, prev_header.consensus_const);
 
@@ -375,10 +265,9 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     signed_block.authority = sgn.pb_key.to_string();
     signed_block.block_details = std::move(block);
 
-    vector<SignedBlock> signed_block_vector;
-    signed_block_vector.push_back(signed_block);
+    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
-    insert_blocks(0, signed_block_vector, m_pimpl);
+    insert_block(signed_block, m_pimpl);
 
     m_pimpl->save(guard);
 }
@@ -721,39 +610,74 @@ void process_blockchain_response(beltpp::packet& package,
 
     //3. all needed blocks received, start to check
 
+    //------------------------------------------------------//
+    auto revert_transaction = [&m_pimpl](Transaction const& transaction)
+    {
+        Transfer transfer;
+        transaction.action.get(transfer);
+
+        // revert balances
+        m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + transaction.fee);
+        m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
+
+        // correct action_log
+        m_pimpl->m_action_log.revert();
+    };
+
+    auto apply_transfer = [&m_pimpl](Transfer& transfer, coin fee)
+    {
+        // apply balances
+        m_pimpl->m_state.decrease_balance(transfer.from, transfer.amount + fee);
+        m_pimpl->m_state.increase_balance(transfer.to, transfer.amount);
+
+        // correct action_log
+        m_pimpl->m_action_log.log(std::move(transfer));
+    };
+    //------------------------------------------------------//
+
+    vector<string> pool_keys;
+    m_pimpl->m_transaction_pool.get_keys(pool_keys);
+
+    for (auto& key : pool_keys)
+    {
+        SignedTransaction signed_transaction;
+        m_pimpl->m_transaction_pool.at(key, signed_transaction);
+
+        revert_transaction(signed_transaction.transaction_details);
+    }
+
     // calculate back to get state at LCB point
     block_number = m_pimpl->m_blockchain.length() - 1;
-    uint64_t lcb_number = (*m_pimpl->sync_headers.rbegin()).block_number - 1;
+    uint64_t lcb_number = m_pimpl->sync_headers.rbegin()->block_number - 1;
     while (block_number > lcb_number)
     {
         SignedBlock signed_block;
         m_pimpl->m_blockchain.at(block_number, signed_block);
+        m_pimpl->m_blockchain.remove_last_block();
 
         Block block;
         std::move(signed_block.block_details).get(block);
         
-        // decrease all reward amounts from balances
-        for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
+        // decrease all reward amounts from balances and revert reward
+        for (auto it = block.rewards.rbegin(); it != block.rewards.rend(); ++it)
+        {
+            m_pimpl->m_action_log.revert();
             m_pimpl->m_state.decrease_balance(it->to, it->amount);
+        }
 
         // calculate back transactions
         coin fee;
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
             fee += it->transaction_details.fee;
+            m_pimpl->m_transaction_pool.insert(*it);
 
-            Transfer transfer;
-            std::move(it->transaction_details.action).get(transfer);
-
-            // revert sender balance
-            m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + it->transaction_details.fee);
-
-            // revert receiver balance
-            m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
+            revert_transaction(it->transaction_details);
         }
 
-        // revert authority balance
-        m_pimpl->m_state.decrease_balance(signed_block.authority, fee);
+        // revert block authority balance
+        if(!fee.empty())
+            m_pimpl->m_state.decrease_balance(signed_block.authority, fee);
 
         --block_number;
     }
@@ -788,38 +712,60 @@ void process_blockchain_response(beltpp::packet& package,
                                                              tr_it->transaction_details.to_string(),
                                                              tr_it->signature))
                 throw wrong_data_exception("blockchain response. transaction signature!");
-            
+
+            m_pimpl->m_transaction_pool.remove((*tr_it).to_string());
+
             Transfer transfer;
-            tr_it->transaction_details.action.get(transfer);
+            std::move(tr_it->transaction_details.action).get(transfer);
 
             if (tr_it->authority != transfer.from)
                 throw wrong_data_exception("blockchain response. transaction authority!");
 
             fee += tr_it->transaction_details.fee;
 
-            // decrease "from" balance
-            m_pimpl->m_state.decrease_balance(transfer.from, transfer.amount + tr_it->transaction_details.fee);
-
-            // increase "to" balance
-            m_pimpl->m_state.increase_balance(transfer.to, transfer.amount);
+            apply_transfer(transfer, tr_it->transaction_details.fee);
         }
 
         // increase authority balance
         if(!fee.empty())
             m_pimpl->m_state.increase_balance(block_it->authority, fee);
 
+        //TODO manage fee when it will be written as a transfer in action log
+
         //TODO verify rewards!
 
         // increase all reward amounts to balances
         for (auto reward_it = block.rewards.begin(); reward_it != block.rewards.end(); ++reward_it)
+        {
             m_pimpl->m_state.increase_balance(reward_it->to, reward_it->amount);
+            m_pimpl->m_action_log.log(std::move(*reward_it));
+        }
 
         prev_block = std::move(block);
+
+        // Insert to blockchain
+        m_pimpl->m_blockchain.insert(std::move(*block_it));
     }
 
-    //4. apply received chain
-    uint64_t revert_count = m_pimpl->m_blockchain.length() - m_pimpl->sync_headers.rbegin()->block_number;
-    insert_blocks(revert_count, m_pimpl->sync_blocks, m_pimpl);
+    // apply back rest of the pool
+    m_pimpl->m_transaction_pool.get_keys(pool_keys);
+
+    auto now = system_clock::now();
+
+    for (auto& key : pool_keys)
+    {
+        SignedTransaction signed_transaction;
+        m_pimpl->m_transaction_pool.at(key, signed_transaction);
+
+        if (now <= system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
+            m_pimpl->m_transaction_pool.remove(key);
+        else
+        {
+            Transfer transfer;
+            std::move(signed_transaction.transaction_details.action).get(transfer);
+            apply_transfer(transfer, signed_transaction.transaction_details.fee);
+        }
+    }
 
     m_pimpl->save(guard);
 }
