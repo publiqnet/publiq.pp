@@ -729,9 +729,7 @@ void process_blockchain_response(beltpp::packet& package,
         // calculate back transactions
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
-            auto count = m_pimpl->m_transaction_pool.length();
             m_pimpl->m_transaction_pool.insert(*it);
-            count = m_pimpl->m_transaction_pool.length();
 
             revert_transaction(it->transaction_details, m_pimpl);
         }
