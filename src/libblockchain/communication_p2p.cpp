@@ -197,12 +197,32 @@ void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     Block block;
     block.header = block_header;
 
-    meshpp::random_seed node_rs("NODE");
-    meshpp::private_key node_pv = node_rs.get_private_key(0);
-
     Reward reward;
     reward.amount = coin(100, 0).to_Coin();
+
+    meshpp::random_seed node_rs("NODE");
+    meshpp::private_key node_pv = node_rs.get_private_key(0);
     reward.to = node_pv.get_public_key().to_string();
+    block.rewards.push_back(std::move(reward));
+
+    meshpp::random_seed armen_rs("Armen");
+    meshpp::private_key armen_pv = armen_rs.get_private_key(0);
+    reward.to = armen_pv.get_public_key().to_string();
+    block.rewards.push_back(std::move(reward));
+
+    meshpp::random_seed tigran_rs("Tigran");
+    meshpp::private_key tigran_pv = tigran_rs.get_private_key(0);
+    reward.to = tigran_pv.get_public_key().to_string();
+    block.rewards.push_back(std::move(reward));
+
+    meshpp::random_seed gagik_rs("Gagik");
+    meshpp::private_key gagik_pv = gagik_rs.get_private_key(0);
+    reward.to = gagik_pv.get_public_key().to_string();
+    block.rewards.push_back(std::move(reward));
+
+    meshpp::random_seed sona_rs("Sona");
+    meshpp::private_key sona_pv = sona_rs.get_private_key(0);
+    reward.to = sona_pv.get_public_key().to_string();
     block.rewards.push_back(std::move(reward));
 
     meshpp::random_seed rs("GENESIS");
