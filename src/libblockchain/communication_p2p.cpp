@@ -658,7 +658,7 @@ void process_blockchain_response(beltpp::packet& package,
         }
 
         // verify block rewards
-        if (!check_rewards(block, block_it->authority))
+        if (check_rewards(block, block_it->authority))
             throw wrong_data_exception("blockchain response. block rewards!");
 
         ++block_it;
