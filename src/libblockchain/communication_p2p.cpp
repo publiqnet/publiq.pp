@@ -164,10 +164,8 @@ bool check_rewards(Block const& block, string const& authority)
     auto it1 = rewards.begin();
     auto it2 = block.rewards.begin();
 
-    // commented for test rewards
-    //bool bad_reward = rewards.size() != block.rewards.size();
-    
-    bool bad_reward = false;
+    bool bad_reward = rewards.size() != block.rewards.size();
+
     while ( !bad_reward && it1 != rewards.end())
     {
         bad_reward = *it1 != *it2;
@@ -325,9 +323,6 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     // grant rewards and move to block
     grant_rewards(block.signed_transactions, block.rewards, own_key);
-
-    // add test related rewards if exists
-    m_pimpl->m_transaction_pool.get_tmp_rewards(block.rewards);
 
     // sign block and insert to blockchain
     meshpp::signature sgn = m_pimpl->private_key.sign(block.to_string());

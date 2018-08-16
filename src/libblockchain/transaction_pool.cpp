@@ -25,7 +25,6 @@ public:
     {
     }
 
-    std::vector<Reward> tmp_rewards; // for test only
     meshpp::map_loader<SignedTransaction> m_transactions;
 };
 }
@@ -96,17 +95,4 @@ bool transaction_pool::contains(std::string const& key) const
     return m_pimpl->m_transactions.as_const().contains(key);
 }
 
-void transaction_pool::insert_tmp_reward(Reward const& reward)
-{
-    m_pimpl->tmp_rewards.push_back(reward);
-}
-
-void transaction_pool::get_tmp_rewards(vector<Reward>& rewards) const
-{
-    // for test
-    for (auto& reward : m_pimpl->tmp_rewards)
-        rewards.push_back(reward);
-
-    m_pimpl->tmp_rewards.clear();
-}
 }

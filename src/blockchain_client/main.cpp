@@ -59,37 +59,27 @@ int main(int argc, char** argv)
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
 
-    key_pair_request.master_key = "ROB";
+    key_pair_request.master_key = "Armen";
     send_package.set(key_pair_request);
     Send(send_package, receive_package, sk, peerid, eh);
 
-    KeyPair rob_key;
-    receive_package.get(rob_key);
+    KeyPair armen_key;
+    receive_package.get(armen_key);
 
-    key_pair_request.master_key = "SERZ";
+    key_pair_request.master_key = "Tigran";
     send_package.set(key_pair_request);
     Send(send_package, receive_package, sk, peerid, eh);
 
-    KeyPair serz_key;
-    receive_package.get(serz_key);
+    KeyPair tigran_key;
+    receive_package.get(tigran_key);
 
-    Reward reward;
-    reward.amount.whole = 10000;
-    reward.to = rob_key.public_key;
-
-    LogTransaction log_transaction;
-    log_transaction.action = reward;
-    send_package.set(log_transaction);
-    Send(send_package, receive_package, sk, peerid, eh);
-    
-    //return 0;
-
+   
     for (auto i = 0; i < 10; ++i)
     {
         Transfer transfer;
-        transfer.from = rob_key.public_key;
-        transfer.to = serz_key.public_key;
-        transfer.amount.whole = 10 + i;
+        transfer.from = armen_key.public_key;
+        transfer.to = tigran_key.public_key;
+        transfer.amount.fraction = 10;
 
         Transaction transaction;
         transaction.creation.tm = system_clock::to_time_t(system_clock::now());
@@ -97,7 +87,7 @@ int main(int argc, char** argv)
         transaction.action = transfer;
 
         SignRequest sign_request;
-        sign_request.private_key = rob_key.private_key;
+        sign_request.private_key = armen_key.private_key;
         sign_request.package = transaction;
 
         send_package.set(sign_request);
@@ -107,7 +97,7 @@ int main(int argc, char** argv)
         receive_package.get(signature);
 
         SignedTransaction signed_transaction;
-        signed_transaction.authority = rob_key.public_key;
+        signed_transaction.authority = armen_key.public_key;
         signed_transaction.signature = signature.signature;
         signed_transaction.transaction_details = transaction;
 
@@ -118,7 +108,7 @@ int main(int argc, char** argv)
         send_package.set(broadcast);
         Send(send_package, receive_package, sk, peerid, eh);
 
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     return 0;

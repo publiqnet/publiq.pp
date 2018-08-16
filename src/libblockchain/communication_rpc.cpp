@@ -5,37 +5,6 @@
 
 using std::stack;
 
-void submit_reward(beltpp::packet&& package,
-                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
-                   beltpp::isocket& sk,
-                   beltpp::isocket::peer_id const& peerid)
-{
-    LogTransaction log_transaction_msg;
-    std::move(package).get(log_transaction_msg);
-
-    auto& ref_action = log_transaction_msg.action;
-    switch (ref_action.type())
-    {
-    case Reward::rtt: //  check reward for testing
-    {
-        Reward msg_reward;
-        ref_action.get(msg_reward);
-
-        // following will throw on invalid public key
-        meshpp::public_key temp(msg_reward.to);
-
-        m_pimpl->m_transaction_pool.insert_tmp_reward(msg_reward);
-
-        break;
-    }
-    default:
-        throw std::runtime_error("Unsupported action!");
-        break;
-    }
-
-    sk.send(peerid, Done());
-}
-
 void get_actions(beltpp::packet const& package,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,

@@ -30,15 +30,12 @@ public:
     void discard();
 
     size_t length() const;
+    bool contains(std::string const& key) const;
     void insert(BlockchainMessage::SignedTransaction const& signed_transaction);
     void at(std::string const& key, BlockchainMessage::SignedTransaction& signed_transaction) const;
     void remove(std::string const& key);
     void get_keys(std::vector<std::string> &keys) const;
 
-    bool contains(std::string const& key) const;
-
-    void insert_tmp_reward(BlockchainMessage::Reward const& reward); // for test only
-    void get_tmp_rewards(std::vector<BlockchainMessage::Reward>& rewards) const;
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };
