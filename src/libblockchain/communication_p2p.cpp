@@ -638,12 +638,28 @@ void process_blockchain_response(beltpp::packet& package,
         Block block;
         block_it->block_details.get(block);
 
-        if (!check_rewards(block, block_it->authority))
-            throw wrong_data_exception("blockchain response. block rewards!");
-
         if (*(header_it - 1) != block.header ||
             header_it->previous_hash != meshpp::hash(block_it->block_details.to_string()))
             throw wrong_data_exception("blockchain response. block header!");
+
+        // verify block transactions
+        for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
+        {
+            if (!meshpp::verify_signature(meshpp::public_key(tr_it->authority),
+                                          tr_it->transaction_details.to_string(),
+                                          tr_it->signature))
+                throw wrong_data_exception("blockchain response. transaction signature!");
+
+            Transfer transfer;
+            tr_it->transaction_details.action.get(transfer);
+
+            if (tr_it->authority != transfer.from)
+                throw wrong_data_exception("blockchain response. transaction authority!");
+        }
+
+        // verify block rewards
+        if (!check_rewards(block, block_it->authority))
+            throw wrong_data_exception("blockchain response. block rewards!");
 
         ++block_it;
         ++header_it;
@@ -731,18 +747,7 @@ void process_blockchain_response(beltpp::packet& package,
         // verify block transactions
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
-            if (!meshpp::verify_signature(meshpp::public_key(tr_it->authority),
-                                                             tr_it->transaction_details.to_string(),
-                                                             tr_it->signature))
-                throw wrong_data_exception("blockchain response. transaction signature!");
-
             m_pimpl->m_transaction_pool.remove((*tr_it).to_string());
-
-            Transfer transfer;
-            tr_it->transaction_details.action.get(transfer);
-
-            if (tr_it->authority != transfer.from)
-                throw wrong_data_exception("blockchain response. transaction authority!");
 
             apply_tranaction(tr_it->transaction_details, m_pimpl);
         }
