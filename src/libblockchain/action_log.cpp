@@ -69,8 +69,10 @@ void action_log::log(beltpp::packet&& action)
     insert(action_info);
 }
 
-void action_log::insert(LoggedTransaction const& action_info)
+void action_log::insert(LoggedTransaction& action_info)
 {
+    action_info.index = m_pimpl->m_actions.as_const().size();
+
     m_pimpl->m_actions.push_back(action_info);
 }
 

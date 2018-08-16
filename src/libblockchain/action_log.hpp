@@ -27,7 +27,7 @@ public:
     size_t length() const;
 
     void log(beltpp::packet&& action);
-    void insert(BlockchainMessage::LoggedTransaction const& action_info);
+    void insert(BlockchainMessage::LoggedTransaction& action_info);
     void at(size_t number, BlockchainMessage::LoggedTransaction& action_info) const;
     void revert();
 private:
