@@ -89,22 +89,13 @@ void insert_block(SignedBlock& signed_block,
     signed_block.block_details.get(block);
 
     // Check block transactions and calculate new state
-    coin fee;
     for (auto& signed_transaction : block.signed_transactions)
     {
-        fee += signed_transaction.transaction_details.fee;
-
         apply_tranaction(signed_transaction.transaction_details, m_pimpl);
 
         // remove transaction from pool if exists
         m_pimpl->m_transaction_pool.remove(meshpp::hash(signed_transaction.to_string()));
     }
-
-    // add fee to miner balance
-    if(!fee.empty())
-        m_pimpl->m_state.increase_balance(signed_block.authority, fee);
-
-    //TODO manage fee when it will be written as a transfer in action log
 
     // apply rewards to state and action_log
     for (auto& reward : block.rewards)
@@ -118,6 +109,36 @@ void insert_block(SignedBlock& signed_block,
 
     // apply back pool content to state and action_log
     pool_to_state_log(m_pimpl);
+}
+
+void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<Reward>& rewards, string const& authority)
+{
+    rewards.clear();
+
+    coin fee;
+    for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
+        fee += it->transaction_details.fee;
+
+    //TODO grant real rewards from transactions
+
+    // add own rewards
+    if (!signed_transactions.empty() || !rewards.empty())
+    {
+        Reward own_reward;
+
+        if (!fee.empty())
+        {
+            // grant fee reward himself
+            own_reward.amount = fee.to_Coin();
+            own_reward.to = authority;
+            rewards.push_back(own_reward);
+        }
+
+        // grant miner reward himself
+        own_reward.amount = MINER_REWARD.to_Coin();
+        own_reward.to = authority;
+        rewards.push_back(own_reward);
+    }
 }
 
 bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
@@ -134,6 +155,29 @@ bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
 
     return t || time_point1 > time_point2 || diff_seconds.count() < BLOCK_MINE_DELAY;
 };
+
+bool check_rewards(Block const& block, string const& authority)
+{
+    vector<Reward> rewards;
+    grant_rewards(block.signed_transactions, rewards, authority);
+
+    auto it1 = rewards.begin();
+    auto it2 = block.rewards.begin();
+
+    // commented for test rewards
+    //bool bad_reward = rewards.size() != block.rewards.size();
+    
+    bool bad_reward = false;
+    while ( !bad_reward && it1 != rewards.end())
+    {
+        bad_reward = *it1 != *it2;
+
+        ++it1;
+        ++it2;
+    }
+
+    return bad_reward;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////
 
@@ -238,23 +282,19 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     Block block;
     block.header = block_header;
 
-    // grant rewards and move to block
-    vector<Reward> rewards;
-    m_pimpl->m_transaction_pool.grant_rewards(rewards);
-
-    for (auto& reward : rewards)
-        block.rewards.push_back(std::move(reward));
-
     // copy transactions from pool to block
-    vector<string> keys;
-    m_pimpl->m_transaction_pool.get_keys(keys);
+    vector<string> pool_keys;
+    m_pimpl->m_transaction_pool.get_keys(pool_keys);
 
     multimap<BlockchainMessage::ctime, SignedTransaction> transaction_map;
 
-    for (auto& key : keys)
+    coin fee;
+    for (auto& key : pool_keys)
     {
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
+
+        fee += signed_transaction.transaction_details.fee;
 
         transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(signed_transaction.transaction_details.creation,
             signed_transaction));
@@ -263,22 +303,18 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     for (auto it = transaction_map.begin(); it != transaction_map.end(); ++it)
         block.signed_transactions.push_back(std::move(it->second));
 
-    if (!block.signed_transactions.empty() || !block.rewards.empty())
-    {
-        // grant miner reward himself
-        Reward own_reward;
-        own_reward.amount = MINER_REWARD.to_Coin();
-        own_reward.to = own_key;
+    // grant rewards and move to block
+    grant_rewards(block.signed_transactions, block.rewards, own_key);
 
-        block.rewards.push_back(own_reward);
-    }
+    // add test related rewards if exists
+    m_pimpl->m_transaction_pool.get_tmp_rewards(block.rewards);
 
     // sign block and insert to blockchain
     meshpp::signature sgn = m_pimpl->private_key.sign(block.to_string());
 
     SignedBlock signed_block;
     signed_block.signature = sgn.base64;
-    signed_block.authority = sgn.pb_key.to_string();
+    signed_block.authority = own_key;
     signed_block.block_details = std::move(block);
 
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
@@ -602,6 +638,9 @@ void process_blockchain_response(beltpp::packet& package,
         Block block;
         block_it->block_details.get(block);
 
+        if (!check_rewards(block, block_it->authority))
+            throw wrong_data_exception("blockchain response. block rewards!");
+
         if (*(header_it - 1) != block.header ||
             header_it->previous_hash != meshpp::hash(block_it->block_details.to_string()))
             throw wrong_data_exception("blockchain response. block header!");
@@ -657,18 +696,12 @@ void process_blockchain_response(beltpp::packet& package,
         }
 
         // calculate back transactions
-        coin fee;
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
-            fee += it->transaction_details.fee;
             m_pimpl->m_transaction_pool.insert(*it);
 
             revert_transaction(it->transaction_details, m_pimpl);
         }
-
-        // revert block authority balance
-        if(!fee.empty())
-            m_pimpl->m_state.decrease_balance(signed_block.authority, fee);
 
         --block_number;
     }
@@ -696,7 +729,6 @@ void process_blockchain_response(beltpp::packet& package,
             throw wrong_data_exception("blockchain response. miner balance!");
 
         // verify block transactions
-        coin fee;
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
             if (!meshpp::verify_signature(meshpp::public_key(tr_it->authority),
@@ -712,18 +744,8 @@ void process_blockchain_response(beltpp::packet& package,
             if (tr_it->authority != transfer.from)
                 throw wrong_data_exception("blockchain response. transaction authority!");
 
-            fee += tr_it->transaction_details.fee;
-
             apply_tranaction(tr_it->transaction_details, m_pimpl);
         }
-
-        // increase authority balance
-        if(!fee.empty())
-            m_pimpl->m_state.increase_balance(block_it->authority, fee);
-
-        //TODO manage fee when it will be written as a transfer in action log
-
-        //TODO verify rewards!
 
         // increase all reward amounts to balances
         for (auto reward_it = block.rewards.begin(); reward_it != block.rewards.end(); ++reward_it)

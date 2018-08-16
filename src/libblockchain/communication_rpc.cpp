@@ -24,7 +24,7 @@ void submit_reward(beltpp::packet&& package,
         // following will throw on invalid public key
         meshpp::public_key temp(msg_reward.to);
 
-        m_pimpl->m_transaction_pool.insert_reward(msg_reward);
+        m_pimpl->m_transaction_pool.insert_tmp_reward(msg_reward);
 
         break;
     }

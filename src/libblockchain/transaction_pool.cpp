@@ -64,11 +64,6 @@ void transaction_pool::insert(SignedTransaction const& signed_transaction)
         m_pimpl->m_transactions.insert(key, signed_transaction);
 }
 
-void transaction_pool::insert_reward(Reward const& reward)
-{
-    m_pimpl->tmp_rewards.push_back(reward);
-}
-
 void transaction_pool::at(string const& key, SignedTransaction& signed_transaction) const
 {
     if (!contains(key))
@@ -101,15 +96,17 @@ bool transaction_pool::contains(std::string const& key) const
     return m_pimpl->m_transactions.as_const().contains(key);
 }
 
-void transaction_pool::grant_rewards(vector<Reward>& rewards) const
+void transaction_pool::insert_tmp_reward(Reward const& reward)
 {
-    rewards.clear();
+    m_pimpl->tmp_rewards.push_back(reward);
+}
 
+void transaction_pool::get_tmp_rewards(vector<Reward>& rewards) const
+{
+    // for test
     for (auto& reward : m_pimpl->tmp_rewards)
         rewards.push_back(reward);
 
     m_pimpl->tmp_rewards.clear();
-
-    //TODO add something meaningfull
 }
 }

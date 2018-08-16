@@ -37,8 +37,8 @@ public:
 
     bool contains(std::string const& key) const;
 
-    void insert_reward(BlockchainMessage::Reward const& reward); // for test only
-    void grant_rewards(std::vector<BlockchainMessage::Reward>& rewards) const;
+    void insert_tmp_reward(BlockchainMessage::Reward const& reward); // for test only
+    void get_tmp_rewards(std::vector<BlockchainMessage::Reward>& rewards) const;
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };
