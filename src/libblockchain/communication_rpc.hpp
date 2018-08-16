@@ -47,31 +47,18 @@ void broadcast(beltpp::packet& package_broadcast,
 
 
 //---------------- Exceptions -----------------------
-class exception_authority : public std::runtime_error
+class authority_exception : public std::runtime_error
 {
 public:
-    explicit exception_authority(std::string const& authority_provided, std::string const& authority_required);
+    explicit authority_exception(std::string const& authority_provided, std::string const& authority_required);
 
-    exception_authority(exception_authority const&) noexcept;
-    exception_authority& operator=(exception_authority const&) noexcept;
+    authority_exception(authority_exception const&) noexcept;
+    authority_exception& operator=(authority_exception const&) noexcept;
 
-    virtual ~exception_authority() noexcept;
+    virtual ~authority_exception() noexcept;
 
     std::string authority_provided;
     std::string authority_required;
-};
-
-class exception_balance : public std::runtime_error
-{
-public:
-    explicit exception_balance(std::string const& account);
-
-    exception_balance(exception_balance const&) noexcept;
-    exception_balance& operator=(exception_balance const&) noexcept;
-
-    virtual ~exception_balance() noexcept;
-
-    std::string account;
 };
 
 class wrong_request_exception : public std::runtime_error

@@ -115,18 +115,18 @@ void state::decrease_balance(string const& key, coin const& amount)
 }
 
 //---------------- Exceptions -----------------------
-low_balance_exception::low_balance_exception(string const& _key)
-    : runtime_error("Account:" + _key + " balance is not enough!")
-    , key(_key)
+low_balance_exception::low_balance_exception(string const& _account)
+    : runtime_error("Low balance! account: " + _account)
+    , account(_account)
 {}
 low_balance_exception::low_balance_exception(low_balance_exception const& other) noexcept
     : runtime_error(other)
-    , key(other.key)
+    , account(other.account)
 {}
 low_balance_exception& low_balance_exception::operator=(low_balance_exception const& other) noexcept
 {
     dynamic_cast<runtime_error*>(this)->operator =(other);
-    key = other.key;
+    account = other.account;
     return *this;
 }
 low_balance_exception::~low_balance_exception() noexcept

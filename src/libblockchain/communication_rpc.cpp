@@ -190,7 +190,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     // Authority check
     if (signed_transaction.authority != transfer.from)
-        throw exception_authority(signed_transaction.authority, transfer.from);
+        throw authority_exception(signed_transaction.authority, transfer.from);
 
     // Check pool
     string transfer_hash = meshpp::hash(signed_transaction.to_string());
@@ -301,41 +301,24 @@ void broadcast(beltpp::packet& package_broadcast,
 
 
 //---------------- Exceptions -----------------------
-exception_authority::exception_authority(string const& _authority_provided, string const& _authority_required)
+authority_exception::authority_exception(string const& _authority_provided, string const& _authority_required)
     : runtime_error("Invalid authority! authority_provided: " + _authority_provided + "  " + " authority_required: " + _authority_required)
     , authority_provided(_authority_provided)
     , authority_required(_authority_required)
 {}
-exception_authority::exception_authority(exception_authority const& other) noexcept
+authority_exception::authority_exception(authority_exception const& other) noexcept
     : runtime_error(other)
     , authority_provided(other.authority_provided)
     , authority_required(other.authority_required)
 {}
-exception_authority& exception_authority::operator=(exception_authority const& other) noexcept
+authority_exception& authority_exception::operator=(authority_exception const& other) noexcept
 {
     dynamic_cast<runtime_error*>(this)->operator =(other);
     authority_provided = other.authority_provided;
     authority_required = other.authority_required;
     return *this;
 }
-exception_authority::~exception_authority() noexcept
-{}
-
-exception_balance::exception_balance(string const& _account)
-    : runtime_error("Low balance! account: " + _account)
-    , account(_account)
-{}
-exception_balance::exception_balance(exception_balance const& other) noexcept
-    : runtime_error(other)
-    , account(other.account)
-{}
-exception_balance& exception_balance::operator=(exception_balance const& other) noexcept
-{
-    dynamic_cast<runtime_error*>(this)->operator =(other);
-    account = other.account;
-    return *this;
-}
-exception_balance::~exception_balance() noexcept
+authority_exception::~authority_exception() noexcept
 {}
 
 wrong_request_exception::wrong_request_exception(string const& _message)

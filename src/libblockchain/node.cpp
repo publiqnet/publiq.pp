@@ -467,7 +467,7 @@ bool node::run()
                 psk->send(peerid, remote_error);
                 throw;
             }
-            catch (exception_authority const& e)
+            catch (authority_exception const& e)
             {
                 InvalidAuthority msg;
                 msg.authority_provided = e.authority_provided;
@@ -477,9 +477,12 @@ bool node::run()
             }
             catch(std::exception const& e)
             {
-                RemoteError msg;
-                msg.message = e.what();
-                psk->send(peerid, msg);
+                if (it == interface_type::rpc)
+                {
+                    RemoteError msg;
+                    msg.message = e.what();
+                    psk->send(peerid, msg);
+                }
                 throw;
             }
             catch (...)
