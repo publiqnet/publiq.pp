@@ -64,7 +64,7 @@ void pool_to_state_log(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-        if (now <= system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
+        if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
             m_pimpl->m_transaction_pool.remove(key);
         else
             apply_tranaction(signed_transaction.transaction_details, m_pimpl);
@@ -729,7 +729,9 @@ void process_blockchain_response(beltpp::packet& package,
         // calculate back transactions
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
+            auto count = m_pimpl->m_transaction_pool.length();
             m_pimpl->m_transaction_pool.insert(*it);
+            count = m_pimpl->m_transaction_pool.length();
 
             revert_transaction(it->transaction_details, m_pimpl);
         }
