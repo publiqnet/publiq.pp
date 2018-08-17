@@ -503,19 +503,20 @@ bool node::run()
         }
     }
 
-    if (m_pimpl->m_check_timer.expired())
+    if (m_pimpl->m_sync_timer.expired())
+    {
+        m_pimpl->m_sync_timer.update();
+
+        if (m_pimpl->sync_peerid.empty() && m_pimpl->sync_timeout())
+            m_pimpl->new_sync_request();
+    }
+    else if (m_pimpl->m_check_timer.expired())
     {
         m_pimpl->m_check_timer.update();
 
         beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
 
-        if (!m_pimpl->sync_free() && m_pimpl->sync_timeout())
-        {
-            // something went wrong, init new sync process
-            m_pimpl->new_sync_request();
-            m_pimpl->m_sync_timer.update();
-        }
-        else if (m_pimpl->sync_free() && !m_pimpl->sync_responses.empty())
+        if (m_pimpl->sync_peerid.empty() && !m_pimpl->sync_responses.empty())
         {
             // process collected SyncResponse data
             BlockHeader block_header;
@@ -555,7 +556,7 @@ bool node::run()
                 m_pimpl->store_request(tmp_peer, header_request);
             }
         } 
-        else if(m_pimpl->sync_free())
+        else if(m_pimpl->sync_peerid.empty())
         {
             BlockHeader header;
             m_pimpl->m_blockchain.header(header);
@@ -572,14 +573,6 @@ bool node::run()
                     mine_block(m_pimpl);
             }
         }
-    }
-
-    if (m_pimpl->m_sync_timer.expired())
-    {
-        m_pimpl->m_sync_timer.update();
-
-        if (m_pimpl->sync_free() && m_pimpl->sync_timeout())
-            m_pimpl->new_sync_request();
     }
 
     return code;

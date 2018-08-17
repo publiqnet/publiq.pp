@@ -94,7 +94,6 @@ public:
         , m_state(fs_state)
         , private_key(pv_key)
     {
-        sync_peerid = "Ice Age"; // will triger initial sync
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
@@ -171,14 +170,6 @@ public:
         auto res = m_stored_requests.insert(std::make_pair(peerid, std::move(pck)));
         if (false == res.second)
             throw std::runtime_error("only one request is supported at a time");
-    }
-
-    bool sync_free()
-    {
-        if (sync_peerid.empty())
-            return true;
-
-        return false;
     }
 
     bool sync_timeout()
