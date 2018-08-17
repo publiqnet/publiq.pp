@@ -2,10 +2,12 @@
 
 #include <belt.pp/socket.hpp>
 
+#include <boost/filesystem.hpp>
+
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <boost/filesystem.hpp>
+
 using namespace BlockchainMessage;
 using peer_id = beltpp::socket::peer_id;
 
@@ -14,9 +16,11 @@ using std::endl;
 namespace chrono = std::chrono;
 using std::chrono::system_clock;
 
-peer_id connect(char** argv, beltpp::socket& sk, beltpp::event_handler& evH);
+peer_id Connect(beltpp::ip_address const& open_address,
+                beltpp::socket& sk,
+                beltpp::event_handler& evH);
 
-void Send(beltpp::packet& send_package,
+void Send(beltpp::packet&& send_package,
           beltpp::packet& receive_package,
           beltpp::socket& sk,
           peer_id peerid,
@@ -26,6 +30,22 @@ using sf = beltpp::socket_family_t<&message_list_load>;
 
 int main(int argc, char** argv)
 {
+    try
+    {
+    if (argc < 2)
+    {
+        cout << "usage: blockchain_client address:port" << endl;
+        return 0;
+    }
+
+    beltpp::ip_address address;
+    address.from_string(argv[1]);
+    if (address.remote.empty())
+    {
+        address.remote = address.local;
+        address.local = beltpp::ip_destination();
+    }
+
     //__debugbreak();
     beltpp::socket::peer_id peerid;
     beltpp::event_handler eh;
@@ -33,10 +53,9 @@ int main(int argc, char** argv)
     beltpp::socket sk = beltpp::getsocket<sf>(eh);
     eh.add(sk);
 
-    peerid = connect(argv, sk, eh);
+    peerid = Connect(address, sk, eh);
     cout << endl << peerid << endl;
 
-    beltpp::packet send_package;
     beltpp::packet receive_package;
 
   /*  StorageFile file;
@@ -52,23 +71,20 @@ int main(int argc, char** argv)
         file.data.resize(10000);
     }
 
-    send_package.set(file);
-    Send(send_package, receive_package, sk, peerid, eh);*/
+    Send(file, receive_package, sk, peerid, eh);*/
 
 
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
 
     key_pair_request.master_key = "Armen";
-    send_package.set(key_pair_request);
-    Send(send_package, receive_package, sk, peerid, eh);
+    Send(key_pair_request, receive_package, sk, peerid, eh);
 
     KeyPair armen_key;
     receive_package.get(armen_key);
 
     key_pair_request.master_key = "Tigran";
-    send_package.set(key_pair_request);
-    Send(send_package, receive_package, sk, peerid, eh);
+    Send(key_pair_request, receive_package, sk, peerid, eh);
 
     KeyPair tigran_key;
     receive_package.get(tigran_key);
@@ -90,8 +106,7 @@ int main(int argc, char** argv)
         sign_request.private_key = armen_key.private_key;
         sign_request.package = transaction;
 
-        send_package.set(sign_request);
-        Send(send_package, receive_package, sk, peerid, eh);
+        Send(sign_request, receive_package, sk, peerid, eh);
 
         Signature signature;
         receive_package.get(signature);
@@ -105,16 +120,20 @@ int main(int argc, char** argv)
         broadcast.echoes = 2;
         broadcast.package = signed_transaction;
 
-        send_package.set(broadcast);
-        Send(send_package, receive_package, sk, peerid, eh);
+        Send(broadcast, receive_package, sk, peerid, eh);
 
         std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    }
+    catch(std::exception const& e)
+    {
+        cout << "exception: " << e.what() << endl;
     }
 
     return 0;
 }
 
-void Send(beltpp::packet& send_package,
+void Send(beltpp::packet&& send_package,
           beltpp::packet& receive_package,
           beltpp::socket& sk,
           peer_id peerid,
@@ -132,13 +151,34 @@ void Send(beltpp::packet& send_package,
        if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
            packets = sk.receive(peerid);
 
-       if (peerid.empty() || packets.empty())
+       if (peerid.empty())
            continue;
+
+       if (packets.empty())
+       {
+           assert(false);
+           throw std::runtime_error("no packets received from specified channel");
+       }
+       else if (packets.size() > 1)
+       {
+           throw std::runtime_error("more than one responses is not supported");
+       }
+
+       auto const& packet = packets.front();
+
+       if (packet.type() == beltpp::isocket_drop::rtt)
+       {
+           throw std::runtime_error("server disconnected");
+       }
+       else if (packet.type() == beltpp::isocket_open_refused::rtt ||
+                packet.type() == beltpp::isocket_open_error::rtt ||
+                packet.type() == beltpp::isocket_join::rtt)
+       {
+           assert(false);
+           throw std::runtime_error("open error or join received: impossible");
+       }
        
-       if (packets.front().type() == beltpp::isocket_drop::rtt)
-           cout << "Connection dropped!" << endl;
-       
-       ::detail::assign_packet(receive_package, packets.front());
+       ::detail::assign_packet(receive_package, packet);
        
        break;
    }
@@ -146,29 +186,55 @@ void Send(beltpp::packet& send_package,
    cout << endl << "Package received -> " << endl << receive_package.to_string() << endl;
 }
 
-peer_id connect(char** argv, beltpp::socket& sk, beltpp::event_handler& eh)
+peer_id Connect(beltpp::ip_address const& open_address,
+                beltpp::socket& sk,
+                beltpp::event_handler& eh)
 {
-    beltpp::ip_address address_item;
-    address_item.from_string(argv[1]);
-    beltpp::ip_address open_address("", 0, 
-                                    address_item.local.address,
-                                    address_item.local.port,
-                                    beltpp::ip_address::e_type::ipv4);
     sk.open(open_address);
 
-    peer_id channel_id;
-    beltpp::isocket::packets pcs;
+    peer_id peerid;
+    beltpp::isocket::packets packets;
     std::unordered_set<beltpp::ievent_item const*> set_items;
     while(true)
     {
         if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
-            pcs = sk.receive(channel_id);
+            packets = sk.receive(peerid);
 
-        if (channel_id.empty() && pcs.empty())
+        if (peerid.empty())
             continue;
+
+        if (packets.empty())
+        {
+            assert(false);
+            throw std::runtime_error("no packets received from specified channel");
+        }
+        else if (packets.size() > 1)
+        {
+            throw std::runtime_error("more than one responses is not supported");
+        }
+
+        auto const& packet = packets.front();
+
+        if (packet.type() == beltpp::isocket_open_refused::rtt)
+        {
+            beltpp::isocket_open_refused msg;
+            packet.get(msg);
+            throw std::runtime_error(msg.reason);
+        }
+        else if (packet.type() == beltpp::isocket_open_error::rtt)
+        {
+            beltpp::isocket_open_error msg;
+            packet.get(msg);
+            throw std::runtime_error(msg.reason);
+        }
+        else if (packet.type() != beltpp::isocket_join::rtt)
+        {
+            assert(false);
+            throw std::runtime_error("unexpected response: " + std::to_string(packet.type()));
+        }
         
         break;
     }
 
-    return channel_id;
+    return peerid;
 }
