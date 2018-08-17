@@ -210,4 +210,3 @@ module BlockchainMessage
         String uri
     }
 }
-///
