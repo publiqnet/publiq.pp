@@ -45,7 +45,7 @@ bool process_command_line(int argc, char** argv,
 
 bool g_termination_handled = false;
 publiqpp::node* g_pnode = nullptr;
-void termination_handler(int signum)
+void termination_handler(int /*signum*/)
 {
     g_termination_handled = true;
     if (g_pnode)
@@ -175,11 +175,13 @@ int main(int argc, char** argv)
                                                                                 &Config::DataDirAttribute::from_string,
                                                                                 &Config::DataDirAttribute::to_string>>;
         DataDirAttributeLoader dda(settings::data_file_path("running.txt"));
-        Config::RunningDuration item;
-        item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        {
+            Config::RunningDuration item;
+            item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-        dda->history.push_back(item);
-        dda.save();
+            dda->history.push_back(item);
+            dda.save();
+        }
 
         auto fs_blockchain = settings::data_directory_path("blockchain");
         auto fs_action_log = settings::data_directory_path("action_log");

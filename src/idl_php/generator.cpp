@@ -54,22 +54,27 @@ enum g_type_info {
                 type_simple_object_extension = type_simple | type_object_extension
 };
 
-string transformString(string scoreString)
+string transformString(string const& scoreString)   //  always use references when passing class objects as arguments
 {
-    string tempString = "";
     string camelString = "";
     camelString = scoreString;
 
+    //  don't use braces the following way, please
+    /*
+    for {
+    }
+    */
 
-    for (size_t x = 0; x < camelString.length(); x++){
-
-            if (camelString[x] == '_'){
-                tempString = camelString.substr(x + 1, 1);
-                transform(tempString.begin(), tempString.end(), tempString.begin(), toupper);
-                camelString.erase(x, 2);
-                camelString.insert(x, tempString);
-            }
+    for (size_t x = 0; x < camelString.length(); x++)
+    {
+        if (camelString[x] == '_')
+        {
+            char ch = camelString[x + 1];
+            ch = char(toupper(int(ch)));
+            camelString.erase(x, 2);
+            camelString.insert(x, 1, ch);
         }
+    }
     return camelString;
 }
 

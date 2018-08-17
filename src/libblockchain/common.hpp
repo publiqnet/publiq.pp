@@ -18,10 +18,10 @@
 #define EVENT_TIMER 30
 
 // Consensus delta definitions
-#define DELTA_STEP  10
-#define DELTA_MAX   120000000
-#define DELTA_UP    100000000
-#define DELTA_DOWN  80000000
+#define DELTA_STEP  10ull
+#define DELTA_MAX   120000000ull
+#define DELTA_UP    100000000ull
+#define DELTA_DOWN  80000000ull
 
 static const coin MINER_REWARD(1, 0);
 static const coin MINE_AMOUNT_THRESHOLD(1, 0);

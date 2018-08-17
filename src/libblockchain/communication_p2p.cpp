@@ -266,35 +266,35 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     if (delta > DELTA_UP)
     {
         size_t step = 0;
-        BlockHeader prev_header;
-        m_pimpl->m_blockchain.header_at(block_number, prev_header);
+        BlockHeader prev_header_local;
+        m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
 
-        while (prev_header.consensus_delta > DELTA_UP &&
-            step < DELTA_STEP && prev_header.block_number > 0)
+        while (prev_header_local.consensus_delta > DELTA_UP &&
+            step < DELTA_STEP && prev_header_local.block_number > 0)
         {
             ++step;
-            m_pimpl->m_blockchain.header_at(prev_header.block_number - 1, prev_header);
+            m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
         }
 
         if (step >= DELTA_STEP)
-            block_header.consensus_const = prev_header.consensus_const * 2;
+            block_header.consensus_const = prev_header_local.consensus_const * 2;
     }
     else
         if (delta < DELTA_DOWN && block_header.consensus_const > 1)
         {
             size_t step = 0;
-            BlockHeader prev_header;
-            m_pimpl->m_blockchain.header_at(block_number, prev_header);
+            BlockHeader prev_header_local;
+            m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
 
-            while (prev_header.consensus_delta < DELTA_DOWN &&
-                step < DELTA_STEP && prev_header.block_number > 0)
+            while (prev_header_local.consensus_delta < DELTA_DOWN &&
+                step < DELTA_STEP && prev_header_local.block_number > 0)
             {
                 ++step;
-                m_pimpl->m_blockchain.header_at(prev_header.block_number - 1, prev_header);
+                m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
             }
 
             if (step >= DELTA_STEP)
-                block_header.consensus_const = prev_header.consensus_const / 2;
+                block_header.consensus_const = prev_header_local.consensus_const / 2;
         }
 
     Block block;
@@ -329,7 +329,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     SignedBlock signed_block;
     signed_block.signature = sgn.base58;
-    signed_block.authority = sgn.pb_key.to_string();
+    signed_block.authority = own_key;
     signed_block.block_details = std::move(block);
 
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
