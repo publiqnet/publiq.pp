@@ -228,7 +228,7 @@ void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     meshpp::signature sgn = pv.sign(block.to_string());
 
     SignedBlock signed_block;
-    signed_block.signature = sgn.base64;
+    signed_block.signature = sgn.base58;
     signed_block.authority = node_pv.get_public_key().to_string();
     signed_block.block_details = std::move(block);
 
@@ -328,8 +328,8 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     meshpp::signature sgn = m_pimpl->private_key.sign(block.to_string());
 
     SignedBlock signed_block;
-    signed_block.signature = sgn.base64;
-    signed_block.authority = own_key;
+    signed_block.signature = sgn.base58;
+    signed_block.authority = sgn.pb_key.to_string();
     signed_block.block_details = std::move(block);
 
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });

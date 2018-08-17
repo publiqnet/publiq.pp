@@ -438,7 +438,7 @@ bool node::run()
             {
                 InvalidSignature msg;
                 msg.details.public_key = e.sgn.pb_key.to_string();
-                msg.details.signature = e.sgn.base64;
+                msg.details.signature = e.sgn.base58;
                 BlockchainMessage::detail::loader(msg.details.package,
                                                   std::string(e.sgn.message.begin(), e.sgn.message.end()),
                                                   nullptr);

@@ -120,7 +120,7 @@ void get_signature(beltpp::packet const& packet,
 
     Signature sg_msg;
     sg_msg.package = std::move(msg.package);
-    sg_msg.signature = signed_msg.base64;
+    sg_msg.signature = signed_msg.base58;
     sg_msg.public_key = pv.get_public_key().to_string();
 
     sk.send(peerid, sg_msg);
