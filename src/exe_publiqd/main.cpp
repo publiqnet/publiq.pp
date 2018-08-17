@@ -43,8 +43,8 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory,
                           meshpp::private_key& pv_key);
 
-bool g_termination_handled = false;
-publiqpp::node* g_pnode = nullptr;
+static bool g_termination_handled = false;
+static publiqpp::node* g_pnode = nullptr;
 void termination_handler(int /*signum*/)
 {
     g_termination_handled = true;
