@@ -22,9 +22,7 @@ class storage_internals
 public:
     storage_internals(filesystem::path const& path)
         : map("storage", path, detail::get_putl())
-    {
-
-    }
+    {}
 
     meshpp::map_loader<BlockchainMessage::StorageFile> map;
 };
@@ -61,14 +59,13 @@ storage::storage(boost::filesystem::path const& fs_storage)
 
 }
 storage::~storage()
-{
-
-}
+{}
 
 string storage::put(BlockchainMessage::StorageFile&& file)
 {
     string hash;
     hash = meshpp::hash(file.data);
+    //file.data = meshpp::to_base64(file.data);
     m_pimpl->map.insert(hash, file);
 
     m_pimpl->map.save();
@@ -83,6 +80,7 @@ bool storage::get(string const& hash, BlockchainMessage::StorageFile& file)
         return false;
 
     file = std::move(m_pimpl->map.at(hash));
+    //file.data = meshpp::from_base64(file.data);
     m_pimpl->map.discard();
 
     return true;
