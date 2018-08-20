@@ -6,11 +6,6 @@ void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
-void process_sync_request(beltpp::packet& package,
-                          unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
-                          beltpp::isocket& sk,
-                          beltpp::isocket::peer_id const& peerid);
-
 void process_blockheader_request(beltpp::packet& package,
                                  unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,

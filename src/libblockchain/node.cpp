@@ -340,7 +340,14 @@ bool node::run()
                     if (it != interface_type::p2p)
                         wrong_request_exception("SyncRequest  received through rpc!");
 
-                    process_sync_request(ref_packet, m_pimpl, *psk, peerid);
+                    BlockHeader block_header;
+                    m_pimpl->m_blockchain.header(block_header);
+
+                    SyncResponse sync_response;
+                    sync_response.block_number = block_header.block_number;
+                    sync_response.consensus_sum = block_header.consensus_sum;
+
+                    psk->send(peerid, std::move(sync_response));
 
                     break;
                 }

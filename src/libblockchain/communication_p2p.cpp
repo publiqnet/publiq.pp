@@ -347,21 +347,6 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->save(guard);
 }
 
-void process_sync_request(beltpp::packet& package,
-                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
-                          beltpp::isocket& sk,
-                          beltpp::isocket::peer_id const& peerid)
-{
-    BlockHeader block_header;
-    m_pimpl->m_blockchain.header(block_header);
-
-    SyncResponse sync_response;
-    sync_response.block_number = block_header.block_number;
-    sync_response.consensus_sum = block_header.consensus_sum;
-
-    sk.send(peerid, std::move(sync_response));
-}
-
 void process_blockheader_request(beltpp::packet& package,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
