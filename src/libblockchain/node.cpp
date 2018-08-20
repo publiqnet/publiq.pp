@@ -337,75 +337,71 @@ bool node::run()
                 }
                 case SyncRequest::rtt:
                 {
-                    if (it == interface_type::p2p)
-                        process_sync_request(ref_packet, m_pimpl, *psk, peerid);
-                    else
-                        wrong_request_exception("SyncRequest");
+                    if (it != interface_type::p2p)
+                        wrong_request_exception("SyncRequest  received through rpc!");
+
+                    process_sync_request(ref_packet, m_pimpl, *psk, peerid);
 
                     break;
                 }
                 case SyncResponse::rtt:
                 {
-                    if (it == interface_type::p2p)
-                    {
-                        m_pimpl->reset_stored_request(peerid);
-                        if (stored_packet.type() != SyncRequest::rtt)
-                            throw wrong_data_exception("SyncResponse");
+                    if (it != interface_type::p2p)
+                        wrong_request_exception("SyncResponse received through rpc!");
 
-                        SyncResponse sync_response;
-                        std::move(ref_packet).get(sync_response);
-                        m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
-                    }
-                    else
-                        wrong_request_exception("SyncResponse");
+                    m_pimpl->reset_stored_request(peerid);
+                    if (stored_packet.type() != SyncRequest::rtt)
+                        throw wrong_data_exception("SyncResponse");
+
+                    SyncResponse sync_response;
+                    std::move(ref_packet).get(sync_response);
+                    m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
 
                     break;
                 }
                 case BlockHeaderRequest::rtt:
                 {
-                    if (it == interface_type::p2p)
-                        process_blockheader_request(ref_packet, m_pimpl, *psk, peerid);
-                    else
-                        wrong_request_exception("BlockHeaderRequest");
+                    if (it != interface_type::p2p)
+                        wrong_request_exception("BlockHeaderRequest received through rpc!");
+
+                    process_blockheader_request(ref_packet, m_pimpl, *psk, peerid);
 
                     break;
                 }
                 case BlockHeaderResponse::rtt:
                 {
-                    if (it == interface_type::p2p)
-                    {
-                        m_pimpl->reset_stored_request(peerid);
-                        if (stored_packet.type() != BlockHeaderRequest::rtt)
-                            throw wrong_data_exception("BlockHeaderResponse");
+                    if (it != interface_type::p2p)
+                        wrong_request_exception("BlockHeaderResponse received through rpc!");
 
+                    m_pimpl->reset_stored_request(peerid);
+                    if (stored_packet.type() != BlockHeaderRequest::rtt)
+                        throw wrong_data_exception("BlockHeaderResponse");
+
+                    if(m_pimpl->sync_peerid == peerid)
                         process_blockheader_response(ref_packet, m_pimpl, *psk, peerid);
-                    }
-                    else
-                        wrong_request_exception("BlockHeaderResponse");
 
                     break;
                 }
                 case BlockChainRequest::rtt:
                 {
                     if (it == interface_type::p2p)
-                        process_blockchain_request(ref_packet, m_pimpl, *psk, peerid);
-                    else
-                        wrong_request_exception("BlockChainRequest");
+                        wrong_request_exception("BlockChainRequest received through rpc!");
+
+                    process_blockchain_request(ref_packet, m_pimpl, *psk, peerid);
 
                     break;
                 }
                 case BlockChainResponse::rtt:
                 {
                     if (it == interface_type::p2p)
-                    {
-                        m_pimpl->reset_stored_request(peerid);
-                        if (stored_packet.type() != BlockChainRequest::rtt)
-                            throw wrong_data_exception("BlockChainResponse");
-                        
+                        wrong_request_exception("BlockChainResponse received through rpc!");
+
+                    m_pimpl->reset_stored_request(peerid);
+                    if (stored_packet.type() != BlockChainRequest::rtt)
+                        throw wrong_data_exception("BlockChainResponse");
+
+                    if (m_pimpl->sync_peerid == peerid)
                         process_blockchain_response(ref_packet, m_pimpl, *psk, peerid);
-                    }
-                    else
-                        wrong_request_exception("BlockChainResponse");
 
                     break;
                 }
@@ -503,14 +499,7 @@ bool node::run()
         }
     }
 
-    if (m_pimpl->m_sync_timer.expired())
-    {
-        m_pimpl->m_sync_timer.update();
-
-        if (m_pimpl->sync_peerid.empty() && m_pimpl->sync_timeout())
-            m_pimpl->new_sync_request();
-    }
-    else if (m_pimpl->m_check_timer.expired())
+    if (m_pimpl->m_check_timer.expired())
     {
         m_pimpl->m_check_timer.update();
 
@@ -522,19 +511,18 @@ bool node::run()
             BlockHeader block_header;
             m_pimpl->m_blockchain.header(block_header);
 
-            SyncRequest sync_request;
-            sync_request.block_number = block_header.block_number;
-            sync_request.consensus_sum = block_header.consensus_sum;
+            uint64_t block_number = block_header.block_number;
+            uint64_t consensus_sum = block_header.consensus_sum;
             beltpp::isocket::peer_id tmp_peer;
 
             for (auto& it : m_pimpl->sync_responses)
             {
-                if (sync_request.block_number < it.second.block_number ||
-                    (sync_request.block_number == it.second.block_number &&
-                        sync_request.consensus_sum < it.second.consensus_sum))
+                if (block_number < it.second.block_number ||
+                    (block_number == it.second.block_number &&
+                        consensus_sum < it.second.consensus_sum))
                 {
-                    sync_request.block_number = it.second.block_number;
-                    sync_request.consensus_sum = it.second.consensus_sum;
+                    block_number = it.second.block_number;
+                    consensus_sum = it.second.consensus_sum;
                     tmp_peer = it.first;
                 }
             }
@@ -547,8 +535,8 @@ bool node::run()
 
                 // request better chain
                 BlockHeaderRequest header_request;
-                header_request.blocks_from = sync_request.block_number;
-                header_request.blocks_to = block_header.block_number;
+                header_request.blocks_from = block_number;
+                header_request.blocks_to = block_number;
 
                 psk->send(tmp_peer, header_request);
                 m_pimpl->update_sync_time();
@@ -573,6 +561,15 @@ bool node::run()
                     mine_block(m_pimpl);
             }
         }
+    }
+
+    if (m_pimpl->m_sync_timer.expired())
+    {
+        m_pimpl->m_sync_timer.update();
+
+        if (m_pimpl->sync_peerid.empty() ||
+            (!m_pimpl->sync_peerid.empty() && m_pimpl->sync_timeout()))
+            m_pimpl->new_sync_request();
     }
 
     return code;

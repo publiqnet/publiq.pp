@@ -134,11 +134,7 @@ module BlockchainMessage
         Object package
     }
 
-    class SyncRequest
-    {
-        UInt64 block_number
-        UInt64 consensus_sum
-    }
+    class SyncRequest {}
 
     class SyncResponse
     {

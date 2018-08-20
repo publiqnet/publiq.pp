@@ -204,19 +204,21 @@ public:
         clear_sync_state(sync_peerid);
 
         // send new request to all peers
-        BlockHeader block_header;
-        m_blockchain.header(block_header);
         beltpp::isocket* psk = m_ptr_p2p_socket.get();
 
         SyncRequest sync_request;
-        sync_request.block_number = block_header.block_number;
-        sync_request.consensus_sum = block_header.consensus_sum;
 
         for (auto& peerid : m_p2p_peers)
         {
-            psk->send(peerid, sync_request);
-            reset_stored_request(peerid);
-            store_request(peerid, sync_request);
+            packet stored_packet;
+            find_stored_request(peerid, stored_packet);
+
+            if (stored_packet.empty())
+            {
+                psk->send(peerid, sync_request);
+                reset_stored_request(peerid);
+                store_request(peerid, sync_request);
+            }
         }
 
         update_sync_time();

@@ -312,10 +312,18 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-        fee += signed_transaction.transaction_details.fee;
+        if (block_header.sign_time.tm > signed_transaction.transaction_details.expiry.tm)
+        {
+            // already expired transaction
+            m_pimpl->m_transaction_pool.remove(key);
+        }
+        else
+        {
+            fee += signed_transaction.transaction_details.fee;
 
-        transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(signed_transaction.transaction_details.creation,
-            signed_transaction));
+            transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(signed_transaction.transaction_details.creation,
+                signed_transaction));
+        }
     }
 
     for (auto it = transaction_map.begin(); it != transaction_map.end(); ++it)
@@ -344,9 +352,6 @@ void process_sync_request(beltpp::packet& package,
                           beltpp::isocket& sk,
                           beltpp::isocket::peer_id const& peerid)
 {
-    SyncRequest sync_request;
-    std::move(package).get(sync_request);
-
     BlockHeader block_header;
     m_pimpl->m_blockchain.header(block_header);
 
@@ -354,12 +359,7 @@ void process_sync_request(beltpp::packet& package,
     sync_response.block_number = block_header.block_number;
     sync_response.consensus_sum = block_header.consensus_sum;
 
-    if (sync_response.block_number > sync_request.block_number ||
-        (sync_response.block_number == sync_request.block_number &&
-            sync_response.consensus_sum > sync_request.consensus_sum))
-    {
-        sk.send(peerid, std::move(sync_response));
-    }
+    sk.send(peerid, std::move(sync_response));
 }
 
 void process_blockheader_request(beltpp::packet& package,
@@ -670,6 +670,18 @@ void process_blockchain_response(beltpp::packet& package,
 
             if (tr_it->authority != transfer.from)
                 throw wrong_data_exception("blockchain response. transaction authority!");
+
+            system_clock::time_point creation = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
+            system_clock::time_point expiry = system_clock::from_time_t(tr_it->transaction_details.expiry.tm);
+
+            if (chrono::duration_cast<chrono::seconds>(expiry - creation).count() > TRANSACTION_LIFETIME)
+                throw wrong_data_exception("blockchain response. too long lifetime for transaction");
+
+            if (creation > system_clock::from_time_t(block.header.sign_time.tm))
+                throw wrong_data_exception("blockchain response. transaction from the future!");
+
+            if (expiry < system_clock::from_time_t(block.header.sign_time.tm))
+                throw wrong_data_exception("blockchain response. expired transaction!");
         }
 
         // verify block rewards

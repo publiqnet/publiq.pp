@@ -153,9 +153,17 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     // Expiry date check
     auto now = system_clock::now();
+    system_clock::time_point creation = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    system_clock::time_point expiry = system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm);
 
-    if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
+    if (now < creation)
+        throw std::runtime_error("Transaction from the future!");
+
+    if (now > expiry)
         throw std::runtime_error("Expired transaction!");
+
+    if (chrono::duration_cast<chrono::seconds>(expiry - creation).count() > TRANSACTION_LIFETIME)
+        throw std::runtime_error("Too long lifetime for transaction");
 
     // Authority check
     if (signed_transaction.authority != transfer.from)
