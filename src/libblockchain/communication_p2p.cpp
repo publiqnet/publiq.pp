@@ -597,7 +597,7 @@ void process_blockchain_response(beltpp::packet& package,
 
     if (response.signed_blocks.empty() ||
         response.signed_blocks.size() > m_pimpl->sync_headers.size() - m_pimpl->sync_blocks.size())
-        throw wrong_data_exception("blockchain response. too many blocks in response!");
+        throw wrong_data_exception("blockchain response. wrong content in response!");
 
     // find last common block
     uint64_t block_number = (*m_pimpl->sync_headers.rbegin()).block_number;
