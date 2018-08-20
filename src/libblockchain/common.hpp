@@ -5,7 +5,8 @@
 
 // Blocks and headers max count per one request - 1
 // corners are included
-#define TRANSFER_LENGTH 9
+#define BLOCK_TR_LENGTH 19
+#define HEADER_TR_LENGTH 49
 
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 60

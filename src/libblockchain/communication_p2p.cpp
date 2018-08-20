@@ -361,7 +361,7 @@ void process_blockheader_request(beltpp::packet& package,
 
     uint64_t to = header_request.blocks_to;
     to = to > from ? from : to;
-    to = from > TRANSFER_LENGTH && to < from - TRANSFER_LENGTH ? from - TRANSFER_LENGTH : to;
+    to = from > HEADER_TR_LENGTH && to < from - HEADER_TR_LENGTH ? from - HEADER_TR_LENGTH : to;
 
     BlockHeaderResponse header_response;
     for (auto index = from + 1; index > to; --index)
@@ -388,15 +388,13 @@ void process_blockheader_response(beltpp::packet& package,
     std::move(package).get(header_response);
 
     // validate received headers
-    bool bad_data = header_response.block_headers.empty();
-
-    if (bad_data) throw wrong_data_exception("blockheader response. empty response received!");
+    if (header_response.block_headers.empty())
+        throw wrong_data_exception("blockheader response. empty response received!");
 
     auto r_it = header_response.block_headers.begin();
-    if (r_it->block_number == tmp_header.block_number && m_pimpl->sync_headers.empty())
-        bad_data = r_it->consensus_sum <= tmp_header.consensus_sum;
-
-    if (bad_data) throw wrong_data_exception("blockheader response. wrong data received!");
+    if (r_it->block_number == tmp_header.block_number && m_pimpl->sync_headers.empty() &&
+        r_it->consensus_sum <= tmp_header.consensus_sum)
+        throw wrong_data_exception("blockheader response. wrong data received!");
 
     if (!m_pimpl->sync_headers.empty() && // we have something received before
         tmp_header.block_number >= m_pimpl->sync_headers.rbegin()->block_number)
@@ -404,10 +402,9 @@ void process_blockheader_response(beltpp::packet& package,
         // load next mot checked header
         m_pimpl->m_blockchain.header_at(m_pimpl->sync_headers.rbegin()->block_number - 1, tmp_header);
 
-        bad_data = bad_data || tmp_header.block_number != r_it->block_number;
+        if (tmp_header.block_number != r_it->block_number)
+            throw wrong_data_exception("blockheader response. unexpected data received!");
     }
-
-    if (bad_data) throw wrong_data_exception("blockheader response. unexpected data received!");
 
     //-----------------------------------------------------//
     auto check_headers_vector = [](vector<BlockHeader> const& header_vector)
@@ -472,11 +469,9 @@ void process_blockheader_response(beltpp::packet& package,
 
         if (lcb_found)
         {
-            bad_data = check_headers(*m_pimpl->sync_headers.rbegin(), tmp_header);
-
-            bad_data = bad_data || check_headers_vector(m_pimpl->sync_headers);
-
-            if (bad_data) throw wrong_data_exception("blockheader response. header check failed!");
+            if (check_headers(*m_pimpl->sync_headers.rbegin(), tmp_header) ||
+                check_headers_vector(m_pimpl->sync_headers))
+                wrong_data_exception("blockheader response. header check failed!");
 
             // verify consensus_const
             vector<pair<uint64_t, uint64_t>> delta_vector;
@@ -495,7 +490,7 @@ void process_blockheader_response(beltpp::packet& package,
                 delta_vector.push_back(pair<uint64_t, uint64_t>(_header.consensus_delta, _header.consensus_const));
             }
         
-            for (auto it = delta_vector.begin(); !bad_data && it + delta_step != delta_vector.end(); ++it)
+            for (auto it = delta_vector.begin(); it + delta_step != delta_vector.end(); ++it)
             {
                 if (it->first > DELTA_UP)
                 {
@@ -508,8 +503,8 @@ void process_blockheader_response(beltpp::packet& package,
                         _delta = (it + step)->first;
                     }
         
-                    if (step >= DELTA_STEP)
-                        bad_data = it->second != (it + 1)->second * 2;
+                    if (step >= DELTA_STEP && it->second != (it + 1)->second * 2)
+                        throw wrong_data_exception("blockheader response. wrong consensus const!");
                 }
                 else if (it->first < DELTA_DOWN && it->second > 1)
                 {
@@ -522,12 +517,10 @@ void process_blockheader_response(beltpp::packet& package,
                         _delta = (it + step)->first;
                     }
         
-                    if (step >= DELTA_STEP)
-                        bad_data = it->second != (it + 1)->second / 2;
+                    if (step >= DELTA_STEP && it->second != (it + 1)->second / 2)
+                        throw wrong_data_exception("blockheader response. wrong consensus const!");
                 }
             }
-            
-            if (bad_data) throw wrong_data_exception("blockheader response. wrong consensus const!");
 
             //3. request blockchain from found point
             BlockChainRequest blockchain_request;
@@ -547,7 +540,7 @@ void process_blockheader_response(beltpp::packet& package,
         // request more headers
         BlockHeaderRequest header_request;
         header_request.blocks_from = m_pimpl->sync_headers.rbegin()->block_number - 1;
-        header_request.blocks_to = header_request.blocks_from > TRANSFER_LENGTH ? header_request.blocks_from - TRANSFER_LENGTH : 0;
+        header_request.blocks_to = header_request.blocks_from > HEADER_TR_LENGTH ? header_request.blocks_from - HEADER_TR_LENGTH : 0;
 
         sk.send(peerid, header_request);
         m_pimpl->update_sync_time();
@@ -569,7 +562,7 @@ void process_blockchain_request(beltpp::packet& package,
 
     uint64_t to = blockchain_request.blocks_to;
     to = to < from ? from : to;
-    to = to > from + TRANSFER_LENGTH ? from + TRANSFER_LENGTH : to;
+    to = to > from + BLOCK_TR_LENGTH ? from + BLOCK_TR_LENGTH : to;
     to = to > number ? number : to;
 
     BlockChainResponse chain_response;
