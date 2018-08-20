@@ -65,10 +65,18 @@ string storage::put(BlockchainMessage::StorageFile&& file)
 {
     string hash;
     hash = meshpp::hash(file.data);
-    //file.data = meshpp::to_base64(file.data);
+    file.data = meshpp::to_base64(file.data);
+    beltpp::on_failure guard([this]
+    {
+        m_pimpl->map.discard();
+    });
+
     m_pimpl->map.insert(hash, file);
 
     m_pimpl->map.save();
+
+    guard.dismiss();
+    m_pimpl->map.commit();
     return hash;
 }
 
@@ -80,7 +88,7 @@ bool storage::get(string const& hash, BlockchainMessage::StorageFile& file)
         return false;
 
     file = std::move(m_pimpl->map.at(hash));
-    //file.data = meshpp::from_base64(file.data);
+    file.data = meshpp::from_base64(file.data);
     m_pimpl->map.discard();
 
     return true;

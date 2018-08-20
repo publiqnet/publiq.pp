@@ -58,22 +58,23 @@ int main(int argc, char** argv)
 
     beltpp::packet receive_package;
 
-  /*  StorageFile file;
+    StorageFile file;
     file.mime_type = "audio/mpeg";
 
     boost::filesystem::ifstream fl;
-    fl.open("/Users/sona/Downloads/3.mp3", std::ios_base::binary);
+    fl.open("/Users/tigran/mp3/dukes of dixieland - the merry widow waltz.mp3", std::ios_base::binary);
     if (fl)
     {
         auto end = std::istreambuf_iterator<char>();
         auto begin = std::istreambuf_iterator<char>(fl);
         file.data.assign(begin, end);
-        file.data.resize(10000);
+        //file.data.resize(10000);
     }
 
-    Send(file, receive_package, sk, peerid, eh);*/
+    Send(file, receive_package, sk, peerid, eh);
 
 
+    return 0;
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
 
@@ -139,9 +140,12 @@ void Send(beltpp::packet&& send_package,
           peer_id peerid,
           beltpp::event_handler& eh)
 {
-   cout << endl << endl << "Package sent -> "<< endl << send_package.to_string() << endl;
+   //cout << endl << endl << "Package sent -> "<< endl << send_package.to_string() << endl;
+    cout << endl << endl << "sending" << endl;
 
    sk.send(peerid, std::move(send_package));
+
+   cout << "sent" << endl;
 
    while (true)
    {
