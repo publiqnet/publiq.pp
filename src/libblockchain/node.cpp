@@ -54,7 +54,7 @@ node::node(ip_address const& rpc_bind_to_address,
            boost::filesystem::path const& fs_state,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
-           meshpp::private_key pv_key)
+           meshpp::private_key const& pv_key)
     : m_pimpl(new detail::node_internals(rpc_bind_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,

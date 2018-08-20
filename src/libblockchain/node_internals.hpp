@@ -70,7 +70,7 @@ public:
         filesystem::path const& fs_state,
         beltpp::ilog* _plogger_p2p,
         beltpp::ilog* _plogger_node,
-        meshpp::private_key pv_key)
+        meshpp::private_key const& pv_key)
         : plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
         , m_ptr_eh(new beltpp::event_handler())
@@ -79,7 +79,8 @@ public:
                                                     p2p_bind_to_address,
                                                     p2p_connect_to_addresses,
                                                     get_putl(),
-                                                    _plogger_p2p)
+                                                    _plogger_p2p,
+                                                    pv_key)
         ))
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_sf>(*m_ptr_eh)
