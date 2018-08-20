@@ -635,6 +635,10 @@ void process_blockchain_response(beltpp::packet& package,
             header_it->previous_hash != meshpp::hash(block_it->block_details.to_string()))
             throw wrong_data_exception("blockchain response. block header!");
 
+        // verify block rewards
+        if (check_rewards(block, block_it->authority))
+            throw wrong_data_exception("blockchain response. block rewards!");
+
         // verify block transactions
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
@@ -644,7 +648,7 @@ void process_blockchain_response(beltpp::packet& package,
                 throw wrong_data_exception("blockchain response. transaction signature!");
 
             Transfer transfer;
-            tr_it->transaction_details.action.get(transfer);
+            std::move(tr_it->transaction_details.action).get(transfer);
 
             if (tr_it->authority != transfer.from)
                 throw wrong_data_exception("blockchain response. transaction authority!");
@@ -661,10 +665,6 @@ void process_blockchain_response(beltpp::packet& package,
             if (expiry < system_clock::from_time_t(block.header.sign_time.tm))
                 throw wrong_data_exception("blockchain response. expired transaction!");
         }
-
-        // verify block rewards
-        if (check_rewards(block, block_it->authority))
-            throw wrong_data_exception("blockchain response. block rewards!");
 
         ++block_it;
         ++header_it;
