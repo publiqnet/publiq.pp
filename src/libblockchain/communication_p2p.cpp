@@ -786,6 +786,8 @@ void process_blockchain_response(beltpp::packet& package,
         m_pimpl->update_sync_time();
         m_pimpl->store_request(peerid, blockchain_request);
     }
+    else
+        m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
 }
 
 //---------------- Exceptions -----------------------
