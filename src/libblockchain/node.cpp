@@ -492,7 +492,7 @@ bool node::run()
     }
     else if (beltpp::event_handler::timer_out == wait_result)
     {
-        m_pimpl->writeln_node("timer");
+        m_pimpl->writeln_node("timer " + std::to_string(++m_pimpl->timer_count));
 
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();

@@ -46,6 +46,11 @@ int main(int argc, char** argv)
         address.local = beltpp::ip_destination();
     }
 
+    size_t count = 10;
+    
+    if(argc > 2)
+        count = std::atoi(argv[2]);
+
     //__debugbreak();
     beltpp::socket::peer_id peerid;
     beltpp::event_handler eh;
@@ -90,7 +95,7 @@ int main(int argc, char** argv)
     receive_package.get(tigran_key);
 
    
-    for (auto i = 0; i < 10; ++i)
+    for (auto i = 0; i < count; ++i)
     {
         Transfer transfer;
         transfer.from = armen_key.public_key;

@@ -65,7 +65,7 @@ void pool_to_state_log(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
         if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
-            m_pimpl->m_transaction_pool.remove(key);
+            m_pimpl->m_transaction_pool.remove(key); // already expired transaction
         else
             apply_tranaction(signed_transaction.transaction_details, m_pimpl);
     }
@@ -101,11 +101,11 @@ void insert_block(SignedBlock& signed_block,
     for (auto& reward : block.rewards)
     {
         m_pimpl->m_state.increase_balance(reward.to, reward.amount);
-        m_pimpl->m_action_log.log(std::move(reward));
+        m_pimpl->m_action_log.log(reward);
     }
 
     // insert to blockchain
-    m_pimpl->m_blockchain.insert(std::move(signed_block));
+    m_pimpl->m_blockchain.insert(signed_block);
 
     // apply back pool content to state and action_log
     pool_to_state_log(m_pimpl);
@@ -306,24 +306,17 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     multimap<BlockchainMessage::ctime, SignedTransaction> transaction_map;
 
-    coin fee;
     for (auto& key : pool_keys)
     {
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
         if (block_header.sign_time.tm > signed_transaction.transaction_details.expiry.tm)
-        {
-            // already expired transaction
-            m_pimpl->m_transaction_pool.remove(key);
-        }
+            m_pimpl->m_transaction_pool.remove(key); // already expired transaction
         else
-        {
-            fee += signed_transaction.transaction_details.fee;
-
-            transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(signed_transaction.transaction_details.creation,
-                signed_transaction));
-        }
+            transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(
+                                            signed_transaction.transaction_details.creation,
+                                            signed_transaction));
     }
 
     for (auto it = transaction_map.begin(); it != transaction_map.end(); ++it)
@@ -588,9 +581,8 @@ void process_blockchain_response(beltpp::packet& package,
     BlockChainResponse response;
     std::move(package).get(response);
 
-    if (response.signed_blocks.empty() ||
-        response.signed_blocks.size() > m_pimpl->sync_headers.size() - m_pimpl->sync_blocks.size())
-        throw wrong_data_exception("blockchain response. wrong content in response!");
+    if (response.signed_blocks.empty())
+        throw wrong_data_exception("blockchain response. empty response received!");
 
     // find last common block
     uint64_t block_number = (*m_pimpl->sync_headers.rbegin()).block_number;
@@ -762,13 +754,13 @@ void process_blockchain_response(beltpp::packet& package,
         for (auto reward_it = block.rewards.begin(); reward_it != block.rewards.end(); ++reward_it)
         {
             m_pimpl->m_state.increase_balance(reward_it->to, reward_it->amount);
-            m_pimpl->m_action_log.log(std::move(*reward_it));
+            m_pimpl->m_action_log.log(*reward_it);
         }
 
         prev_block = std::move(block);
 
         // Insert to blockchain
-        m_pimpl->m_blockchain.insert(std::move(*block_it));
+        m_pimpl->m_blockchain.insert(*block_it);
     }
 
     // apply back rest of the pool

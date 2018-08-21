@@ -6,7 +6,7 @@
 // Blocks and headers max count per one request - 1
 // corners are included
 #define BLOCK_TR_LENGTH 19
-#define HEADER_TR_LENGTH 49
+#define HEADER_TR_LENGTH 59
 
 // Maximum buffer length of blocks
 // which can be cillected for sync

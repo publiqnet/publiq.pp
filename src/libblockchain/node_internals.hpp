@@ -261,6 +261,8 @@ public:
         return result;
     }
 
+    size_t timer_count = 0; // test
+
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;
     unique_ptr<beltpp::event_handler> m_ptr_eh;
