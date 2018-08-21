@@ -775,7 +775,7 @@ void process_blockchain_response(beltpp::packet& package,
     {
         // clear already inserted blocks and headers
         m_pimpl->sync_blocks.clear();
-        for (auto i = 0; i < length; ++i)
+        for (size_t i = 0; i < length; ++i)
             m_pimpl->sync_headers.pop_back();
 
         BlockChainRequest blockchain_request;
