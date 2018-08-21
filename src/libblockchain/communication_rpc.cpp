@@ -153,13 +153,14 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
     // Expiry date check
     auto now = system_clock::now();
+    system_clock::time_point delta = system_clock::from_time_t(NODES_TIME_SHIFT);
     system_clock::time_point creation = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
     system_clock::time_point expiry = system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm);
 
-    if (now < creation)
+    if (now < system_clock::time_point(creation - delta))
         throw std::runtime_error("Transaction from the future!");
 
-    if (now > expiry)
+    if (system_clock::time_point(now - delta) > expiry)
         throw std::runtime_error("Expired transaction!");
 
     if (chrono::duration_cast<chrono::seconds>(expiry - creation).count() > TRANSACTION_LIFETIME)
