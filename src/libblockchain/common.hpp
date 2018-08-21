@@ -8,6 +8,10 @@
 #define BLOCK_TR_LENGTH 19
 #define HEADER_TR_LENGTH 49
 
+// Maximum buffer length of blocks
+// which can be cillected for sync
+#define BLOCK_INSERT_LENGTH 1000
+
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 60
 

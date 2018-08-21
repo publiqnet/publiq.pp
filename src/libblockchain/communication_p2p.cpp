@@ -671,7 +671,8 @@ void process_blockchain_response(beltpp::packet& package,
     }
 
     // request new chain if needed
-    if (m_pimpl->sync_blocks.size() < m_pimpl->sync_headers.size())
+    if (m_pimpl->sync_blocks.size() < BLOCK_INSERT_LENGTH &&
+        m_pimpl->sync_blocks.size() < m_pimpl->sync_headers.size())
     {
         BlockChainRequest blockchain_request;
         blockchain_request.blocks_from = (header_it - 1)->block_number;
@@ -774,6 +775,25 @@ void process_blockchain_response(beltpp::packet& package,
     pool_to_state_log(m_pimpl);
 
     m_pimpl->save(guard);
+
+    // request new chain if the process was stopped
+    // by BLOCK_INSERT_LENGTH restriction
+    length = m_pimpl->sync_blocks.size();
+    if (length < m_pimpl->sync_headers.size())
+    {
+        // clear already inserted blocks and headers
+        m_pimpl->sync_blocks.clear();
+        for (auto i = 0; i < length; ++i)
+            m_pimpl->sync_headers.pop_back();
+
+        BlockChainRequest blockchain_request;
+        blockchain_request.blocks_from = m_pimpl->sync_headers.rbegin()->block_number;
+        blockchain_request.blocks_to = m_pimpl->sync_headers.begin()->block_number;
+
+        sk.send(peerid, blockchain_request);
+        m_pimpl->update_sync_time();
+        m_pimpl->store_request(peerid, blockchain_request);
+    }
 }
 
 //---------------- Exceptions -----------------------

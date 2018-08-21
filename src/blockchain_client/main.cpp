@@ -95,12 +95,13 @@ int main(int argc, char** argv)
         Transfer transfer;
         transfer.from = armen_key.public_key;
         transfer.to = tigran_key.public_key;
-        transfer.amount.fraction = 10;
+        transfer.amount.fraction = 100;
 
         Transaction transaction;
         transaction.creation.tm = system_clock::to_time_t(system_clock::now());
         transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
         transaction.action = transfer;
+        transaction.fee.fraction = 10;
 
         SignRequest sign_request;
         sign_request.private_key = armen_key.private_key;
