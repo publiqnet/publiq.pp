@@ -160,7 +160,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
     if (now < system_clock::time_point(creation - delta))
         throw std::runtime_error("Transaction from the future!");
 
-    if (system_clock::time_point(now - delta) > expiry)
+    if (now > expiry)
         throw std::runtime_error("Expired transaction!");
 
     if (chrono::duration_cast<chrono::seconds>(expiry - creation).count() > TRANSACTION_LIFETIME)
