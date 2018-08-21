@@ -524,7 +524,7 @@ bool node::run()
 
             for (auto& it : m_pimpl->sync_responses)
             {
-                if (block_number < it.second.block_number ||
+                if (block_number + 1 < it.second.block_number ||
                     (block_number == it.second.block_number &&
                         consensus_sum < it.second.consensus_sum))
                 {
@@ -567,15 +567,13 @@ bool node::run()
                 if (amount >= MINE_AMOUNT_THRESHOLD)
                     mine_block(m_pimpl);
             }
+
+            if (m_pimpl->m_sync_timer.expired())
+                m_pimpl->new_sync_request();
         }
-    }
 
-    if (m_pimpl->m_sync_timer.expired())
-    {
-        m_pimpl->m_sync_timer.update();
-
-        if (m_pimpl->sync_peerid.empty() ||
-            (!m_pimpl->sync_peerid.empty() && m_pimpl->sync_timeout()))
+        // sync process step takes too long time
+        if (!m_pimpl->sync_peerid.empty() && m_pimpl->sync_timeout())
             m_pimpl->new_sync_request();
     }
 

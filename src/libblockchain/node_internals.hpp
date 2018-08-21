@@ -200,6 +200,9 @@ public:
 
     void new_sync_request()
     {
+        // shift next sync
+        m_sync_timer.update();
+
         // clear state
         clear_sync_state(sync_peerid);
 

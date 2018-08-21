@@ -28,7 +28,7 @@
 
 // Maximum time shift on seconds 
 // acceptable between nodes
-#define NODES_TIME_SHIFT 60
+#define NODES_TIME_SHIFT 30
 
 // Consensus delta definitions
 #define DELTA_STEP  10ull
