@@ -95,7 +95,7 @@ int main(int argc, char** argv)
     receive_package.get(tigran_key);
 
    
-    for (auto i = 0; i < count; ++i)
+    for (size_t i = 0; i < count; ++i)
     {
         Transfer transfer;
         transfer.from = armen_key.public_key;
