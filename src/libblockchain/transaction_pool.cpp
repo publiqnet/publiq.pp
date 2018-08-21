@@ -82,7 +82,7 @@ size_t transaction_pool::length() const
     return m_pimpl->m_transactions.as_const().keys().size();
 }
 
-void transaction_pool::get_keys(std::vector<std::string> &keys) const
+void transaction_pool::get_keys(vector<string> &keys) const
 {
     keys.clear();
 
@@ -90,7 +90,7 @@ void transaction_pool::get_keys(std::vector<std::string> &keys) const
         keys.push_back(key);
 }
 
-bool transaction_pool::contains(std::string const& key) const
+bool transaction_pool::contains(string const& key) const
 {
     return m_pimpl->m_transactions.as_const().contains(key);
 }

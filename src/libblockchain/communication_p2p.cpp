@@ -745,7 +745,7 @@ void process_blockchain_response(beltpp::packet& package,
         // verify block transactions
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
-            m_pimpl->m_transaction_pool.remove((*tr_it).to_string());
+            m_pimpl->m_transaction_pool.remove(meshpp::hash((*tr_it).to_string()));
 
             apply_tranaction(tr_it->transaction_details, m_pimpl);
         }

@@ -522,9 +522,13 @@ bool node::run()
             uint64_t consensus_sum = block_header.consensus_sum;
             beltpp::isocket::peer_id tmp_peer;
 
+            // if node is possible miner it should
+            // mine forst current block then try to sync
+            uint64_t n = m_pimpl->miner ? 1 : 0;
+
             for (auto& it : m_pimpl->sync_responses)
             {
-                if (block_number + 1 < it.second.block_number ||
+                if (block_number + n < it.second.block_number ||
                     (block_number == it.second.block_number &&
                         consensus_sum < it.second.consensus_sum))
                 {
@@ -565,7 +569,10 @@ bool node::run()
                 coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
                 if (amount >= MINE_AMOUNT_THRESHOLD)
+                {
                     mine_block(m_pimpl);
+                    m_pimpl->miner = true;
+                }
             }
 
             if (m_pimpl->m_sync_timer.expired())
