@@ -137,10 +137,11 @@ public:
             throw std::runtime_error("p2p peer already exists: " + peerid);
     }
 
-    void remove_peer(socket::peer_id const& peerid)
+    void remove_peer(socket::peer_id peerid)
     {
         clear_sync_state(peerid);
         reset_stored_request(peerid);
+
         if (0 == m_p2p_peers.erase(peerid))
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
     }

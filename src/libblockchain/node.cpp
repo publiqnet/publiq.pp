@@ -581,7 +581,14 @@ bool node::run()
 
         // sync process step takes too long time
         if (!m_pimpl->sync_peerid.empty() && m_pimpl->sync_timeout())
+        {
+            m_pimpl->writeln_node("Sync node is not answering: dropping " + m_pimpl->sync_peerid);
+
+            psk->send(m_pimpl->sync_peerid, beltpp::isocket_drop());
+            m_pimpl->remove_peer(m_pimpl->sync_peerid);
+
             m_pimpl->new_sync_request();
+        }
     }
 
     return code;
