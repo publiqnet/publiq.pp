@@ -121,10 +121,10 @@ bool node::run()
 
             auto str_peerid = [it](string const& peerid)
             {
-                if (it == interface_type::p2p)
+                /*if (it == interface_type::p2p)
                     return peerid.substr(0, 5);
-                else
-                    return peerid;
+                else*/
+                return peerid;
             };
 
             beltpp::socket::peer_id peerid;
