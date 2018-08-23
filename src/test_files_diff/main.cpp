@@ -63,7 +63,7 @@ void compare(const string& path1, const string&  path2)
                 if (s.compare(h))
                 {
                     cout<<"file "<<path1<<" mismatch with file "<<path2<<endl;
-                    //cout << h << "\n " << s << endl;
+                    cout << h << "\n " << s << endl;
                  }
              }
         }
@@ -71,58 +71,22 @@ void compare(const string& path1, const string&  path2)
 
     if (fs::is_directory(bfirst) && fs::is_directory(bsecond))
     {
-
-            if (fs::is_empty(bfirst))
-            {
-                cout<<bfirst<<" is empty!"<<endl;
-                return;
-            }
-            if (fs::is_empty(bsecond))
-            {
-                cout<<bsecond<<" is empty!"<<endl;
-                return;
-            }
-
             boost::filesystem::directory_iterator end_itr;
             boost::filesystem::directory_iterator itrf(bfirst);
             boost::filesystem::directory_iterator itrs(bsecond);
 
-
             for ( ;  itrf != end_itr && itrs != end_itr; ++itrf, ++itrs)
             {
-
-//                   if (is_regular_file(itrf->path()) && is_regular_file(itrs->path())) {
-
-//                        cout<<itrf->path().string()<<endl;
-//                        cout<<itrs->path().string()<<endl;
-//                        compare(itrf->path().string(), itrs->path().string());
-//                   }
-
-//                   if ( is_directory(itrf->path()) && is_directory(itrs->path())) {
-
-//                       cout<<itrf->path().string()<<endl;
-//                       cout<<itrs->path().string()<<endl;
-
                     if ( splitLast(itrf->path().string()) == splitLast(itrs->path().string()) )
                     {
                         compare(itrf->path().string(), itrs->path().string());
                     }
-
-//                   }
-//                   else {
-//                       if (itrf->path()) {
-//                           cout<<"sdf"<<endl;
-//                       }
-//                       if (itrs->path()) {
-//                           cout<<"fsdfs"<<endl;
-//                       }
-//                   }
-
             }
     }
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
 
     if (argc>2)
     {
