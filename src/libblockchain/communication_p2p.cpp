@@ -19,8 +19,8 @@ uint64_t calc_delta(string const& key, uint64_t const& amount, string const& pre
 {
     string key_hash = meshpp::hash(key);
 
-    uint64_t dist = meshpp::distance(key_hash, prev_hash) + 1;
-    uint64_t delta = amount / (dist * cons_const);
+    uint64_t dist = meshpp::distance(key_hash, prev_hash);
+    uint64_t delta = amount * DIST_MAX / ((dist + 1) * cons_const);
 
     if (delta > DELTA_MAX)
         delta = DELTA_MAX;
@@ -250,8 +250,8 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     string own_key = m_pimpl->private_key.get_public_key().to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
-    coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
-    uint64_t delta = calc_delta(own_key, amount.to_uint64_t(), prev_hash, prev_header.consensus_const);
+    Coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
+    uint64_t delta = calc_delta(own_key, amount.whole, prev_hash, prev_header.consensus_const);
 
     // fill new block header data
     BlockHeader block_header;
@@ -731,15 +731,15 @@ void process_blockchain_response(beltpp::packet& package,
         block_it->block_details.get(block);
 
         // verify consensus_delta
-        coin amount = m_pimpl->m_state.get_balance(block_it->authority);
+        Coin amount = m_pimpl->m_state.get_balance(block_it->authority);
         string prev_hash = meshpp::hash(prev_block.to_string());
-        uint64_t delta = calc_delta(block_it->authority, amount.to_uint64_t(), prev_hash, prev_block.header.consensus_const);
+        uint64_t delta = calc_delta(block_it->authority, amount.whole, prev_hash, prev_block.header.consensus_const);
         
         if (delta != block.header.consensus_delta)
             throw wrong_data_exception("blockchain response. consensus delta!");
 
         // verify miner balance at mining time
-        if (amount < MINE_AMOUNT_THRESHOLD)
+        if (coin(amount) < MINE_AMOUNT_THRESHOLD)
             throw wrong_data_exception("blockchain response. miner balance!");
 
         // verify block transactions

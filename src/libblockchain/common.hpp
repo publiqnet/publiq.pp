@@ -36,6 +36,8 @@
 #define DELTA_UP    100000000ull
 #define DELTA_DOWN  80000000ull
 
+#define DIST_MAX    4294967296ull
+
 static const coin MINER_REWARD(1, 0);
 static const coin MINE_AMOUNT_THRESHOLD(1, 0);
 
