@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include <fstream>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
 
