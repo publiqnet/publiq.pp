@@ -26,9 +26,9 @@
 // Transaction maximum lifetime in seconds
 #define TRANSACTION_LIFETIME 86400
 
-// Maximum time shift on seconds 
+// Maximum time shift on seconds
 // acceptable between nodes
-#define NODES_TIME_SHIFT 30
+#define NODES_TIME_SHIFT 60
 
 // Consensus delta definitions
 #define DELTA_STEP  10ull

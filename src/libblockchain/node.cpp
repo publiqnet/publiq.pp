@@ -8,6 +8,7 @@
 
 #include "open_container_packet.hpp"
 
+#include <thread>
 #include <vector>
 #include <string>
 #include <memory>
@@ -452,6 +453,7 @@ bool node::run()
             catch (wrong_data_exception const&)
             {
                 psk->send(peerid, beltpp::isocket_drop());
+                std::this_thread::sleep_for(std::chrono::seconds(1));
                 m_pimpl->remove_peer(peerid);
                 throw;
             }
