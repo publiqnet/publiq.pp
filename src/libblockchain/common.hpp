@@ -13,7 +13,7 @@
 #define BLOCK_INSERT_LENGTH 1000
 
 // Block mine delay in seconds
-#define BLOCK_MINE_DELAY 60
+#define BLOCK_MINE_DELAY 4
 
 // Sync process request/response maximum dely
 #define SYNC_STEP_TIMEOUT 10
@@ -21,7 +21,7 @@
 // Timers
 #define CHECK_TIMER 1
 #define SYNC_TIMER  15
-#define EVENT_TIMER 30
+#define EVENT_TIMER 2
 
 // Transaction maximum lifetime in seconds
 #define TRANSACTION_LIFETIME 86400

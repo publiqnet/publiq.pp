@@ -242,8 +242,8 @@ void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     SignedBlock prev_signed_block;
-    uint64_t block_number = m_pimpl->m_blockchain.length();
-    m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
+    uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
+    m_pimpl->m_blockchain.at(block_number, prev_signed_block);
 
     BlockHeader prev_header;
     m_pimpl->m_blockchain.header(prev_header);
@@ -255,7 +255,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     // fill new block header data
     BlockHeader block_header;
-    block_header.block_number = block_number;
+    block_header.block_number = block_number + 1;
     block_header.delta = delta;
     block_header.c_const = prev_header.c_const;
     block_header.c_sum = prev_header.c_sum + delta;
