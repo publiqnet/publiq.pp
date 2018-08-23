@@ -346,7 +346,7 @@ bool node::run()
 
                     SyncResponse sync_response;
                     sync_response.block_number = block_header.block_number;
-                    sync_response.consensus_sum = block_header.consensus_sum;
+                    sync_response.consensus_sum = block_header.c_sum;
 
                     psk->send(peerid, std::move(sync_response));
 
@@ -521,7 +521,7 @@ bool node::run()
             m_pimpl->m_blockchain.header(block_header);
 
             uint64_t block_number = block_header.block_number;
-            uint64_t consensus_sum = block_header.consensus_sum;
+            uint64_t consensus_sum = block_header.c_sum;
             beltpp::isocket::peer_id tmp_peer;
 
             // if node is possible miner it should

@@ -63,10 +63,10 @@ module BlockchainMessage
     class BlockHeader
     {
         UInt64 block_number
-        UInt64 consensus_const
-        UInt64 consensus_delta
-        UInt64 consensus_sum
-        String previous_hash
+        UInt64 delta
+        UInt64 c_sum
+        UInt64 c_const
+        String prev_hash
         TimePoint sign_time
     }
 
