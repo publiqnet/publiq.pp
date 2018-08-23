@@ -19,7 +19,7 @@ uint64_t calc_delta(string const& key, uint64_t const& amount, string const& pre
 {
     string key_hash = meshpp::hash(key);
 
-    uint64_t dist = meshpp::distance(key_hash, prev_hash);
+    uint64_t dist = meshpp::distance(key_hash, prev_hash) + 1;
     uint64_t delta = amount / (dist * cons_const);
 
     if (delta > DELTA_MAX)
