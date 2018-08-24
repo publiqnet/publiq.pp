@@ -16,7 +16,7 @@
 #define BLOCK_MINE_DELAY 60
 
 // Sync process request/response maximum dely
-#define SYNC_STEP_TIMEOUT 300
+#define SYNC_STEP_TIMEOUT 20
 
 // Timers
 #define CHECK_TIMER 1
