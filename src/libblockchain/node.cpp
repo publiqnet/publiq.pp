@@ -120,6 +120,7 @@ bool node::run()
 
             auto str_peerid = [it](string const& peerid)
             {
+                B_UNUSED(it);
                 /*if (it == interface_type::p2p)
                     return peerid.substr(0, 5);
                 else*/
