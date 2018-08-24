@@ -1,4 +1,6 @@
-﻿#include <iostream>
+﻿#include <belt.pp/global.hpp>
+
+#include <iostream>
 #include <fstream>
 #include <boost/filesystem.hpp>
 namespace fs = boost::filesystem;
@@ -7,6 +9,8 @@ using namespace std;
 
 void showDifferences(const string& str1, const string& str2)
 {
+    B_UNUSED(str1);
+    B_UNUSED(str2);
 //    auto itrendstr1 = str1.end();
 
 //    auto itrendstr2 = str2.end();
@@ -22,14 +26,14 @@ string splitLast(const string& path)
     string result;
     while(itr != path.begin())
     {
-            if(*itr != '/')
-                result.insert(result.begin(), *itr);
-            else if (*itr == '/'){
-                return result;
-            }
-            --itr;
-     }
-        return result;
+        if(*itr != '/')
+            result.insert(result.begin(), *itr);
+        else if (*itr == '/'){
+            return result;
+        }
+        --itr;
+    }
+    return result;
 }
 
 void compare(const string& path1, const string&  path2)
@@ -68,6 +72,8 @@ void compare(const string& path1, const string&  path2)
     {
 
 
+        //  definitely there is some bug here
+        //  don't write weird code :)
 
         for (string s, h; getline(first, s), getline(second, h); )
         {
