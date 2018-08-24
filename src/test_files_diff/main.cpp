@@ -126,7 +126,7 @@ void compare(const string& path1, const string&  path2)
             if(dirsDiff.size()>0)
             {
                 cout << "\n\t\t\tdirs diff \n";
-                for(int i=0; i<dirsDiff.size(); ++i)
+                for(size_t i = 0; i < dirsDiff.size(); ++i)
                 {
                     cout << dirsDiff[i] << ",  ";
                 }
@@ -141,7 +141,7 @@ void compare(const string& path1, const string&  path2)
             if(filesDiff.size()>0)
             {
                 cout << "\n \t\t\tfiles diff \n";
-                for(int i=0; i<filesDiff.size(); ++i)
+                for(size_t i = 0; i < filesDiff.size(); ++i)
                 {
                     cout <<filesDiff[i] << ",  ";
                 }
