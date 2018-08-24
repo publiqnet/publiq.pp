@@ -196,8 +196,10 @@ public:
             sync_peerid.clear();
             sync_blocks.clear();
             sync_headers.clear();
-            sync_responses.clear();
+            sync_responses.clear(); //  why clean all?
         }
+        //  please review following
+        sync_responses.erase(peerid);
     }
 
     void new_sync_request()
@@ -290,11 +292,12 @@ public:
 
     meshpp::private_key private_key;
 
-    BlockchainMessage::ctime sync_time;
+    BlockchainMessage::ctime sync_time; //  why do we have m_sync_timer and sync_time?
     beltpp::isocket::peer_id sync_peerid;
     vector<SignedBlock> sync_blocks;
     vector<BlockHeader> sync_headers;
-    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_responses;
+    //  please review sync_responses
+    unordered_map<beltpp::isocket::peer_id, vector<SyncResponse>> sync_responses;
 };
 
 }
