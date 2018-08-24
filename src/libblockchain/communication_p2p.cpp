@@ -632,6 +632,7 @@ void process_blockchain_response(beltpp::packet& package,
             throw wrong_data_exception("blockchain response. block rewards!");
 
         // verify block transactions
+        system_clock::time_point delta = system_clock::from_time_t(NODES_TIME_SHIFT);
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
             if (!meshpp::verify_signature(meshpp::public_key(tr_it->authority),
@@ -651,7 +652,7 @@ void process_blockchain_response(beltpp::packet& package,
             if (chrono::duration_cast<chrono::seconds>(expiry - creation).count() > TRANSACTION_LIFETIME)
                 throw wrong_data_exception("blockchain response. too long lifetime for transaction");
 
-            if (creation > system_clock::from_time_t(block.header.sign_time.tm))
+            if (system_clock::time_point(creation - delta) > system_clock::from_time_t(block.header.sign_time.tm))
                 throw wrong_data_exception("blockchain response. transaction from the future!");
 
             if (expiry < system_clock::from_time_t(block.header.sign_time.tm))
