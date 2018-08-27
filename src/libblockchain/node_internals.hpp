@@ -168,7 +168,7 @@ public:
     {
         detail::packet_and_expiry pck;
         BlockchainMessage::detail::assign_packet(pck.packet, packet);
-        pck.expiry = 2;
+        pck.expiry = 3;
         auto res = m_stored_requests.insert(std::make_pair(peerid, std::move(pck)));
         if (false == res.second)
             throw std::runtime_error("only one request is supported at a time");
@@ -196,10 +196,8 @@ public:
             sync_peerid.clear();
             sync_blocks.clear();
             sync_headers.clear();
-            sync_responses.clear(); //  why clean all?
+            sync_responses.clear();
         }
-        //  please review following
-        sync_responses.erase(peerid);
     }
 
     void new_sync_request()
@@ -292,12 +290,11 @@ public:
 
     meshpp::private_key private_key;
 
-    BlockchainMessage::ctime sync_time; //  why do we have m_sync_timer and sync_time?
+    BlockchainMessage::ctime sync_time;
     beltpp::isocket::peer_id sync_peerid;
     vector<SignedBlock> sync_blocks;
     vector<BlockHeader> sync_headers;
-    //  please review sync_responses
-    unordered_map<beltpp::isocket::peer_id, vector<SyncResponse>> sync_responses;
+    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_responses;
 };
 
 }

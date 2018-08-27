@@ -363,7 +363,7 @@ bool node::run()
 
                     SyncResponse sync_response;
                     std::move(ref_packet).get(sync_response);
-                    m_pimpl->sync_responses[peerid].push_back(sync_response);
+                    m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
 
                     break;
                 }
@@ -527,18 +527,18 @@ bool node::run()
                 // mine forst current block then try to sync
                 uint64_t n = m_pimpl->miner ? 1 : 0;
 
-                for (auto const& it_map : m_pimpl->sync_responses)
+                for (auto& it : m_pimpl->sync_responses)
                 {
-                    for (auto const& it_vec : it_map.second)
+                    if (m_pimpl->m_p2p_peers.find(it.first) == m_pimpl->m_p2p_peers.end())
+                        continue; // for the case if peer is droped before sync started
+
+                    if (block_number + n < it.second.block_number ||
+                        (block_number == it.second.block_number &&
+                            consensus_sum < it.second.consensus_sum))
                     {
-                        if (block_number + n < it_vec.block_number ||
-                            (block_number == it_vec.block_number &&
-                             consensus_sum < it_vec.consensus_sum))
-                        {
-                            block_number = it_vec.block_number;
-                            consensus_sum = it_vec.consensus_sum;
-                            tmp_peer = it_map.first;
-                        }
+                        block_number = it.second.block_number;
+                        consensus_sum = it.second.consensus_sum;
+                        tmp_peer = it.first;
                     }
                 }
 
@@ -585,8 +585,7 @@ bool node::run()
                     m_pimpl->new_sync_request();
             }
         }
-        else if (m_pimpl->sync_timeout() &&  // sync process step takes too long time
-                 false == m_pimpl->sync_peerid.empty())
+        else if (m_pimpl->sync_timeout()) // sync process step takes too long time
         {
             beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
 
