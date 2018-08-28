@@ -59,7 +59,7 @@ string transformString( string const& scoreString )
     string camelString =  "";
     camelString = scoreString;
 
-    for ( size_t x = 0; x < camelString.length()-1; x++ )
+    for ( size_t x = 0; x < camelString.length() - 1; x++ )
     {
         if ( camelString[x] == '_' )
         {
@@ -80,16 +80,16 @@ string handleArrayForPrimitives( int count, string member_name )
     arrayCase +=
             "          foreach ($data->" + transformString( member_name ) + " as $" + item + ") { \n";
 
-    for( size_t i = 1; i != count; i++)
+    for( int i = 1; i != count; i++)
     {
         arrayCase +=
                 "          foreach ($" + item + " as $" + item + std::to_string( i ) + ") { \n";
         item = item + std::to_string( i );
     }
     arrayCase +=
-            "            $this->add" + ((char)( member_name.at( 0 )-32 ) + transformString( member_name.substr( 1, member_name.length()-1 ) ) ) + "($" + item + ");\n";
+            "            $this->add" + (static_cast<char>( member_name.at( 0 ) - 32 ) + transformString( member_name.substr( 1, member_name.length() - 1 ) ) ) + "($" + item + ");\n";
 
-    for( size_t i = 1; i != count; i++)
+    for( int i = 1; i != count; i++)
     {
         arrayCase +=
                 "           } \n";
@@ -109,7 +109,7 @@ string handleArrayForObjects( int count, string member_name, string object_name 
     arrayCase+=
             "          foreach ($data->" + camelCaseMemberName + " as $" + item + ") { \n";
 
-    for ( size_t i = 1; i != count; i++ )
+    for ( int i = 1; i != count; i++ )
     {
         arrayCase +=
                 "          foreach ($" + item + " as $" + item + std::to_string(i) + ") { \n";
@@ -130,7 +130,7 @@ string handleArrayForObjects( int count, string member_name, string object_name 
     }
 
 
-    for( size_t i = 1; i != count; i++ )
+    for( int  i = 1; i != count; i++ )
     {
         arrayCase +=
                 "           } \n";
@@ -636,7 +636,7 @@ void analyze_struct(    state_holder& state,
                     "    /**\n"
                     "    * @param " + transformString( info[1] ) + " $" + item +"\n"
                     "    */\n"
-                    "    public function add" + ( (char)( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) )  +  "(" + info[1] + " $" + item + ")\n"
+                    "    public function add" + (static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) )  +  "(" + info[1] + " $" + item + ")\n"
                     "    {\n"
                     "        $this->" + camelCaseMemberName + "[] = $" + item + ";\n"
                                                                                                                                                                                                                                                                                                                                  "    }\n";
@@ -687,7 +687,7 @@ void analyze_struct(    state_holder& state,
                  )
         {
             trivialTypes +=
-                    "          $this->set" + ( (char)( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + transformString( member_name.value ) + "); \n";
+                    "          $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + transformString( member_name.value ) + "); \n";
 
             string type;
             if (info[0] == "integer")
@@ -698,7 +698,7 @@ void analyze_struct(    state_holder& state,
                     "    /** \n"
                     "    * @param " + type + " $" + camelCaseMemberName + "\n"
                     "    */ \n"
-                    "    public function set" + (char)( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(" + type +" $" + transformString( member_name.value ) + ") \n"
+                    "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(" + type +" $" + transformString( member_name.value ) + ") \n"
                                                                                                                                                                                                                                                                                        "    { \n"
                                                                                                                                                                                                                                                                                        "            $this->" + camelCaseMemberName + " = " ;
 
@@ -725,7 +725,7 @@ void analyze_struct(    state_holder& state,
         }
 
         getFunction +=
-                "    public function get" + ( (char)( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "() \n"
+                "    public function get" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "() \n"
                 "    {\n"
                 "        return $this->" + camelCaseMemberName + ";\n"
                 "    }\n";
