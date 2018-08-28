@@ -7,32 +7,22 @@ namespace fs = boost::filesystem;
 
 using namespace std;
 
-void diffPossition(const string& str1, const string& str2)
+int diffPossition(const string& str1, const string& str2)
 {
     auto it1 = str1.begin();
     auto it2 = str2.begin();
     int i=0;
-
     while (it1 != str1.end()  && it2 != str2.end())
     {
         if(*it1 != *it2)
         {
-            cout<< i << "-th possition" <<endl;
-            return;
+            return i;
         }
         it1++;
         it2++;
         i++;
     }
-
-    if(it1 != str1.end() && it2 == str2.end())
-    {
-        cout<< i << "-th possition" <<endl;
-    }
-    if(it1 == str1.end() && it2 != str2.end())
-    {
-        cout<< i << "-th possition" <<endl;
-    }
+    return i;
 }
 
 bool isSame(const string& path1, const string&  path2)
@@ -68,9 +58,9 @@ bool isSame(const string& path1, const string&  path2)
     }
 
     bool static flag = true;
-
+    static vector<string> mismathedFiles;
     if (!fs::is_directory(bfirst) && !fs::is_directory(bsecond))
-    {
+    {      
         size_t i = 0;
         string l1, l2;
         while ( getline(first, l1)  &&  getline(second, l2) )
@@ -78,14 +68,15 @@ bool isSame(const string& path1, const string&  path2)
             i++;
             if (l1.compare(l2))
             {
-                cout<<"\n~~~~~~~~~~~~~~~~~~~~~~~~Files mismath~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n";
-                cout<< "file " << path1 << " mismatch with file " << path2 <<endl;
-                cout<< "Difference in line " << i << ": ";
-                diffPossition(l1, l2);
+                string lineconut = to_string(i);
+                string possition = to_string( diffPossition(l1, l2) );
+                string s =   "file " + path1 + " mismatch with file " + path2 + "\nDifference in line " + lineconut + ": " + possition  + "-th possition\n\n";
+                mismathedFiles.push_back(s);
                 flag = false;
                 return flag;
             }
-        }
+
+         }
     }
 
     vector<string> firstDirs;
@@ -93,7 +84,6 @@ bool isSame(const string& path1, const string&  path2)
 
     vector<string> secondDirs;
     vector<string> secondFiles;
-
 
     if ( fs::is_directory(bfirst) && fs::is_directory(bsecond) )
     {
@@ -143,7 +133,7 @@ bool isSame(const string& path1, const string&  path2)
 
                 flag = false;
                 cout << "\n~~~~~~~~~~~~~~~~~~~~~The following directores does not exist in one of the given path~~~~~~~~~\n\n";
-                for(size_t i=0; i<dirsDiff.size(); ++i)
+                for(size_t i = 0; i<dirsDiff.size(); ++i)
                 {
                     cout << dirsDiff[i] << ",  ";
                 }
@@ -157,27 +147,26 @@ bool isSame(const string& path1, const string&  path2)
 
             if(filesDiff.size()>0)
             {
-                if(filesDiff.size()>1 && filesDiff[1] != ".DS_Store")
+                flag = false;
+                if(filesDiff.size()>10)
                 {
                     flag = false;
-                    if(filesDiff.size()>10)
+                    cout << "\n\n~~~~~~~~~~~~~~~~~~~~~   The files does not exist in one of the given path     ~~~~~~~~~~~~~";
+                    cout<<"\nThe "<<filesDiff.size()<<" files dose not exist, same of them:\n\n ";
+                    for(size_t i=0; i<10; ++i)
                     {
-                        flag = false;
-                        cout << "\n~~~~~~~~~~~~~~~~~~~~~The following files does not exist in one of the given path ~~~~~~~~~~~~~\n\n";
-                        for(size_t i=0; i<10; ++i)
+                        if(filesDiff[1] != " .DS_Store")
                         {
-                                 cout << filesDiff[i] << ",  ";
+                             cout << filesDiff[i] << ",  ";
                         }
-                        cout<<endl;
                     }
-                    else
+                }
+                else
+                {
+                    cout << "\n\n~~~~~~~~~~~~~~~~~~~~~    The following files does not exist in one of the given path     ~~~~~~~~~~~~~\n\n";
+                    for(size_t i = 0; i<filesDiff.size(); ++i)
                     {
-                        cout << "\n~~~~~~~~~~~~~~~~~~~~~The following files does not exist in one of the given path ~~~~~~~~~~~~~\n\n";
-                        for(size_t i=0; i<filesDiff.size(); ++i)
-                        {
-                                 cout << filesDiff[i] << ",  ";
-                        }
-                        cout<<endl;
+                         cout << filesDiff[i] << ",  ";
                     }
                 }
             }
@@ -208,6 +197,36 @@ bool isSame(const string& path1, const string&  path2)
                 }
             }
     }
+
+    static bool once = false;
+    if(mismathedFiles.size()>0)
+    {
+        if(!once){
+
+           once = true;
+           cout<<"\n\n~~~~~~~~~~~~~~~~~~~~~~~~    Files mismath    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n";
+           if(mismathedFiles.size() > 10)
+           {
+               cout<<"\nThe "<< mismathedFiles.size() <<" files mismathed, same of them:\n\n ";
+               for(size_t i = 0; i < 10; ++i)
+               {
+                        cout << mismathedFiles[i];
+               }
+               return flag;
+           }
+           else
+           {
+               cout<<"\nThe "<< mismathedFiles.size() <<" files mismathed, same of them:\n\n ";
+               for(size_t i = 0; i < mismathedFiles.size(); ++i)
+               {
+                    cout << mismathedFiles[i];
+               }
+               return flag;
+           }
+        }
+
+    }
+
     return flag;
 }
 
