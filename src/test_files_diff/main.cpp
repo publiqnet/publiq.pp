@@ -7,19 +7,17 @@ namespace fs = boost::filesystem;
 
 using namespace std;
 
-void showDifferences(const string& str1, const string& str2)
+void diffPossition(const string& str1, const string& str2)
 {
-
     auto it1 = str1.begin();
     auto it2 = str2.begin();
-
-
     int i=0;
+
     while (it1 != str1.end()  && it2 != str2.end())
     {
         if(*it1 != *it2)
         {
-            cout<<i<<"-th possition"<<endl;
+            cout<< i << "-th possition" <<endl;
             return;
         }
         it1++;
@@ -27,32 +25,17 @@ void showDifferences(const string& str1, const string& str2)
         i++;
     }
 
-    if( (it1 == str1.end() && it2 != str2.end()) ||
-        (it1 != str1.end() && it2 == str2.end()))
+    if(it1 != str1.end() && it2 == str2.end())
     {
-        cout<<i<<"-th possition"<<endl;
+        cout<< i << "-th possition" <<endl;
+    }
+    if(it1 == str1.end() && it2 != str2.end())
+    {
+        cout<< i << "-th possition" <<endl;
     }
 }
 
-string splitLast(const string& path)
-{
-    auto itr = path.end();
-    string result;
-    while(itr != path.begin())
-    {
-
-        if(*itr != '/')
-            result.insert(result.begin(), *itr);
-        else if (*itr == '/'){
-            return result;
-        }
-        --itr;
-    }
-    return result;
-
-}
-
-void compare(const string& path1, const string&  path2)
+bool isSame(const string& path1, const string&  path2)
 {
     ifstream first(path1);
     ifstream second(path2);
@@ -60,48 +43,47 @@ void compare(const string& path1, const string&  path2)
     fs::path bfirst(path1);
     fs::path bsecond(path2);
 
+
     if (!fs::exists(bfirst))
     {
-        cout<<bfirst<<" incorrect path!"<<endl;
-        return;
+       cout<<bfirst<<" incorrect path!"<<endl;
+       return false;
     }
-
     if (!fs::exists(bsecond))
     {
-        cout<<bsecond<<" incorrect path!"<<endl;
-        return;
+       cout<<bsecond<<" incorrect path!"<<endl;
+       return false;
     }
 
     if (!fs::is_directory(bfirst) && fs::is_directory(bsecond))
     {
         cout<<"compare file with directory!"<<endl;
-        return;
+        return false;
     }
 
     if (fs::is_directory(bfirst) && !fs::is_directory(bsecond))
     {
         cout<<"compare directory with file!"<<endl;
-        return;
+        return false;
     }
+
+    bool static flag = true;
 
     if (!fs::is_directory(bfirst) && !fs::is_directory(bsecond))
     {
-
-        //  definitely there is some bug here
-        //  don't write weird code :)
-
-        int i = 0;
-
-        for (string s, h; getline(first, s), getline(second, h); )
+        size_t i = 0;
+        string l1, l2;
+        while ( getline(first, l1)  &&  getline(second, l2) )
         {
             i++;
-            if (s.compare(h))
+            if (l1.compare(l2))
             {
-                cout<<"\n\t\t\t Files mismath \n";
-                cout<<"file "<<path1<<" mismatch with file "<<path2<<endl;
-                cout<<"Difference in line "<< i <<": ";
-                showDifferences(s, h);
-                return;
+                cout<<"\n~~~~~~~~~~~~~~~~~~~~~~~~Files mismath~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ \n";
+                cout<< "file " << path1 << " mismatch with file " << path2 <<endl;
+                cout<< "Difference in line " << i << ": ";
+                diffPossition(l1, l2);
+                flag = false;
+                return flag;
             }
         }
     }
@@ -112,35 +94,42 @@ void compare(const string& path1, const string&  path2)
     vector<string> secondDirs;
     vector<string> secondFiles;
 
-    if (fs::is_directory(bfirst) && fs::is_directory(bsecond))
-    {
-            fs::directory_iterator end_itr;
 
+    if ( fs::is_directory(bfirst) && fs::is_directory(bsecond) )
+    {
             fs::directory_iterator itrf(bfirst);
+            auto end_itr = fs::end(itrf);
+
             for ( ;  itrf != end_itr; ++itrf)
             {
-                if(fs::is_directory(itrf->path()))
+                if( fs::is_directory(itrf->path()) )
                 {
-                    firstDirs.push_back(splitLast(itrf->path().string()));
+                    fs::path fileName(itrf->path().string());
+                    firstDirs.push_back(fileName.leaf().string());
                 }
 
-                if(!fs::is_directory(itrf->path()))
+                if( !fs::is_directory(itrf->path()) )
                 {
-                    firstFiles.push_back(splitLast(itrf->path().string()));
+                    fs::path fileName(itrf->path().string());
+                    firstFiles.push_back(fileName.leaf().string());
                 }
             }
 
             fs::directory_iterator itrs(bsecond);
+            end_itr = fs::end(itrs);
+
             for ( ;  itrs != end_itr; ++itrs)
             {
                if(fs::is_directory(itrs->path()))
                 {
-                    secondDirs.push_back(splitLast(itrs->path().string()));
+                   fs::path fileName(itrs->path().string());
+                   secondDirs.push_back(fileName.leaf().string());
                 }
 
                 if(!fs::is_directory(itrs->path()))
                 {
-                    secondFiles.push_back(splitLast(itrs->path().string()));
+                    fs::path fileName(itrs->path().string());
+                    secondFiles.push_back(fileName.leaf().string());
                 }
             }
 
@@ -152,7 +141,7 @@ void compare(const string& path1, const string&  path2)
             if(dirsDiff.size()>0)
             {
 
-
+                flag = false;
                 cout << "\n~~~~~~~~~~~~~~~~~~~~~The following directores does not exist in one of the given path~~~~~~~~~\n\n";
                 for(size_t i=0; i<dirsDiff.size(); ++i)
                 {
@@ -168,24 +157,58 @@ void compare(const string& path1, const string&  path2)
 
             if(filesDiff.size()>0)
             {
-                cout << "\n~~~~~~~~~~~~~~~~~~~~~The following files does not exist in one of the given path ~~~~~~~~~~~~~\n\n";
-                for(size_t i=0; i<filesDiff.size(); ++i)
+                if(filesDiff.size()>1 && filesDiff[1] != ".DS_Store")
                 {
-                    cout <<filesDiff[i] << ",  ";
+                    flag = false;
+                    if(filesDiff.size()>10)
+                    {
+                        flag = false;
+                        cout << "\n~~~~~~~~~~~~~~~~~~~~~The following files does not exist in one of the given path ~~~~~~~~~~~~~\n\n";
+                        for(size_t i=0; i<10; ++i)
+                        {
+                                 cout << filesDiff[i] << ",  ";
+                        }
+                        cout<<endl;
+                    }
+                    else
+                    {
+                        cout << "\n~~~~~~~~~~~~~~~~~~~~~The following files does not exist in one of the given path ~~~~~~~~~~~~~\n\n";
+                        for(size_t i=0; i<filesDiff.size(); ++i)
+                        {
+                                 cout << filesDiff[i] << ",  ";
+                        }
+                        cout<<endl;
+                    }
                 }
-                cout<<endl;
             }
 
             fs::directory_iterator itrf1(bfirst);
             fs::directory_iterator itrs1(bsecond);
+            vector<string> firstStructure;
+            vector<string> secondStructure;
             for ( ;  itrf1 != end_itr && itrs1 != end_itr; ++itrf1, ++itrs1)
             {
-                if ( splitLast(itrf1->path().string()) == splitLast(itrs1->path().string()) )
+                firstStructure.push_back(itrf1->path().string());
+                secondStructure.push_back(itrs1->path().string());
+            }
+
+            sort(firstStructure.begin(), firstStructure.end());
+            sort(secondStructure.begin(), secondStructure.end());
+
+            auto it1 = firstStructure.begin();
+            auto it2 = secondStructure.begin();
+            for ( ; it1 != firstStructure.end() && it2 != secondStructure.end(); ++it1, ++it2)
+            {
+                fs::path name1(*it1);
+                fs::path name2(*it2);
+
+                if ( name1.leaf().string() == name2.leaf().string() )
                 {
-                    compare(itrf1->path().string(), itrs1->path().string());
+                    isSame(*it1, *it2);
                 }
             }
     }
+    return flag;
 }
 
 int main(int argc, char* argv[]) 
@@ -194,7 +217,11 @@ int main(int argc, char* argv[])
     {
         string path1 = argv[1];
         string path2 = argv[2];
-        compare(path1, path2);
+
+        if ( isSame(path1, path2) )
+        {
+            cout<< "identical structures" <<endl;
+        }
     }
     return 0;
 }

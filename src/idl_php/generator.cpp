@@ -59,7 +59,7 @@ string transformString(string const& scoreString)
     string camelString = "";
     camelString = scoreString;
 
-    for (size_t x = 0; x < camelString.length(); x++)
+    for (size_t x = 0; x < camelString.length()-1; x++)
     {
         if (camelString[x] == '_')
         {
