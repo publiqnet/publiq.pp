@@ -39,6 +39,7 @@ add_subdirectory(idl_php)
 add_subdirectory(blockchain_client)
 add_subdirectory(test_files_diff)
 add_subdirectory(test_actionlog_diff)
+add_subdirectory(test_loader_simulation)
 
 
 # following is used for find_package functionality
