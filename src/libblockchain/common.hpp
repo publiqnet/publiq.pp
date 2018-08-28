@@ -5,7 +5,7 @@
 
 // Blocks and headers max count per one request - 1
 // corners are included
-#define BLOCK_TR_LENGTH 19
+#define BLOCK_TR_LENGTH 9
 #define HEADER_TR_LENGTH 59
 
 // Maximum buffer length of blocks
@@ -16,7 +16,7 @@
 #define BLOCK_MINE_DELAY 60
 
 // Sync process request/response maximum dely
-#define SYNC_STEP_TIMEOUT 20
+#define SYNC_STEP_TIMEOUT 30
 
 // Timers
 #define CHECK_TIMER 1
