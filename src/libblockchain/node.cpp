@@ -471,7 +471,7 @@ bool node::run()
                 psk->send(peerid, msg);
                 throw;
             }
-            catch(std::exception const& e)
+            catch (std::exception const& e)
             {
                 if (it == interface_type::rpc)
                 {
