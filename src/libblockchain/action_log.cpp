@@ -22,6 +22,7 @@ public:
         :m_actions("actions", path, detail::get_putl())
     {}
 
+    uint64_t m_revert_index;
     meshpp::vector_loader<LoggedTransaction> m_actions;
 };
 }
@@ -29,7 +30,7 @@ public:
 action_log::action_log(boost::filesystem::path const& fs_action_log)
     : m_pimpl(new detail::action_log_internals(fs_action_log))
 {
-
+    m_pimpl->m_revert_index = length() - 1;
 }
 action_log::~action_log()
 {
@@ -49,6 +50,7 @@ void action_log::commit()
 void action_log::discard()
 {
     m_pimpl->m_actions.discard();
+    m_pimpl->m_revert_index = length() - 1;
 }
 
 size_t action_log::length() const
@@ -71,9 +73,10 @@ void action_log::log(beltpp::packet&& action)
 
 void action_log::insert(LoggedTransaction& action_info)
 {
-    action_info.index = m_pimpl->m_actions.as_const().size();
+    action_info.index = length();
 
     m_pimpl->m_actions.push_back(action_info);
+    m_pimpl->m_revert_index = action_info.index;
 }
 
 void action_log::at(size_t number, LoggedTransaction& action_info) const
@@ -87,7 +90,7 @@ void action_log::at(size_t number, LoggedTransaction& action_info) const
 void action_log::revert()
 {
     int revert_mark = 0;
-    size_t index = length() - 1;
+    size_t index = m_pimpl->m_revert_index;
     bool revert = true;
 
     while (revert)
@@ -117,5 +120,7 @@ void action_log::revert()
     at(index, action_revert_info);
     action_revert_info.applied_reverted = false;   //  revert
     insert(action_revert_info);
+
+    m_pimpl->m_revert_index = index - 1;
 }
 }
