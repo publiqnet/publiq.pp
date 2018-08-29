@@ -563,6 +563,10 @@ bool node::run()
                     m_pimpl->store_request(tmp_peer, header_request);
                 }
             }
+            else if (m_pimpl->m_sync_timer.expired())
+            {
+                m_pimpl->new_sync_request();
+            }
             else
             {
                 BlockHeader header;
@@ -580,11 +584,9 @@ bool node::run()
                     {
                         mine_block(m_pimpl);
                         m_pimpl->miner = true;
+                        m_pimpl->new_sync_request();
                     }
                 }
-
-                if (m_pimpl->m_sync_timer.expired())
-                    m_pimpl->new_sync_request();
             }
         }
         else if (m_pimpl->sync_timeout()) // sync process step takes too long time
