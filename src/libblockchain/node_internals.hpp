@@ -169,7 +169,7 @@ public:
     {
         detail::packet_and_expiry pck;
         BlockchainMessage::detail::assign_packet(pck.packet, packet);
-        pck.expiry = 3;
+        pck.expiry = PACKET_EXPIRY_STEPS;
         auto res = m_stored_requests.insert(std::make_pair(peerid, std::move(pck)));
         if (false == res.second)
             throw std::runtime_error("only one request is supported at a time");

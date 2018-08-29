@@ -6,7 +6,7 @@
 // Blocks and headers max count per one request - 1
 // corners are included
 #define BLOCK_TR_LENGTH 9
-#define HEADER_TR_LENGTH 59
+#define HEADER_TR_LENGTH 99
 
 // Maximum buffer length of blocks
 // which can be cillected for sync
@@ -17,6 +17,10 @@
 
 // Sync process request/response maximum dely
 #define SYNC_STEP_TIMEOUT 30
+
+// Sent packet will considered as not answered
+// after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds
+#define PACKET_EXPIRY_STEPS 4
 
 // Timers
 #define CHECK_TIMER 1
