@@ -6,6 +6,10 @@ add_executable(test_actionlog_diff
 target_link_libraries(test_actionlog_diff PRIVATE
     mesh.pp
     belt.pp
+    socket
+    processor
+    packet
+    utility
     )
 
 # what to do on make install
