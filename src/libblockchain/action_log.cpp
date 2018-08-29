@@ -18,17 +18,19 @@ namespace detail
 class action_log_internals
 {
 public:
-    action_log_internals(filesystem::path const& path)
+    action_log_internals(filesystem::path const& path, bool log_enabled)
         :m_actions("actions", path, detail::get_putl())
+        ,m_enabled(log_enabled)
     {}
 
+    bool m_enabled;
     uint64_t m_revert_index;
     meshpp::vector_loader<LoggedTransaction> m_actions;
 };
 }
 
-action_log::action_log(boost::filesystem::path const& fs_action_log)
-    : m_pimpl(new detail::action_log_internals(fs_action_log))
+action_log::action_log(boost::filesystem::path const& fs_action_log, bool log_enabled)
+    : m_pimpl(new detail::action_log_internals(fs_action_log, log_enabled))
 {
     m_pimpl->m_revert_index = length() - 1;
 }
@@ -60,6 +62,9 @@ size_t action_log::length() const
 
 void action_log::log(beltpp::packet&& action)
 {
+    if (!m_pimpl->m_enabled)
+        return;
+
     if (action.type() != Transfer::rtt && action.type() != Reward::rtt)
         throw std::runtime_error("No logable actio type!");
 
@@ -73,6 +78,9 @@ void action_log::log(beltpp::packet&& action)
 
 void action_log::insert(LoggedTransaction& action_info)
 {
+    if (!m_pimpl->m_enabled)
+        return;
+
     action_info.index = length();
 
     m_pimpl->m_actions.push_back(action_info);
@@ -89,6 +97,9 @@ void action_log::at(size_t number, LoggedTransaction& action_info) const
 
 void action_log::revert()
 {
+    if (!m_pimpl->m_enabled)
+        return;
+
     int revert_mark = 0;
     size_t index = m_pimpl->m_revert_index;
     bool revert = true;

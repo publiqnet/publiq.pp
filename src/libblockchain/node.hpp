@@ -32,7 +32,8 @@ public:
          boost::filesystem::path const& fs_state,
          beltpp::ilog* plogger_p2p,
          beltpp::ilog* plogger_node,
-         meshpp::private_key const& pv_key);
+         meshpp::private_key const& pv_key,
+         bool log_enabled);
     node(node&& other);
     ~node();
 

@@ -41,7 +41,8 @@ bool process_command_line(int argc, char** argv,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
-                          meshpp::private_key& pv_key);
+                          meshpp::private_key& pv_key,
+                          bool& log_enabled);
 
 static bool g_termination_handled = false;
 static publiqpp::node* g_pnode = nullptr;
@@ -140,6 +141,7 @@ int main(int argc, char** argv)
     beltpp::ip_address rpc_bind_to_address;
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
+    bool log_enabled = false;
     //  node key
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
@@ -149,7 +151,8 @@ int main(int argc, char** argv)
                                       p2p_connect_to_addresses,
                                       rpc_bind_to_address,
                                       data_directory,
-                                      pv_key))
+                                      pv_key,
+                                      log_enabled))
         return 1;
 
     if (false == data_directory.empty())
@@ -212,7 +215,8 @@ int main(int argc, char** argv)
                             fs_state,
                             plogger_p2p.get(),
                             plogger_rpc.get(),
-                            pv_key);
+                            pv_key,
+                            log_enabled);
 
         cout << endl;
         cout << "Node: " << node.name()/*.substr(0, 5)*/ << endl;
@@ -261,7 +265,8 @@ bool process_command_line(int argc, char** argv,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
-                          meshpp::private_key& pv_key)
+                          meshpp::private_key& pv_key,
+                          bool& log_enabled)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -307,6 +312,8 @@ bool process_command_line(int argc, char** argv,
 
         if (false == str_pv_key.empty())
             pv_key = meshpp::private_key(str_pv_key);
+        else
+            log_enabled = true;
     }
     catch (std::exception const& ex)
     {

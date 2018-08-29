@@ -17,7 +17,7 @@ class action_log_internals;
 class action_log
 {
 public:
-    action_log(boost::filesystem::path const& fs_action_log);
+    action_log(boost::filesystem::path const& fs_action_log, bool log_enabled);
     ~action_log();
 
     void save();

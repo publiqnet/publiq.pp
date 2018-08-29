@@ -70,7 +70,8 @@ public:
         filesystem::path const& fs_state,
         beltpp::ilog* _plogger_p2p,
         beltpp::ilog* _plogger_node,
-        meshpp::private_key const& pv_key)
+        meshpp::private_key const& pv_key,
+        bool log_enabled)
         : plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
         , m_ptr_eh(new beltpp::event_handler())
@@ -89,7 +90,7 @@ public:
         , m_check_timer()
 
         , m_blockchain(fs_blockchain)
-        , m_action_log(fs_action_log)
+        , m_action_log(fs_action_log, log_enabled)
         , m_storage(fs_storage)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)

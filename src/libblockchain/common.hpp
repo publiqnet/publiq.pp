@@ -10,7 +10,7 @@
 
 // Maximum buffer length of blocks
 // which can be cillected for sync
-#define BLOCK_INSERT_LENGTH 1000
+#define BLOCK_INSERT_LENGTH 100
 
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 60
