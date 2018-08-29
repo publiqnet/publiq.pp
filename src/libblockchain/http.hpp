@@ -178,7 +178,7 @@ public:
 };
 
 
-class scan_status
+class scan_status : public beltpp::detail::iscan_status
 {
 public:
     enum e_status {clean, http_request_progress, http_properties_progress, http_done};
@@ -187,6 +187,8 @@ public:
         : status(clean)
         , type(post)
         , http_header_scanning(0)
+    {}
+    ~scan_status() override
     {}
     e_status status;
     e_type type;
@@ -201,9 +203,6 @@ string http_response(beltpp::detail::session_special_data& ssd,
     string buffer = pc.to_string();
 
     ssd.session_specal_handler = nullptr;
-    assert(ssd.ptr_data);
-    scan_status& ss = *reinterpret_cast<scan_status*>(ssd.ptr_data.get());
-    ss.status = scan_status::clean;
 
     string str_result;
     str_result += "HTTP/1.1 200 OK\r\n";
@@ -333,17 +332,17 @@ beltpp::detail::pmsg_all message_list_load(
         void* putl)
 {
     if (nullptr == ssd.ptr_data)
-        ssd.ptr_data = beltpp::new_void_unique_ptr<scan_status>();
+        ssd.ptr_data = beltpp::new_dc_unique_ptr<beltpp::detail::iscan_status, scan_status>();
     auto it_fallback = iter_scan_begin;
 
-    scan_status& ss = *reinterpret_cast<scan_status*>(ssd.ptr_data.get());
+    scan_status* pss = dynamic_cast<scan_status*>(ssd.ptr_data.get());
 
-    auto protocol_error = [&iter_scan_begin, &iter_scan_end, &ss]()
+    auto protocol_error = [&iter_scan_begin, &iter_scan_end, &ssd]()
     {
-        ss = scan_status();
+        ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
         iter_scan_begin = iter_scan_end;
         return ::beltpp::detail::pmsg_all(size_t(-2),
-                                          ::beltpp::void_unique_ptr(nullptr, [](void*){}),
+                                          ::beltpp::void_unique_nullptr(),
                                           nullptr);
     };
 
@@ -353,7 +352,8 @@ beltpp::detail::pmsg_all message_list_load(
     bool enough_length = (line_length > 1000);
 
     string value_post = "POST ", value_get = "GET ";
-    if (scan_status::clean == ss.status)
+    if (pss &&
+        scan_status::clean == pss->status)
     {
         auto iter_scan = check_begin(iter_scan_begin, iter_scan_end, value_post);
         if (iter_scan_begin == iter_scan)
@@ -362,10 +362,11 @@ beltpp::detail::pmsg_all message_list_load(
         if (iter_scan_begin != iter_scan)
         {   //  even if "P" or "G" occured switch to http mode
             string temp(iter_scan_begin, iter_scan);
-            ss.status = scan_status::http_request_progress;
+            pss->status = scan_status::http_request_progress;
         }
     }
-    if (scan_status::http_request_progress == ss.status)
+    if (pss &&
+        scan_status::http_request_progress == pss->status)
     {
         string const value_ending = " HTTP/1.1\r\n";
         auto iter_scan_check_begin = check_begin(iter_scan_begin, iter_scan_end, value_post);
@@ -389,21 +390,22 @@ beltpp::detail::pmsg_all message_list_load(
             string scanned_line(iter_scan_begin, iter_scan_check_end.second);
 
             if (scanned_begin == value_get)
-                ss.type = scan_status::get;
+                pss->type = scan_status::get;
 
-            ss.http_header_scanning += scanned_line.length();
+            pss->http_header_scanning += scanned_line.length();
             iter_scan_begin = iter_scan_check_end.second;
             it_fallback = iter_scan_begin;
 
-            ss.status = scan_status::http_properties_progress;
+            pss->status = scan_status::http_properties_progress;
 
-            if (false == ss.resource.set(string(iter_scan_check_begin,
-                                                iter_scan_check_end.first)))
+            if (false == pss->resource.set(string(iter_scan_check_begin,
+                                                  iter_scan_check_end.first)))
                     return protocol_error();
         }
     }
-    while (scan_status::http_properties_progress == ss.status &&
-           ss.http_header_scanning < 1024 * 64)    //  don't support http header bigger than 64kb
+    while (pss &&
+           scan_status::http_properties_progress == pss->status &&
+           pss->http_header_scanning < 1024 * 64)    //  don't support http header bigger than 64kb
     {
         string const value_ending = "\r\n";
         auto iter_scan_check_end = check_end(iter_scan_begin, iter_scan_end, value_ending);
@@ -421,53 +423,63 @@ beltpp::detail::pmsg_all message_list_load(
         else
         {
             string scanned_line(iter_scan_begin, iter_scan_check_end.second);
-            ss.http_header_scanning += scanned_line.length();
+            pss->http_header_scanning += scanned_line.length();
 
             iter_scan_begin = iter_scan_check_end.second;
             it_fallback = iter_scan_begin;
 
             if (scanned_begin.empty())
-                ss.status = scan_status::http_done;
-            else if(false == ss.resource.add_property(scanned_begin))
+                pss->status = scan_status::http_done;
+            else if(false == pss->resource.add_property(scanned_begin))
                 return protocol_error();
         }
     }
 
-    if (ss.http_header_scanning >= 64 * 1024)
+    if (pss &&
+        pss->http_header_scanning >= 64 * 1024)
         return protocol_error();
-    else if (scan_status::http_properties_progress == ss.status ||
-             scan_status::http_request_progress == ss.status)
+    else if (pss &&
+             (scan_status::http_properties_progress == pss->status ||
+              scan_status::http_request_progress == pss->status))
     {
         //  revert the cursor, to last parsed position
         iter_scan_begin = it_fallback;
         return ::beltpp::detail::pmsg_all(size_t(-1),
-                                          ::beltpp::void_unique_ptr(nullptr, [](void*){}),
+                                          ::beltpp::void_unique_nullptr(),
                                           nullptr);
     }
-    else if (ss.status == scan_status::http_done)
+    else if (pss &&
+             pss->status == scan_status::http_done)
     {
-        if (ss.type == scan_status::get)
+        //  revert the cursor, to after http header
+        iter_scan_begin = it_fallback;
+        line.assign(iter_scan_begin, iter_scan_end);
+        line_length = line.length();
+
+        if (pss->type == scan_status::get)
             ssd.session_specal_handler = &file_response;
         else
             ssd.session_specal_handler = &http_response;
 
 
-        if (ss.type == scan_status::get &&
-            ss.resource.path.size() == 1 &&
-            ss.resource.path.front() == "storage")
+        if (pss->type == scan_status::get &&
+            pss->resource.path.size() == 1 &&
+            pss->resource.path.front() == "storage")
         {
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFileAddress>();
             BlockchainMessage::StorageFileAddress& ref = *reinterpret_cast<BlockchainMessage::StorageFileAddress*>(p.get());
-            ref.uri = ss.resource.arguments["file"];
+            ref.uri = pss->resource.arguments["file"];
             return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFileAddress::rtt,
                                               std::move(p),
                                               &BlockchainMessage::StorageFileAddress::pvoid_saver);
         }
-        else if (ss.type == scan_status::post &&
-                 ss.resource.path.size() == 1 &&
-                 ss.resource.path.front() == "storage")
+        else if (pss->type == scan_status::post &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "storage")
         {
-            string cl = ss.resource.properties["Content-Length"];
+            string cl = pss->resource.properties["Content-Length"];
             size_t pos;
             uint64_t content_length = beltpp::stoui64(cl, pos);
 
@@ -476,18 +488,16 @@ beltpp::detail::pmsg_all message_list_load(
                 content_length > 10 * 1024 * 1024)
                 return protocol_error();
             else if (line.length() < content_length)
-            {
-                //  revert the cursor, to last parsed position
-                iter_scan_begin = it_fallback;
                 return ::beltpp::detail::pmsg_all(size_t(-1),
-                                                  ::beltpp::void_unique_ptr(nullptr, [](void*){}),
+                                                  ::beltpp::void_unique_nullptr(),
                                                   nullptr);
-            }
             else
             {
                 auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFile>();
                 BlockchainMessage::StorageFile& ref = *reinterpret_cast<BlockchainMessage::StorageFile*>(p.get());
-                ref.mime_type = ss.resource.properties["Content-Type"];
+                ref.mime_type = pss->resource.properties["Content-Type"];
+
+                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
                 for (size_t index = 0; index < content_length; ++index)
                     ++iter_scan_begin;
@@ -499,16 +509,43 @@ beltpp::detail::pmsg_all message_list_load(
                                                   &BlockchainMessage::StorageFile::pvoid_saver);
             }
         }
-        else if (ss.type == scan_status::post &&
-                 ss.resource.path.size() == 1 &&
-                 ss.resource.path.front() == "api")
-            return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+        else if (pss->type == scan_status::post &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "api")
+        {
+            string cl = pss->resource.properties["Content-Length"];
+            size_t pos;
+            uint64_t content_length = beltpp::stoui64(cl, pos);
+
+            if (cl.empty() ||
+                pos != cl.length() ||
+                content_length > 10 * 1024 * 1024)
+                return protocol_error();
+            else if (line.length() < content_length)
+                return ::beltpp::detail::pmsg_all(size_t(-1),
+                                                  ::beltpp::void_unique_nullptr(),
+                                                  nullptr);
+            else
+            {
+                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+                ssd.parser_unrecognized_limit = 0;
+
+                return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+            }
+        }
         else
             return protocol_error();
-
     }
     else
+    {
+        if (pss)
+        {
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            ssd.parser_unrecognized_limit = 1024;
+        }
+
         return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+    }
 }
 }
 }
