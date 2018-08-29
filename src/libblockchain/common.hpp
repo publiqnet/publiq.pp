@@ -22,6 +22,9 @@
 // after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds
 #define PACKET_EXPIRY_STEPS 4
 
+// Block maximum transactions count
+#define BLOCK_MAX_TRANSACTIONS 200
+
 // Timers
 #define CHECK_TIMER 1
 #define SYNC_TIMER  15

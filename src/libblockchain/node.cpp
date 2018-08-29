@@ -553,7 +553,7 @@ bool node::run()
                     // request better chain
                     BlockHeaderRequest header_request;
                     header_request.blocks_from = block_number;
-                    header_request.blocks_to = block_number;
+                    header_request.blocks_to = block_header.block_number;
 
                     beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
 

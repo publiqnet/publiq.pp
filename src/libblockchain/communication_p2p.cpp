@@ -319,8 +319,12 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
                                             signed_transaction));
     }
 
-    for (auto it = transaction_map.begin(); it != transaction_map.end(); ++it)
+    size_t tr_count = 0;
+    for (auto it = transaction_map.begin(); it != transaction_map.end() && tr_count < BLOCK_MAX_TRANSACTIONS; ++it)
+    {
+        ++tr_count;
         block.signed_transactions.push_back(std::move(it->second));
+    }
 
     // grant rewards and move to block
     grant_rewards(block.signed_transactions, block.rewards, own_key);
