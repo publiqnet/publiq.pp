@@ -5,12 +5,12 @@
 
 // Blocks and headers max count per one request - 1
 // corners are included
-#define BLOCK_TR_LENGTH 9
-#define HEADER_TR_LENGTH 99
+#define BLOCK_TR_LENGTH 4
+#define HEADER_TR_LENGTH 49
 
 // Maximum buffer length of blocks
 // which can be cillected for sync
-#define BLOCK_INSERT_LENGTH 100
+#define BLOCK_INSERT_LENGTH 50
 
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 60
