@@ -23,9 +23,10 @@ public:
         ,m_enabled(log_enabled)
     {}
 
+    meshpp::vector_loader<LoggedTransaction> m_actions;
+
     bool m_enabled;
     uint64_t m_revert_index;
-    meshpp::vector_loader<LoggedTransaction> m_actions;
 };
 }
 
