@@ -19,7 +19,7 @@ class action_log_internals
 {
 public:
     action_log_internals(filesystem::path const& path, bool log_enabled)
-        :m_actions("actions", path, detail::get_putl())
+        :m_actions("actions", path, 10000, detail::get_putl())
         ,m_enabled(log_enabled)
     {}
 

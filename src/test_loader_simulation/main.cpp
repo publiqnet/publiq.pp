@@ -49,14 +49,15 @@ int main(int argc, char** argv)
 
         auto tp_start = steady_clock::now();
 
-        meshpp::map_loader<Coin> actions("actions", path, get_putl());
+        meshpp::vector_loader<Coin> actions("actions", path, 2, get_putl());
 
-        Coin a;// = actions.at("0");
-        a.fraction = 4040;
+        Coin a;
 
-        actions.erase("0");
-        actions.erase("2");
-        actions.erase("3");
+        for (size_t index = 0; index < 100; ++index)
+        {
+            a.fraction = index;
+            actions.push_back(a);
+        }
 
         cout << a.to_string() << endl;
 

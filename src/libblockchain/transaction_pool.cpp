@@ -21,7 +21,7 @@ class transaction_pool_internals
 {
 public:
     transaction_pool_internals(filesystem::path const& path)
-        :m_transactions("transactions", path, detail::get_putl())
+        :m_transactions("transactions", path, 100, detail::get_putl())
     {
     }
 

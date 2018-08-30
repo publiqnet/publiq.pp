@@ -21,7 +21,7 @@ class storage_internals
 {
 public:
     storage_internals(filesystem::path const& path)
-        : map("storage", path, detail::get_putl())
+        : map("storage", path, 10000, detail::get_putl())
     {}
 
     meshpp::map_loader<BlockchainMessage::StorageFile> map;

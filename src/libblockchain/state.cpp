@@ -17,7 +17,7 @@ class state_internals
 {
 public:
     state_internals(filesystem::path const& path)
-        :m_accounts("account", path, detail::get_putl())
+        :m_accounts("account", path, 10000, detail::get_putl())
     {}
 
     meshpp::map_loader<Coin> m_accounts;
