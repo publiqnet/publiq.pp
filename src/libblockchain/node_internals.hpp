@@ -100,6 +100,8 @@ public:
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
+        start_time_point = system_clock::now();
+
         m_ptr_rpc_socket->listen(rpc_bind_to_address);
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
@@ -296,6 +298,8 @@ public:
     vector<SignedBlock> sync_blocks;
     vector<BlockHeader> sync_headers;
     vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_responses;
+
+    system_clock::time_point start_time_point;
 };
 
 }

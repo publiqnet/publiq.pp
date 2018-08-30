@@ -575,8 +575,9 @@ bool node::run()
                 system_clock::time_point current_time_point = system_clock::now();
                 system_clock::time_point previous_time_point = system_clock::from_time_t(header.sign_time.tm);
                 chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
+                chrono::seconds diff_start = chrono::duration_cast<chrono::seconds>(current_time_point - m_pimpl->start_time_point);
 
-                if (diff_seconds.count() >= BLOCK_MINE_DELAY)
+                if (diff_seconds.count() >= BLOCK_MINE_DELAY && diff_start.count() >= 300)
                 {
                     coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
