@@ -173,7 +173,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
     // Don't need store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
-    if (m_pimpl->sync_headers.size() > HEADER_TR_LENGTH)
+    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return;
 
     // Check pool
