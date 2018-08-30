@@ -527,7 +527,7 @@ bool node::run()
 
                 // if node is possible miner it should
                 // mine forst current block then try to sync
-                uint64_t n = m_pimpl->miner ? 1 : 0;
+                uint64_t n = m_pimpl->m_miner ? 1 : 0;
 
                 for (auto& it : m_pimpl->sync_responses)
                 {
@@ -575,17 +575,16 @@ bool node::run()
                 system_clock::time_point current_time_point = system_clock::now();
                 system_clock::time_point previous_time_point = system_clock::from_time_t(header.sign_time.tm);
                 chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
-                chrono::seconds diff_start = chrono::duration_cast<chrono::seconds>(current_time_point - m_pimpl->start_time_point);
 
-                if (diff_seconds.count() >= BLOCK_MINE_DELAY && diff_start.count() >= 300)
+                if (diff_seconds.count() >= BLOCK_MINE_DELAY)
                 {
                     coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
                     if (amount >= MINE_AMOUNT_THRESHOLD)
                     {
                         mine_block(m_pimpl);
-                        m_pimpl->miner = true;
-                        m_pimpl->new_sync_request();
+                        m_pimpl->m_miner = true;
+                        //m_pimpl->new_sync_request();
                     }
                 }
             }

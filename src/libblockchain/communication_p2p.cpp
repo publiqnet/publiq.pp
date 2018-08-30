@@ -686,6 +686,7 @@ void process_blockchain_response(beltpp::packet& package,
 
     vector<string> pool_keys;
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
+    bool clear_pool = m_pimpl->sync_blocks.size() < m_pimpl->sync_headers.size();
 
     for (auto& key : pool_keys)
     {
@@ -693,6 +694,11 @@ void process_blockchain_response(beltpp::packet& package,
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
         revert_transaction(signed_transaction.transaction_details, m_pimpl);
+
+        // This will make sync process faster
+        // Most probably removed transactions we will get with blocks
+        if (clear_pool)
+            m_pimpl->m_transaction_pool.remove(key);
     }
 
     // calculate back to get state at LCB point
