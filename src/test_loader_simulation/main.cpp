@@ -49,14 +49,16 @@ int main(int argc, char** argv)
 
         auto tp_start = steady_clock::now();
 
-        meshpp::vector_loader<LoggedTransaction> actions("actions", path, get_putl());
+        meshpp::map_loader<Coin> actions("actions", path, get_putl());
 
-        for (size_t index = index_from; index < index_to; ++index)
-        {
-            actions.at(index);
-        }
+        Coin a;// = actions.at("0");
+        a.fraction = 111;
 
-        actions.discard();
+        actions.erase("1");
+
+        cout << a.to_string() << endl;
+
+        actions.save();
         actions.commit();
 
         auto duration = steady_clock::now() - tp_start;
