@@ -12,6 +12,8 @@ target_link_libraries(test_actionlog_diff PRIVATE
     utility
     )
 
+add_dependencies(test_actionlog_diff blockchain)
+
 # what to do on make install
 install(TARGETS test_actionlog_diff
         EXPORT publiq.pp.package

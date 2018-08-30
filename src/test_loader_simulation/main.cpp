@@ -52,9 +52,11 @@ int main(int argc, char** argv)
         meshpp::map_loader<Coin> actions("actions", path, get_putl());
 
         Coin a;// = actions.at("0");
-        a.fraction = 111;
+        a.fraction = 4040;
 
-        actions.erase("1");
+        actions.erase("0");
+        actions.erase("2");
+        actions.erase("3");
 
         cout << a.to_string() << endl;
 
