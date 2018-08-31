@@ -100,7 +100,7 @@ void blockchain::at(uint64_t number, SignedBlock& signed_block) const
 void blockchain::header_at(uint64_t number, BlockHeader& block_header) const
 {
     if (number >= length())
-        throw std::runtime_error("There is no block with number:" + std::to_string(number));
+        throw std::runtime_error("There is no header with number:" + std::to_string(number));
 
     block_header = m_pimpl->m_header.as_const().at(number);
 }
