@@ -40,7 +40,7 @@ add_subdirectory(blockchain_client)
 add_subdirectory(test_files_diff)
 add_subdirectory(test_actionlog_diff)
 add_subdirectory(test_loader_simulation)
-
+add_subdirectory(test_db_backed_container)
 
 # following is used for find_package functionality
 install(FILES publiq.pp-config.cmake DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})
