@@ -71,9 +71,13 @@ void pool_to_state_log(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     }
 }
 
-void insert_block(SignedBlock& signed_block,
+void insert_block(Block& block, meshpp::private_key& pv_key,
                   unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    meshpp::signature sgn = pv_key.sign(block.to_string());
+
+    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
+
     // Revert action log and state, revert transaction pool records
     vector<string> pool_keys;
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
@@ -84,9 +88,6 @@ void insert_block(SignedBlock& signed_block,
 
         revert_transaction(signed_transaction.transaction_details, m_pimpl);
     }
-
-    Block block;
-    signed_block.block_details.get(block);
 
     // Check block transactions and calculate new state
     for (auto& signed_transaction : block.signed_transactions)
@@ -104,11 +105,18 @@ void insert_block(SignedBlock& signed_block,
         m_pimpl->m_action_log.log(reward);
     }
 
+    SignedBlock signed_block;
+    signed_block.signature = sgn.base58;
+    signed_block.authority = sgn.pb_key.to_string();
+    signed_block.block_details = std::move(block);
+
     // insert to blockchain
     m_pimpl->m_blockchain.insert(signed_block);
 
     // apply back pool content to state and action_log
     pool_to_state_log(m_pimpl);
+
+    m_pimpl->save(guard);
 }
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<Reward>& rewards, string const& authority)
@@ -224,19 +232,9 @@ void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     block.rewards.push_back(std::move(reward));
 
     meshpp::random_seed rs("GENESIS");
-    meshpp::private_key pv = rs.get_private_key(0);
-    meshpp::signature sgn = pv.sign(block.to_string());
+    meshpp::private_key pv_key = rs.get_private_key(0);
 
-    SignedBlock signed_block;
-    signed_block.signature = sgn.base58;
-    signed_block.authority = node_pv.get_public_key().to_string();
-    signed_block.block_details = std::move(block);
-
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
-
-    insert_block(signed_block, m_pimpl);
-
-    m_pimpl->save(guard);
+    insert_block(block, pv_key, m_pimpl);
 }
 
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
@@ -311,9 +309,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-        if (block_header.sign_time.tm > signed_transaction.transaction_details.expiry.tm)
-            m_pimpl->m_transaction_pool.remove(key); // already expired transaction
-        else
+        if (block_header.sign_time.tm <= signed_transaction.transaction_details.expiry.tm)
             transaction_map.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>(
                                             signed_transaction.transaction_details.creation,
                                             signed_transaction));
@@ -329,19 +325,8 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     // grant rewards and move to block
     grant_rewards(block.signed_transactions, block.rewards, own_key);
 
-    // sign block and insert to blockchain
-    meshpp::signature sgn = m_pimpl->private_key.sign(block.to_string());
-
-    SignedBlock signed_block;
-    signed_block.signature = sgn.base58;
-    signed_block.authority = own_key;
-    signed_block.block_details = std::move(block);
-
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
-
-    insert_block(signed_block, m_pimpl);
-
-    m_pimpl->save(guard);
+    // insert block to blockchain
+    insert_block(block, m_pimpl->private_key, m_pimpl);
 
     // test
     m_pimpl->check_balance();
