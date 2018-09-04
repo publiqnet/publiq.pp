@@ -342,6 +342,9 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     insert_block(signed_block, m_pimpl);
 
     m_pimpl->save(guard);
+
+    // test
+    m_pimpl->m_state.check_balance();
 }
 
 void process_blockheader_request(beltpp::packet& package,
@@ -579,8 +582,6 @@ void process_blockchain_response(beltpp::packet& package,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid)
 {
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
-
     //1. check received blockchain validity
     BlockChainResponse response;
     std::move(package).get(response);
@@ -683,6 +684,7 @@ void process_blockchain_response(beltpp::packet& package,
     }
 
     //3. all needed blocks received, start to check
+    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); m_pimpl->clear_sync_state(m_pimpl->sync_peerid); });
 
     vector<string> pool_keys;
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
@@ -778,6 +780,9 @@ void process_blockchain_response(beltpp::packet& package,
     pool_to_state_log(m_pimpl);
 
     m_pimpl->save(guard);
+
+    // test
+    m_pimpl->m_state.check_balance();
 
     // request new chain if the process was stopped
     // by BLOCK_INSERT_LENGTH restriction

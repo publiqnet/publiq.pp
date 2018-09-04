@@ -112,6 +112,28 @@ void state::decrease_balance(string const& key, coin const& amount)
         m_pimpl->m_accounts.at(key) = balance.to_Coin();
 }
 
+void state::check_balance()
+{
+    uint64_t fraction = 0;
+
+    auto keys = m_pimpl->m_accounts.keys();
+
+    for (auto key : keys)
+    {
+        Coin balance = m_pimpl->m_accounts.at(key);
+        fraction += balance.fraction;
+    }
+
+    if (fraction == 0)
+        return;
+
+    while (fraction % 10 == 0)
+        fraction /= 10;
+
+    if (fraction != 1)
+        throw std::runtime_error("We arrive. Check balance!");
+}
+
 }
 
 //---------------- Exceptions -----------------------

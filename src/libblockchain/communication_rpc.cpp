@@ -194,6 +194,9 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
         m_pimpl->save(guard);
     }
+
+    // test
+    m_pimpl->m_state.check_balance();
 }
 
 void broadcast(beltpp::packet& package_broadcast,

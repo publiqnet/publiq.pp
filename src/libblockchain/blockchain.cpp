@@ -56,6 +56,8 @@ void blockchain::discard()
 {
     m_pimpl->m_header.discard();
     m_pimpl->m_blockchain.discard();
+
+    update_header();
 }
 
 void blockchain::update_header()
