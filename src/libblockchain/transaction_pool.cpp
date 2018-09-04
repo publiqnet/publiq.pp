@@ -90,4 +90,22 @@ bool transaction_pool::contains(string const& key) const
     return m_pimpl->m_transactions.as_const().contains(key);
 }
 
+uint64_t transaction_pool::get_fraction()
+{
+    uint64_t fraction = 0;
+
+    auto keys = m_pimpl->m_transactions.keys();
+
+    for (auto key : keys)
+    {
+        SignedTransaction signed_transaction = m_pimpl->m_transactions.as_const().at(key);
+
+        Coin fee = signed_transaction.transaction_details.fee;
+
+        fraction += fee.fraction;
+    }
+
+    return fraction;
+}
+
 }

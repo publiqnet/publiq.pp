@@ -185,6 +185,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
 
         // Validate and add to state
         m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
+        //m_pimpl->m_state.apply_transfer(transfer, Coin());
 
         // Add to the pool
         m_pimpl->m_transaction_pool.insert(signed_transaction);
@@ -196,7 +197,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
     }
 
     // test
-    m_pimpl->m_state.check_balance();
+    m_pimpl->check_balance();
 }
 
 void broadcast(beltpp::packet& package_broadcast,

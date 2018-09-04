@@ -253,6 +253,17 @@ public:
         m_transaction_pool.discard();
     }
 
+    void check_balance()
+    {
+        uint64_t fraction = 0;
+        
+        fraction += m_state.get_fraction();
+        fraction += m_transaction_pool.get_fraction();
+
+        if (fraction != 0 && fraction != 100000000)
+            throw std::runtime_error("We arrive. Check balance!");
+    }
+
     std::vector<beltpp::isocket::peer_id> do_step()
     {
         vector<beltpp::isocket::peer_id> result;

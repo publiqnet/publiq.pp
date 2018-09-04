@@ -344,7 +344,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->save(guard);
 
     // test
-    m_pimpl->m_state.check_balance();
+    m_pimpl->check_balance();
 }
 
 void process_blockheader_request(beltpp::packet& package,
@@ -782,7 +782,7 @@ void process_blockchain_response(beltpp::packet& package,
     m_pimpl->save(guard);
 
     // test
-    m_pimpl->m_state.check_balance();
+    m_pimpl->check_balance();
 
     // request new chain if the process was stopped
     // by BLOCK_INSERT_LENGTH restriction

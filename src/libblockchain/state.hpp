@@ -30,7 +30,7 @@ public:
 
     // for test only
     void apply_reward(BlockchainMessage::Reward const& reward);
-    void check_balance();
+    uint64_t get_fraction();
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
 };
