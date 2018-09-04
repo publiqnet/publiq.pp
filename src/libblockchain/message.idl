@@ -30,7 +30,7 @@ module BlockchainMessage
         Coin amount
     }
 
-    class File
+    class TigranFile
     {
         String author
         String uri
