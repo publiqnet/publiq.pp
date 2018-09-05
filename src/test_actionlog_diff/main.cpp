@@ -88,27 +88,18 @@ int main( int argc, char** argv )
     auto it2 = logged_transactions2.actions.begin();
     for ( ; it2 != logged_transactions2.actions.end() && it1 != logged_transactions1.actions.end(); it1++, it2++ )
     {
-//        if ( *it1 != *it2 )
-//        {
-//         std::cout << "not smae" << std::endl;
-//         return 0;
-//        }
-        if ( it1->applied_reverted != it2->applied_reverted )
-        {
-            std::cout << "applied_reverted" << std::endl;
-            return 0;
-        }
-        if ( it1->index != it2->index )
-        {
-            std::cout << "index" << std::endl;
-            return 0;
-        }
-        if ( it1->action.to_string() != it2->action.to_string() )
-        {
-            std::cout << "action.to_string()" << std::endl;
-            return 0;
-        }
 
+        if ( it1->applied_reverted != it2->applied_reverted || it1->index != it2->index || it1->action.to_string() != it2->action.to_string())
+        {
+
+            std::cout << "\t\t\t    Difference\n" << std::endl;
+            std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~First~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+            std::cout << "{\"rtt\":" << it1->rtt << ",\"applied_reverted\":" << it1->applied_reverted << ",\"index\":" << it1->index << ",\"action\": " << it1->action.to_string() << "}" << std::endl;
+            std::cout << "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Second~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" <<std::endl;
+            std::cout << "{\"rtt\":" << it2->rtt << ",\"applied_reverted\":" << it2->applied_reverted << ",\"index\":" << it1->index << ",\"action\": " << it2->action.to_string() << "}" << std::endl;
+            std::cout << std::endl;
+            return 0;
+        }
     }
 
     if ( it1 != logged_transactions1.actions.end() || it2 != logged_transactions2.actions.end() )
@@ -134,7 +125,7 @@ void Send(beltpp::packet&& send_package,
           peer_id peerid,
           beltpp::event_handler& eh)
 {
-   cout << endl << "Request -> " << send_package.to_string() << endl;
+//   cout << endl << "Request -> " << send_package.to_string() << endl;
    sk.send(peerid, std::move(send_package));
    while (true)
    {
@@ -175,7 +166,7 @@ void Send(beltpp::packet&& send_package,
 
        break;
    }
-   cout << endl << "Response <- " << endl << receive_package.to_string() << endl;
+//   cout << endl << "Response <- " << endl << receive_package.to_string() << endl;
 }
 
 peer_id Connect(beltpp::ip_address const& open_address,
@@ -188,7 +179,7 @@ peer_id Connect(beltpp::ip_address const& open_address,
     beltpp::isocket::packets packets;
     std::unordered_set<beltpp::ievent_item const*> set_items;
 
-    while(true)
+    while (true)
     {
 
         if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
