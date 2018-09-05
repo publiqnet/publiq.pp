@@ -7,12 +7,10 @@
 #include <iostream>
 #include <chrono>
 #include <string>
+#include <sstream>
 
-using std::cout;
-using std::endl;
-namespace chrono = std::chrono;
-using std::chrono::steady_clock;
-using std::string;
+using namespace std;
+using chrono::steady_clock;
 
 template <class T>
 struct modem
