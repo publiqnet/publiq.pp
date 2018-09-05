@@ -255,6 +255,9 @@ public:
 
     void check_balance()
     {
+        if (timer_count % 100 != 0)
+            return;
+
         uint64_t fraction = 0;
         
         fraction += m_state.get_fraction();

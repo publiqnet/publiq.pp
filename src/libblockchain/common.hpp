@@ -23,7 +23,7 @@
 #define PACKET_EXPIRY_STEPS 10
 
 // Block maximum transactions count
-#define BLOCK_MAX_TRANSACTIONS 200
+#define BLOCK_MAX_TRANSACTIONS 500
 
 // Timers
 #define CHECK_TIMER 1
