@@ -87,10 +87,8 @@ void state::increase_balance(string const& key, coin const& amount)
 
     if (m_pimpl->m_accounts.contains(key))
     {
-        coin balance = m_pimpl->m_accounts.at(key);
-        balance += amount;
-        //balance is a refference
-        //m_pimpl->m_accounts.at(key) = balance.to_Coin();
+        Coin& balance = m_pimpl->m_accounts.at(key);
+        balance = (balance + amount).to_Coin();
     }
     else
         m_pimpl->m_accounts.insert(key, amount.to_Coin());
@@ -104,17 +102,18 @@ void state::decrease_balance(string const& key, coin const& amount)
     if (!m_pimpl->m_accounts.contains(key))
         throw low_balance_exception(key);
 
-    coin balance = m_pimpl->m_accounts.at(key);
+    Coin balance = m_pimpl->m_accounts.at(key);
+    coin _balance = balance;
 
-    if (balance < amount)
+    if (_balance < amount)
         throw low_balance_exception(key);
 
-    balance -= amount;
+    _balance -= amount;
 
-    if (balance.empty())
+    if (_balance.empty())
         m_pimpl->m_accounts.erase(key);
-    //else//balance is a refference
-    //    m_pimpl->m_accounts.at(key) = balance.to_Coin();
+    else
+        balance = _balance.to_Coin();
 }
 
 uint64_t state::get_fraction()
