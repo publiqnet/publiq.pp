@@ -1,5 +1,6 @@
 #include "generator.hpp"
 #include "boost/filesystem.hpp"
+#include <boost/filesystem/fstream.hpp>
 #include <cassert>
 #include <vector>
 #include <unordered_map>
@@ -118,9 +119,11 @@ void analyze(   state_holder& state,
                 std::string const& outputFilePath)
 {
 boost::filesystem::path root = outputFilePath;
+boost::filesystem::create_directory( root );
 
 /////////////////////////// create BaseModel file //////////////////////////////////
-boost::filesystem::ofstream mapper( root.string() + "/" + "mapper.ts" );
+boost::filesystem::path mapperPath= root.string() + "/" + "mapper.ts";
+boost::filesystem::ofstream mapper( mapperPath );
 mapper << R"file_template(import MODELS_TYPES from './ModelTypes';
 
 export const parceToModel = jsonData => {
@@ -138,7 +141,8 @@ export const parceToJson = typedData => {
 )file_template";
 
 /////////////////////////// create BaseModel file //////////////////////////////////
-boost::filesystem::ofstream BaseModel( root.string() + "/" + "BaseModel.ts" );
+boost::filesystem::path baseMoselPath = root.string() + "/" + "BaseModel.ts" ;
+boost::filesystem::ofstream BaseModel( baseMoselPath );
 
 BaseModel << R"file_template(import MODELS_TYPES from './ModelTypes';
 
@@ -258,7 +262,8 @@ BaseModel << R"file_template(import MODELS_TYPES from './ModelTypes';
     }
 
     /////////////////////////// create ModelTypes file //////////////////////////////////
-    boost::filesystem::ofstream ModelTypes( root.string() + "/" + "ModelTypes.ts" );
+    boost::filesystem::path modelTypesPath = root.string() + "/" + "ModelTypes.ts" ;
+    boost::filesystem::ofstream ModelTypes( modelTypesPath );
 
     for (size_t index = 0; index < max_rtt + 1; ++index)
     {
