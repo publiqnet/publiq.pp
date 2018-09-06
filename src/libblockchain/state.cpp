@@ -102,18 +102,15 @@ void state::decrease_balance(string const& key, coin const& amount)
     if (!m_pimpl->m_accounts.contains(key))
         throw low_balance_exception(key);
 
-    Coin balance = m_pimpl->m_accounts.at(key);
-    coin _balance = balance;
+    Coin& balance = m_pimpl->m_accounts.at(key);
 
-    if (_balance < amount)
+    if (coin(balance) < amount)
         throw low_balance_exception(key);
 
-    _balance -= amount;
+    balance = coin(balance - amount).to_Coin();
 
-    if (_balance.empty())
+    if (coin(balance).empty())
         m_pimpl->m_accounts.erase(key);
-    else
-        balance = _balance.to_Coin();
 }
 
 uint64_t state::get_fraction()
