@@ -36,9 +36,6 @@ public:
     void remove(std::string const& key);
     void get_keys(std::vector<std::string> &keys) const;
 
-    // for test only
-    uint64_t get_fraction();
-
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };

@@ -121,7 +121,7 @@ uint64_t state::get_fraction()
 
     for (auto key : keys)
     {
-        Coin balance = m_pimpl->m_accounts.at(key);
+        Coin balance = m_pimpl->m_accounts.as_const().at(key);
         fraction += balance.fraction;
     }
 

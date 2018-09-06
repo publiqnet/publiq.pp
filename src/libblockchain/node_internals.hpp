@@ -255,13 +255,10 @@ public:
 
     void check_balance()
     {
-        if (timer_count % 100 != 0)
+        if (timer_count % 10 != 0)
             return;
 
-        uint64_t fraction = 0;
-        
-        fraction += m_state.get_fraction();
-        fraction += m_transaction_pool.get_fraction();
+        uint64_t fraction = m_state.get_fraction();
 
         if (fraction != 0 && fraction != 100000000)
             throw std::runtime_error("We arrive. Check balance!");
