@@ -572,7 +572,7 @@ bool node::run()
                 system_clock::time_point previous_time_point = system_clock::from_time_t(header.sign_time.tm);
                 chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
 
-                if (diff_seconds.count() >= BLOCK_MINE_DELAY && m_pimpl->timer_count > 10)
+                if (diff_seconds.count() >= BLOCK_MINE_DELAY && m_pimpl->timer_count > 2)
                 {
                     coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
 
@@ -582,11 +582,9 @@ bool node::run()
                         m_pimpl->m_miner = true;
                     }
                 }
-            }
 
-            if (m_pimpl->m_sync_timer.expired())
-            {
-                m_pimpl->new_sync_request();
+                if (m_pimpl->m_sync_timer.expired())
+                    m_pimpl->new_sync_request();
             }
         }
         else if (m_pimpl->sync_timeout()) // sync process step takes too long time
