@@ -61,8 +61,12 @@ void state::apply_transfer(Transfer const& transfer, Coin const& fee)
     if (coin(transfer.amount).empty())
         throw std::runtime_error("0 amount transfer is not allowed!");
 
+    Coin balance = get_balance(transfer.from);
+    if (coin(balance) < transfer.amount + fee)
+        throw low_balance_exception(transfer.from);
+
     // decrease "from" balance
-    decrease_balance(transfer.from, transfer.amount + fee);
+    decrease_balance(transfer.from, transfer.amount);
     
     // increase "to" balance
     increase_balance(transfer.to, transfer.amount);
@@ -83,9 +87,8 @@ void state::increase_balance(string const& key, coin const& amount)
 
     if (m_pimpl->m_accounts.contains(key))
     {
-        coin balance = m_pimpl->m_accounts.at(key);
-        balance += amount;
-        m_pimpl->m_accounts.at(key) = balance.to_Coin();
+        Coin& balance = m_pimpl->m_accounts.at(key);
+        balance = (balance + amount).to_Coin();
     }
     else
         m_pimpl->m_accounts.insert(key, amount.to_Coin());
@@ -99,17 +102,18 @@ void state::decrease_balance(string const& key, coin const& amount)
     if (!m_pimpl->m_accounts.contains(key))
         throw low_balance_exception(key);
 
-    coin balance = m_pimpl->m_accounts.at(key);
+    Coin balance = m_pimpl->m_accounts.at(key);
+    coin _balance = balance;
 
-    if (balance < amount)
+    if (_balance < amount)
         throw low_balance_exception(key);
 
-    balance -= amount;
+    _balance -= amount;
 
-    if (balance.empty())
+    if (_balance.empty())
         m_pimpl->m_accounts.erase(key);
     else
-        m_pimpl->m_accounts.at(key) = balance.to_Coin();
+        balance = _balance.to_Coin();
 }
 
 uint64_t state::get_fraction()
