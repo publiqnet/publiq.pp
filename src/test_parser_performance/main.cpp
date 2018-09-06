@@ -20,7 +20,7 @@ namespace chrono = std::chrono;
 using std::chrono::steady_clock;
 using std::string;
 
-int main(int argc, char** argv)
+int main()
 {
     std::ifstream fl("/path/to/blockchain.9771");
     std::istreambuf_iterator<char> begin(fl), end;
