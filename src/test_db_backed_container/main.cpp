@@ -12,12 +12,20 @@
 using namespace std;
 using chrono::steady_clock;
 
-template <class T>
+template <typename T>
 struct modem
 {
-    string serialize(T const& v) const { stringstream ss; ss << v; return ss.str(); }
-    T deserialize(string const& s) const { T v; stringstream ss(s); ss >> v; return v; }
+    string serialize(T const& v) const { std::stringstream ss; ss << v; return ss.str(); }
+    T deserialize(string const& s) const { T v; std::stringstream ss(s); ss >> v; return v; }
 };
+
+template <>
+struct modem<string>
+{
+    string serialize(string const& v) const { return v; }
+    string deserialize(string const& s) const { return s; }
+};
+
 
 #define TEST_WRITE
 
@@ -40,32 +48,68 @@ int main(int argc, char** argv)
         cout << "index from: " << index_from << endl;
         cout << "index to: " << index_to << endl;
 
-        auto tp_start = steady_clock::now();
-
-        meshpp::db_loader<string, modem<string>> actions(path, "actions");
-
-        for (size_t index = index_from; index < index_to; ++index)
+        //db_vector
         {
+            auto tp_start = steady_clock::now();
+
+            meshpp::db_vector<string, modem> actions(path, "vector_test");
+
+            for (size_t index = index_from; index < index_to; ++index)
+            {
 #ifdef TEST_WRITE
-            actions.push_back(to_string(index));
-            actions.save();
-            actions.commit();
+                actions.push_back(std::to_string(index));
+                actions.save();
+                actions.commit();
 #else
-            try
-            {
-                auto s = actions.as_const().at(index) ;
-            }
-            catch(std::exception const& e)
-            {
-                cout << "exception: " << e.what() << endl;
-            }
+                try
+                {
+                    auto s = actions.as_const().at(index) ;
+                }
+                catch(std::exception const& e)
+                {
+                    cout << "exception: " << e.what() << endl;
+                }
 #endif
+            }
+
+            auto duration = steady_clock::now() - tp_start;
+            cout<<endl;
+            auto  ms_duration = chrono::duration_cast<chrono::milliseconds>(duration);
+            cout << ms_duration.count() << " ms" << endl;
         }
 
-        auto duration = steady_clock::now() - tp_start;
-        cout<<endl;
-        auto  ms_duration = chrono::duration_cast<chrono::milliseconds>(duration);
-        cout << ms_duration.count() << " ms" << endl;
+        // db_map
+        {
+            auto tp_start = steady_clock::now();
+
+            meshpp::db_map<size_t, string, modem> actions(path, "map_test");
+
+            for (size_t index = index_from; index < index_to; ++index)
+            {
+#ifdef TEST_WRITE
+                actions.insert(index, std::to_string(index));
+                actions.save();
+                actions.commit();
+#else
+                try
+                {
+                    auto s = actions.as_const().at(index);
+                    if(index % 1001 == 0)
+                        cout << s;
+                }
+                catch(std::exception const& e)
+                {
+                    cout << "exception: " << e.what() << endl;
+                }
+#endif
+            }
+
+            auto duration = steady_clock::now() - tp_start;
+            cout<<endl;
+            auto  ms_duration = chrono::duration_cast<chrono::milliseconds>(duration);
+            cout << ms_duration.count() << " ms" << endl;
+        }
+
     }
     catch(std::exception const& e)
     {
