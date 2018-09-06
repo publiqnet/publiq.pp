@@ -6,8 +6,8 @@
 #include <unordered_set>
 #include <exception>
 #include <utility>
-#include<iostream>
-#include<string>
+#include <iostream>
+#include <string>
 
 using std::cout;
 using std::endl;
@@ -118,7 +118,9 @@ void analyze(   state_holder& state,
                 std::string const& outputFilePath)
 {
 boost::filesystem::path root = outputFilePath;
-
+B_UNUSED(pexpression);
+B_UNUSED(state);
+/*
 /////////////////////////// create BaseModel file //////////////////////////////////
 boost::filesystem::ofstream mapper( root.string() + "/" + "mapper.ts" );
 mapper << R"file_template(import MODELS_TYPES from './ModelTypes';
@@ -277,7 +279,7 @@ BaseModel << R"file_template(import MODELS_TYPES from './ModelTypes';
     }
     ModelTypes << "];";
     ModelTypes << "\n\n\nexport default MODELS_TYPES;";
-
+*/
 }
 
 void analyze_struct(state_holder& state,
@@ -395,24 +397,24 @@ void analyze_struct(state_holder& state,
 
     /////////////////////////// create model files //////////////////////////////////
     boost::filesystem::path root = outputFilePath;
-    string models = "models";
-    root.append( models );
-    boost::filesystem::create_directory( root );
-    boost::filesystem::path FilePath = root.string() + "/" + type_name + ".ts";
-    boost::filesystem::ofstream model( FilePath );
-    model << import;
-    model << "\nexport default class " + type_name + " extends BaseModel\n";
-    model << "{\n";
-    model << params;
-    model << "\n";
-    model << "    constructor(data) { \n";
-    model << "        super();\n";
-    model << constructor;
-    model << "    }\n\n";
-    model << "    static get PropertyMap () {\n";
-    model << "        return {\n";
-    model << memberNamesMap;
-    model << "        }\n";
-    model << "    }\n";
-    model << "} \n";
+//    string models = "models";
+//    root.append( models );
+//    boost::filesystem::create_directory( root );
+//    boost::filesystem::path FilePath = root.string() + "/" + type_name + ".ts";
+//    boost::filesystem::ofstream model( FilePath );
+//    model << import;
+//    model << "\nexport default class " + type_name + " extends BaseModel\n";
+//    model << "{\n";
+//    model << params;
+//    model << "\n";
+//    model << "    constructor(data) { \n";
+//    model << "        super();\n";
+//    model << constructor;
+//    model << "    }\n\n";
+//    model << "    static get PropertyMap () {\n";
+//    model << "        return {\n";
+//    model << memberNamesMap;
+//    model << "        }\n";
+//    model << "    }\n";
+//    model << "} \n";
 }
