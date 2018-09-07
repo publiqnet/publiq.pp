@@ -615,8 +615,13 @@ void process_blockchain_response(beltpp::packet& package,
         if (!meshpp::verify_signature(meshpp::public_key(block_it->authority), str, block_it->signature))
             throw wrong_data_exception("blockchain response. block signature!");
 
-        if (*(header_it - 1) != block.header || header_it->prev_hash != meshpp::hash(str))
-            throw wrong_data_exception("blockchain response. block header!");
+        if (header_it != m_pimpl->sync_headers.rend())
+        {
+            if (*(header_it - 1) != block.header || header_it->prev_hash != meshpp::hash(str))
+                throw wrong_data_exception("blockchain response. block header!");
+
+            ++header_it;
+        }
 
         // verify block rewards
         if (check_rewards(block, block_it->authority))
@@ -649,8 +654,6 @@ void process_blockchain_response(beltpp::packet& package,
             if (expiry < system_clock::from_time_t(block.header.sign_time.tm))
                 throw wrong_data_exception("blockchain response. expired transaction!");
         }
-
-        ++header_it;
 
         // store blocks for future use
         m_pimpl->sync_blocks.push_back(std::move(*block_it));
