@@ -1,6 +1,8 @@
 #include "generator.hpp"
+
 #include "boost/filesystem.hpp"
 #include <boost/filesystem/fstream.hpp>
+
 #include <cassert>
 #include <vector>
 #include <unordered_map>
@@ -124,6 +126,7 @@ boost::filesystem::create_directory( root );
 /////////////////////////// create BaseModel file //////////////////////////////////
 boost::filesystem::path mapperPath= root.string() + "/" + "mapper.ts";
 boost::filesystem::ofstream mapper( mapperPath );
+
 mapper << R"file_template(import MODELS_TYPES from './ModelTypes';
 
 export const parceToModel = jsonData => {
@@ -146,77 +149,76 @@ boost::filesystem::ofstream BaseModel( baseMoselPath );
 
 BaseModel << R"file_template(import MODELS_TYPES from './ModelTypes';
 
- export default class BaseModel {
+export default class BaseModel {
 
-     static createInstanceFromJson (data) {
-         const ModelClass = MODELS_TYPES[data.rtt];
-         if(!ModelClass){
-             throw new Error("invalid model class");
-         }
-         return new ModelClass(data);
-     }
+    static createInstanceFromJson (data) {
+        const ModelClass = MODELS_TYPES[data.rtt];
+        if(!ModelClass){
+            throw new Error("invalid model class");
+        }
+        return new ModelClass(data);
+    }
 
-     static get PropertyMap () {
-         return {}
-     }
+    static get PropertyMap () {
+        return {}
+    }
 
-     static setProperty (propertyName, propertyValue, toObject, constructor) {
-         const PropertyMap = constructor.PropertyMap || BaseModel.PropertyMap;
-         const pn = PropertyMap[propertyName] || propertyName;
-         toObject[pn] = propertyValue;
-     }
+    static setProperty (propertyName, propertyValue, toObject, constructor) {
+        const PropertyMap = constructor.PropertyMap || BaseModel.PropertyMap;
+        const pn = PropertyMap[propertyName] || propertyName;
+        toObject[pn] = propertyValue;
+    }
 
-     static hasRtt (type) {
-         const rtt = BaseModel.getRtt(type);
-         if(rtt === -1){
-             return false
-         }
-         return true
-     }
+    static hasRtt (type) {
+        const rtt = BaseModel.getRtt(type);
+        if(rtt === -1){
+            return false
+        }
+        return true
+    }
 
-     static getRtt (type) {
-         return MODELS_TYPES.indexOf(type);
-     }
+    static getRtt (type) {
+        return MODELS_TYPES.indexOf(type);
+    }
 
-     static getDataWithRtt(data) {
+    static getDataWithRtt(data) {
 
-         let dataWithRtt = {};
+        let dataWithRtt = {};
 
-         for (let i in data) {
-             const pv = data[i];
-             const constructor = pv.constructor;
-             let propertySetValue;
+        for (let i in data) {
+            const pv = data[i];
+            const constructor = pv.constructor;
+            let propertySetValue;
 
-             if(constructor === Function){
-                 continue;
+            if(constructor === Function){
+                continue;
 
-             } else if (constructor === Array){
-                 propertySetValue = data[i].map(d => BaseModel.getDataWithRtt(d));
+            } else if (constructor === Array){
+                propertySetValue = data[i].map(d => BaseModel.getDataWithRtt(d));
 
-             } else if(BaseModel.hasRtt(constructor)){
-                 propertySetValue = BaseModel.getDataWithRtt(data[i]);
+            } else if(BaseModel.hasRtt(constructor)){
+                propertySetValue = BaseModel.getDataWithRtt(data[i]);
 
-             } else {
-                 propertySetValue = data[i];
+            } else {
+                propertySetValue = data[i];
 
-             }
+            }
 
-             BaseModel.setProperty(i, propertySetValue, dataWithRtt, data.constructor);
-         }
+            BaseModel.setProperty(i, propertySetValue, dataWithRtt, data.constructor);
+        }
 
-         if(BaseModel.hasRtt(data.constructor)){
-             dataWithRtt['rtt'] =  BaseModel.getRtt(data.constructor);
-         }
+        if(BaseModel.hasRtt(data.constructor)){
+            dataWithRtt['rtt'] =  BaseModel.getRtt(data.constructor);
+        }
 
-         return dataWithRtt;
-     }
+        return dataWithRtt;
+    }
 
+    toJson() {
+        return BaseModel.getDataWithRtt(this)
+    }
 
-     toJson() {
-         return BaseModel.getDataWithRtt(this)
-     }
-
- }
+}
 )file_template";
 
     size_t rtt = 0;
@@ -260,7 +262,6 @@ BaseModel << R"file_template(import MODELS_TYPES from './ModelTypes';
         if (max_rtt < class_item.first)
             max_rtt = class_item.first;
     }
-
     /////////////////////////// create ModelTypes file //////////////////////////////////
     boost::filesystem::path modelTypesPath = root.string() + "/" + "ModelTypes.ts" ;
     boost::filesystem::ofstream ModelTypes( modelTypesPath );
@@ -285,10 +286,10 @@ BaseModel << R"file_template(import MODELS_TYPES from './ModelTypes';
 
 }
 
-void analyze_struct(state_holder& state,
-                      expression_tree const* pexpression,
-                      string const& type_name,
-                      std::string const& outputFilePath)
+void analyze_struct(    state_holder& state,
+                        expression_tree const* pexpression,
+                        string const& type_name,
+                        std::string const& outputFilePath)
 {
     if (state.namespace_name.empty())
         throw runtime_error("please specify package name");
@@ -331,6 +332,7 @@ void analyze_struct(state_holder& state,
         construct_type_name(member_type, state, type_detail, info);
         string camelCaseMemberName = transformString( member_name.value );
         memberNamesMap += "            " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
+
         /////////////////////////// array of non primitive types ///////////////////
         if ( info[0] == "array" && info[1] != "number" && info[1] != "String" && info[1] != "boolean" && info[1] != "::beltpp::packet" )
         {
@@ -343,7 +345,6 @@ void analyze_struct(state_holder& state,
             constructor +=
                         "        this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
         }
-
         ////////////////////// array of Objects ///////////////////////
         else if ( info[0] == "array" && info[1] == "::beltpp::packet" )
         {
@@ -351,7 +352,7 @@ void analyze_struct(state_holder& state,
                     "    " + camelCaseMemberName + ": Array<Object>;\n";
             constructor +=
                         "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
-        }
+        }      
         ////////////////////// array of primitive types /////////////////////
         else if ( info[0] == "array" && ( info[1] == "number" || info[1] == "String" || info[1] == "boolean" ) )
         {
@@ -360,8 +361,6 @@ void analyze_struct(state_holder& state,
             constructor +=
                         "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }
-
-
         ///////////////////////// non primitive type /////////////////////////
         else if ( info[0] != "number" && info[0] != "string" && info[0] != "boolean" && info[0] != "::beltpp::packet" )
         {
@@ -374,9 +373,7 @@ void analyze_struct(state_holder& state,
 
             constructor +=
                         "        this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + ");\n";
-
         }
-
         /////////////////////////// object type ///////////////////////////////
         else if ( info[0] == "::beltpp::packet")
         {
@@ -386,7 +383,6 @@ void analyze_struct(state_holder& state,
                         "        this." + camelCaseMemberName + " = BaseModel.createInstanceFromJson(data." + member_name.value + ");\n";
 
         }
-
         /////////////////////////// primitive type ///////////////////////////
         else if ( info[0] == "number" || info[0] == "string" || info[0] == "boolean" )
         {
@@ -394,10 +390,8 @@ void analyze_struct(state_holder& state,
                     "    " + camelCaseMemberName + ": " + info[0] + ";\n";
             constructor +=
                         "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
-
         }
     }
-
     /////////////////////////// create model files //////////////////////////////////
     boost::filesystem::path root = outputFilePath;
     string models = "models";

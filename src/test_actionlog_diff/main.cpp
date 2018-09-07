@@ -88,7 +88,6 @@ int main( int argc, char** argv )
     auto it2 = logged_transactions2.actions.begin();
     for ( ; it2 != logged_transactions2.actions.end() && it1 != logged_transactions1.actions.end(); it1++, it2++ )
     {
-
         if ( it1->applied_reverted != it2->applied_reverted || it1->index != it2->index || it1->action.to_string() != it2->action.to_string())
         {
 
@@ -96,7 +95,7 @@ int main( int argc, char** argv )
             std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~First~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
             std::cout << "{\"rtt\":" << it1->rtt << ",\"applied_reverted\":" << it1->applied_reverted << ",\"index\":" << it1->index << ",\"action\": " << it1->action.to_string() << "}" << std::endl;
             std::cout << "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Second~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" <<std::endl;
-            std::cout << "{\"rtt\":" << it2->rtt << ",\"applied_reverted\":" << it2->applied_reverted << ",\"index\":" << it1->index << ",\"action\": " << it2->action.to_string() << "}" << std::endl;
+            std::cout << "{\"rtt\":" << it2->rtt << ",\"applied_reverted\":" << it2->applied_reverted << ",\"index\":" << it2->index << ",\"action\": " << it2->action.to_string() << "}" << std::endl;
             std::cout << std::endl;
             return 0;
         }
