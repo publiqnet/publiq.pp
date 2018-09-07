@@ -342,14 +342,12 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->check_balance();
 }
 
-void process_blockheader_request(beltpp::packet& package,
+void process_blockheader_request(BlockHeaderRequest const& header_request,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid)
 {
     // headers always requested in reverse order!
-    BlockHeaderRequest header_request;
-    std::move(package).get(header_request);
 
     uint64_t from = m_pimpl->m_blockchain.length() - 1;
     from = from < header_request.blocks_from ? from : header_request.blocks_from;
@@ -370,7 +368,7 @@ void process_blockheader_request(beltpp::packet& package,
     sk.send(peerid, header_response);
 }
 
-void process_blockheader_response(beltpp::packet& package,
+void process_blockheader_response(BlockHeaderResponse const& header_response,
                                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                   beltpp::isocket& sk,
                                   beltpp::isocket::peer_id const& peerid)
@@ -378,9 +376,6 @@ void process_blockheader_response(beltpp::packet& package,
     // find needed header from own data
     BlockHeader tmp_header;
     m_pimpl->m_blockchain.header(tmp_header);
-
-    BlockHeaderResponse header_response;
-    std::move(package).get(header_response);
 
     // validate received headers
     if (header_response.block_headers.empty())
@@ -543,14 +538,12 @@ void process_blockheader_response(beltpp::packet& package,
     }
 }
 
-void process_blockchain_request(beltpp::packet& package,
+void process_blockchain_request(BlockChainRequest const& blockchain_request,
                                 std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                 beltpp::isocket& sk,
                                 beltpp::isocket::peer_id const& peerid)
 {
     // blocks are always requested in regular order
-    BlockChainRequest blockchain_request;
-    std::move(package).get(blockchain_request);
 
     uint64_t number = m_pimpl->m_blockchain.length() - 1;
     uint64_t from = number < blockchain_request.blocks_from ? number : blockchain_request.blocks_from;
@@ -572,14 +565,12 @@ void process_blockchain_request(beltpp::packet& package,
     sk.send(peerid, chain_response);
 }
 
-void process_blockchain_response(beltpp::packet& package,
+void process_blockchain_response(BlockChainResponse const& response,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid)
 {
     //1. check received blockchain validity
-    BlockChainResponse response;
-    std::move(package).get(response);
 
     if (response.signed_blocks.empty())
         throw wrong_data_exception("blockchain response. empty response received!");

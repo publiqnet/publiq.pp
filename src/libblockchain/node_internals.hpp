@@ -88,7 +88,7 @@ public:
                                ))
         , m_sync_timer()
         , m_check_timer()
-
+        , m_summary_report_timer()
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
         , m_storage(fs_storage)
@@ -98,6 +98,7 @@ public:
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
+        m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
         m_ptr_rpc_socket->listen(rpc_bind_to_address);
@@ -106,28 +107,22 @@ public:
         m_ptr_eh->add(*m_ptr_p2p_socket);
     }
 
-    void write_p2p(string const& value)
-    {
-        if (plogger_p2p)
-            plogger_p2p->message_no_eol(value);
-    }
-
     void writeln_p2p(string const& value)
     {
         if (plogger_p2p)
             plogger_p2p->message(value);
     }
 
-    void write_node(string const& value)
-    {
-        if (plogger_node)
-            plogger_node->message_no_eol(value);
-    }
-
     void writeln_node(string const& value)
     {
         if (plogger_node)
             plogger_node->message(value);
+    }
+
+    void writeln_node_warning(string const& value)
+    {
+        if (plogger_node)
+            plogger_node->warning(value);
     }
 
     void add_peer(socket::peer_id const& peerid)
@@ -290,6 +285,7 @@ public:
 
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
+    beltpp::timer m_summary_report_timer;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;

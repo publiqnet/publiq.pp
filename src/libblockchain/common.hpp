@@ -29,6 +29,7 @@
 #define CHECK_TIMER 1
 #define SYNC_TIMER  15
 #define EVENT_TIMER 30
+#define SUMMARY_REPORT_TIMER 300
 
 // Transaction maximum lifetime in seconds
 #define TRANSACTION_LIFETIME 86400

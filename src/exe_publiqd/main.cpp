@@ -2,6 +2,7 @@
 
 #include "pid.hpp"
 
+#include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>
 
 #include <mesh.pp/fileutility.hpp>
@@ -167,6 +168,8 @@ int main(int argc, char** argv)
     ::sigaction(SIGTERM, &signal_handler, nullptr);
 #endif
 
+    beltpp::ilog_ptr plogger_exceptions = beltpp::t_unique_nullptr<beltpp::ilog>();
+
     try
     {
         settings::create_config_directory();
@@ -191,17 +194,19 @@ int main(int argc, char** argv)
         auto fs_storage = settings::data_directory_path("storage");
         auto fs_transaction_pool = settings::data_directory_path("transaction_pool");
         auto fs_state = settings::data_directory_path("state");
-        //auto fs_logfile = fs_storage / "log.txt";
+        auto fs_log = settings::data_directory_path("log");
 
         cout << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
             cout << item.to_string() << endl;
 
         //beltpp::ilog_ptr plogger_p2p = beltpp::file_logger("exe_publiqd_p2p", fs_logfile.native());
-        beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p");
+        beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p", false);
         plogger_p2p->disable();
-        beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc");
+        beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc", true);
         //plogger_rpc->disable();
+        plogger_exceptions = beltpp::file_logger("exe_publiqd_exceptions",
+                                                 (fs_log / "exceptions.txt").native());
 
         //__debugbreak();
 
@@ -234,12 +239,24 @@ int main(int argc, char** argv)
             if (g_termination_handled)
                 break;
             }
+            catch (std::bad_alloc const& ex)
+            {
+                if (plogger_exceptions)
+                    plogger_exceptions->message(ex.what());
+                cout << "exception cought: " << ex.what() << endl;
+                cout << "will exit now" << endl;
+                break;
+            }
             catch (std::exception const& ex)
             {
+                if (plogger_exceptions)
+                    plogger_exceptions->message(ex.what());
                 cout << "exception cought: " << ex.what() << endl;
             }
             catch (...)
             {
+                if (plogger_exceptions)
+                    plogger_exceptions->message("always throw std::exceptions, will exit now");
                 cout << "always throw std::exceptions, will exit now" << endl;
                 break;
             }
@@ -251,10 +268,14 @@ int main(int argc, char** argv)
     }
     catch (std::exception const& ex)
     {
+        if (plogger_exceptions)
+            plogger_exceptions->message(ex.what());
         cout << "exception cought: " << ex.what() << endl;
     }
     catch (...)
     {
+        if (plogger_exceptions)
+            plogger_exceptions->message("always throw std::exceptions");
         cout << "always throw std::exceptions" << endl;
     }
     return 0;

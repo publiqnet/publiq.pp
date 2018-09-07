@@ -103,6 +103,34 @@ bool node::run()
 
     enum class interface_type {p2p, rpc};
 
+    auto str_peerid = [](string const& peerid) -> string
+    {
+        if (peerid == "PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
+            return "$tigran(0)";
+        if (peerid == "PBQ8gyokoWdo9tSLcDQQjxdhYgmmnScUPT6YDCaVVoeSFRz1zkGpv")
+            return "$tigran(1)";
+        if (peerid == "PBQ5LNw1peEL8ZRDEw6ukndHpaob8A43dsh2beYg9cwocHm5r3tPR")
+            return "$tigran(2)";
+        if (peerid == "PBQ5pFSs7NKc26b3gpeFN17oGYkn3vFEuf8sA4HhZQsF9MfRrXShC")
+            return "$tigran(3)";
+        if (peerid == "PBQ5Nd79pnM2X6E8NTPPwMXBrX8XigztwU3L51ALPSVBQH2L8tiZw")
+            return "$tigran(4)";
+        if (peerid == "PBQ4te6LkpCnsu9DyoRUZpmhMypbMwqrpofUWvRgGanY8c2vYciwz")
+            return "$tigran(5)";
+        if (peerid == "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu")
+            return "$armen(0)";
+        if (peerid == "PBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
+            return "$armen(1)";
+        if (peerid == "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
+            return "$sona";
+        if (peerid == "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
+            return "$gagik";
+        if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
+            return "$north.publiq.network:12222";
+
+        return peerid;
+    };
+
     if (wait_result == beltpp::event_handler::event)
     {
         for (auto& pevent_item : wait_sockets)
@@ -119,15 +147,6 @@ bool node::run()
                     return "rpc_sk.receive";
             };
             str_receive();
-
-            auto str_peerid = [it](string const& peerid)
-            {
-                B_UNUSED(it);
-                /*if (it == interface_type::p2p)
-                    return peerid.substr(0, 5);
-                else*/
-                return peerid;
-            };
 
             beltpp::socket::peer_id peerid;
 
@@ -168,8 +187,7 @@ bool node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    m_pimpl->write_node(str_peerid(peerid));
-                    m_pimpl->writeln_node("joined");
+                    m_pimpl->writeln_node("joined: " + str_peerid(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -184,8 +202,7 @@ bool node::run()
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    m_pimpl->write_node(str_peerid(peerid));
-                    m_pimpl->writeln_node("dropped");
+                    m_pimpl->writeln_node("dropped: " + str_peerid(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                         m_pimpl->remove_peer(peerid);
@@ -196,8 +213,7 @@ bool node::run()
                 {
                     beltpp::isocket_protocol_error msg;
                     ref_packet.get(msg);
-                    m_pimpl->write_node(str_peerid(peerid));
-                    m_pimpl->writeln_node("protocol error");
+                    m_pimpl->writeln_node("protocol error: " + str_peerid(peerid));
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::isocket_drop());
 
@@ -210,16 +226,14 @@ bool node::run()
                 {
                     beltpp::isocket_open_refused msg;
                     ref_packet.get(msg);
-                    m_pimpl->write_node(peerid);
-                    m_pimpl->writeln_node(msg.reason);
+                    m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
                 case beltpp::isocket_open_error::rtt:
                 {
                     beltpp::isocket_open_error msg;
                     ref_packet.get(msg);
-                    m_pimpl->write_node(peerid);
-                    m_pimpl->writeln_node(msg.reason);
+                    m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
                 case Shutdown::rtt:
@@ -341,7 +355,7 @@ bool node::run()
                 case SyncRequest::rtt:
                 {
                     if (it != interface_type::p2p)
-                        wrong_request_exception("SyncRequest  received through rpc!");
+                        throw wrong_request_exception("SyncRequest received through rpc!");
 
                     BlockHeader block_header;
                     m_pimpl->m_blockchain.header(block_header);
@@ -357,7 +371,7 @@ bool node::run()
                 case SyncResponse::rtt:
                 {
                     if (it != interface_type::p2p)
-                        wrong_request_exception("SyncResponse received through rpc!");
+                        throw wrong_request_exception("SyncResponse received through rpc!");
 
                     m_pimpl->reset_stored_request(peerid);
                     if (stored_packet.type() != SyncRequest::rtt)
@@ -372,46 +386,121 @@ bool node::run()
                 case BlockHeaderRequest::rtt:
                 {
                     if (it != interface_type::p2p)
-                        wrong_request_exception("BlockHeaderRequest received through rpc!");
+                        throw wrong_request_exception("BlockHeaderRequest received through rpc!");
 
-                    process_blockheader_request(ref_packet, m_pimpl, *psk, peerid);
+                    BlockHeaderRequest header_request;
+                    std::move(ref_packet).get(header_request);
+
+                    m_pimpl->writeln_node("processing block header request from " +
+                                          str_peerid(peerid));
+                    m_pimpl->writeln_node("    from " +
+                                          std::to_string(header_request.blocks_from) +
+                                          " to " +
+                                          std::to_string(header_request.blocks_to));
+                    process_blockheader_request(header_request, m_pimpl, *psk, peerid);
+                    m_pimpl->writeln_node("    done");
 
                     break;
                 }
                 case BlockHeaderResponse::rtt:
                 {
                     if (it != interface_type::p2p)
-                        wrong_request_exception("BlockHeaderResponse received through rpc!");
+                        throw wrong_request_exception("BlockHeaderResponse received through rpc!");
 
                     m_pimpl->reset_stored_request(peerid);
                     if (stored_packet.type() != BlockHeaderRequest::rtt)
                         throw wrong_data_exception("BlockHeaderResponse");
 
-                    if(m_pimpl->sync_peerid == peerid)
-                        process_blockheader_response(ref_packet, m_pimpl, *psk, peerid);
+                    BlockHeaderResponse header_response;
+                    std::move(ref_packet).get(header_response);
+
+                    if (false == header_response.block_headers.empty())
+                    {
+                        m_pimpl->writeln_node("processing block header response from " +
+                                              str_peerid(peerid));
+                        m_pimpl->writeln_node("    from " +
+                                              std::to_string(header_response.block_headers.front().block_number) +
+                                              " to " +
+                                              std::to_string(header_response.block_headers.back().block_number));
+                    }
+
+                    if(m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?
+                        process_blockheader_response(header_response, m_pimpl, *psk, peerid);
+
+                    if (false == header_response.block_headers.empty())
+                        m_pimpl->writeln_node("    done");
 
                     break;
                 }
                 case BlockChainRequest::rtt:
                 {
-                    if (it == interface_type::p2p)
-                        wrong_request_exception("BlockChainRequest received through rpc!");
+                    if (it != interface_type::p2p)
+                        throw wrong_request_exception("BlockChainRequest received through rpc!");
 
-                    process_blockchain_request(ref_packet, m_pimpl, *psk, peerid);
+                    BlockChainRequest blockchain_request;
+                    std::move(ref_packet).get(blockchain_request);
+
+                    m_pimpl->writeln_node("processing blockchain request from " +
+                                          str_peerid(peerid));
+                    m_pimpl->writeln_node("    from " +
+                                          std::to_string(blockchain_request.blocks_from) +
+                                          " to " +
+                                          std::to_string(blockchain_request.blocks_to));
+
+                    process_blockchain_request(blockchain_request, m_pimpl, *psk, peerid);
+
+                    m_pimpl->writeln_node("    done");
 
                     break;
                 }
                 case BlockChainResponse::rtt:
                 {
-                    if (it == interface_type::p2p)
-                        wrong_request_exception("BlockChainResponse received through rpc!");
+                    if (it != interface_type::p2p)
+                        throw wrong_request_exception("BlockChainResponse received through rpc!");
 
                     m_pimpl->reset_stored_request(peerid);
                     if (stored_packet.type() != BlockChainRequest::rtt)
                         throw wrong_data_exception("BlockChainResponse");
 
-                    if (m_pimpl->sync_peerid == peerid)
-                        process_blockchain_response(ref_packet, m_pimpl, *psk, peerid);
+                    BlockChainResponse blockchain_response;
+                    std::move(ref_packet).get(blockchain_response);
+
+                    if (false == blockchain_response.signed_blocks.empty())
+                    {
+                        uint64_t temp_from = 0;
+                        uint64_t temp_to = 0;
+
+                        auto const& front = blockchain_response.signed_blocks.front().block_details;
+                        auto const& back = blockchain_response.signed_blocks.back().block_details;
+
+                        if (front.type() == Block::rtt)
+                        {
+                            Block const* p = nullptr;
+                            front.get(p);
+
+                            temp_from = p->header.block_number;
+                        }
+                        if (back.type() == Block::rtt)
+                        {
+                            Block const* p = nullptr;
+                            back.get(p);
+
+                            temp_to = p->header.block_number;
+                        }
+
+                        m_pimpl->writeln_node("processing block header response from " +
+                                              str_peerid(peerid));
+                        m_pimpl->writeln_node("    from " +
+                                              std::to_string(temp_from) +
+                                              " to " +
+                                              std::to_string(temp_to));
+                    }
+
+                    if (m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?
+                        process_blockchain_response(blockchain_response, m_pimpl, *psk, peerid);
+
+                    if (false == blockchain_response.signed_blocks.empty())
+                        m_pimpl->writeln_node("    done");
 
                     break;
                 }
@@ -495,7 +584,7 @@ bool node::run()
     }
     else if (beltpp::event_handler::timer_out == wait_result)
     {
-        m_pimpl->writeln_node("timer " + std::to_string(++m_pimpl->timer_count));
+        ++m_pimpl->timer_count;
 
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
@@ -507,6 +596,24 @@ bool node::run()
             m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, beltpp::isocket_drop());
             m_pimpl->remove_peer(peerid_to_remove);
         }
+    }
+
+    if (m_pimpl->m_summary_report_timer.expired())
+    {
+        m_pimpl->m_summary_report_timer.update();
+
+        m_pimpl->writeln_node("Summary Report");
+        m_pimpl->writeln_node("    p2p nodes connected");
+        if (m_pimpl->m_p2p_peers.empty())
+            m_pimpl->writeln_node("        none");
+        else
+        {
+            for (auto const& item : m_pimpl->m_p2p_peers)
+                m_pimpl->writeln_node("        " + str_peerid(item));
+        }
+        m_pimpl->writeln_node("    blockchain heigth: " +
+                              std::to_string(m_pimpl->m_blockchain.length()));
+        m_pimpl->writeln_node("End Summary Report");
     }
 
     if (m_pimpl->m_check_timer.expired())
@@ -526,7 +633,7 @@ bool node::run()
                 beltpp::isocket::peer_id tmp_peer;
 
                 // if node is possible miner it should
-                // mine forst current block then try to sync
+                // mine first current block then try to sync
                 uint64_t n = m_pimpl->m_miner ? 1 : 0;
 
                 for (auto& it : m_pimpl->sync_responses)
@@ -557,6 +664,12 @@ bool node::run()
 
                     beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
 
+                    m_pimpl->writeln_node("requesting block headers " +
+                                          std::to_string(header_request.blocks_from) +
+                                          " to " +
+                                          std::to_string(header_request.blocks_to) +
+                                          " Peer: " +
+                                          str_peerid(tmp_peer));
                     psk->send(tmp_peer, header_request);
                     m_pimpl->update_sync_time();
                     m_pimpl->reset_stored_request(tmp_peer);
