@@ -24,6 +24,7 @@ target_link_libraries(exe_publiqd PRIVATE
     utility
     cryptoutility
     log
+    mlog
     )
 
 # what to do on make install

@@ -3,11 +3,9 @@
 #include <publiq.pp/global.hpp>
 
 #include <boost/filesystem.hpp>
-#include <boost/filesystem/fstream.hpp>
 
 #include <vector>
 #include <exception>
-#include <fstream>
 
 #if defined(P_OS_LINUX)
 

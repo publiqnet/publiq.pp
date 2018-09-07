@@ -8,6 +8,7 @@
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
+#include <mesh.pp/log.hpp>
 
 #include <publiq.pp/node.hpp>
 
@@ -200,13 +201,12 @@ int main(int argc, char** argv)
         for (auto const& item : p2p_connect_to_addresses)
             cout << item.to_string() << endl;
 
-        //beltpp::ilog_ptr plogger_p2p = beltpp::file_logger("exe_publiqd_p2p", fs_logfile.native());
         beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p", false);
         plogger_p2p->disable();
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc", true);
         //plogger_rpc->disable();
-        plogger_exceptions = beltpp::file_logger("exe_publiqd_exceptions",
-                                                 (fs_log / "exceptions.txt").native().c_str());
+        plogger_exceptions = meshpp::file_logger("exe_publiqd_exceptions",
+                                                 fs_log / "exceptions.txt");
 
         //__debugbreak();
 
