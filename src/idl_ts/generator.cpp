@@ -270,7 +270,8 @@ export default class BaseModel {
     {
         if(!(class_names[index].empty()))
         {
-            ModelTypes << "import "+ class_names[index] + " from './models/" + class_names[index] + "';\n";
+            /// <reference path="./models/Coin.ts" />
+            ModelTypes << "/// <reference path=\"./models/" + class_names[index] + ".ts\" />\n";
         }
     }
     ModelTypes << "\n\nconst MODELS_TYPES = [ \n";
@@ -278,7 +279,7 @@ export default class BaseModel {
     {
         if(!(class_names[index].empty()))
         {
-            ModelTypes << "    " << class_names[index] << ",\n";
+            ModelTypes << "    MODEL." << class_names[index] << ",\n";
         }
     }
     ModelTypes << "];";
@@ -331,7 +332,7 @@ void analyze_struct(    state_holder& state,
         string info[3];
         construct_type_name(member_type, state, type_detail, info);
         string camelCaseMemberName = transformString( member_name.value );
-        memberNamesMap += "            " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
+        memberNamesMap += "                " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
 
         /////////////////////////// array of non primitive types ///////////////////
         if ( info[0] == "array" && info[1] != "number" && info[1] != "String" && info[1] != "boolean" && info[1] != "::beltpp::packet" )
@@ -341,25 +342,25 @@ void analyze_struct(    state_holder& state,
                 import += "import " + info[1] + " from './" + info[1] + "';\n";
             }
             params +=
-                    "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
+                    "        " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
+                        "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
         }
         ////////////////////// array of Objects ///////////////////////
         else if ( info[0] == "array" && info[1] == "::beltpp::packet" )
         {
             params +=
-                    "    " + camelCaseMemberName + ": Array<Object>;\n";
+                    "        " + camelCaseMemberName + ": Array<Object>;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "            this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }      
         ////////////////////// array of primitive types /////////////////////
         else if ( info[0] == "array" && ( info[1] == "number" || info[1] == "String" || info[1] == "boolean" ) )
         {
             params +=
-                    "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
+                    "        " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "            this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }
         ///////////////////////// non primitive type /////////////////////////
         else if ( info[0] != "number" && info[0] != "string" && info[0] != "boolean" && info[0] != "::beltpp::packet" )
@@ -369,27 +370,27 @@ void analyze_struct(    state_holder& state,
                 import += "import " + info[0] + " from './" + info[0] + "';\n";
             }
             params +=
-                    "    " + camelCaseMemberName + ": " + info[0] + ";\n";
+                    "        " + camelCaseMemberName + ": " + info[0] + ";\n";
 
             constructor +=
-                        "        this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + ");\n";
+                        "            this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + ");\n";
         }
         /////////////////////////// object type ///////////////////////////////
         else if ( info[0] == "::beltpp::packet")
         {
             params +=
-                    "    " + camelCaseMemberName + ": Object;\n";
+                    "        " + camelCaseMemberName + ": Object;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = BaseModel.createInstanceFromJson(data." + member_name.value + ");\n";
+                        "            this." + camelCaseMemberName + " = BaseModel.createInstanceFromJson(data." + member_name.value + ");\n";
 
         }
         /////////////////////////// primitive type ///////////////////////////
         else if ( info[0] == "number" || info[0] == "string" || info[0] == "boolean" )
         {
             params +=
-                    "    " + camelCaseMemberName + ": " + info[0] + ";\n";
+                    "        " + camelCaseMemberName + ": " + info[0] + ";\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "            this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }
     }
     /////////////////////////// create model files //////////////////////////////////
@@ -400,18 +401,20 @@ void analyze_struct(    state_holder& state,
     boost::filesystem::path FilePath = root.string() + "/" + type_name + ".ts";
     boost::filesystem::ofstream model( FilePath );
     model << import;
-    model << "\nexport default class " + type_name + " extends BaseModel\n";
-    model << "{\n";
+    model << "\nnamespace MODEL {\n";
+    model << "\n    export class " + type_name + " extends BaseModel";
+    model << "\n    {\n";
     model << params;
     model << "\n";
-    model << "    constructor(data) { \n";
-    model << "        super();\n";
+    model << "        constructor(data) { \n";
+    model << "            super();\n";
     model << constructor;
-    model << "    }\n\n";
-    model << "    static get PropertyMap () {\n";
-    model << "        return {\n";
+    model << "        }\n\n";
+    model << "        static get PropertyMap () {\n";
+    model << "            return {\n";
     model << memberNamesMap;
-    model << "        }\n";
-    model << "    }\n";
+    model << "            }\n";
+    model << "        }\n\n";
+    model << "    } \n\n";
     model << "} \n";
 }
