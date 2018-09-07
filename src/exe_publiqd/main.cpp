@@ -206,7 +206,7 @@ int main(int argc, char** argv)
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc", true);
         //plogger_rpc->disable();
         plogger_exceptions = beltpp::file_logger("exe_publiqd_exceptions",
-                                                 (fs_log / "exceptions.txt").native());
+                                                 (fs_log / "exceptions.txt").native().c_str());
 
         //__debugbreak();
 
