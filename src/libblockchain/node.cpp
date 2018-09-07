@@ -488,7 +488,7 @@ bool node::run()
                             temp_to = p->header.block_number;
                         }
 
-                        m_pimpl->writeln_node("processing block header response from " +
+                        m_pimpl->writeln_node("processing blockchain response from " +
                                               str_peerid(peerid));
                         m_pimpl->writeln_node("    from " +
                                               std::to_string(temp_from) +
