@@ -599,32 +599,23 @@ void process_blockchain_response(beltpp::packet& package,
     else
         prev_signed_block = *m_pimpl->sync_blocks.rbegin();
 
-    for (auto it = response.signed_blocks.begin(); it != response.signed_blocks.end(); ++it)
-    {
-        // verify block signature
-        if (!meshpp::verify_signature(meshpp::public_key(it->authority),
-                                                         it->block_details.to_string(),
-                                                         it->signature))
-            throw wrong_data_exception("blockchain response. block signature!");
-
-        // store blocks for future use
-        m_pimpl->sync_blocks.push_back(std::move(*it));
-    }
-
-    auto block_it = m_pimpl->sync_blocks.begin() + length;
     auto header_it = m_pimpl->sync_headers.rbegin() + length;
 
     if (header_it->prev_hash != meshpp::hash(prev_signed_block.block_details.to_string()))
         throw wrong_data_exception("blockchain response. previous hash!");
 
     ++header_it;
-    while (block_it != m_pimpl->sync_blocks.end() && header_it != m_pimpl->sync_headers.rend())
+    for (auto block_it = response.signed_blocks.begin(); block_it != response.signed_blocks.end(); ++block_it)
     {
         Block block;
         block_it->block_details.get(block);
+        string str = block.to_string();
 
-        if (*(header_it - 1) != block.header ||
-            header_it->prev_hash != meshpp::hash(block_it->block_details.to_string()))
+        // verify block signature
+        if (!meshpp::verify_signature(meshpp::public_key(block_it->authority), str, block_it->signature))
+            throw wrong_data_exception("blockchain response. block signature!");
+
+        if (*(header_it - 1) != block.header || header_it->prev_hash != meshpp::hash(str))
             throw wrong_data_exception("blockchain response. block header!");
 
         // verify block rewards
@@ -659,8 +650,10 @@ void process_blockchain_response(beltpp::packet& package,
                 throw wrong_data_exception("blockchain response. expired transaction!");
         }
 
-        ++block_it;
         ++header_it;
+
+        // store blocks for future use
+        m_pimpl->sync_blocks.push_back(std::move(*block_it));
     }
 
     // request new chain if needed
@@ -731,19 +724,18 @@ void process_blockchain_response(beltpp::packet& package,
     }
 
     // verify new received blocks
-    Block prev_block;
-    m_pimpl->m_blockchain.at(lcb_number, prev_signed_block);
-    std::move(prev_signed_block.block_details).get(prev_block);
+    BlockHeader prev_header;
+    m_pimpl->m_blockchain.header_at(lcb_number, prev_header);
+    uint64_t c_const = prev_header.c_const;
 
-    for (block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
+    for (auto block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
     {
         Block block;
         block_it->block_details.get(block);
 
         // verify consensus_delta
         Coin amount = m_pimpl->m_state.get_balance(block_it->authority);
-        string prev_hash = meshpp::hash(prev_block.to_string());
-        uint64_t delta = calc_delta(block_it->authority, amount.whole, prev_hash, prev_block.header.c_const);
+        uint64_t delta = calc_delta(block_it->authority, amount.whole, block.header.prev_hash, c_const);
         
         if (delta != block.header.delta)
             throw wrong_data_exception("blockchain response. consensus delta!");
@@ -768,7 +760,7 @@ void process_blockchain_response(beltpp::packet& package,
             m_pimpl->m_action_log.log(*reward_it);
         }
 
-        prev_block = std::move(block);
+        c_const = block.header.c_const;
 
         // Insert to blockchain
         m_pimpl->m_blockchain.insert(*block_it);
