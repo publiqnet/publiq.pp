@@ -7,9 +7,10 @@ target_link_libraries(blockchain_client PRIVATE
     socket
     processor
     packet
-    mesh.pp # adds an implicit dependency on boost and cryptopp
+    mesh.pp
     belt.pp
-    utility)
+    utility
+    Boost::filesystem)
 
 add_dependencies(blockchain_client blockchain)
 

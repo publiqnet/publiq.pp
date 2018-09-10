@@ -7,3 +7,6 @@
 [submodule "belt.pp"]
 	path = src/belt.pp
 	url = https://github.com/PubliqNetwork/belt.pp
+[submodule "src/cmake_utility"]
+	path = src/cmake_utility
+	url = https://github.com/PubliqNetwork/cmake_utility

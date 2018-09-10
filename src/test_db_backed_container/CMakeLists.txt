@@ -1,4 +1,4 @@
-if(GLOB_ROCKSDB_FOUND)
+if(TARGET rocksdb)
     # define the executable
     add_executable(test_db_backed_container
         main.cpp)
@@ -6,10 +6,11 @@ if(GLOB_ROCKSDB_FOUND)
     # libraries this module links to
     target_link_libraries(test_db_backed_container PRIVATE
         packet
-        mesh.pp # adds an implicit dependency on boost and cryptopp
+        mesh.pp
         belt.pp
         utility
-        systemutility)
+        systemutility
+        rocksdb)
 
     add_dependencies(test_db_backed_container blockchain)
 

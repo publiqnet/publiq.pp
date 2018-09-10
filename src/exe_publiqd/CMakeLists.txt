@@ -17,7 +17,7 @@ add_executable(exe_publiqd
 target_link_libraries(exe_publiqd PRIVATE
     socket
     publiq.pp
-    mesh.pp # adds an implicit dependency on boost and cryptopp
+    mesh.pp
     systemutility
     belt.pp
     blockchain
@@ -25,6 +25,9 @@ target_link_libraries(exe_publiqd PRIVATE
     cryptoutility
     log
     mlog
+    Boost::filesystem
+    Boost::program_options
+    Boost::locale
     )
 
 # what to do on make install

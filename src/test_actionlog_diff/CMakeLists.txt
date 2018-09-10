@@ -10,6 +10,7 @@ target_link_libraries(test_actionlog_diff PRIVATE
     processor
     packet
     utility
+    Boost::filesystem
     )
 
 add_dependencies(test_actionlog_diff blockchain)

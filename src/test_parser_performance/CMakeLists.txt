@@ -5,7 +5,7 @@ add_executable(test_parser_performance
 # libraries this module links to
 target_link_libraries(test_parser_performance PRIVATE
     packet
-    mesh.pp # adds an implicit dependency on boost and cryptopp
+    mesh.pp
     belt.pp
     utility
     systemutility)

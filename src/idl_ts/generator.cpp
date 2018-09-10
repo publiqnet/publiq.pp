@@ -1,6 +1,6 @@
 #include "generator.hpp"
 
-#include "boost/filesystem.hpp"
+#include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
 #include <cassert>

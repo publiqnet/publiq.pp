@@ -26,10 +26,12 @@ if( NOT WIN32 )
     #SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
-if(NOT BELT_PP_LOADED)
+include(cmake_utility/utility.cmake)
+
+if(NOT TARGET belt.pp)
 add_subdirectory(belt.pp)
 endif()
-if(NOT MESH_PP_LOADED)
+if(NOT TARGET mesh.pp)
 add_subdirectory(mesh.pp)
 endif()
 add_subdirectory(libblockchain)
@@ -46,4 +48,4 @@ add_subdirectory(test_db_backed_container)
 
 # following is used for find_package functionality
 install(FILES publiq.pp-config.cmake DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})
-install(EXPORT publiq.pp.package DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})
+install(EXPORT publiq.pp.package NAMESPACE publiq:: DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})

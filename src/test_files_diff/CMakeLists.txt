@@ -6,6 +6,7 @@ add_executable(test_files_diff
 target_link_libraries(test_files_diff PRIVATE
     mesh.pp
     belt.pp
+    Boost::filesystem
     )
 
 # what to do on make install

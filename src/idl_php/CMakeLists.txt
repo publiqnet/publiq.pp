@@ -5,7 +5,11 @@ add_executable(idl_php
     main.cpp)
 
 # libraries this module links to
-target_link_libraries(idl_php PRIVATE belt.pp mesh.pp)
+target_link_libraries(idl_php
+    PRIVATE
+        belt.pp
+        mesh.pp
+        Boost::filesystem)
 
 # what to do on make install
 install(TARGETS idl_php

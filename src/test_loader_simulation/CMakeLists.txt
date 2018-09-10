@@ -5,7 +5,7 @@ add_executable(test_loader_simulation
 # libraries this module links to
 target_link_libraries(test_loader_simulation PRIVATE
     packet
-    mesh.pp # adds an implicit dependency on boost and cryptopp
+    mesh.pp
     belt.pp
     utility
     systemutility)
