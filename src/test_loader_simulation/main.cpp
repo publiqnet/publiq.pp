@@ -49,7 +49,7 @@ int main(int argc, char** argv)
 
         auto tp_start = steady_clock::now();
 
-        meshpp::vector_loader<Coin> actions("actions", path, 2, get_putl());
+        meshpp::vector_loader<Coin> actions("actions", path, 2, 10, get_putl());
 
         Coin a;
 
