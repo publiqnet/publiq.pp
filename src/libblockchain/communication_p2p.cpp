@@ -666,6 +666,8 @@ void process_blockchain_response(BlockChainResponse const& response,
     }
 
     //3. all needed blocks received, start to check
+    m_pimpl->writeln_node("applying collected " + std::to_string(m_pimpl->sync_blocks.size()) + " blocks");
+
     auto now = system_clock::now();
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); m_pimpl->clear_sync_state(m_pimpl->sync_peerid); });
 
