@@ -19,8 +19,8 @@ class action_log_internals
 {
 public:
     action_log_internals(filesystem::path const& path, bool log_enabled)
-        :m_actions("actions", path, 10000, detail::get_putl())
-        ,m_enabled(log_enabled)
+        : m_actions("actions", path, 10000, 1000, detail::get_putl())
+        , m_enabled(log_enabled)
     {}
 
     meshpp::vector_loader<LoggedTransaction> m_actions;
