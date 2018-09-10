@@ -88,7 +88,7 @@ int main( int argc, char** argv )
     auto it2 = logged_transactions2.actions.begin();
     for ( ; it1 != logged_transactions1.actions.end() && it2 != logged_transactions2.actions.end(); it1++, it2++ )
     {
-        if ( it1->applied_reverted != it2->applied_reverted || it1->index != it2->index || it1->action.to_string() != it2->action.to_string())
+        if ( it1->applied_reverted != it2->applied_reverted || it1->action.to_string() != it2->action.to_string())
         {
 
             std::cout << "\t\t\t    Difference\n" << std::endl;

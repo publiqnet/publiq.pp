@@ -18,8 +18,8 @@ class blockchain_internals
 {
 public:
     blockchain_internals(filesystem::path const& path)
-        : m_header("header", path, 1000, 100, detail::get_putl())
-        , m_blockchain("block", path, 10000, 100, detail::get_putl())
+        : m_header("header", path, 1000, 1, detail::get_putl())
+        , m_blockchain("block", path, 10000, 1, detail::get_putl())
     {
     }
 
