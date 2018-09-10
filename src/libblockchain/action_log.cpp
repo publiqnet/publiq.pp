@@ -37,7 +37,6 @@ action_log::action_log(boost::filesystem::path const& fs_action_log, bool log_en
 }
 action_log::~action_log()
 {
-
 }
 
 void action_log::save()
@@ -90,9 +89,6 @@ void action_log::insert(LoggedTransaction& action_info)
 
 void action_log::at(size_t number, LoggedTransaction& action_info) const
 {
-    if (number >= length())
-        throw std::runtime_error("There is no action at index:" + std::to_string(number));
-
     action_info = m_pimpl->m_actions.as_const().at(number);
 }
 
