@@ -270,7 +270,6 @@ export default class BaseModel {
     {
         if(!(class_names[index].empty()))
         {
-            /// <reference path="./models/Coin.ts" />
             ModelTypes << "/// <reference path=\"./models/" + class_names[index] + ".ts\" />\n";
         }
     }
@@ -338,8 +337,8 @@ void analyze_struct(    state_holder& state,
         if ( info[0] == "array" && info[1] != "number" && info[1] != "String" && info[1] != "boolean" && info[1] != "::beltpp::packet" )
         {
             if ( info[1] != "Date")
-            {
-                import += "import " + info[1] + " from './" + info[1] + "';\n";
+            {    
+                import += "/// <reference path=\"./models/" + info[0] + ".ts\" />\n";
             }
             params +=
                     "        " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
@@ -367,7 +366,7 @@ void analyze_struct(    state_holder& state,
         {
             if ( info[0] != "Date")
             {
-                import += "import " + info[0] + " from './" + info[0] + "';\n";
+                import += "/// <reference path=\"./models/" + info[0] + ".ts\" />\n";
             }
             params +=
                     "        " + camelCaseMemberName + ": " + info[0] + ";\n";

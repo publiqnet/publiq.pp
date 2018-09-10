@@ -73,20 +73,20 @@ int main( int argc, char** argv )
     beltpp::packet receive_package2;
 
     LoggedTransactionsRequest logged_transactions_request1;
-    logged_transactions_request1.start_index = 1;
+    logged_transactions_request1.start_index = std::atoi(argv[3]);
     Send( logged_transactions_request1, receive_package1, sk1, peerid1, eh1 );
     LoggedTransactions logged_transactions1;
     receive_package1.get( logged_transactions1 );
 
     LoggedTransactionsRequest logged_transactions_request2;
-    logged_transactions_request2.start_index = 1;
+    logged_transactions_request2.start_index = std::atoi(argv[3]);
     Send( logged_transactions_request2, receive_package2, sk2, peerid2, eh2 );
     LoggedTransactions logged_transactions2;
     receive_package2.get( logged_transactions2 );
 
     auto it1 = logged_transactions1.actions.begin();
     auto it2 = logged_transactions2.actions.begin();
-    for ( ; it2 != logged_transactions2.actions.end() && it1 != logged_transactions1.actions.end(); it1++, it2++ )
+    for ( ; it1 != logged_transactions1.actions.end() && it2 != logged_transactions2.actions.end(); it1++, it2++ )
     {
         if ( it1->applied_reverted != it2->applied_reverted || it1->index != it2->index || it1->action.to_string() != it2->action.to_string())
         {
