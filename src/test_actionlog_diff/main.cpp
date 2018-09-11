@@ -11,8 +11,6 @@
 using namespace BlockchainMessage;
 using peer_id = beltpp::socket::peer_id;
 
-using std::cout;
-using std::endl;
 namespace chrono = std::chrono;
 using std::chrono::system_clock;
 
@@ -34,10 +32,10 @@ int main( int argc, char** argv )
     {
         if ( argc < 3 )
         {
-            cout << "\t\t\t HINT" << endl;
-            cout << "argument 1: end point address:port" << endl;
-            cout << "argument 2: server address:port" << endl;
-            cout << "argument 3: start_index for LoggedTransactionsRequest" << endl;
+            std::cout << "\t\t\t HINT" << std::endl;
+            std::cout << "argument 1: end point address:port" << std::endl;
+            std::cout << "argument 2: server address:port" << std::endl;
+            std::cout << "argument 3: start_index for LoggedTransactionsRequest" << std::endl;
             return 0;
         }
 
@@ -112,7 +110,7 @@ int main( int argc, char** argv )
     }
     catch ( std::exception const& e )
     {
-        cout << "exception: " << e.what() << endl;
+        std::cout << "exception: " << e.what() << std::endl;
     }
 
     return 0;

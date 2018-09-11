@@ -118,7 +118,8 @@ string transformString( string const& scoreString )
 
 void analyze(   state_holder& state,
                 expression_tree const* pexpression,
-                std::string const& outputFilePath)
+                std::string const& outputFilePath,
+                std::string const& prefix)
 {
 boost::filesystem::path root = outputFilePath;
 boost::filesystem::create_directory( root );
@@ -245,7 +246,7 @@ export default class BaseModel {
                     throw runtime_error("type syntax is wrong");
 
                 string type_name = item->children.front()->lexem.value;
-                analyze_struct(state, item->children.back(), type_name,  outputFilePath);
+                analyze_struct(state, item->children.back(), type_name,  outputFilePath, prefix);
                 class_names.insert(std::make_pair(rtt, type_name));
 
             }
@@ -270,7 +271,7 @@ export default class BaseModel {
     {
         if(!(class_names[index].empty()))
         {
-            ModelTypes << "/// <reference path=\"./models/" + class_names[index] + ".ts\" />\n";
+            ModelTypes << "import "+ prefix + class_names[index] + " from './models/" + prefix + class_names[index] + "';\n";
         }
     }
     ModelTypes << "\n\nconst MODELS_TYPES = [ \n";
@@ -278,7 +279,7 @@ export default class BaseModel {
     {
         if(!(class_names[index].empty()))
         {
-            ModelTypes << "    MODEL." << class_names[index] << ",\n";
+            ModelTypes << "    " << prefix << class_names[index] << ",\n";
         }
     }
     ModelTypes << "];";
@@ -289,7 +290,8 @@ export default class BaseModel {
 void analyze_struct(    state_holder& state,
                         expression_tree const* pexpression,
                         string const& type_name,
-                        std::string const& outputFilePath)
+                        std::string const& outputFilePath,
+                        std::string const& prefix)
 {
     if (state.namespace_name.empty())
         throw runtime_error("please specify package name");
@@ -315,7 +317,7 @@ void analyze_struct(    state_holder& state,
     }
 
     string import;
-    import += "import BaseModel from '../BaseModel';\n";
+    import += "import BaseModel from '../BaseModel';\n\n";
     string params;
     string constructor;
     string memberNamesMap = "";
@@ -331,89 +333,102 @@ void analyze_struct(    state_holder& state,
         string info[3];
         construct_type_name(member_type, state, type_detail, info);
         string camelCaseMemberName = transformString( member_name.value );
-        memberNamesMap += "                " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
+        memberNamesMap += "            " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
 
         /////////////////////////// array of non primitive types ///////////////////
         if ( info[0] == "array" && info[1] != "number" && info[1] != "String" && info[1] != "boolean" && info[1] != "::beltpp::packet" )
         {
             if ( info[1] != "Date")
             {    
-                import += "/// <reference path=\"./models/" + info[0] + ".ts\" />\n";
+                import += "import " + prefix + info[1] + " from './" + prefix + info[1] + "';\n";
+                params +=
+                        "    " + camelCaseMemberName + ": Array<" + prefix + info[1] + ">;\n";
+                constructor +=
+                            "        this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
             }
-            params +=
-                    "        " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
-            constructor +=
-                        "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
+            else
+            {
+                params +=
+                        "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
+                constructor +=
+                            "        this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
+            }
+
         }
-        ////////////////////// array of Objects ///////////////////////
+        ////////////////////// array of Objects //////////////////////////////
         else if ( info[0] == "array" && info[1] == "::beltpp::packet" )
         {
             params +=
-                    "        " + camelCaseMemberName + ": Array<Object>;\n";
+                    "    " + camelCaseMemberName + ": Array<Object>;\n";
             constructor +=
-                        "            this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }      
         ////////////////////// array of primitive types /////////////////////
         else if ( info[0] == "array" && ( info[1] == "number" || info[1] == "String" || info[1] == "boolean" ) )
         {
             params +=
-                    "        " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
+                    "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
             constructor +=
-                        "            this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }
         ///////////////////////// non primitive type /////////////////////////
         else if ( info[0] != "number" && info[0] != "string" && info[0] != "boolean" && info[0] != "::beltpp::packet" )
         {
             if ( info[0] != "Date")
             {
-                import += "/// <reference path=\"./models/" + info[0] + ".ts\" />\n";
+                import += "import " + prefix + info[0] + " from './" + prefix + info[0] + "';\n";
+                params +=
+                        "    " + camelCaseMemberName + ": " + prefix + info[0] + ";\n";
+                constructor +=
+                            "        this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + ");\n";
             }
-            params +=
-                    "        " + camelCaseMemberName + ": " + info[0] + ";\n";
+            else
+            {
+                params +=
+                     "    " + camelCaseMemberName + ": " + info[0] + ";\n";
+                constructor +=
+                            "        this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + ");\n";
+            }
 
-            constructor +=
-                        "            this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + ");\n";
         }
         /////////////////////////// object type ///////////////////////////////
         else if ( info[0] == "::beltpp::packet")
         {
             params +=
-                    "        " + camelCaseMemberName + ": Object;\n";
+                    "    " + camelCaseMemberName + ": Object;\n";
             constructor +=
-                        "            this." + camelCaseMemberName + " = BaseModel.createInstanceFromJson(data." + member_name.value + ");\n";
+                        "        this." + camelCaseMemberName + " = BaseModel.createInstanceFromJson(data." + member_name.value + ");\n";
 
         }
         /////////////////////////// primitive type ///////////////////////////
         else if ( info[0] == "number" || info[0] == "string" || info[0] == "boolean" )
         {
             params +=
-                    "        " + camelCaseMemberName + ": " + info[0] + ";\n";
+                    "    " + camelCaseMemberName + ": " + info[0] + ";\n";
             constructor +=
-                        "            this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }
     }
+
     /////////////////////////// create model files //////////////////////////////////
     boost::filesystem::path root = outputFilePath;
     string models = "models";
     root.append( models );
     boost::filesystem::create_directory( root );
-    boost::filesystem::path FilePath = root.string() + "/" + type_name + ".ts";
+    boost::filesystem::path FilePath = root.string() + "/" + prefix + type_name + ".ts";
     boost::filesystem::ofstream model( FilePath );
     model << import;
-    model << "\nnamespace MODEL {\n";
-    model << "\n    export class " + type_name + " extends BaseModel";
-    model << "\n    {\n";
+    model << "\nexport default class " + prefix +  type_name + " extends BaseModel {\n\n";
     model << params;
     model << "\n";
-    model << "        constructor(data) { \n";
-    model << "            super();\n";
+    model << "    constructor(data) { \n";
+    model << "        super();\n";
     model << constructor;
-    model << "        }\n\n";
-    model << "        static get PropertyMap () {\n";
-    model << "            return {\n";
+    model << "    }\n\n";
+    model << "    static get PropertyMap () {\n";
+    model << "        return {\n";
     model << memberNamesMap;
-    model << "            }\n";
-    model << "        }\n\n";
-    model << "    } \n\n";
+    model << "        }\n";
+    model << "    }\n\n";
     model << "} \n";
 }

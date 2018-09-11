@@ -119,7 +119,8 @@ int main(int argc, char* argv[])
         if(argc>=2)
         {
             string outputFilePath = argv[2];
-            analyze(state, ptr_expression.get(), outputFilePath);
+            string prefix = argv[3];
+            analyze(state, ptr_expression.get(), outputFilePath, prefix);
         }
 
 
