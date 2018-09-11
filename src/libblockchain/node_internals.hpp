@@ -98,6 +98,7 @@ public:
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
+        m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
@@ -248,7 +249,7 @@ public:
         m_transaction_pool.discard();
     }
 
-    void check_balance()
+    void check_balance() // test
     {
         if (timer_count % 10 != 0)
             return;
@@ -285,6 +286,7 @@ public:
 
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
+    beltpp::timer m_broadcast_timer;
     beltpp::timer m_summary_report_timer;
 
     publiqpp::blockchain m_blockchain;

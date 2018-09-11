@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <utility>
 #include <exception>
+#include <thread>
 
 using namespace BlockchainMessage;
 
@@ -236,7 +237,7 @@ bool node::run()
                     m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
-                case Shutdown::rtt:
+                case Shutdown::rtt:// test
                 {
                     if (it != interface_type::rpc)
                         break;
@@ -268,7 +269,6 @@ bool node::run()
                                      ref_packet,
                                      m_pimpl);
 
-
                     broadcast(received_packet,
                               m_pimpl->m_ptr_p2p_socket->name(),
                               peerid,
@@ -283,7 +283,7 @@ bool node::run()
 
                     break;
                 }
-                case RevertLastLoggedAction::rtt:
+                case RevertLastLoggedAction::rtt:// test
                 {
                     if (it == interface_type::rpc)
                     {
@@ -598,6 +598,7 @@ bool node::run()
         }
     }
 
+    // test ! print summary report about connections
     if (m_pimpl->m_summary_report_timer.expired())
     {
         m_pimpl->m_summary_report_timer.update();
@@ -616,6 +617,47 @@ bool node::run()
         m_pimpl->writeln_node("End Summary Report");
     }
 
+    // broadcast own transactions to all peers for the case
+    // if node could not do this when received it through rpc
+    if (m_pimpl->m_broadcast_timer.expired() && !m_pimpl->m_p2p_peers.empty())
+    {
+        m_pimpl->m_broadcast_timer.update();
+
+        vector<string> pool_keys;
+        m_pimpl->m_transaction_pool.get_keys(pool_keys);
+
+        if (!pool_keys.empty())
+        {
+            m_pimpl->writeln_node("broadcasting " + std::to_string(pool_keys.size()) + " stored transactions to all peers");
+
+            for (auto& key : pool_keys)
+            {
+                SignedTransaction signed_transaction;
+                m_pimpl->m_transaction_pool.at(key, signed_transaction);
+
+                Broadcast br;
+                br.echoes = 2;
+                br.package = signed_transaction;
+
+                beltpp::packet broadcast_package;
+                broadcast_package.set(br);
+
+                broadcast(broadcast_package,
+                    m_pimpl->m_ptr_p2p_socket->name(),
+                    m_pimpl->m_ptr_p2p_socket->name(),
+                    true, // like from rpc
+                    nullptr, // no logger
+                    m_pimpl->m_p2p_peers,
+                    m_pimpl->m_ptr_p2p_socket.get());
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            }
+
+            m_pimpl->writeln_node("broadcast done");
+        }
+    }
+
+    // init sync process and block mining
     if (m_pimpl->m_check_timer.expired())
     {
         m_pimpl->m_check_timer.update();

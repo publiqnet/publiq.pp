@@ -5,7 +5,7 @@
 
 // Blocks and headers max count per one request - 1
 // corners are included
-#define BLOCK_TR_LENGTH 4
+#define BLOCK_TR_LENGTH 9
 #define HEADER_TR_LENGTH 49
 
 // Maximum buffer length of blocks
@@ -16,20 +16,21 @@
 #define BLOCK_MINE_DELAY 60
 
 // Sync process request/response maximum dely
-#define SYNC_STEP_TIMEOUT 60
+#define SYNC_STEP_TIMEOUT 30
 
 // Sent packet will considered as not answered
 // after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds
 #define PACKET_EXPIRY_STEPS 10
 
 // Block maximum transactions count
-#define BLOCK_MAX_TRANSACTIONS 500
+#define BLOCK_MAX_TRANSACTIONS 1000
 
-// Timers
+// Timers in seconds
 #define CHECK_TIMER 1
 #define SYNC_TIMER  15
 #define EVENT_TIMER 30
-#define SUMMARY_REPORT_TIMER 300
+#define BROADCAST_TIMER 300
+#define SUMMARY_REPORT_TIMER 600
 
 // Transaction maximum lifetime in seconds
 #define TRANSACTION_LIFETIME 86400
