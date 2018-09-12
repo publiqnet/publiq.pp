@@ -179,7 +179,8 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
     // Check pool
     string transfer_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (!m_pimpl->m_transaction_pool.contains(transfer_hash))
+    if (!m_pimpl->m_transaction_pool.contains(transfer_hash) &&
+        m_pimpl->m_transaction_cache.find(transfer_hash) != m_pimpl->m_transaction_cache.end())
     {
         beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 

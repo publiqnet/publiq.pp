@@ -306,6 +306,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         {
             ++tr_count;
             block.signed_transactions.push_back(std::move(it->second.second));
+            m_pimpl->m_transaction_cache[it->second.first] = system_clock::from_time_t(it->first.tm);
         }
 
         m_pimpl->m_transaction_pool.remove(it->second.first);
@@ -667,9 +668,15 @@ void process_blockchain_response(BlockChainResponse const& response,
 
     //3. all needed blocks received, start to check
     m_pimpl->writeln_node("applying collected " + std::to_string(m_pimpl->sync_blocks.size()) + " blocks");
+    unordered_map<string, system_clock::time_point> transaction_cache_backup = m_pimpl->m_transaction_cache;
 
     auto now = system_clock::now();
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); m_pimpl->clear_sync_state(m_pimpl->sync_peerid); });
+    beltpp::on_failure guard([&m_pimpl, &transaction_cache_backup] 
+    { 
+        m_pimpl->discard(); 
+        m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
+        m_pimpl->m_transaction_cache = transaction_cache_backup;
+    });
 
     vector<string> pool_keys;
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
@@ -712,6 +719,9 @@ void process_blockchain_response(BlockChainResponse const& response,
         {
             revert_transaction(it->transaction_details, m_pimpl, signed_block.authority);
 
+            string key = meshpp::hash((*it).to_string());
+            m_pimpl->m_transaction_cache.erase(key);
+
             if (now <= system_clock::from_time_t(it->transaction_details.expiry.tm))
                 m_pimpl->m_transaction_pool.insert(*it); // still not expired transaction
         }
@@ -743,7 +753,10 @@ void process_blockchain_response(BlockChainResponse const& response,
         // verify block transactions
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
-            m_pimpl->m_transaction_pool.remove(meshpp::hash((*tr_it).to_string()));
+            string key = meshpp::hash((*tr_it).to_string());
+
+            m_pimpl->m_transaction_pool.remove(key);
+            m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
 
             if(!apply_transaction(tr_it->transaction_details, m_pimpl, block_it->authority))
                 throw wrong_data_exception("blockchain response. sender balance!");

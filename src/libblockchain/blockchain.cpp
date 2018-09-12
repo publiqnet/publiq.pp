@@ -1,7 +1,5 @@
 #include "blockchain.hpp"
-
 #include "common.hpp"
-#include "message.hpp"
 
 #include <belt.pp/utility.hpp>
 

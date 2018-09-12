@@ -7,7 +7,6 @@ using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 using std::string;
-using std::vector;
 
 namespace publiqpp
 {

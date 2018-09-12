@@ -657,6 +657,15 @@ bool node::run()
         }
     }
 
+    // clean old transaction keys from cache
+    // to minimize it and make it work faster
+    if (m_pimpl->m_cache_cleanup_timer.expired())
+    {
+        m_pimpl->m_cache_cleanup_timer.update();
+
+        m_pimpl->clean_transaction_cache();
+    }
+
     // init sync process and block mining
     if (m_pimpl->m_check_timer.expired())
     {

@@ -7,6 +7,7 @@
 #include "storage.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
+#include "transaction_pool.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -22,7 +23,6 @@
 #include <boost/filesystem/path.hpp>
 
 using namespace BlockchainMessage;
-
 namespace filesystem = boost::filesystem;
 
 using beltpp::ip_address;
@@ -99,6 +99,7 @@ public:
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
+        m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
@@ -106,6 +107,8 @@ public:
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
         m_ptr_eh->add(*m_ptr_p2p_socket);
+
+        load_transaction_cache();
     }
 
     void writeln_p2p(string const& value)
@@ -249,6 +252,52 @@ public:
         m_transaction_pool.discard();
     }
 
+    void load_transaction_cache()
+    {
+        uint64_t block_number = m_blockchain.length();
+        uint64_t block_count = TRANSACTION_LIFETIME / BLOCK_MINE_DELAY;
+
+        block_count = block_number < block_count ? block_number : block_count;
+
+        writeln_node("Loading " + std::to_string(block_count) + " blocks to cache");
+
+        while (block_count > 0)
+        {
+            --block_count;
+            --block_number;
+            SignedBlock signed_block;
+            m_blockchain.at(block_number, signed_block);
+
+            Block block;
+            std::move(signed_block.block_details).get(block);
+
+            for (auto& item : block.signed_transactions)
+            {
+                string key = meshpp::hash(item.to_string());
+                m_transaction_cache[key] = system_clock::from_time_t(item.transaction_details.creation.tm);
+            }
+        }
+
+        writeln_node("done");
+    }
+
+    void clean_transaction_cache()
+    {
+        BlockHeader current_header;
+        m_blockchain.header(current_header);
+
+        system_clock::time_point cur_time_point = system_clock::from_time_t(current_header.sign_time.tm);
+
+        auto it = m_transaction_cache.begin();
+        while (it != m_transaction_cache.end())
+        {
+            if (chrono::duration_cast<chrono::seconds>(cur_time_point - it->second).count() > TRANSACTION_LIFETIME)
+                m_transaction_cache.erase(it);
+            else
+                ++it;
+        }
+    }
+
     void check_balance() // test
     {
         if (timer_count % 10 != 0)
@@ -287,16 +336,18 @@ public:
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
     beltpp::timer m_broadcast_timer;
+    beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
+    publiqpp::state m_state;
     publiqpp::storage m_storage;
     publiqpp::transaction_pool m_transaction_pool;
-    publiqpp::state m_state;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
+    unordered_map<string, system_clock::time_point> m_transaction_cache;
 
     meshpp::private_key private_key;
 

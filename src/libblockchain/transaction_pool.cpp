@@ -1,7 +1,4 @@
 #include "transaction_pool.hpp"
-#include "common.hpp"
-
-#include "message.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>

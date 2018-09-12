@@ -1,15 +1,10 @@
 #include "action_log.hpp"
 #include "common.hpp"
 
-#include "message.hpp"
-
 #include <mesh.pp/fileutility.hpp>
-
-#include <string>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
-using std::string;
 
 namespace publiqpp
 {

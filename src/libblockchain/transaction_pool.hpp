@@ -1,8 +1,7 @@
 #pragma once
 
 #include "global.hpp"
-#include "message.hpp"
-#include "coin.hpp"
+#include "common.hpp"
 
 #include <belt.pp/packet.hpp>
 
