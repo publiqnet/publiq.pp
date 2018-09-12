@@ -292,7 +292,7 @@ public:
         while (it != m_transaction_cache.end())
         {
             if (chrono::duration_cast<chrono::seconds>(cur_time_point - it->second).count() > TRANSACTION_LIFETIME)
-                m_transaction_cache.erase(it);
+                it = m_transaction_cache.erase(it);
             else
                 ++it;
         }

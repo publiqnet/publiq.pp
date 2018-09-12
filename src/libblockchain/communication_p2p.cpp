@@ -756,6 +756,10 @@ void process_blockchain_response(BlockChainResponse const& response,
             string key = meshpp::hash((*tr_it).to_string());
 
             m_pimpl->m_transaction_pool.remove(key);
+
+            if (m_pimpl->m_transaction_cache.find(key) != m_pimpl->m_transaction_cache.end())
+                throw wrong_data_exception("blockchain response. transaction double use!");
+
             m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
 
             if(!apply_transaction(tr_it->transaction_details, m_pimpl, block_it->authority))
