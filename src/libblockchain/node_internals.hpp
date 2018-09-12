@@ -340,9 +340,9 @@ public:
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
-    publiqpp::state m_state;
     publiqpp::storage m_storage;
     publiqpp::transaction_pool m_transaction_pool;
+    publiqpp::state m_state;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
