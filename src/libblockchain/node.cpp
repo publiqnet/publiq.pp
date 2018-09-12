@@ -123,11 +123,17 @@ bool node::run()
         if (peerid == "PBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
             return "$armen(1)";
         if (peerid == "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
-            return "$sona";
+            return "$sona(0)";
+        if (peerid == "PBQ8VLQxxbfD8SNp5LWy2y8rEvLsqcLpKsWCdKqhAEgsjpyhNVqkf")
+            return "$sona(1)";
         if (peerid == "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
-            return "$gagik";
+            return "$gagik(0)";
+        if (peerid == "PBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
+            return "$gagik(1)";
         if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
-            return "$north.publiq.network:12222";
+            return "$north.publiq.network:12222";   //  node(0)
+        if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
+            return "$north.publiq.network:13333";   //  state(0)
 
         return peerid;
     };
