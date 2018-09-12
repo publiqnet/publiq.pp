@@ -7,7 +7,6 @@
 #include "storage.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
-#include "transaction_pool.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
