@@ -220,7 +220,7 @@ void broadcast(beltpp::packet& package_broadcast,
     {
         direction = str_compare(self, from);
         if (plog)
-            plog->message(self.substr(0, 2) + ", " + from.substr(0, 2) + ": " + std::to_string(direction));
+            plog->message(self.substr(0, 8) + ", " + from.substr(0, 8) + ": " + std::to_string(direction));
 
         if (0 == direction)
             return;
@@ -277,7 +277,7 @@ void broadcast(beltpp::packet& package_broadcast,
     for (auto const& peer : filtered_peers)
     {
         if (plog)
-            plog->message("will rebroadcast to: " + peer.substr(0, 5));
+            plog->message("will rebroadcast to: " + peer);
 
         psk->send(peer, msg_broadcast);
     }

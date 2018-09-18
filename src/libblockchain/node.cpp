@@ -279,8 +279,8 @@ bool node::run()
                               m_pimpl->m_ptr_p2p_socket->name(),
                               peerid,
                               (it == interface_type::rpc),
-                              //m_pimpl->plogger_node,
-                              nullptr,  
+                              m_pimpl->plogger_node,
+                              //nullptr,
                               m_pimpl->m_p2p_peers,
                               m_pimpl->m_ptr_p2p_socket.get());
                 
