@@ -397,14 +397,14 @@ bool node::run()
                     BlockHeaderRequest header_request;
                     std::move(ref_packet).get(header_request);
 
-                    m_pimpl->writeln_node("processing block header request from " +
-                                          str_peerid(peerid));
-                    m_pimpl->writeln_node("    from " +
-                                          std::to_string(header_request.blocks_from) +
-                                          " to " +
-                                          std::to_string(header_request.blocks_to));
+//                    m_pimpl->writeln_node("processing block header request from " +
+//                                          str_peerid(peerid));
+//                    m_pimpl->writeln_node("    from " +
+//                                          std::to_string(header_request.blocks_from) +
+//                                          " to " +
+//                                          std::to_string(header_request.blocks_to));
                     process_blockheader_request(header_request, m_pimpl, *psk, peerid);
-                    m_pimpl->writeln_node("    done");
+//                    m_pimpl->writeln_node("    done");
 
                     break;
                 }
@@ -420,21 +420,21 @@ bool node::run()
                     BlockHeaderResponse header_response;
                     std::move(ref_packet).get(header_response);
 
-                    if (false == header_response.block_headers.empty())
-                    {
-                        m_pimpl->writeln_node("processing block header response from " +
-                                              str_peerid(peerid));
-                        m_pimpl->writeln_node("    from " +
-                                              std::to_string(header_response.block_headers.front().block_number) +
-                                              " to " +
-                                              std::to_string(header_response.block_headers.back().block_number));
-                    }
+//                    if (false == header_response.block_headers.empty())
+//                    {
+//                        m_pimpl->writeln_node("processing block header response from " +
+//                                              str_peerid(peerid));
+//                        m_pimpl->writeln_node("    from " +
+//                                              std::to_string(header_response.block_headers.front().block_number) +
+//                                              " to " +
+//                                              std::to_string(header_response.block_headers.back().block_number));
+//                    }
 
-                    if(m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?
+                    if(m_pimpl->sync_peerid == peerid)
                         process_blockheader_response(header_response, m_pimpl, *psk, peerid);
 
-                    if (false == header_response.block_headers.empty())
-                        m_pimpl->writeln_node("    done");
+//                    if (false == header_response.block_headers.empty())
+//                        m_pimpl->writeln_node("    done");
 
                     break;
                 }
@@ -446,16 +446,16 @@ bool node::run()
                     BlockChainRequest blockchain_request;
                     std::move(ref_packet).get(blockchain_request);
 
-                    m_pimpl->writeln_node("processing blockchain request from " +
-                                          str_peerid(peerid));
-                    m_pimpl->writeln_node("    from " +
-                                          std::to_string(blockchain_request.blocks_from) +
-                                          " to " +
-                                          std::to_string(blockchain_request.blocks_to));
+//                    m_pimpl->writeln_node("processing blockchain request from " +
+//                                          str_peerid(peerid));
+//                    m_pimpl->writeln_node("    from " +
+//                                          std::to_string(blockchain_request.blocks_from) +
+//                                          " to " +
+//                                          std::to_string(blockchain_request.blocks_to));
 
                     process_blockchain_request(blockchain_request, m_pimpl, *psk, peerid);
 
-                    m_pimpl->writeln_node("    done");
+//                    m_pimpl->writeln_node("    done");
 
                     break;
                 }

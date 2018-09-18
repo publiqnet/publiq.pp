@@ -97,7 +97,7 @@ int main(int argc, char** argv)
    
     for (size_t i = 0; i < count; ++i)
     {
-        cout << endl << endl << "Transfer : " << std::to_string(i) << endl;
+        cout << endl << "Transfer -> " << std::to_string(i);
 
         Transfer transfer;
         transfer.from = armen_key.public_key;
@@ -130,7 +130,7 @@ int main(int argc, char** argv)
 
         Send(broadcast, receive_package, sk, peerid, eh);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     }
     catch(std::exception const& e)
@@ -147,7 +147,7 @@ void Send(beltpp::packet&& send_package,
           peer_id peerid,
           beltpp::event_handler& eh)
 {
-    cout << endl << "Request -> "; // << send_package.to_string() << endl;
+    //cout << endl << "Request -> "; // << send_package.to_string() << endl;
 
    sk.send(peerid, std::move(send_package));
 
@@ -191,7 +191,7 @@ void Send(beltpp::packet&& send_package,
        break;
    }
 
-   cout << endl << "Response <- ";// << endl << receive_package.to_string() << endl;
+   //cout << endl << "Response <- ";// << endl << receive_package.to_string() << endl;
 }
 
 peer_id Connect(beltpp::ip_address const& open_address,

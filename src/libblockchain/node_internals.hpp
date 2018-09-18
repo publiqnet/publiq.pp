@@ -254,7 +254,7 @@ public:
     void load_transaction_cache()
     {
         uint64_t block_number = m_blockchain.length();
-        uint64_t block_count = TRANSACTION_LIFETIME / BLOCK_MINE_DELAY;
+        uint64_t block_count = 10;// TRANSACTION_LIFETIME / BLOCK_MINE_DELAY;
 
         block_count = block_number < block_count ? block_number : block_count;
 
