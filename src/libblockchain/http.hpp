@@ -220,9 +220,6 @@ string file_response(beltpp::detail::session_special_data& ssd,
                      beltpp::packet const& pc)
 {
     ssd.session_specal_handler = nullptr;
-    assert(ssd.ptr_data);
-    scan_status& ss = *reinterpret_cast<scan_status*>(ssd.ptr_data.get());
-    ss.status = scan_status::clean;
 
     if (pc.type() == BlockchainMessage::StorageFile::rtt)
     {
@@ -466,11 +463,10 @@ beltpp::detail::pmsg_all message_list_load(
             pss->resource.path.size() == 1 &&
             pss->resource.path.front() == "storage")
         {
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFileAddress>();
             BlockchainMessage::StorageFileAddress& ref = *reinterpret_cast<BlockchainMessage::StorageFileAddress*>(p.get());
             ref.uri = pss->resource.arguments["file"];
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFileAddress::rtt,
                                               std::move(p),
                                               &BlockchainMessage::StorageFileAddress::pvoid_saver);
