@@ -16,6 +16,7 @@ void get_actions(beltpp::packet const& package,
 
     stack<LoggedTransaction> action_stack;
 
+    size_t count = 0;
     size_t i = index;
     size_t len = action_log.length();
 
@@ -31,20 +32,26 @@ void get_actions(beltpp::packet const& package,
         {
             ++i;
             action_stack.push(std::move(action_info));
+            ++count;
         }
     }
 
-    for (; i < len; ++i)
+    for (; i < len && count < ACTION_LOG_MAX_RESPONSE; ++i)
     {
         LoggedTransaction action_info;
         action_log.at(i, action_info);
 
         // remove all not received entries and their reverts
-        if (action_info.applied_reverted == false &&
-            action_info.index >= index)
+        if (action_info.applied_reverted == false && action_info.index >= index)
+        {
+            --count;
             action_stack.pop();
+        }
         else
+        {
+            ++count;
             action_stack.push(std::move(action_info));
+        }
     }
 
     std::stack<LoggedTransaction> reverse_stack;
@@ -54,13 +61,11 @@ void get_actions(beltpp::packet const& package,
         action_stack.pop();
     }
 
-    uint64_t response_count = 0;
     LoggedTransactions msg_actions;
-    while(!reverse_stack.empty() && response_count < ACTION_LOG_MAX_RESPONSE) // list is a vector in reality :)
+    while(!reverse_stack.empty()) // list is a vector in reality :)
     {
         msg_actions.actions.push_back(std::move(reverse_stack.top()));
         reverse_stack.pop();
-        ++response_count;
     }
 
     sk.send(peerid, msg_actions);

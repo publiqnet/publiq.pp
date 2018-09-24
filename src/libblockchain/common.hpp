@@ -27,7 +27,7 @@
 #define BLOCK_MAX_TRANSACTIONS 1000
 
 // Action log max response count
-#define ACTION_LOG_MAX_RESPONSE 1000
+#define ACTION_LOG_MAX_RESPONSE 10000
 
 // Timers in seconds
 #define CHECK_TIMER 1
@@ -35,7 +35,7 @@
 #define EVENT_TIMER 30
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300
-#define SUMMARY_REPORT_TIMER 600
+#define SUMMARY_REPORT_TIMER 1800
 
 // Transaction maximum lifetime in seconds
 #define TRANSACTION_LIFETIME 86400
