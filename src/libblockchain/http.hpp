@@ -182,7 +182,7 @@ class scan_status : public beltpp::detail::iscan_status
 {
 public:
     enum e_status {clean, http_request_progress, http_properties_progress, http_done};
-    enum e_type {get, post};
+    enum e_type {get, post, options};
     scan_status()
         : status(clean)
         , type(post)
@@ -207,6 +207,7 @@ string http_response(beltpp::detail::session_special_data& ssd,
     string str_result;
     str_result += "HTTP/1.1 200 OK\r\n";
     str_result += "Content-Type: application/json\r\n";
+    str_result += "Access-Control-Allow-Origin: *\r\n";
     str_result += "Content-Length: ";
     str_result += std::to_string(buffer.size());
     str_result += "\r\n\r\n";
@@ -330,13 +331,19 @@ beltpp::detail::pmsg_all message_list_load(
 {
     if (nullptr == ssd.ptr_data)
         ssd.ptr_data = beltpp::new_dc_unique_ptr<beltpp::detail::iscan_status, scan_status>();
+
     auto it_fallback = iter_scan_begin;
+
+    ssd.session_specal_handler = nullptr;
+    ssd.autoreply.clear();
 
     scan_status* pss = dynamic_cast<scan_status*>(ssd.ptr_data.get());
 
     auto protocol_error = [&iter_scan_begin, &iter_scan_end, &ssd]()
     {
         ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+        ssd.session_specal_handler = nullptr;
+        ssd.autoreply.clear();
         iter_scan_begin = iter_scan_end;
         return ::beltpp::detail::pmsg_all(size_t(-2),
                                           ::beltpp::void_unique_nullptr(),
@@ -348,20 +355,25 @@ beltpp::detail::pmsg_all message_list_load(
 
     bool enough_length = (line_length > 1000);
 
-    string value_post = "POST ", value_get = "GET ";
+    string value_post = "POST ", value_get = "GET ", value_options = "OPTIONS ";
+
     if (pss &&
         scan_status::clean == pss->status)
     {
+
         auto iter_scan = check_begin(iter_scan_begin, iter_scan_end, value_post);
         if (iter_scan_begin == iter_scan)
             iter_scan = check_begin(iter_scan_begin, iter_scan_end, value_get);
+        if (iter_scan_begin == iter_scan)
+            iter_scan = check_begin(iter_scan_begin, iter_scan_end, value_options);
 
         if (iter_scan_begin != iter_scan)
-        {   //  even if "P" or "G" occured switch to http mode
+        {   //  even if "P", "G" or "O" occured switch to http mode
             string temp(iter_scan_begin, iter_scan);
             pss->status = scan_status::http_request_progress;
         }
     }
+
     if (pss &&
         scan_status::http_request_progress == pss->status)
     {
@@ -369,6 +381,9 @@ beltpp::detail::pmsg_all message_list_load(
         auto iter_scan_check_begin = check_begin(iter_scan_begin, iter_scan_end, value_post);
         if (iter_scan_begin == iter_scan_check_begin)
             iter_scan_check_begin = check_begin(iter_scan_begin, iter_scan_end, value_get);
+        if (iter_scan_begin == iter_scan_check_begin)
+            iter_scan_check_begin = check_begin(iter_scan_begin, iter_scan_end, value_options);
+
         auto iter_scan_check_end = check_end(iter_scan_begin, iter_scan_end, value_ending);
 
         string scanned_begin(iter_scan_begin, iter_scan_check_begin);
@@ -388,6 +403,10 @@ beltpp::detail::pmsg_all message_list_load(
 
             if (scanned_begin == value_get)
                 pss->type = scan_status::get;
+            else if (scanned_begin == value_post)
+                pss->type = scan_status::post;
+            else// if (scanned_begin == value_options)
+                pss->type = scan_status::options;
 
             pss->http_header_scanning += scanned_line.length();
             iter_scan_begin = iter_scan_check_end.second;
@@ -454,10 +473,15 @@ beltpp::detail::pmsg_all message_list_load(
         line_length = line.length();
 
         if (pss->type == scan_status::get)
+        {
             ssd.session_specal_handler = &file_response;
-        else
+            ssd.autoreply.clear();
+        }
+        else if (pss->type == scan_status::post)
+        {
             ssd.session_specal_handler = &http_response;
-
+            ssd.autoreply.clear();
+        }
 
         if (pss->type == scan_status::get &&
             pss->resource.path.size() == 1 &&
@@ -528,6 +552,23 @@ beltpp::detail::pmsg_all message_list_load(
 
                 return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
             }
+        }
+        else if (pss->type == scan_status::options)
+        {
+            ssd.session_specal_handler = nullptr;
+
+            ssd.autoreply += "HTTP/1.1 200 OK\r\n";
+            ssd.autoreply += "Access-Control-Allow-Origin: *\r\n";
+            ssd.autoreply += "Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n";
+            ssd.autoreply += "Access-Control-Allow-Headers: X-CUSTOM-HEADER, Content-Type\r\n";
+            ssd.autoreply += "Access-Control-Max-Age: 86400\r\n";
+            //ssd.autoreply += "Vary: Accept-Encoding, Origin\r\n";
+            ssd.autoreply += "Content-Length: 0\r\n";
+            ssd.autoreply += "\r\n";
+
+            return ::beltpp::detail::pmsg_all(size_t(-1),
+                                              ::beltpp::void_unique_nullptr(),
+                                              nullptr);
         }
         else
             return protocol_error();
