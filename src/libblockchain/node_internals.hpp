@@ -93,7 +93,7 @@ public:
         , m_storage(fs_storage)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)
-        , private_key(pv_key)
+        , m_pv_key(pv_key)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -107,7 +107,22 @@ public:
         m_ptr_eh->add(*m_ptr_rpc_socket);
         m_ptr_eh->add(*m_ptr_p2p_socket);
 
-        load_transaction_cache();
+
+        if (m_blockchain.length() == 0)
+            insert_genesis();
+        else
+        {
+            calc_balance();
+            load_transaction_cache();
+
+            SignedBlock signed_block;
+            m_blockchain.at(m_blockchain.length() - 1, signed_block);
+
+            Block block;
+            std::move(signed_block.block_details).get(block);
+
+            calc_sync_info(block);
+        }
     }
 
     void writeln_p2p(string const& value)
@@ -180,7 +195,7 @@ public:
 
         chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
 
-        return diff_seconds.count() >= SYNC_STEP_TIMEOUT;
+        return diff_seconds.count() >= SYNC_FAILURE_TIMEOUT;
     }
 
     void update_sync_time()
@@ -297,15 +312,113 @@ public:
         }
     }
 
-    void check_balance() // test
+    uint64_t calc_delta(string const& key, uint64_t const& amount, string const& prev_hash, uint64_t const& cons_const)
     {
-        if (timer_count % 10 != 0)
+        uint64_t dist = meshpp::distance(meshpp::hash(key), prev_hash);
+        uint64_t delta = amount * DIST_MAX / ((dist + 1) * cons_const);
+
+        if (delta > DELTA_MAX)
+            delta = DELTA_MAX;
+
+        return delta;
+    }
+
+    void calc_balance()
+    {
+        m_balance = m_state.get_balance(m_pv_key.get_public_key().to_string());
+        m_miner = coin(m_balance) >= MINE_AMOUNT_THRESHOLD;
+    }
+
+    void calc_sync_info(Block const& block)
+    {
+        own_sync_info.number = m_blockchain.length();
+
+        // calculate delta for next block for the case if I will mine it
+        if (m_miner)
+        {
+            string prev_hash = meshpp::hash(block.to_string());
+            uint64_t delta = calc_delta(m_pv_key.get_public_key().to_string(), m_balance.whole, prev_hash, block.header.c_const);
+
+            own_sync_info.c_sum = block.header.c_sum + delta;
+            net_sync_info.c_sum = 0;
+            net_sync_info.number = 0;
+        }
+        else
+        {
+            own_sync_info.c_sum = 0;
+            net_sync_info.c_sum = 0;
+            net_sync_info.number = 0;
+        }
+    }
+
+    void insert_genesis()
+    {
+        if (m_blockchain.length() > 0)
             return;
 
-        uint64_t fraction = m_state.get_fraction();
+        BlockHeader block_header;
+        block_header.block_number = 0;
+        block_header.c_sum = 0;
+        block_header.delta = 0;
+        block_header.c_const = 1;
+        block_header.prev_hash = meshpp::hash("Ice Age");
+        block_header.sign_time.tm = 0;
 
-        if (fraction != 0 && fraction != 100000000)
-            throw std::runtime_error("We arrive. Check balance!");
+        Block block;
+        block.header = block_header;
+
+        Reward reward;
+        reward.amount = coin(100, 0).to_Coin();
+
+        meshpp::random_seed node_rs("NODE");
+        meshpp::private_key node_pv = node_rs.get_private_key(0);
+        reward.to = node_pv.get_public_key().to_string();
+        block.rewards.push_back(std::move(reward));
+
+        meshpp::random_seed armen_rs("Armen");
+        meshpp::private_key armen_pv = armen_rs.get_private_key(0);
+        reward.to = armen_pv.get_public_key().to_string();
+        block.rewards.push_back(std::move(reward));
+
+        meshpp::random_seed tigran_rs("Tigran");
+        meshpp::private_key tigran_pv = tigran_rs.get_private_key(0);
+        reward.to = tigran_pv.get_public_key().to_string();
+        block.rewards.push_back(std::move(reward));
+
+        meshpp::random_seed gagik_rs("Gagik");
+        meshpp::private_key gagik_pv = gagik_rs.get_private_key(0);
+        reward.to = gagik_pv.get_public_key().to_string();
+        block.rewards.push_back(std::move(reward));
+
+        meshpp::random_seed sona_rs("Sona");
+        meshpp::private_key sona_pv = sona_rs.get_private_key(0);
+        reward.to = sona_pv.get_public_key().to_string();
+        block.rewards.push_back(std::move(reward));
+
+        meshpp::random_seed rs("GENESIS");
+        meshpp::private_key pv_key = rs.get_private_key(0);
+        meshpp::signature sgn = pv_key.sign(block.to_string());
+
+        beltpp::on_failure guard([&] { discard(); });
+
+        // apply rewards to state and action_log
+        for (auto& item : block.rewards)
+        {
+            m_state.increase_balance(item.to, item.amount);
+            m_action_log.log(item);
+        }
+
+        SignedBlock signed_block;
+        signed_block.signature = sgn.base58;
+        signed_block.authority = sgn.pb_key.to_string();
+        signed_block.block_details = block;
+
+        // insert to blockchain
+        m_blockchain.insert(signed_block);
+
+        save(guard);
+        calc_balance();
+        calc_sync_info(block);
     }
 
     std::vector<beltpp::isocket::peer_id> do_step()
@@ -323,8 +436,6 @@ public:
     }
 
     size_t timer_count = 0; // test
-
-    bool m_miner = false;
 
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;
@@ -348,8 +459,13 @@ public:
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
     unordered_map<string, system_clock::time_point> m_transaction_cache;
 
-    meshpp::private_key private_key;
+    meshpp::private_key m_pv_key;
 
+    bool m_miner;
+    Coin m_balance;
+    
+    SyncInfo own_sync_info;
+    SyncInfo net_sync_info;
     BlockchainMessage::ctime sync_time;
     beltpp::isocket::peer_id sync_peerid;
     vector<SignedBlock> sync_blocks;

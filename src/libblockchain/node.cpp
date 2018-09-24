@@ -94,10 +94,6 @@ bool node::run()
 {
     bool code = true;
 
-    // temp solution for genesis
-    // will return id chain is not empty
-    insert_genesis(m_pimpl);
-
     unordered_set<beltpp::ievent_item const*> wait_sockets;
 
     auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
@@ -243,29 +239,6 @@ bool node::run()
                     m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
-                case Shutdown::rtt:// test
-                {
-                    if (it != interface_type::rpc)
-                        break;
-
-                    m_pimpl->writeln_node("shutdown received");
-
-                    code = false;
-
-                    psk->send(peerid, Done());
-
-                    if (false == broadcast_anything.items.empty())
-                    {
-                        m_pimpl->writeln_node("broadcasting shutdown");
-
-                        Shutdown shutdown_msg;
-                        ref_packet.get(shutdown_msg);
-
-                        for (auto const& p2p_peer : m_pimpl->m_p2p_peers)
-                            m_pimpl->m_ptr_p2p_socket->send(p2p_peer, shutdown_msg);
-                    }
-                    break;
-                }
                 case Transfer::rtt:
                 {
                     if (broadcast_transaction.items.empty())
@@ -279,28 +252,14 @@ bool node::run()
                               m_pimpl->m_ptr_p2p_socket->name(),
                               peerid,
                               (it == interface_type::rpc),
-                              m_pimpl->plogger_node,
-                              //nullptr,
+                              //m_pimpl->plogger_node,
+                              nullptr,
                               m_pimpl->m_p2p_peers,
                               m_pimpl->m_ptr_p2p_socket.get());
                 
                     if (it == interface_type::rpc)
                         psk->send(peerid, Done());
 
-                    break;
-                }
-                case RevertLastLoggedAction::rtt:// test
-                {
-                    if (it == interface_type::rpc)
-                    {
-                        beltpp::on_failure guard([&] { m_pimpl->discard(); });
-
-                        m_pimpl->m_action_log.revert();
-
-                        m_pimpl->save(guard);
-
-                        psk->send(peerid, Done());
-                    }
                     break;
                 }
                 case StorageFile::rtt:
@@ -363,12 +322,17 @@ bool node::run()
                     if (it != interface_type::p2p)
                         throw wrong_request_exception("SyncRequest received through rpc!");
 
-                    BlockHeader block_header;
-                    m_pimpl->m_blockchain.header(block_header);
+                    BlockHeader header;
+                    m_pimpl->m_blockchain.header(header);
 
                     SyncResponse sync_response;
-                    sync_response.block_number = block_header.block_number;
-                    sync_response.consensus_sum = block_header.c_sum;
+                    sync_response.number = header.block_number;
+                    sync_response.c_sum = header.c_sum;
+
+                    if (m_pimpl->net_sync_info.c_sum > m_pimpl->own_sync_info.c_sum)
+                        sync_response.sync_info = m_pimpl->net_sync_info;
+                    else
+                        sync_response.sync_info = m_pimpl->own_sync_info;
 
                     psk->send(peerid, std::move(sync_response));
 
@@ -385,6 +349,16 @@ bool node::run()
 
                     SyncResponse sync_response;
                     std::move(ref_packet).get(sync_response);
+
+                    SyncInfo sync_info;
+                    std::move(sync_response.sync_info).get(sync_info);
+
+                    if (sync_info.number == m_pimpl->own_sync_info.number &&
+                        sync_info.c_sum > m_pimpl->net_sync_info.c_sum)
+                    {
+                        m_pimpl->net_sync_info = sync_info;
+                    }
+
                     m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
 
                     break;
@@ -679,79 +653,83 @@ bool node::run()
 
         if (m_pimpl->sync_peerid.empty())
         {
+            bool sync_now = false;
+
+            BlockHeader header;
+            m_pimpl->m_blockchain.header(header);
+
+            system_clock::time_point current_time_point = system_clock::now();
+            system_clock::time_point previous_time_point = system_clock::from_time_t(header.sign_time.tm);
+            chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
+
             if (!m_pimpl->sync_responses.empty())
             {
                 // process collected SyncResponse data
-                BlockHeader block_header;
-                m_pimpl->m_blockchain.header(block_header);
-
-                uint64_t block_number = block_header.block_number;
-                uint64_t consensus_sum = block_header.c_sum;
+                uint64_t block_number = header.block_number;
+                uint64_t consensus_sum = header.c_sum;
                 beltpp::isocket::peer_id tmp_peer;
-
-                // if node is possible miner it should
-                // mine first current block then try to sync
-                uint64_t n = m_pimpl->m_miner ? 1 : 0;
 
                 for (auto& it : m_pimpl->sync_responses)
                 {
                     if (m_pimpl->m_p2p_peers.find(it.first) == m_pimpl->m_p2p_peers.end())
                         continue; // for the case if peer is droped before sync started
 
-                    if (block_number + n < it.second.block_number ||
-                        (block_number == it.second.block_number &&
-                            consensus_sum < it.second.consensus_sum))
+                    if (block_number < it.second.number ||
+                        (block_number == it.second.number && consensus_sum < it.second.c_sum))
                     {
-                        block_number = it.second.block_number;
-                        consensus_sum = it.second.consensus_sum;
+                        block_number = it.second.number;
+                        consensus_sum = it.second.c_sum;
                         tmp_peer = it.first;
                     }
                 }
 
-                m_pimpl->sync_responses.clear();
+                sync_now = block_number != header.block_number + 1;
 
-                if (!tmp_peer.empty())
+                // sync candidate has the next block number
+                if (!sync_now)
                 {
-                    m_pimpl->sync_peerid = tmp_peer;
-
-                    // request better chain
-                    BlockHeaderRequest header_request;
-                    header_request.blocks_from = block_number;
-                    header_request.blocks_to = block_header.block_number;
-
-                    beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
-
-                    m_pimpl->writeln_node("requesting block headers " +
-                                          std::to_string(header_request.blocks_from) +
-                                          " to " +
-                                          std::to_string(header_request.blocks_to) +
-                                          " Peer: " +
-                                          str_peerid(tmp_peer));
-                    psk->send(tmp_peer, header_request);
-                    m_pimpl->update_sync_time();
-                    m_pimpl->reset_stored_request(tmp_peer);
-                    m_pimpl->store_request(tmp_peer, header_request);
-                }
-            }
-            else
-            {
-                BlockHeader header;
-                m_pimpl->m_blockchain.header(header);
-
-                system_clock::time_point current_time_point = system_clock::now();
-                system_clock::time_point previous_time_point = system_clock::from_time_t(header.sign_time.tm);
-                chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
-
-                if (diff_seconds.count() >= BLOCK_MINE_DELAY && m_pimpl->timer_count > 2)
-                {
-                    coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
-
-                    if (amount >= MINE_AMOUNT_THRESHOLD)
+                    if (consensus_sum > std::max(m_pimpl->own_sync_info.c_sum, m_pimpl->net_sync_info.c_sum))
+                        sync_now = true; // suddenly got something better than expected
+                    else if (m_pimpl->own_sync_info.c_sum > consensus_sum)
+                        m_pimpl->sync_responses.clear(); // I can mine better block and dont need received data
+                    else
                     {
-                        mine_block(m_pimpl);
-                        m_pimpl->m_miner = true;
+                        if (consensus_sum == m_pimpl->net_sync_info.c_sum)
+                            sync_now = true; // got expected block
+                        else if (diff_seconds.count() > BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY)
+                            sync_now = true; // it is too late and network has better block than I can mine
+                    }                                            
+                }
+
+                if (sync_now)
+                {
+                    m_pimpl->sync_responses.clear();
+
+                    if (!tmp_peer.empty())
+                    {
+                        m_pimpl->sync_peerid = tmp_peer;
+
+                        // request better chain
+                        BlockHeaderRequest header_request;
+                        header_request.blocks_from = block_number;
+                        header_request.blocks_to = header.block_number;
+
+                        beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
+
+                        psk->send(tmp_peer, header_request);
+                        m_pimpl->update_sync_time();
+                        m_pimpl->reset_stored_request(tmp_peer);
+                        m_pimpl->store_request(tmp_peer, header_request);
                     }
                 }
+            }
+            
+            if (!sync_now && m_pimpl->sync_responses.empty())
+            {
+                if (m_pimpl->m_miner && diff_seconds.count() >= BLOCK_MINE_DELAY &&
+                    (m_pimpl->own_sync_info.c_sum >= m_pimpl->net_sync_info.c_sum ||
+                     diff_seconds.count() > BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY))
+                     mine_block(m_pimpl);
 
                 if (m_pimpl->m_sync_timer.expired())
                     m_pimpl->new_sync_request();

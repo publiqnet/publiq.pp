@@ -2,8 +2,6 @@
 
 #include "node_internals.hpp"
 
-void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 void process_blockheader_request(BlockHeaderRequest const& header_request,

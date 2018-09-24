@@ -14,9 +14,10 @@
 
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 60
+#define BLOCK_WAIT_DELAY 15
 
 // Sync process request/response maximum dely
-#define SYNC_STEP_TIMEOUT 30
+#define SYNC_FAILURE_TIMEOUT 30
 
 // Sent packet will considered as not answered
 // after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds
@@ -25,9 +26,12 @@
 // Block maximum transactions count
 #define BLOCK_MAX_TRANSACTIONS 1000
 
+// Action log max response count
+#define ACTION_LOG_MAX_RESPONSE 1000
+
 // Timers in seconds
 #define CHECK_TIMER 1
-#define SYNC_TIMER  15
+#define SYNC_TIMER  5
 #define EVENT_TIMER 30
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300

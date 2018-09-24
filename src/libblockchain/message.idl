@@ -134,12 +134,19 @@ module BlockchainMessage
         Object package
     }
 
+    class SyncInfo
+    {
+        UInt64 number
+        UInt64 c_sum
+    }
+
     class SyncRequest {}
 
     class SyncResponse
     {
-        UInt64 block_number
-        UInt64 consensus_sum
+        UInt64 number
+        UInt64 c_sum
+        Object sync_info
     }
 
     class BlockHeaderRequest
@@ -188,11 +195,6 @@ module BlockchainMessage
     {
         Object action  //  Reward, Transfer, File or Page
     }
-
-    class RevertLastLoggedAction {}
-
-    //  special testing message
-    class Shutdown {}
 
     //  distributed storage related
     class StorageFile

@@ -71,14 +71,6 @@ void state::apply_transfer(Transfer const& transfer, Coin const& fee)
     increase_balance(transfer.to, transfer.amount);
 }
 
-void state::apply_reward(Reward const& reward)
-{
-    if (coin(reward.amount).empty())
-        throw std::runtime_error("0 amount reward is humiliatingly!");
-
-    increase_balance(reward.to, reward.amount);
-}
-
 void state::increase_balance(string const& key, coin const& amount)
 {
     if (amount.empty())
@@ -110,21 +102,6 @@ void state::decrease_balance(string const& key, coin const& amount)
 
     if (coin(balance).empty())
         m_pimpl->m_accounts.erase(key);
-}
-
-uint64_t state::get_fraction()
-{
-    uint64_t fraction = 0;
-
-    auto keys = m_pimpl->m_accounts.keys();
-
-    for (auto key : keys)
-    {
-        Coin balance = m_pimpl->m_accounts.as_const().at(key);
-        fraction += balance.fraction;
-    }
-
-    return fraction;
 }
 
 }

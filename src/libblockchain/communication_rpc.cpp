@@ -54,11 +54,13 @@ void get_actions(beltpp::packet const& package,
         action_stack.pop();
     }
 
+    uint64_t response_count = 0;
     LoggedTransactions msg_actions;
-    while(!reverse_stack.empty()) // list is a vector in reality :)
+    while(!reverse_stack.empty() && response_count < ACTION_LOG_MAX_RESPONSE) // list is a vector in reality :)
     {
         msg_actions.actions.push_back(std::move(reverse_stack.top()));
         reverse_stack.pop();
+        ++response_count;
     }
 
     sk.send(peerid, msg_actions);

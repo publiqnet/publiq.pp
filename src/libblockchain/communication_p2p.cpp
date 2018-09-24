@@ -14,20 +14,6 @@ using std::multimap;
 
 ///////////////////////////////////////////////////////////////////////////////////
 //                            Internal Finctions
-
-uint64_t calc_delta(string const& key, uint64_t const& amount, string const& prev_hash, uint64_t const& cons_const)
-{
-    string key_hash = meshpp::hash(key);
-
-    uint64_t dist = meshpp::distance(key_hash, prev_hash);
-    uint64_t delta = amount * DIST_MAX / ((dist + 1) * cons_const);
-
-    if (delta > DELTA_MAX)
-        delta = DELTA_MAX;
-
-    return delta;
-}
-
 bool apply_transaction(Transaction& transaction, 
                        unique_ptr<publiqpp::detail::node_internals>& m_pimpl, 
                        string const key = string())
@@ -146,74 +132,6 @@ bool check_rewards(Block const& block, string const& authority)
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-void insert_genesis(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
-    if (m_pimpl->m_blockchain.length() > 0)
-        return;
-
-    BlockHeader block_header;
-    block_header.block_number = 0;
-    block_header.c_sum = 0;
-    block_header.delta = 0;
-    block_header.c_const = 1;
-    block_header.prev_hash = meshpp::hash("Ice Age");
-    block_header.sign_time.tm = 0;
-
-    Block block;
-    block.header = block_header;
-
-    Reward reward;
-    reward.amount = coin(100, 0).to_Coin();
-
-    meshpp::random_seed node_rs("NODE");
-    meshpp::private_key node_pv = node_rs.get_private_key(0);
-    reward.to = node_pv.get_public_key().to_string();
-    block.rewards.push_back(std::move(reward));
-
-    meshpp::random_seed armen_rs("Armen");
-    meshpp::private_key armen_pv = armen_rs.get_private_key(0);
-    reward.to = armen_pv.get_public_key().to_string();
-    block.rewards.push_back(std::move(reward));
-
-    meshpp::random_seed tigran_rs("Tigran");
-    meshpp::private_key tigran_pv = tigran_rs.get_private_key(0);
-    reward.to = tigran_pv.get_public_key().to_string();
-    block.rewards.push_back(std::move(reward));
-
-    meshpp::random_seed gagik_rs("Gagik");
-    meshpp::private_key gagik_pv = gagik_rs.get_private_key(0);
-    reward.to = gagik_pv.get_public_key().to_string();
-    block.rewards.push_back(std::move(reward));
-
-    meshpp::random_seed sona_rs("Sona");
-    meshpp::private_key sona_pv = sona_rs.get_private_key(0);
-    reward.to = sona_pv.get_public_key().to_string();
-    block.rewards.push_back(std::move(reward));
-
-    meshpp::random_seed rs("GENESIS");
-    meshpp::private_key pv_key = rs.get_private_key(0);
-    meshpp::signature sgn = pv_key.sign(block.to_string());
-
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
-
-    // apply rewards to state and action_log
-    for (auto& item : block.rewards)
-    {
-        m_pimpl->m_state.increase_balance(item.to, item.amount);
-        m_pimpl->m_action_log.log(item);
-    }
-
-    SignedBlock signed_block;
-    signed_block.signature = sgn.base58;
-    signed_block.authority = sgn.pb_key.to_string();
-    signed_block.block_details = std::move(block);
-
-    // insert to blockchain
-    m_pimpl->m_blockchain.insert(signed_block);
-
-    m_pimpl->save(guard);
-}
-
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     SignedBlock prev_signed_block;
@@ -223,10 +141,9 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     BlockHeader prev_header;
     m_pimpl->m_blockchain.header(prev_header);
 
-    string own_key = m_pimpl->private_key.get_public_key().to_string();
+    string own_key = m_pimpl->m_pv_key.get_public_key().to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
-    Coin amount = m_pimpl->m_state.get_balance(m_pimpl->private_key.get_public_key().to_string());
-    uint64_t delta = calc_delta(own_key, amount.whole, prev_hash, prev_header.c_const);
+    uint64_t delta = m_pimpl->calc_delta(own_key, m_pimpl->m_balance.whole, prev_hash, prev_header.c_const);
 
     // fill new block header data
     BlockHeader block_header;
@@ -275,7 +192,12 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     Block block;
     block.header = block_header;
 
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
+    beltpp::on_failure guard([&m_pimpl] 
+    { 
+        m_pimpl->discard();
+        m_pimpl->calc_balance();
+    });
+
     multimap<BlockchainMessage::ctime, std::pair<string, SignedTransaction>> transaction_map;
 
     // Revert action log and state, revert transaction pool records
@@ -322,15 +244,18 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         m_pimpl->m_action_log.log(reward);
     }
 
-    meshpp::signature sgn = m_pimpl->private_key.sign(block.to_string());
+    meshpp::signature sgn = m_pimpl->m_pv_key.sign(block.to_string());
 
     SignedBlock signed_block;
     signed_block.signature = sgn.base58;
     signed_block.authority = sgn.pb_key.to_string();
-    signed_block.block_details = std::move(block);
+    signed_block.block_details = block;
 
     // insert to blockchain
     m_pimpl->m_blockchain.insert(signed_block);
+
+    // calculate miner balance
+    m_pimpl->calc_balance();
 
     // apply back rest of the pool content to the state and action_log
     for (; it != transaction_map.end(); ++it)
@@ -338,9 +263,9 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
             m_pimpl->m_transaction_pool.remove(it->second.first);
 
     m_pimpl->save(guard);
+    m_pimpl->calc_sync_info(block);
 
-    // test
-    m_pimpl->check_balance();
+    m_pimpl->writeln_node("new block mined : " + std::to_string(block_header.block_number));
 }
 
 void process_blockheader_request(BlockHeaderRequest const& header_request,
@@ -571,6 +496,40 @@ void process_blockchain_response(BlockChainResponse const& response,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid)
 {
+    auto str_peerid = [](string const& peerid) -> string
+    {
+        if (peerid == "PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
+            return "$tigran(0)";
+        if (peerid == "PBQ8gyokoWdo9tSLcDQQjxdhYgmmnScUPT6YDCaVVoeSFRz1zkGpv")
+            return "$tigran(1)";
+        if (peerid == "PBQ5LNw1peEL8ZRDEw6ukndHpaob8A43dsh2beYg9cwocHm5r3tPR")
+            return "$tigran(2)";
+        if (peerid == "PBQ5pFSs7NKc26b3gpeFN17oGYkn3vFEuf8sA4HhZQsF9MfRrXShC")
+            return "$tigran(3)";
+        if (peerid == "PBQ5Nd79pnM2X6E8NTPPwMXBrX8XigztwU3L51ALPSVBQH2L8tiZw")
+            return "$tigran(4)";
+        if (peerid == "PBQ4te6LkpCnsu9DyoRUZpmhMypbMwqrpofUWvRgGanY8c2vYciwz")
+            return "$tigran(5)";
+        if (peerid == "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu")
+            return "$armen(0)";
+        if (peerid == "PBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
+            return "$armen(1)";
+        if (peerid == "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
+            return "$sona(0)";
+        if (peerid == "PBQ8VLQxxbfD8SNp5LWy2y8rEvLsqcLpKsWCdKqhAEgsjpyhNVqkf")
+            return "$sona(1)";
+        if (peerid == "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
+            return "$gagik(0)";
+        if (peerid == "PBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
+            return "$gagik(1)";
+        if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
+            return "$north.publiq.network:12222";   //  node(0)
+        if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
+            return "$north.publiq.network:13333";   //  state(0)
+
+        return peerid;
+    };
+
     //1. check received blockchain validity
 
     if (response.signed_blocks.empty())
@@ -666,14 +625,18 @@ void process_blockchain_response(BlockChainResponse const& response,
         return; // will wait new chain
     }
 
-    //3. all needed blocks received, start to check
+    // test log
     m_pimpl->writeln_node("applying collected " + std::to_string(m_pimpl->sync_blocks.size()) + " blocks");
+    m_pimpl->writeln_node("last block mined by " + str_peerid(m_pimpl->sync_blocks.rbegin()->authority));
+
+    //3. all needed blocks received, start to check
     unordered_map<string, system_clock::time_point> transaction_cache_backup = m_pimpl->m_transaction_cache;
 
     auto now = system_clock::now();
     beltpp::on_failure guard([&m_pimpl, &transaction_cache_backup] 
     { 
-        m_pimpl->discard(); 
+        m_pimpl->discard();
+        m_pimpl->calc_balance();
         m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
         m_pimpl->m_transaction_cache = transaction_cache_backup;
     });
@@ -730,18 +693,18 @@ void process_blockchain_response(BlockChainResponse const& response,
     }
 
     // verify new received blocks
+    Block block;
     BlockHeader prev_header;
     m_pimpl->m_blockchain.header_at(lcb_number, prev_header);
     uint64_t c_const = prev_header.c_const;
 
     for (auto block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
     {
-        Block block;
         block_it->block_details.get(block);
 
         // verify consensus_delta
         Coin amount = m_pimpl->m_state.get_balance(block_it->authority);
-        uint64_t delta = calc_delta(block_it->authority, amount.whole, block.header.prev_hash, c_const);
+        uint64_t delta = m_pimpl->calc_delta(block_it->authority, amount.whole, block.header.prev_hash, c_const);
         
         if (delta != block.header.delta)
             throw wrong_data_exception("blockchain response. consensus delta!");
@@ -779,6 +742,8 @@ void process_blockchain_response(BlockChainResponse const& response,
         m_pimpl->m_blockchain.insert(*block_it);
     }
 
+    m_pimpl->calc_balance();
+
     // apply back rest of the pool
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
 
@@ -792,9 +757,7 @@ void process_blockchain_response(BlockChainResponse const& response,
     }
 
     m_pimpl->save(guard);
-
-    // test
-    m_pimpl->check_balance();
+    m_pimpl->calc_sync_info(block);
 
     // request new chain if the process was stopped
     // by BLOCK_INSERT_LENGTH restriction
