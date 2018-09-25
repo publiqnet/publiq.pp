@@ -36,7 +36,10 @@ void get_actions(beltpp::packet const& package,
         }
     }
 
-    for (; i < len && count < ACTION_LOG_MAX_RESPONSE; ++i)
+    size_t max_count = msg_get_actions.max_count < ACTION_LOG_MAX_RESPONSE ? 
+                       msg_get_actions.max_count : ACTION_LOG_MAX_RESPONSE;
+
+    for (; i < len && count < max_count; ++i)
     {
         LoggedTransaction action_info;
         action_log.at(i, action_info);

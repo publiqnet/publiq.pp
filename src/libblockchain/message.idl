@@ -98,7 +98,12 @@ module BlockchainMessage
         UInt64 index
         Object action
     }
-    class LoggedTransactionsRequest { UInt64 start_index }
+    class LoggedTransactionsRequest 
+    { 
+        UInt64 start_index
+        UInt64 max_count
+    }
+
     class LoggedTransactions { Array LoggedTransaction actions }
 
     class MasterKeyRequest {}
