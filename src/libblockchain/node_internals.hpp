@@ -375,22 +375,22 @@ public:
         reward.to = node_pv.get_public_key().to_string();
         block.rewards.push_back(std::move(reward));
 
-        meshpp::random_seed armen_rs("Armen");
+        meshpp::random_seed armen_rs("ARMEN");
         meshpp::private_key armen_pv = armen_rs.get_private_key(0);
         reward.to = armen_pv.get_public_key().to_string();
         block.rewards.push_back(std::move(reward));
 
-        meshpp::random_seed tigran_rs("Tigran");
+        meshpp::random_seed tigran_rs("TIGRAN");
         meshpp::private_key tigran_pv = tigran_rs.get_private_key(0);
         reward.to = tigran_pv.get_public_key().to_string();
         block.rewards.push_back(std::move(reward));
 
-        meshpp::random_seed gagik_rs("Gagik");
+        meshpp::random_seed gagik_rs("GAGIK");
         meshpp::private_key gagik_pv = gagik_rs.get_private_key(0);
         reward.to = gagik_pv.get_public_key().to_string();
         block.rewards.push_back(std::move(reward));
 
-        meshpp::random_seed sona_rs("Sona");
+        meshpp::random_seed sona_rs("SONA");
         meshpp::private_key sona_pv = sona_rs.get_private_key(0);
         reward.to = sona_pv.get_public_key().to_string();
         block.rewards.push_back(std::move(reward));
