@@ -76,7 +76,8 @@ void action_log::insert(LoggedTransaction& action_info)
     if (!m_pimpl->m_enabled)
         return;
 
-    action_info.index = length();
+    if (true == action_info.applied_reverted)   //  apply
+        action_info.index = length();
 
     m_pimpl->m_actions.push_back(action_info);
     m_pimpl->m_revert_index = action_info.index;
