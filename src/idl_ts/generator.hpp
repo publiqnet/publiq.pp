@@ -24,4 +24,5 @@ void analyze_struct(        state_holder& state,
                             expression_tree const* pexpression,
                             std::string const& type_name,
                             std::string const& outputFilePath,
-                            std::string const& prefix);
+                            std::string const& prefix,
+                            size_t rtt);

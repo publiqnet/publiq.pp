@@ -142,26 +142,47 @@ export const parceToModel = jsonData => {
 export const parceToJson = typedData => {
      return JSON.stringify(typedData.toJson())
 };
+
 )file_template";
 
 /////////////////////////// create BaseModel file //////////////////////////////////
 boost::filesystem::path baseMoselPath = root.string() + "/" + "BaseModel.ts" ;
 boost::filesystem::ofstream BaseModel( baseMoselPath );
 
-BaseModel << R"file_template(import MODELS_TYPES from './ModelTypes';
+BaseModel << R"file_template(
+ const dateToFormatString = d => {
 
-export default class BaseModel {
+      const addZero = d => {
+         return d.length == 2 ? d : `0${d}`;
+      };
 
-    static createInstanceFromJson (data) {
-        const ModelClass = MODELS_TYPES[data.rtt];
-        if(!ModelClass){
-            throw new Error("invalid model class");
-        }
-        return new ModelClass(data);
-    }
+     const year = d.getFullYear().toString();
+     const month = (d.getMonth()+1).toString();
+     const day = d.getDate().toString();
+     const hours = d.getHours().toString();
+     const minutes = d.getMinutes().toString();
+     const seconds = d.getSeconds().toString();
+
+     return `${
+       year
+     }-${
+       addZero(month)
+     }-${
+       addZero(day)
+     } ${
+       addZero(hours)
+     }:${
+       addZero(minutes)
+     }:${
+       addZero(seconds)
+     }`;
+
+ }
+
+ export default class BaseModel {
 
     static get PropertyMap () {
-        return {}
+        return {};
     }
 
     static setProperty (propertyName, propertyValue, toObject, constructor) {
@@ -171,20 +192,23 @@ export default class BaseModel {
     }
 
     static hasRtt (type) {
-        const rtt = BaseModel.getRtt(type);
-        if(rtt === -1){
-            return false
+        if(type.Rtt !== undefined) {
+            return true;
         }
-        return true
+        return false;
     }
 
     static getRtt (type) {
-        return MODELS_TYPES.indexOf(type);
+      return type.Rtt
     }
 
     static getDataWithRtt(data) {
 
         let dataWithRtt = {};
+
+        if(BaseModel.hasRtt(data.constructor)){
+            dataWithRtt['rtt'] = BaseModel.getRtt(data.constructor);
+        }
 
         for (let i in data) {
             const pv = data[i];
@@ -195,31 +219,30 @@ export default class BaseModel {
                 continue;
 
             } else if (constructor === Array){
-                propertySetValue = data[i].map(d => BaseModel.getDataWithRtt(d));
+                propertySetValue = pv.map(d => BaseModel.getDataWithRtt(d));
 
             } else if(BaseModel.hasRtt(constructor)){
-                propertySetValue = BaseModel.getDataWithRtt(data[i]);
+                propertySetValue = BaseModel.getDataWithRtt(pv);
 
-            } else {
-                propertySetValue = data[i];
-
+            } else if(constructor === Date) {
+                propertySetValue = dateToFormatString(pv);
+            }
+             else {
+                propertySetValue = pv;
             }
 
             BaseModel.setProperty(i, propertySetValue, dataWithRtt, data.constructor);
         }
 
-        if(BaseModel.hasRtt(data.constructor)){
-            dataWithRtt['rtt'] =  BaseModel.getRtt(data.constructor);
-        }
 
         return dataWithRtt;
     }
 
     toJson() {
-        return BaseModel.getDataWithRtt(this)
+        return BaseModel.getDataWithRtt(this);
     }
 
-}
+ }
 )file_template";
 
     size_t rtt = 0;
@@ -246,7 +269,7 @@ export default class BaseModel {
                     throw runtime_error("type syntax is wrong");
 
                 string type_name = item->children.front()->lexem.value;
-                analyze_struct(state, item->children.back(), type_name,  outputFilePath, prefix);
+                analyze_struct(state, item->children.back(), type_name,  outputFilePath, prefix, rtt);
                 class_names.insert(std::make_pair(rtt, type_name));
 
             }
@@ -283,7 +306,27 @@ export default class BaseModel {
         }
     }
     ModelTypes << "];";
-    ModelTypes << "\n\n\nexport default MODELS_TYPES;";
+
+
+    ModelTypes << R"file_template(
+
+export const createInstanceFromJson = data => {
+
+    if(data.constructor.Rtt !== undefined){
+        return  data;
+    }
+
+    const ModelClass = MODELS_TYPES[data.rtt];
+
+    if(!ModelClass){
+        throw new Error("invalid model class");
+    }
+
+    return new ModelClass(data);
+
+};
+
+export default MODELS_TYPES;)file_template";
 
 }
 
@@ -291,7 +334,8 @@ void analyze_struct(    state_holder& state,
                         expression_tree const* pexpression,
                         string const& type_name,
                         std::string const& outputFilePath,
-                        std::string const& prefix)
+                        std::string const& prefix,
+                        size_t rtt )
 {
     if (state.namespace_name.empty())
         throw runtime_error("please specify package name");
@@ -318,15 +362,20 @@ void analyze_struct(    state_holder& state,
 
     string import;
     import += "import BaseModel from '../BaseModel';\n\n";
+    import += "import {createInstanceFromJson} from '../ModelTypes'\n\n";
     string params;
     string constructor;
     string memberNamesMap = "";
+
     for (auto member_pair : members)
     {
         auto const& member_name = member_pair.first->lexem;
         auto const& member_type = member_pair.second;
+
         if (member_name.rtt != identifier::rtt)
             throw runtime_error("use \"variable type\" syntax please");
+
+
 
         g_type_info type_detail;
 
@@ -397,7 +446,7 @@ void analyze_struct(    state_holder& state,
             params +=
                     "    " + camelCaseMemberName + ": Object;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = BaseModel.createInstanceFromJson(data." + member_name.value + ");\n";
+                        "        this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value+ ");\n";
 
         }
         /////////////////////////// primitive type ///////////////////////////
@@ -429,6 +478,9 @@ void analyze_struct(    state_holder& state,
     model << "        return {\n";
     model << memberNamesMap;
     model << "        }\n";
+    model << "    }\n\n";
+    model << "    static get Rtt () {\n";
+    model << "        return " << rtt <<";\n";
     model << "    }\n\n";
     model << "} \n";
 }

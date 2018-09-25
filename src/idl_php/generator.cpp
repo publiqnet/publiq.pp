@@ -464,13 +464,13 @@ trait RttSerializableTrait
         if (!$className) {
             throw new \Exception("Cannot find class in rtt list");
         }
-        $vars2['rtt'] = array_search($className, Rtt::types);
+        $vars['rtt'] = array_search($className, Rtt::types);
 
         foreach ($vars as  $name => $value)
         {
-            $vars2[$className::getMemberName($name)] = $value;
+            $vars[(static::class)::getMemberName($name)] = $value;
         }
-        return $vars2;
+        return $vars;
     }
 }
 )file_template";
@@ -687,7 +687,7 @@ void analyze_struct(    state_holder& state,
                  )
         {
             trivialTypes +=
-                    "          $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + transformString( member_name.value ) + "); \n";
+                    "          $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
 
             string type;
             if (info[0] == "integer")
@@ -721,7 +721,7 @@ void analyze_struct(    state_holder& state,
         {
             objectTypes +=
                     "        $this->" + camelCaseMemberName + " = new "+ info[0] + "();\n"
-                    "        $this->" + camelCaseMemberName + " -> validate($data-> "+ camelCaseMemberName  + ");\n";
+                    "        $this->" + camelCaseMemberName + " -> validate($data-> "+ member_name.value  + ");\n";
         }
 
         getFunction +=
@@ -744,7 +744,7 @@ void analyze_struct(    state_holder& state,
 R"file_template(
     public static function getMemberName(string $camelCaseName)
     {
-        return array_search($camelCaseName, self::$memberNames);
+        return array_search($camelCaseName, self::memberNames);
     }
 )file_template";
     model << "\n} \n";
