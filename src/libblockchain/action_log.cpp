@@ -2,9 +2,12 @@
 #include "common.hpp"
 
 #include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
+
+using std::string;
 
 namespace publiqpp
 {
@@ -55,12 +58,51 @@ size_t action_log::length() const
     return m_pimpl->m_actions.as_const().size();
 }
 
-void action_log::log(beltpp::packet&& action)
+void action_log::log_block(string const& authority, BlockchainMessage::ctime const& sign_time, string const& block_hash)
 {
     if (!m_pimpl->m_enabled)
         return;
 
-    if (action.type() != Transfer::rtt && action.type() != Reward::rtt)
+    BlockInfo block_info;
+    block_info.authority = authority;
+    block_info.sign_time = sign_time;
+    block_info.block_hash = block_hash;
+
+    log(std::move(block_info));
+}
+
+void action_log::log_reward(Reward const& reward, string const& block_hash)
+{
+    if (!m_pimpl->m_enabled)
+        return;
+
+    RewardInfo reward_info;
+    reward_info.to = reward.to;
+    reward_info.amount = reward.amount;
+    reward_info.block_hash = block_hash;
+
+    log(std::move(reward_info));
+}
+
+void action_log::log_transaction(Transaction const& transaction, string const& transaction_hash)
+{
+    if (!m_pimpl->m_enabled)
+        return;
+
+    TransactionInfo transaction_info;
+    transaction_info.fee = transaction.fee;
+    transaction_info.transaction_hash = transaction_hash;
+    transaction_info.creation_time = transaction.creation;
+    BlockchainMessage::detail::assign_packet(transaction_info.action, transaction.action);
+
+    log(std::move(transaction_info));
+}
+
+void action_log::log(beltpp::packet&& action)
+{
+    if (action.type() != BlockInfo::rtt &&
+        action.type() != RewardInfo::rtt &&
+        action.type() != TransactionInfo::rtt)
         throw std::runtime_error("No logable actio type!");
 
     LoggedTransaction action_info;
@@ -73,9 +115,6 @@ void action_log::log(beltpp::packet&& action)
 
 void action_log::insert(LoggedTransaction& action_info)
 {
-    if (!m_pimpl->m_enabled)
-        return;
-
     if (true == action_info.applied_reverted)   //  apply
         action_info.index = length();
 

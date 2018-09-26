@@ -468,12 +468,19 @@ bool node::run()
                             temp_to = p->header.block_number;
                         }
 
-                        m_pimpl->writeln_node("processing blockchain response from " +
-                                              str_peerid(peerid));
-                        m_pimpl->writeln_node("    from " +
-                                              std::to_string(temp_from) +
-                                              " to " +
-                                              std::to_string(temp_to));
+                        if(temp_from == temp_to)
+                            m_pimpl->writeln_node("processing block " + std::to_string(temp_from) + 
+                                                  " from " + str_peerid(peerid));
+                        else
+                            m_pimpl->writeln_node("processing blocks [" + std::to_string(temp_from) + 
+                                                  "," + std::to_string(temp_to) + "] from " + str_peerid(peerid));
+
+//                        m_pimpl->writeln_node("processing blockchain response from " +
+//                                              str_peerid(peerid));
+//                        m_pimpl->writeln_node("    from " +
+//                                              std::to_string(temp_from) +
+//                                              " to " +
+//                                              std::to_string(temp_to));
                     }
 
                     if (m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?

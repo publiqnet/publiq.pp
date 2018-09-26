@@ -35,7 +35,7 @@
 #define EVENT_TIMER 30
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300
-#define SUMMARY_REPORT_TIMER 1800
+#define SUMMARY_REPORT_TIMER 300
 
 // Transaction maximum lifetime in seconds
 #define TRANSACTION_LIFETIME 86400

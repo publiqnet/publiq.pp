@@ -187,10 +187,10 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         return;
 
     // Check pool
-    string transfer_hash = meshpp::hash(signed_transaction.to_string());
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (!m_pimpl->m_transaction_pool.contains(transfer_hash) &&
-        m_pimpl->m_transaction_cache.find(transfer_hash) == m_pimpl->m_transaction_cache.end())
+    if (!m_pimpl->m_transaction_pool.contains(tr_hash) &&
+        m_pimpl->m_transaction_cache.find(tr_hash) == m_pimpl->m_transaction_cache.end())
     {
         beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
@@ -201,7 +201,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         m_pimpl->m_transaction_pool.insert(signed_transaction);
 
         // Add to action log
-        m_pimpl->m_action_log.log(std::move(transfer));
+        m_pimpl->m_action_log.log_transaction(signed_transaction.transaction_details, tr_hash);
 
         m_pimpl->save(guard);
     }

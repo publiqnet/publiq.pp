@@ -82,13 +82,13 @@ int main(int argc, char** argv)
     KeyPairRequest key_pair_request;
     key_pair_request.index = 0;
 
-    key_pair_request.master_key = "Armen";
+    key_pair_request.master_key = "ARMEN";
     Send(key_pair_request, receive_package, sk, peerid, eh);
 
     KeyPair armen_key;
     receive_package.get(armen_key);
 
-    key_pair_request.master_key = "Tigran";
+    key_pair_request.master_key = "TIGRAN";
     Send(key_pair_request, receive_package, sk, peerid, eh);
 
     KeyPair tigran_key;

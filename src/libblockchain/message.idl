@@ -92,13 +92,14 @@ module BlockchainMessage
         Object package
     }
 
-    class LoggedTransaction //  just a structure for below request/response
+    class LoggedTransaction
     {
         Bool applied_reverted
         UInt64 index
-        Object action
+        Object action // BlockInfo, RewardInfo or TransactionInfo
     }
-    class LoggedTransactionsRequest 
+
+    class LoggedTransactionsRequest
     { 
         UInt64 start_index
         UInt64 max_count
@@ -107,10 +108,7 @@ module BlockchainMessage
     class LoggedTransactions { Array LoggedTransaction actions }
 
     class MasterKeyRequest {}
-    class MasterKey
-    {
-        String master_key
-    }
+    class MasterKey { String master_key }
 
     class KeyPairRequest
     {
@@ -192,13 +190,28 @@ module BlockchainMessage
     class RemoteError { String message }
 
     ///
-    //  action log relevant
+    // action log info
     ///
-
-    //  this is admin tool for RPC testing
-    class LogTransaction
+    class BlockInfo
     {
-        Object action  //  Reward, Transfer, File or Page
+        String authority
+        String block_hash
+        TimePoint sign_time
+    }
+
+    class RewardInfo
+    {
+        Coin amount
+        String to
+        String block_hash
+    }
+
+    class TransactionInfo
+    {
+        Coin fee
+        Object action
+        TimePoint creation_time
+        String transaction_hash
     }
 
     //  distributed storage related
