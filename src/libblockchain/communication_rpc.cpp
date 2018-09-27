@@ -31,6 +31,7 @@ void get_actions(beltpp::packet const& package,
         if (revert)
         {
             ++i;
+            action_info.index = i;
             action_stack.push(std::move(action_info));
             ++count;
         }
@@ -53,6 +54,7 @@ void get_actions(beltpp::packet const& package,
         else
         {
             ++count;
+            action_info.index = i;
             action_stack.push(std::move(action_info));
         }
     }
