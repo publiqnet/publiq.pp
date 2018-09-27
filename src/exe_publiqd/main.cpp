@@ -22,7 +22,6 @@
 #include <vector>
 #include <sstream>
 #include <chrono>
-#include <memory>
 #include <exception>
 
 #include <signal.h>

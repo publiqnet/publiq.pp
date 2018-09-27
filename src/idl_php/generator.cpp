@@ -439,10 +439,7 @@ R"file_template(
             return $e->getMessage();
         }
     }
-}
-         )file_template";
-
-
+})file_template";
 
     ////////////////// create RttSerializableTrait.php file /////////////////
 
@@ -458,19 +455,23 @@ trait RttSerializableTrait
     {
         $vars = get_object_vars($this);
 
-
         $path = explode('\\', static::class);
         $className = array_pop($path);
         if (!$className) {
             throw new \Exception("Cannot find class in rtt list");
         }
-        $vars['rtt'] = array_search($className, Rtt::types);
+        $vars2['rtt'] = array_search($className, Rtt::types);
 
         foreach ($vars as  $name => $value)
         {
-            $vars[(static::class)::getMemberName($name)] = $value;
+            $member = (static::class)::getMemberName($name);
+            if ($member['convertToDate']) {
+                $vars2[(static::class)::getMemberName($name)] = date("Y-m-d H:i:s", $value);
+            } else {
+                $vars2[(static::class)::getMemberName($name)] = $value;
+            }
         }
-        return $vars;
+        return $vars2;
     }
 }
 )file_template";
@@ -573,8 +574,15 @@ void analyze_struct(    state_holder& state,
 
         string camelCaseMemberName = transformString( member_name.value );
 
-        memberNamesMap += "        '" + member_name.value + "'" + " => '" + camelCaseMemberName + "',\n";
-
+        memberNamesMap += "        '" + member_name.value + "'" + " => '['name' => '" + camelCaseMemberName + "', 'convertToDate' => ";
+        if ( info[0] == "integer")
+        {
+            memberNamesMap += "true],\n";
+        }
+        else
+        {
+            memberNamesMap += "false],\n";
+        }
         if ( info[0] == "::beltpp::packet" )
         {
 
@@ -604,7 +612,6 @@ void analyze_struct(    state_holder& state,
                     "    */ \n" +
                     "    private $" + camelCaseMemberName + ";\n";
         }
-
         if (     info[0] == "array" &&
                 ( info[1] != "int" &&
                   info[1] != "string" &&
@@ -645,7 +652,6 @@ void analyze_struct(    state_holder& state,
             arrayCase += handleArrayForPrimitives( std::stoi( info[2] ), member_name.value );
 
         }
-
         if (     info[0] == "hash" &&
                 ( info[3] != "int" &&
                   info[3] != "string" &&
@@ -676,7 +682,6 @@ void analyze_struct(    state_holder& state,
 
         }
 
-
         else if (
                  info[0] == "int" ||
                  info[0] == "string" ||
@@ -686,35 +691,33 @@ void analyze_struct(    state_holder& state,
                  info[0] == "integer"
                  )
         {
-            trivialTypes +=
-                    "          $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
 
             string type;
             if (info[0] == "integer")
+            {
+                trivialTypes +=
+                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(strtotime($data->" + member_name.value  + ")); \n";
+
                 type = "int";
+            }
             else
                 type = info[0];
+
             setFunction +=
                     "    /** \n"
                     "    * @param " + type + " $" + camelCaseMemberName + "\n"
                     "    */ \n"
                     "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(" + type +" $" + transformString( member_name.value ) + ") \n"
-                                                                                                                                                                                                                                                                                       "    { \n"
-                                                                                                                                                                                                                                                                                       "            $this->" + camelCaseMemberName + " = " ;
+                    "    { \n"
+                    "       $this->" + camelCaseMemberName + " = $" + camelCaseMemberName + ";\n"
+                    "    }\n";
 
-            if ( !(info[0] == "integer") )
-                setFunction += "$";
+            if (info[0] != "integer")
+            {
+                trivialTypes +=
+                        "        $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
+            }
 
-            if ( info[0] == "integer" )
-                setFunction += "strtotime($";
-
-            setFunction += camelCaseMemberName;
-
-            if ( info[0] == "integer" )
-                setFunction += ")";
-
-            setFunction += "; \n"
-                           "    } \n";
         }
         else
         if ( !( info[0] == "::beltpp::packet" )  && !( info[0] == "hash" ) && !(info[0] == "array") )
@@ -723,7 +726,6 @@ void analyze_struct(    state_holder& state,
                     "        $this->" + camelCaseMemberName + " = new "+ info[0] + "();\n"
                     "        $this->" + camelCaseMemberName + " -> validate($data-> "+ member_name.value  + ");\n";
         }
-
         getFunction +=
                 "    public function get" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "() \n"
                 "    {\n"
@@ -741,8 +743,7 @@ void analyze_struct(    state_holder& state,
             "    ];\n\n";
     model << params + setFunction + getFunction + addFunction + validation;
     model <<
-R"file_template(
-    public static function getMemberName(string $camelCaseName)
+R"file_template(    public static function getMemberName(string $camelCaseName)
     {
         return array_search($camelCaseName, self::memberNames);
     }
