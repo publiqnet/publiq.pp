@@ -392,7 +392,9 @@ beltpp::detail::pmsg_all message_list_load(
         if (scanned_begin.empty() ||
             (scanned_ending.empty() && enough_length))
             return protocol_error();
-        else if ((scanned_begin != value_post && scanned_begin != value_get) ||
+        else if ((scanned_begin != value_post &&
+                  scanned_begin != value_get &&
+                  scanned_begin != value_options) ||
                  scanned_ending != value_ending)
         {
             //  that's ok, wait for more data
@@ -565,6 +567,8 @@ beltpp::detail::pmsg_all message_list_load(
             //ssd.autoreply += "Vary: Accept-Encoding, Origin\r\n";
             ssd.autoreply += "Content-Length: 0\r\n";
             ssd.autoreply += "\r\n";
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
