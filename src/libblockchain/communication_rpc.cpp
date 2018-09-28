@@ -5,6 +5,19 @@
 
 using std::stack;
 
+size_t get_action_size(beltpp::packet const& package)
+{
+    if (package.type() != BlockInfo::rtt)
+    {
+        BlockInfo block_info;
+        package.get(block_info);
+
+        return 1 + block_info.rewards.size() + block_info.transactions.size();
+    }
+
+    return 1;
+}
+
 void get_actions(beltpp::packet const& package,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
@@ -19,9 +32,11 @@ void get_actions(beltpp::packet const& package,
     size_t count = 0;
     size_t i = index;
     size_t len = action_log.length();
+    size_t max_count = msg_get_actions.max_count < ACTION_LOG_MAX_RESPONSE ?
+                       msg_get_actions.max_count : ACTION_LOG_MAX_RESPONSE;
 
     bool revert = i < len;
-    while (revert) //the case when next action is revert
+    while (revert && count < max_count) //the case when next action is revert
     {
         LoggedTransaction action_info;
         action_log.at(i, action_info);
@@ -30,15 +45,13 @@ void get_actions(beltpp::packet const& package,
 
         if (revert)
         {
+            count += get_action_size(action_info.action);
+
             ++i;
             action_info.index = i;
             action_stack.push(std::move(action_info));
-            ++count;
         }
     }
-
-    size_t max_count = msg_get_actions.max_count < ACTION_LOG_MAX_RESPONSE ? 
-                       msg_get_actions.max_count : ACTION_LOG_MAX_RESPONSE;
 
     for (; i < len && count < max_count; ++i)
     {
@@ -48,12 +61,14 @@ void get_actions(beltpp::packet const& package,
         // remove all not received entries and their reverts
         if (action_info.applied_reverted == false && action_info.index >= index)
         {
-            --count;
+            count -= get_action_size(action_stack.top().action);
+
             action_stack.pop();
         }
         else
         {
-            ++count;
+            count += get_action_size(action_info.action);
+
             action_info.index = i;
             action_stack.push(std::move(action_info));
         }
@@ -203,7 +218,7 @@ void process_transfer(beltpp::packet const& package_signed_transaction,
         m_pimpl->m_transaction_pool.insert(signed_transaction);
 
         // Add to action log
-        m_pimpl->m_action_log.log_transaction(signed_transaction.transaction_details, tr_hash);
+        m_pimpl->m_action_log.log_transaction(signed_transaction);
 
         m_pimpl->save(guard);
     }

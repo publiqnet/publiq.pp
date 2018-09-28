@@ -38,9 +38,6 @@ bool apply_transaction(SignedTransaction& signed_transaction,
     if (!fee.empty())
         m_pimpl->m_state.increase_balance(key, fee);
 
-    string transaction_hash = meshpp::hash(signed_transaction.to_string());
-    m_pimpl->m_action_log.log_transaction(signed_transaction.transaction_details, transaction_hash);
-
     return true;
 }
 
@@ -60,9 +57,6 @@ void revert_transaction(Transaction& transaction,
 
     if (!fee.empty())
         m_pimpl->m_state.decrease_balance(key, fee);
-
-    // revert transfer
-    m_pimpl->m_action_log.revert();
 }
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<Reward>& rewards, string const& authority)
@@ -197,6 +191,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
+        m_pimpl->m_action_log.revert();
         revert_transaction(signed_transaction.transaction_details, m_pimpl);
 
         if (block_header.sign_time.tm > signed_transaction.transaction_details.expiry.tm)
@@ -233,25 +228,22 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     signed_block.authority = sgn.pb_key.to_string();
     signed_block.block_details = block;
 
-    string block_hash = meshpp::hash(signed_block.to_string());
-
     // apply rewards to state and action_log
     for (auto& reward : block.rewards)
-    {
         m_pimpl->m_state.increase_balance(reward.to, reward.amount);
-        m_pimpl->m_action_log.log_reward(reward, block_hash);
-    }
 
     // insert to blockchain and action_log
     m_pimpl->m_blockchain.insert(signed_block);
-    m_pimpl->m_action_log.log_block(signed_block.authority, block.header.sign_time, block_hash);
+    m_pimpl->m_action_log.log_block(signed_block);
 
     // calculate miner balance
     m_pimpl->calc_balance();
 
     // apply back rest of the pool content to the state and action_log
     for (; it != transaction_map.end(); ++it)
-        if (!apply_transaction(it->second.second, m_pimpl))
+        if (apply_transaction(it->second.second, m_pimpl))
+            m_pimpl->m_action_log.log_transaction(it->second.second);
+        else
             m_pimpl->m_transaction_pool.remove(it->second.first);
 
     m_pimpl->save(guard);
@@ -644,6 +636,7 @@ void process_blockchain_response(BlockChainResponse const& response,
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
+        m_pimpl->m_action_log.revert();
         revert_transaction(signed_transaction.transaction_details, m_pimpl);
 
         // This will make sync process faster
@@ -660,19 +653,14 @@ void process_blockchain_response(BlockChainResponse const& response,
         SignedBlock signed_block;
         m_pimpl->m_blockchain.at(block_number, signed_block);
         m_pimpl->m_blockchain.remove_last_block();
+        m_pimpl->m_action_log.revert();
 
         Block block;
         std::move(signed_block.block_details).get(block);
 
-        // revert block info
-        m_pimpl->m_action_log.revert();
-        
         // decrease all reward amounts from balances and revert reward
         for (auto it = block.rewards.rbegin(); it != block.rewards.rend(); ++it)
-        {
-            m_pimpl->m_action_log.revert();
             m_pimpl->m_state.decrease_balance(it->to, it->amount);
-        }
 
         // calculate back transactions
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
@@ -726,18 +714,13 @@ void process_blockchain_response(BlockChainResponse const& response,
                 throw wrong_data_exception("blockchain response. sender balance!");
         }
 
-        string block_hash = meshpp::hash(block_it->to_string());
-
         // increase all reward amounts to balances
         for (auto reward_it = block.rewards.begin(); reward_it != block.rewards.end(); ++reward_it)
-        {
             m_pimpl->m_state.increase_balance(reward_it->to, reward_it->amount);
-            m_pimpl->m_action_log.log_reward(*reward_it, block_hash);
-        }
 
         // Insert to blockchain
         m_pimpl->m_blockchain.insert(*block_it);
-        m_pimpl->m_action_log.log_block(block_it->authority, block.header.sign_time, block_hash);
+        m_pimpl->m_action_log.log_block(*block_it);
 
         c_const = block.header.c_const;
     }
@@ -752,7 +735,9 @@ void process_blockchain_response(BlockChainResponse const& response,
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-        if(!apply_transaction(signed_transaction, m_pimpl))
+        if(apply_transaction(signed_transaction, m_pimpl))
+            m_pimpl->m_action_log.log_transaction(signed_transaction);
+        else
             m_pimpl->m_transaction_pool.remove(key); // not enough balance
     }
 

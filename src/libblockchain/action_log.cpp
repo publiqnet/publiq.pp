@@ -17,7 +17,7 @@ class action_log_internals
 {
 public:
     action_log_internals(filesystem::path const& path, bool log_enabled)
-        : m_actions("actions", path, 10000, 1000, detail::get_putl())
+        : m_actions("actions", path, 10000, 100, detail::get_putl())
         , m_enabled(log_enabled)
     {}
 
@@ -58,73 +58,71 @@ size_t action_log::length() const
     return m_pimpl->m_actions.as_const().size();
 }
 
-void action_log::log_block(string const& authority, BlockchainMessage::ctime const& sign_time, string const& block_hash)
+void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
 {
     if (!m_pimpl->m_enabled)
         return;
+
+    Block block;
+    signed_block.block_details.get(block);
+    string block_hash = meshpp::hash(signed_block.to_string());
 
     BlockInfo block_info;
-    block_info.authority = authority;
-    block_info.sign_time = sign_time;
     block_info.block_hash = block_hash;
+    block_info.sign_time = block.header.sign_time;
+    block_info.authority = signed_block.authority;
 
-    log(std::move(block_info));
+    for (auto it = block.signed_transactions.begin(); it != block.signed_transactions.end(); ++it)
+    {
+        TransactionInfo transaction_info;
+        transaction_info.fee = it->transaction_details.fee;
+        transaction_info.sign_time = it->transaction_details.creation;
+        transaction_info.transaction_hash = meshpp::hash(it->to_string());
+        BlockchainMessage::detail::assign_packet(transaction_info.action, it->transaction_details.action);
+
+        block_info.transactions.push_back(transaction_info);
+    }
+
+    for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
+    {
+        RewardInfo reward_info;
+        reward_info.to = it->to;
+        reward_info.amount = it->amount;
+
+        block_info.rewards.push_back(reward_info);
+    }
+
+    insert(std::move(block_info));
 }
 
-void action_log::log_reward(Reward const& reward, string const& block_hash)
-{
-    if (!m_pimpl->m_enabled)
-        return;
-
-    RewardInfo reward_info;
-    reward_info.to = reward.to;
-    reward_info.amount = reward.amount;
-    reward_info.block_hash = block_hash;
-
-    log(std::move(reward_info));
-}
-
-void action_log::log_transaction(Transaction const& transaction, string const& transaction_hash)
+void action_log::log_transaction(SignedTransaction const& signed_transaction)
 {
     if (!m_pimpl->m_enabled)
         return;
 
     TransactionInfo transaction_info;
-    transaction_info.fee = transaction.fee;
-    transaction_info.transaction_hash = transaction_hash;
-    transaction_info.creation_time = transaction.creation;
-    BlockchainMessage::detail::assign_packet(transaction_info.action, transaction.action);
+    transaction_info.fee = signed_transaction.transaction_details.fee;
+    transaction_info.sign_time = signed_transaction.transaction_details.creation;
+    transaction_info.transaction_hash = meshpp::hash(signed_transaction.to_string());
+    BlockchainMessage::detail::assign_packet(transaction_info.action, signed_transaction.transaction_details.action);
 
-    log(std::move(transaction_info));
-}
-
-void action_log::log(beltpp::packet&& action)
-{
-    if (action.type() != BlockInfo::rtt &&
-        action.type() != RewardInfo::rtt &&
-        action.type() != TransactionInfo::rtt)
-        throw std::runtime_error("No logable actio type!");
-
-    LoggedTransaction action_info;
-    action_info.applied_reverted = true;    //  apply
-    action_info.index = 0; // will be set automatically
-    action_info.action = std::move(action);
-
-    insert(action_info);
-}
-
-void action_log::insert(LoggedTransaction& action_info)
-{
-    if (true == action_info.applied_reverted)   //  apply
-        action_info.index = length();
-
-    m_pimpl->m_actions.push_back(action_info);
-    m_pimpl->m_revert_index = action_info.index;
+    insert(std::move(transaction_info));
 }
 
 void action_log::at(size_t number, LoggedTransaction& action_info) const
 {
     action_info = m_pimpl->m_actions.as_const().at(number);
+}
+
+void action_log::insert(beltpp::packet&& action)
+{
+    LoggedTransaction action_info;
+    action_info.applied_reverted = true;    //  apply
+    action_info.index = length();
+    action_info.action = std::move(action);
+
+    m_pimpl->m_actions.push_back(action_info);
+    m_pimpl->m_revert_index = action_info.index;
 }
 
 void action_log::revert()
@@ -162,7 +160,7 @@ void action_log::revert()
     LoggedTransaction action_revert_info;
     at(index, action_revert_info);
     action_revert_info.applied_reverted = false;   //  revert
-    insert(action_revert_info);
+    m_pimpl->m_actions.push_back(action_revert_info);
 
     m_pimpl->m_revert_index = index - 1;
 }

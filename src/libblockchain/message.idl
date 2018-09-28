@@ -96,7 +96,7 @@ module BlockchainMessage
     {
         Bool applied_reverted
         UInt64 index
-        Object action // BlockInfo, RewardInfo or TransactionInfo
+        Object action // BlockInfo or TransactionInfo
     }
 
     class LoggedTransactionsRequest
@@ -192,26 +192,27 @@ module BlockchainMessage
     ///
     // action log info
     ///
-    class BlockInfo
-    {
-        String authority
-        String block_hash
-        TimePoint sign_time
-    }
-
     class RewardInfo
     {
-        Coin amount
         String to
-        String block_hash
+        Coin amount
     }
 
     class TransactionInfo
     {
         Coin fee
         Object action
-        TimePoint creation_time
         String transaction_hash
+        TimePoint sign_time
+    }
+
+    class BlockInfo
+    {
+        String authority
+        String block_hash
+        TimePoint sign_time
+        Array RewardInfo rewards
+        Array TransactionInfo transactions
     }
 
     //  distributed storage related

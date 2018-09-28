@@ -404,20 +404,15 @@ public:
         signed_block.authority = sgn.pb_key.to_string();
         signed_block.block_details = block;
 
-        string block_hash = meshpp::hash(signed_block.to_string());
-
         beltpp::on_failure guard([&] { discard(); });
 
         // apply rewards to state and action_log
         for (auto& item : block.rewards)
-        {
             m_state.increase_balance(item.to, item.amount);
-            m_action_log.log_reward(item, block_hash);
-        }
 
         // insert to blockchain and action_log
         m_blockchain.insert(signed_block);
-        m_action_log.log_block(signed_block.authority, block.header.sign_time, block_hash);
+        m_action_log.log_block(signed_block);
 
         save(guard);
         calc_balance();
