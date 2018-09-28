@@ -7,7 +7,7 @@ using std::stack;
 
 size_t get_action_size(beltpp::packet const& package)
 {
-    if (package.type() != BlockInfo::rtt)
+    if (package.type() == BlockInfo::rtt)
     {
         BlockInfo block_info;
         package.get(block_info);
