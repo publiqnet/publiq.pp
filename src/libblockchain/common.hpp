@@ -13,8 +13,8 @@
 #define BLOCK_INSERT_LENGTH 50
 
 // Block mine delay in seconds
-#define BLOCK_MINE_DELAY 60
-#define BLOCK_WAIT_DELAY 15
+#define BLOCK_MINE_DELAY 600
+#define BLOCK_WAIT_DELAY 180
 
 // Sync process request/response maximum dely
 #define SYNC_FAILURE_TIMEOUT 30
@@ -31,13 +31,13 @@
 
 // Timers in seconds
 #define CHECK_TIMER 1
-#define SYNC_TIMER  5
+#define SYNC_TIMER  15
 #define EVENT_TIMER 30
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300
-#define SUMMARY_REPORT_TIMER 300
+#define SUMMARY_REPORT_TIMER 600
 
-// Transaction maximum lifetime in seconds
+// Transaction maximum lifetime in seconds (24 hours)
 #define TRANSACTION_LIFETIME 86400
 
 // Maximum time shift on seconds
@@ -52,8 +52,11 @@
 
 #define DIST_MAX    4294967296ull
 
-static const coin MINER_REWARD(1, 0);
 static const coin MINE_AMOUNT_THRESHOLD(1, 0);
+static const coin MINE_REWARD_BUDGET(250000000ull, 0);
+
+#define MINE_INIT_PART      0.2
+#define MINE_YEAR_STEP      52596
 
 namespace publiqpp
 {
