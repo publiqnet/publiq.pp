@@ -21,7 +21,7 @@
 
 // Sent packet will considered as not answered
 // after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds
-#define PACKET_EXPIRY_STEPS 10
+#define PACKET_EXPIRY_STEPS 60
 
 // Block maximum transactions count
 #define BLOCK_MAX_TRANSACTIONS 1000
@@ -32,7 +32,7 @@
 // Timers in seconds
 #define CHECK_TIMER 1
 #define SYNC_TIMER  15
-#define EVENT_TIMER 30
+#define EVENT_TIMER 5
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300
 #define SUMMARY_REPORT_TIMER 600
