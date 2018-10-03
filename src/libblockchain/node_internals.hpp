@@ -332,12 +332,13 @@ public:
     void calc_sync_info(Block const& block)
     {
         own_sync_info.number = m_blockchain.length();
+        own_sync_info.authority = m_pv_key.get_public_key().to_string(); // test
 
         // calculate delta for next block for the case if I will mine it
         if (m_miner)
         {
             string prev_hash = meshpp::hash(block.to_string());
-            uint64_t delta = calc_delta(m_pv_key.get_public_key().to_string(), m_balance.whole, prev_hash, block.header.c_const);
+            uint64_t delta = calc_delta(own_sync_info.authority, m_balance.whole, prev_hash, block.header.c_const);
 
             own_sync_info.c_sum = block.header.c_sum + delta;
             net_sync_info.c_sum = 0;
@@ -432,8 +433,6 @@ public:
         }
         return result;
     }
-
-    size_t timer_count = 0; // test
 
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;

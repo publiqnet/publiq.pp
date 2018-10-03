@@ -59,21 +59,6 @@ void revert_transaction(Transaction& transaction,
         m_pimpl->m_state.decrease_balance(key, fee);
 }
 
-coin miner_reward(uint64_t block_number)
-{
-//    coin reward = MINE_INIT_PART * MINE_REWARD_BUDGET;
-//
-//    if (block_number >= MINE_YEAR_STEP)
-//        reward = pow(1 - MINE_INIT_PART, block_number / MINE_YEAR_STEP) * MINE_REWARD_BUDGET;
-//
-//    reward = reward / MINE_YEAR_STEP;
-//
-//    return reward;
-    B_UNUSED(block_number);
-
-    return coin(1, 0);
-}
-
 void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<Reward>& rewards, string const& authority, uint64_t block_number)
 {
     rewards.clear();
@@ -83,14 +68,17 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<
         //TODO grant real rewards from transactions
     }
 
-    // add own rewards
-    Reward own_reward;
+    size_t year_index = block_number / 50000;
 
     // grant miner reward himself
-    own_reward.to = authority;
-    own_reward.amount = miner_reward(block_number).to_Coin();
-    
-    rewards.push_back(own_reward);
+    if (year_index < 60)
+    {
+        Reward own_reward;
+        own_reward.to = authority;
+        own_reward.amount = BLOCK_REWARD_ARRAY[year_index].to_Coin();
+
+        rewards.push_back(own_reward);
+    }
 }
 
 bool check_headers(BlockHeader const& next_header, BlockHeader const& header)

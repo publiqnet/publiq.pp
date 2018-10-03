@@ -357,6 +357,9 @@ bool node::run()
                         sync_info.c_sum > m_pimpl->net_sync_info.c_sum)
                     {
                         m_pimpl->net_sync_info = sync_info;
+
+                        if (m_pimpl->net_sync_info.c_sum > m_pimpl->own_sync_info.c_sum)
+                            m_pimpl->writeln_node("Next block waiting from " + str_peerid(m_pimpl->net_sync_info.authority));
                     }
 
                     m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
@@ -571,8 +574,6 @@ bool node::run()
     }
     else if (beltpp::event_handler::timer_out == wait_result)
     {
-        ++m_pimpl->timer_count;
-
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
 
