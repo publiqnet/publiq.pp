@@ -59,20 +59,24 @@ void revert_transaction(Transaction& transaction,
         m_pimpl->m_state.decrease_balance(key, fee);
 }
 
-void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<Reward>& rewards, string const& authority)
+void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<Reward>& rewards, string const& authority, uint64_t block_number)
 {
     rewards.clear();
 
-    //TODO grant real rewards from transactions
+    for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
+    {
+        //TODO grant real rewards from transactions
+    }
 
-    // add own rewards
-    if (!signed_transactions.empty() || !rewards.empty())
+    size_t year_index = block_number / 50000;
+
+    // grant miner reward himself
+    if (year_index < 60)
     {
         Reward own_reward;
-
-        // grant miner reward himself
-        own_reward.amount = MINER_REWARD.to_Coin();
         own_reward.to = authority;
+        own_reward.amount = BLOCK_REWARD_ARRAY[year_index].to_Coin();
+
         rewards.push_back(own_reward);
     }
 }
@@ -95,7 +99,7 @@ bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
 bool check_rewards(Block const& block, string const& authority)
 {
     vector<Reward> rewards;
-    grant_rewards(block.signed_transactions, rewards, authority);
+    grant_rewards(block.signed_transactions, rewards, authority, block.header.block_number);
 
     auto it1 = rewards.begin();
     auto it2 = block.rewards.begin();
@@ -219,7 +223,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     }
 
     // grant rewards and move to block
-    grant_rewards(block.signed_transactions, block.rewards, own_key);
+    grant_rewards(block.signed_transactions, block.rewards, own_key, block.header.block_number);
 
     meshpp::signature sgn = m_pimpl->m_pv_key.sign(block.to_string());
 

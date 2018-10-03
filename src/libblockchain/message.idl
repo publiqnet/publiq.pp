@@ -84,6 +84,32 @@ module BlockchainMessage
         String signature
     }
 
+    ///
+    // action log info
+    ///
+    class RewardInfo
+    {
+        String to
+        Coin amount
+    }
+
+    class TransactionInfo
+    {
+        Coin fee
+        Object action
+        String transaction_hash
+        TimePoint sign_time
+    }
+
+    class BlockInfo
+    {
+        String authority
+        String block_hash
+        TimePoint sign_time
+        Array RewardInfo rewards
+        Array TransactionInfo transactions
+    }
+
     //  request/response
     class DigestRequest { Object package }
     class Digest
@@ -141,6 +167,7 @@ module BlockchainMessage
     {
         UInt64 number
         UInt64 c_sum
+        String authority // test
     }
 
     class SyncRequest {}
@@ -188,32 +215,6 @@ module BlockchainMessage
     }
     class FileNotFound { String uri }
     class RemoteError { String message }
-
-    ///
-    // action log info
-    ///
-    class RewardInfo
-    {
-        String to
-        Coin amount
-    }
-
-    class TransactionInfo
-    {
-        Coin fee
-        Object action
-        String transaction_hash
-        TimePoint sign_time
-    }
-
-    class BlockInfo
-    {
-        String authority
-        String block_hash
-        TimePoint sign_time
-        Array RewardInfo rewards
-        Array TransactionInfo transactions
-    }
 
     //  distributed storage related
     class StorageFile

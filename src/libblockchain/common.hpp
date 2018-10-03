@@ -13,15 +13,15 @@
 #define BLOCK_INSERT_LENGTH 50
 
 // Block mine delay in seconds
-#define BLOCK_MINE_DELAY 60
-#define BLOCK_WAIT_DELAY 15
+#define BLOCK_MINE_DELAY 600
+#define BLOCK_WAIT_DELAY 180
 
 // Sync process request/response maximum dely
 #define SYNC_FAILURE_TIMEOUT 30
 
 // Sent packet will considered as not answered
 // after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds
-#define PACKET_EXPIRY_STEPS 10
+#define PACKET_EXPIRY_STEPS 60
 
 // Block maximum transactions count
 #define BLOCK_MAX_TRANSACTIONS 1000
@@ -31,13 +31,13 @@
 
 // Timers in seconds
 #define CHECK_TIMER 1
-#define SYNC_TIMER  5
-#define EVENT_TIMER 30
+#define SYNC_TIMER  15
+#define EVENT_TIMER 5
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300
-#define SUMMARY_REPORT_TIMER 300
+#define SUMMARY_REPORT_TIMER 600
 
-// Transaction maximum lifetime in seconds
+// Transaction maximum lifetime in seconds (24 hours)
 #define TRANSACTION_LIFETIME 86400
 
 // Maximum time shift on seconds
@@ -52,8 +52,21 @@
 
 #define DIST_MAX    4294967296ull
 
-static const coin MINER_REWARD(1, 0);
 static const coin MINE_AMOUNT_THRESHOLD(1, 0);
+
+static const std::vector<coin> BLOCK_REWARD_ARRAY
+{
+    coin(1000,0),     coin(800,0),      coin(640,0),        coin(512,0),        coin(410,0),        coin(327,0),
+    coin(262,0),      coin(210,0),      coin(168,0),        coin(134,0),        coin(107,0),        coin(86,0),
+    coin(68,0),       coin(55,0),       coin(44,0),         coin(35,0),         coin(28,0),         coin(22,0),
+    coin(18,0),       coin(15,0),       coin(12,0),         coin(9,0),          coin(7,0),          coin(6,0),
+    coin(5,0),        coin(4,0),        coin(3,0),          coin(2,50000000),   coin(2,0),          coin(1,50000000),
+    coin(1,20000000), coin(1,0),        coin(0,80000000),   coin(0,70000000),   coin(0,60000000),   coin(0,50000000),
+    coin(0,40000000), coin(0,30000000), coin(0,20000000),   coin(0,17000000),   coin(0,14000000),   coin(0,12000000),
+    coin(0,10000000), coin(0,8000000),  coin(0,7000000),    coin(0,6000000),    coin(0,6000000),    coin(0,5000000),
+    coin(0,5000000),  coin(0,5000000),  coin(0,4000000),    coin(0,4000000),    coin(0,4000000),    coin(0,4000000),
+    coin(0,4000000),  coin(0,3000000),  coin(0,3000000),    coin(0,3000000),    coin(0,3000000),    coin(0,3000000)
+};
 
 namespace publiqpp
 {
