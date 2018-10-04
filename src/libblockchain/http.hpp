@@ -261,9 +261,9 @@ string file_response(beltpp::detail::session_special_data& ssd,
 }
 
 inline
-beltpp::iterator_wrapper<char const>
-check_begin(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
-            beltpp::iterator_wrapper<char const> const& iter_scan_end,
+std::string::const_iterator
+check_begin(std::string::const_iterator const& iter_scan_begin,
+            std::string::const_iterator const& iter_scan_end,
             string const& value) noexcept
 {
     auto it_scan = iter_scan_begin;
@@ -291,9 +291,9 @@ check_begin(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
 }
 
 inline
-std::pair<beltpp::iterator_wrapper<char const>, beltpp::iterator_wrapper<char const>>
-check_end(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
-          beltpp::iterator_wrapper<char const> const& iter_scan_end,
+std::pair<std::string::const_iterator, std::string::const_iterator>
+check_end(std::string::const_iterator const& iter_scan_begin,
+          std::string::const_iterator const& iter_scan_end,
           string const& value) noexcept
 {
     auto it_scan_begin = iter_scan_begin;
@@ -324,8 +324,8 @@ check_end(beltpp::iterator_wrapper<char const> const& iter_scan_begin,
 
 inline
 beltpp::detail::pmsg_all message_list_load(
-        beltpp::iterator_wrapper<char const>& iter_scan_begin,
-        beltpp::iterator_wrapper<char const> const& iter_scan_end,
+        std::string::const_iterator& iter_scan_begin,
+        std::string::const_iterator const& iter_scan_end,
         beltpp::detail::session_special_data& ssd,
         void* putl)
 {
