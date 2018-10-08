@@ -244,18 +244,15 @@ bool node::run()
                     if (broadcast_transaction.items.empty())
                         throw std::runtime_error("will process only \"broadcast signed transaction\"");
                 
-                    process_transfer(*broadcast_transaction.items[1],
-                                     ref_packet,
-                                     m_pimpl);
-
-                    broadcast(received_packet,
-                              m_pimpl->m_ptr_p2p_socket->name(),
-                              peerid,
-                              (it == interface_type::rpc),
-                              //m_pimpl->plogger_node,
-                              nullptr,
-                              m_pimpl->m_p2p_peers,
-                              m_pimpl->m_ptr_p2p_socket.get());
+                    if(process_transfer(*broadcast_transaction.items[1], ref_packet, m_pimpl))
+                        broadcast(received_packet,
+                                  m_pimpl->m_ptr_p2p_socket->name(),
+                                  peerid,
+                                  (it == interface_type::rpc),
+                                  //m_pimpl->plogger_node,
+                                  nullptr,
+                                  m_pimpl->m_p2p_peers,
+                                  m_pimpl->m_ptr_p2p_socket.get());
                 
                     if (it == interface_type::rpc)
                         psk->send(peerid, Done());

@@ -102,6 +102,8 @@ public:
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
+        m_broadcast_timer.update();
+
         m_ptr_rpc_socket->listen(rpc_bind_to_address);
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
@@ -269,7 +271,7 @@ public:
     void load_transaction_cache()
     {
         uint64_t block_number = m_blockchain.length();
-        uint64_t block_count = 10;// TRANSACTION_LIFETIME / BLOCK_MINE_DELAY;
+        uint64_t block_count = TRANSACTION_LIFETIME / BLOCK_MINE_DELAY;
 
         block_count = block_number < block_count ? block_number : block_count;
 
