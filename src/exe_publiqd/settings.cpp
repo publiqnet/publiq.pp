@@ -18,7 +18,7 @@
 #elif defined(P_OS_MACOS)
 
 #include <sysdir.h>
-#include <limits.h>
+#include <climits>
 
 #else
 #error config_dir function has not been implemented for your platform!

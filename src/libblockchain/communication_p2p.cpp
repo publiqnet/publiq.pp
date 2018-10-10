@@ -14,9 +14,9 @@ using std::multimap;
 
 ///////////////////////////////////////////////////////////////////////////////////
 //                            Internal Finctions
-bool apply_transaction(SignedTransaction& signed_transaction, 
+bool apply_transaction(SignedTransaction const& signed_transaction,
                        unique_ptr<publiqpp::detail::node_internals>& m_pimpl, 
-                       string const key = string())
+                       string const& key = string())
 {
     coin fee;
     Transfer transfer;
@@ -44,7 +44,7 @@ bool apply_transaction(SignedTransaction& signed_transaction,
 void revert_transaction(Transaction& transaction, 
                         unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                         bool const increase,
-                        string const key = string())
+                        string const& key = string())
 {
     coin fee;
     Transfer transfer;
@@ -296,7 +296,7 @@ void process_blockheader_request(BlockHeaderRequest const& header_request,
     sk.send(peerid, header_response);
 }
 
-void process_blockheader_response(BlockHeaderResponse const& header_response,
+void process_blockheader_response(BlockHeaderResponse&& header_response,
                                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                   beltpp::isocket& sk,
                                   beltpp::isocket::peer_id const& peerid)
@@ -393,9 +393,9 @@ void process_blockheader_response(BlockHeaderResponse const& header_response,
 
             // verify consensus_const
             vector<pair<uint64_t, uint64_t>> delta_vector;
-        
-            for (auto it = m_pimpl->sync_headers.begin(); it != m_pimpl->sync_headers.end(); ++it)
-                delta_vector.push_back(pair<uint64_t, uint64_t>(it->delta, it->c_const));
+
+            for (auto const& item : m_pimpl->sync_headers)
+                delta_vector.push_back(pair<uint64_t, uint64_t>(item.delta, item.c_const));
         
             uint64_t number = m_pimpl->sync_headers.rbegin()->block_number - 1;
             uint64_t delta_step = number < DELTA_STEP ? number : DELTA_STEP;
@@ -493,7 +493,7 @@ void process_blockchain_request(BlockChainRequest const& blockchain_request,
     sk.send(peerid, chain_response);
 }
 
-void process_blockchain_response(BlockChainResponse const& response,
+void process_blockchain_response(BlockChainResponse&& response,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid)
@@ -558,14 +558,14 @@ void process_blockchain_response(BlockChainResponse const& response,
         throw wrong_data_exception("blockchain response. previous hash!");
 
     ++header_it;
-    for (auto block_it = response.signed_blocks.begin(); block_it != response.signed_blocks.end(); ++block_it)
+    for (auto& block_item : response.signed_blocks)
     {
         Block block;
-        block_it->block_details.get(block);
+        block_item.block_details.get(block);
         string str = block.to_string();
 
         // verify block signature
-        if (!meshpp::verify_signature(meshpp::public_key(block_it->authority), str, block_it->signature))
+        if (!meshpp::verify_signature(meshpp::public_key(block_item.authority), str, block_item.signature))
             throw wrong_data_exception("blockchain response. block signature!");
 
         if (header_it != m_pimpl->sync_headers.rend())
@@ -577,7 +577,7 @@ void process_blockchain_response(BlockChainResponse const& response,
         }
 
         // verify block rewards
-        if (check_rewards(block, block_it->authority))
+        if (check_rewards(block, block_item.authority))
             throw wrong_data_exception("blockchain response. block rewards!");
 
         // verify block transactions
@@ -609,7 +609,7 @@ void process_blockchain_response(BlockChainResponse const& response,
         }
 
         // store blocks for future use
-        m_pimpl->sync_blocks.push_back(std::move(*block_it));
+        m_pimpl->sync_blocks.push_back(std::move(block_item));
     }
 
     // request new chain if needed
@@ -725,24 +725,24 @@ void process_blockchain_response(BlockChainResponse const& response,
             throw wrong_data_exception("blockchain response. miner balance!");
 
         // verify block transactions
-        for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
+        for (auto const& tr_item : block.signed_transactions)
         {
-            string key = meshpp::hash((*tr_it).to_string());
+            string key = meshpp::hash(tr_item.to_string());
 
             m_pimpl->m_transaction_pool.remove(key);
 
             if (m_pimpl->m_transaction_cache.find(key) != m_pimpl->m_transaction_cache.end())
                 throw wrong_data_exception("blockchain response. transaction double use!");
 
-            m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
+            m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(tr_item.transaction_details.creation.tm);
 
-            if(!apply_transaction(*tr_it, m_pimpl, block_it->authority))
+            if(!apply_transaction(tr_item, m_pimpl, block_it->authority))
                 throw wrong_data_exception("blockchain response. sender balance!");
         }
 
         // increase all reward amounts to balances
-        for (auto reward_it = block.rewards.begin(); reward_it != block.rewards.end(); ++reward_it)
-            m_pimpl->m_state.increase_balance(reward_it->to, reward_it->amount);
+        for (auto const& reward_item : block.rewards)
+            m_pimpl->m_state.increase_balance(reward_item.to, reward_item.amount);
 
         // Insert to blockchain
         m_pimpl->m_blockchain.insert(*block_it);

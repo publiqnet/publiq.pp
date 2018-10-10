@@ -17,6 +17,7 @@ public:
     BlockchainMessage::Coin to_Coin() const;
     bool empty() const;
 
+    coin& operator = (coin const& other);
     coin& operator += (coin const& other);
     coin& operator -= (coin const& other);
 

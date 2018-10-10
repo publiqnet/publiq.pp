@@ -34,7 +34,7 @@ public:
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,
          bool log_enabled);
-    node(node&& other);
+    node(node&& other) noexcept;
     ~node();
 
     void terminate();

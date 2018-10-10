@@ -33,10 +33,7 @@ blockchain::blockchain(boost::filesystem::path const& fs_blockchain)
     update_header();
 }
 
-blockchain::~blockchain()
-{
-
-}
+blockchain::~blockchain() = default;
 
 void blockchain::save()
 {

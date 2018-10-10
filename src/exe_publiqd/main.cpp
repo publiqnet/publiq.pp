@@ -21,10 +21,9 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
-#include <chrono>
 #include <exception>
 
-#include <signal.h>
+#include <csignal>
 
 namespace program_options = boost::program_options;
 
@@ -33,8 +32,6 @@ using std::string;
 using std::cout;
 using std::endl;
 using std::vector;
-namespace chrono = std::chrono;
-using chrono::steady_clock;
 using std::runtime_error;
 
 bool process_command_line(int argc, char** argv,
@@ -81,6 +78,8 @@ public:
 
         ob.save();
     }
+    port2pid_helper(port2pid_helper const&) = delete;
+    port2pid_helper(port2pid_helper&&) = delete;
     ~port2pid_helper()
     {
         _commit();

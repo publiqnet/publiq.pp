@@ -18,7 +18,7 @@ using std::chrono::system_clock;
 
 peer_id Connect(beltpp::ip_address const& open_address,
                 beltpp::socket& sk,
-                beltpp::event_handler& evH);
+                beltpp::event_handler& eh);
 
 void Send(beltpp::packet&& send_package,
           beltpp::packet& receive_package,
@@ -167,10 +167,8 @@ void Send(beltpp::packet&& send_package,
            assert(false);
            throw std::runtime_error("no packets received from specified channel");
        }
-       else if (packets.size() > 1)
-       {
+       if (packets.size() > 1)
            throw std::runtime_error("more than one responses is not supported");
-       }
 
        auto const& packet = packets.front();
 
@@ -178,9 +176,9 @@ void Send(beltpp::packet&& send_package,
        {
            throw std::runtime_error("server disconnected");
        }
-       else if (packet.type() == beltpp::isocket_open_refused::rtt ||
-                packet.type() == beltpp::isocket_open_error::rtt ||
-                packet.type() == beltpp::isocket_join::rtt)
+       if (packet.type() == beltpp::isocket_open_refused::rtt ||
+           packet.type() == beltpp::isocket_open_error::rtt ||
+           packet.type() == beltpp::isocket_join::rtt)
        {
            assert(false);
            throw std::runtime_error("open error or join received: impossible");
@@ -216,10 +214,8 @@ peer_id Connect(beltpp::ip_address const& open_address,
             assert(false);
             throw std::runtime_error("no packets received from specified channel");
         }
-        else if (packets.size() > 1)
-        {
+        if (packets.size() > 1)
             throw std::runtime_error("more than one responses is not supported");
-        }
 
         auto const& packet = packets.front();
 
@@ -229,13 +225,13 @@ peer_id Connect(beltpp::ip_address const& open_address,
             packet.get(msg);
             throw std::runtime_error(msg.reason);
         }
-        else if (packet.type() == beltpp::isocket_open_error::rtt)
+        if (packet.type() == beltpp::isocket_open_error::rtt)
         {
             beltpp::isocket_open_error msg;
             packet.get(msg);
             throw std::runtime_error(msg.reason);
         }
-        else if (packet.type() != beltpp::isocket_join::rtt)
+        if (packet.type() != beltpp::isocket_join::rtt)
         {
             assert(false);
             throw std::runtime_error("unexpected response: " + std::to_string(packet.type()));

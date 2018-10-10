@@ -32,10 +32,7 @@ transaction_pool::transaction_pool(filesystem::path const& fs_transaction_pool)
 
 }
 
-transaction_pool::~transaction_pool()
-{
-
-}
+transaction_pool::~transaction_pool() = default;
 
 void transaction_pool::save()
 {

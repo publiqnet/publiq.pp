@@ -9,7 +9,7 @@ void process_blockheader_request(BlockHeaderRequest const& header_request,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid);
 
-void process_blockheader_response(BlockHeaderResponse const& header_response,
+void process_blockheader_response(BlockHeaderResponse&& header_response,
                                   unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                   beltpp::isocket& sk,
                                   beltpp::isocket::peer_id const& peerid);
@@ -19,7 +19,7 @@ void process_blockchain_request(BlockChainRequest const& blockchain_request,
                                 beltpp::isocket& sk,
                                 beltpp::isocket::peer_id const& peerid);
 
-void process_blockchain_response(BlockChainResponse const& blockchain_response,
+void process_blockchain_response(BlockChainResponse&& blockchain_response,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid);

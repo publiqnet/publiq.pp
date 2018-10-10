@@ -20,24 +20,18 @@
 
 using namespace BlockchainMessage;
 
-namespace filesystem = boost::filesystem;
-
 using beltpp::ip_address;
-using beltpp::ip_destination;
 using beltpp::socket;
 using beltpp::packet;
 using peer_id = socket::peer_id;
 
 namespace chrono = std::chrono;
 using chrono::system_clock;
-using chrono::steady_clock;
 
 using std::pair;
 using std::string;
 using std::vector;
-using std::unique_ptr;
 using std::unordered_set;
-using std::unordered_map;
 
 namespace publiqpp
 {
@@ -73,12 +67,9 @@ node::node(ip_address const& rpc_bind_to_address,
 
 }
 
-node::node(node&&) = default;
+node::node(node&&) noexcept = default;
 
-node::~node()
-{
-
-}
+node::~node() = default;
 
 void node::terminate()
 {
@@ -139,15 +130,14 @@ bool node::run()
         for (auto& pevent_item : wait_sockets)
         {
             interface_type it = interface_type::rpc;
-            if (pevent_item == &m_pimpl->m_ptr_p2p_socket.get()->worker())
+            if (pevent_item == &m_pimpl->m_ptr_p2p_socket->worker())
                 it = interface_type::p2p;
 
             auto str_receive = [it]
             {
                 if (it == interface_type::p2p)
                     return "p2p_sk.receive";
-                else
-                    return "rpc_sk.receive";
+                return "rpc_sk.receive";
             };
             str_receive();
 
@@ -405,7 +395,7 @@ bool node::run()
 //                    }
 
                     if(m_pimpl->sync_peerid == peerid)
-                        process_blockheader_response(header_response, m_pimpl, *psk, peerid);
+                        process_blockheader_response(std::move(header_response), m_pimpl, *psk, peerid);
 
 //                    if (false == header_response.block_headers.empty())
 //                        m_pimpl->writeln_node("    done");
@@ -445,7 +435,8 @@ bool node::run()
                     BlockChainResponse blockchain_response;
                     std::move(ref_packet).get(blockchain_response);
 
-                    if (false == blockchain_response.signed_blocks.empty())
+                    bool have_signed_blocks = (false == blockchain_response.signed_blocks.empty());
+                    if (have_signed_blocks)
                     {
                         uint64_t temp_from = 0;
                         uint64_t temp_to = 0;
@@ -484,9 +475,9 @@ bool node::run()
                     }
 
                     if (m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?
-                        process_blockchain_response(blockchain_response, m_pimpl, *psk, peerid);
+                        process_blockchain_response(std::move(blockchain_response), m_pimpl, *psk, peerid);
 
-                    if (false == blockchain_response.signed_blocks.empty())
+                    if (have_signed_blocks)
                         m_pimpl->writeln_node("    done");
 
                     break;

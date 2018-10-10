@@ -19,6 +19,7 @@ public:
     action_log_internals(filesystem::path const& path, bool log_enabled)
         : m_actions("actions", path, 10000, 100, detail::get_putl())
         , m_enabled(log_enabled)
+        , m_revert_index(m_actions.as_const().size() - 1)
     {}
 
     meshpp::vector_loader<LoggedTransaction> m_actions;
@@ -31,11 +32,8 @@ public:
 action_log::action_log(boost::filesystem::path const& fs_action_log, bool log_enabled)
     : m_pimpl(new detail::action_log_internals(fs_action_log, log_enabled))
 {
-    m_pimpl->m_revert_index = length() - 1;
 }
-action_log::~action_log()
-{
-}
+action_log::~action_log() = default;
 
 void action_log::save()
 {
@@ -72,22 +70,22 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
     block_info.sign_time = block.header.sign_time;
     block_info.authority = signed_block.authority;
 
-    for (auto it = block.signed_transactions.begin(); it != block.signed_transactions.end(); ++it)
+    for (auto const& item : block.signed_transactions)
     {
         TransactionInfo transaction_info;
-        transaction_info.fee = it->transaction_details.fee;
-        transaction_info.sign_time = it->transaction_details.creation;
-        transaction_info.transaction_hash = meshpp::hash(it->to_string());
-        BlockchainMessage::detail::assign_packet(transaction_info.action, it->transaction_details.action);
+        transaction_info.fee = item.transaction_details.fee;
+        transaction_info.sign_time = item.transaction_details.creation;
+        transaction_info.transaction_hash = meshpp::hash(item.to_string());
+        BlockchainMessage::detail::assign_packet(transaction_info.action, item.transaction_details.action);
 
         block_info.transactions.push_back(transaction_info);
     }
 
-    for (auto it = block.rewards.begin(); it != block.rewards.end(); ++it)
+    for (auto const& item : block.rewards)
     {
         RewardInfo reward_info;
-        reward_info.to = it->to;
-        reward_info.amount = it->amount;
+        reward_info.to = item.to;
+        reward_info.amount = item.amount;
 
         block_info.rewards.push_back(reward_info);
     }

@@ -45,6 +45,14 @@ bool coin::empty() const
     return (whole == 0) && (fraction == 0);
 }
 
+coin& coin::operator = (coin const& other)
+{
+    whole = other.whole;
+    fraction = other.fraction;
+
+    return *this;
+}
+
 coin& coin::operator += (coin const& other)
 {
     fraction += other.fraction;
@@ -92,8 +100,8 @@ bool coin::operator > (coin const& other) const
             )
        )
         return true;
-    else
-        return false;
+
+    return false;
 }
 bool coin::operator < (coin const& other) const
 {

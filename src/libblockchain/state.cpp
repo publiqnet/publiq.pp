@@ -28,9 +28,7 @@ state::state(filesystem::path const& fs_state)
 {
 }
 
-state::~state()
-{
-}
+state::~state() = default;
 
 void state::save()
 {
