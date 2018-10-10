@@ -149,14 +149,15 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
 
         while (prev_header_local.delta > DELTA_UP &&
-            step < DELTA_STEP && prev_header_local.block_number > 0)
+            step <= DELTA_STEP && prev_header_local.block_number > 0)
         {
             ++step;
             m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
         }
 
-        if (step >= DELTA_STEP)
-            block_header.c_const = prev_header_local.c_const * 2;
+        // -1 because current delta is not counted
+        if (step >= DELTA_STEP - 1)
+            block_header.c_const = prev_header.c_const * 2;
     }
     else
         if (delta < DELTA_DOWN && block_header.c_const > 1)
@@ -166,14 +167,15 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
             m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
 
             while (prev_header_local.delta < DELTA_DOWN &&
-                step < DELTA_STEP && prev_header_local.block_number > 0)
+                step <= DELTA_STEP && prev_header_local.block_number > 0)
             {
                 ++step;
                 m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
             }
 
-            if (step >= DELTA_STEP)
-                block_header.c_const = prev_header_local.c_const / 2;
+            // -1 because current delta is not counted
+            if (step >= DELTA_STEP - 1)
+                block_header.c_const = prev_header.c_const / 2;
         }
 
     Block block;
@@ -408,7 +410,7 @@ void process_blockheader_response(BlockHeaderResponse const& header_response,
                     }
         
                     if (step >= DELTA_STEP && it->second != (it + 1)->second * 2)
-                        throw wrong_data_exception("blockheader response. wrong consensus const!");
+                        throw wrong_data_exception("blockheader response. wrong consensus const up !");
                 }
                 else if (it->first < DELTA_DOWN && it->second > 1)
                 {
@@ -422,7 +424,7 @@ void process_blockheader_response(BlockHeaderResponse const& header_response,
                     }
         
                     if (step >= DELTA_STEP && it->second != (it + 1)->second / 2)
-                        throw wrong_data_exception("blockheader response. wrong consensus const!");
+                        throw wrong_data_exception("blockheader response. wrong consensus const down !");
                 }
             }
 
