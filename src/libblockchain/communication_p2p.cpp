@@ -43,6 +43,7 @@ bool apply_transaction(SignedTransaction& signed_transaction,
 
 void revert_transaction(Transaction& transaction, 
                         unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
+                        bool const increase,
                         string const key = string())
 {
     coin fee;
@@ -52,11 +53,15 @@ void revert_transaction(Transaction& transaction,
     if (!key.empty())
         fee = transaction.fee;
 
-    m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + fee);
-    m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
+    if(increase)
+        m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + fee);
+    else
+    {
+        m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
 
-    if (!fee.empty())
-        m_pimpl->m_state.decrease_balance(key, fee);
+        if (!fee.empty())
+            m_pimpl->m_state.decrease_balance(key, fee);
+    }
 }
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions, vector<Reward>& rewards, string const& authority, uint64_t block_number)
@@ -191,14 +196,17 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     // Revert action log and state, revert transaction pool records
     vector<string> pool_keys;
+    vector<SignedTransaction> pool_transactions;
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
     for (auto& key : pool_keys)
     {
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
+        pool_transactions.push_back(signed_transaction);
+
         m_pimpl->m_action_log.revert();
-        revert_transaction(signed_transaction.transaction_details, m_pimpl);
+        revert_transaction(signed_transaction.transaction_details, m_pimpl, true);
 
         if (block_header.sign_time.tm > signed_transaction.transaction_details.expiry.tm)
             m_pimpl->m_transaction_pool.remove(key); // already expired transaction
@@ -207,6 +215,10 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
                                    signed_transaction.transaction_details.creation,
                                    std::pair<string, SignedTransaction>(key, signed_transaction)));
     }
+
+    // complete revert started above
+    for (auto& signed_transaction : pool_transactions)
+        revert_transaction(signed_transaction.transaction_details, m_pimpl, false);
 
     // check and copy transactions to block
     size_t tr_count = 0;
@@ -634,6 +646,7 @@ void process_blockchain_response(BlockChainResponse const& response,
     });
 
     vector<string> pool_keys;
+    vector<SignedTransaction> pool_transactions;
     m_pimpl->m_transaction_pool.get_keys(pool_keys);
     bool clear_pool = m_pimpl->sync_blocks.size() < m_pimpl->sync_headers.size();
 
@@ -642,14 +655,20 @@ void process_blockchain_response(BlockChainResponse const& response,
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
+        pool_transactions.push_back(signed_transaction);
+
         m_pimpl->m_action_log.revert();
-        revert_transaction(signed_transaction.transaction_details, m_pimpl);
+        revert_transaction(signed_transaction.transaction_details, m_pimpl, true);
 
         // This will make sync process faster
         // Most probably removed transactions we will get with blocks
         if (clear_pool)
             m_pimpl->m_transaction_pool.remove(key);
     }
+
+    // complete revert started above
+    for(auto& signed_transaction : pool_transactions)
+        revert_transaction(signed_transaction.transaction_details, m_pimpl, false);
 
     // calculate back to get state at LCB point
     block_number = m_pimpl->m_blockchain.length() - 1;
@@ -671,7 +690,8 @@ void process_blockchain_response(BlockChainResponse const& response,
         // calculate back transactions
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
-            revert_transaction(it->transaction_details, m_pimpl, signed_block.authority);
+            revert_transaction(it->transaction_details, m_pimpl, true, signed_block.authority);
+            revert_transaction(it->transaction_details, m_pimpl, false, signed_block.authority);
 
             string key = meshpp::hash((*it).to_string());
             m_pimpl->m_transaction_cache.erase(key);
