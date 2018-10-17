@@ -92,7 +92,8 @@ bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
     t = t || next_header.c_sum <= header.c_sum;
     t = t || next_header.c_sum != next_header.delta + header.c_sum;
     t = t || (next_header.c_const != header.c_const &&
-              next_header.c_const != 2 * header.c_const);
+              next_header.c_const != header.c_const * 2 && 
+              next_header.c_const != header.c_const / 2);
 
     system_clock::time_point time_point1 = system_clock::from_time_t(header.sign_time.tm);
     system_clock::time_point time_point2 = system_clock::from_time_t(next_header.sign_time.tm);
