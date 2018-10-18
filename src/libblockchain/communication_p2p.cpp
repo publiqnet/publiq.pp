@@ -390,7 +390,7 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
         {
             if (check_headers(*m_pimpl->sync_headers.rbegin(), tmp_header) ||
                 check_headers_vector(m_pimpl->sync_headers))
-                wrong_data_exception("blockheader response. header check failed!");
+                throw wrong_data_exception("blockheader response. header check failed!");
 
             // verify consensus_const
             vector<pair<uint64_t, uint64_t>> delta_vector;
