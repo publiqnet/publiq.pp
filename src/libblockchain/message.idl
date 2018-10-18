@@ -5,6 +5,7 @@ module BlockchainMessage
         UInt64 whole
         UInt64 fraction
     }
+
     ///
     //  core functions
     ///
@@ -12,6 +13,74 @@ module BlockchainMessage
     {
         UInt64 echoes
         Object package
+    }
+
+    ///
+    //  core entities
+    ///
+    class Transaction
+    {
+        TimePoint creation
+        TimePoint expiry
+        Coin fee
+        Object action  //  Transfer, File or Page
+    }
+
+    class SignedTransaction
+    {
+        Transaction transaction_details
+        String authority
+        String signature
+    }
+
+    class BlockHeader
+    {
+        UInt64 block_number
+        UInt64 delta
+        UInt64 c_sum
+        UInt64 c_const
+        String prev_hash
+        TimePoint time_signed
+    }
+
+    class Block
+    {
+        BlockHeader header
+        Array Reward rewards
+        Array SignedTransaction signed_transactions
+    }
+
+    class SignedBlock
+    {
+        Block block_details
+        String authority
+        String signature
+    }
+
+    ///
+    // action log info
+    ///
+    class RewardInfo
+    {
+        String to
+        Coin amount
+    }
+
+    class TransactionInfo
+    {
+        Coin fee
+        Object action
+        String transaction_hash
+        TimePoint time_signed
+    }
+
+    class BlockInfo
+    {
+        String authority
+        String block_hash
+        TimePoint time_signed
+        Array RewardInfo rewards
+        Array TransactionInfo transactions
     }
 
     ///
@@ -42,74 +111,6 @@ module BlockchainMessage
         Array String file_uris
     }
 
-    ///
-    //  core entities
-    ///
-    class Transaction
-    {
-        TimePoint creation
-        TimePoint expiry
-        Coin fee
-        Object action  //  Transfer, File or Page
-    }
-
-    class SignedTransaction
-    {
-        Transaction transaction_details
-        String authority
-        String signature
-    }
-
-    class BlockHeader
-    {
-        UInt64 block_number
-        UInt64 delta
-        UInt64 c_sum
-        UInt64 c_const
-        String prev_hash
-        TimePoint sign_time
-    }
-
-    class Block
-    {
-        BlockHeader header
-        Array Reward rewards
-        Array SignedTransaction signed_transactions
-    }
-
-    class SignedBlock
-    {
-        Object block_details
-        String authority
-        String signature
-    }
-
-    ///
-    // action log info
-    ///
-    class RewardInfo
-    {
-        String to
-        Coin amount
-    }
-
-    class TransactionInfo
-    {
-        Coin fee
-        Object action
-        String transaction_hash
-        TimePoint sign_time
-    }
-
-    class BlockInfo
-    {
-        String authority
-        String block_hash
-        TimePoint sign_time
-        Array RewardInfo rewards
-        Array TransactionInfo transactions
-    }
-
     //  request/response
     class DigestRequest { Object package }
     class Digest
@@ -118,20 +119,21 @@ module BlockchainMessage
         Object package
     }
 
+    class LoggedTransactionsRequest
+    { 
+        UInt64 start_index
+        UInt64 max_count
+    }
+    class LoggedTransactions
+    {
+        Array LoggedTransaction actions
+    }
     class LoggedTransaction
     {
         Bool applied_reverted
         UInt64 index
         Object action // BlockInfo or TransactionInfo
     }
-
-    class LoggedTransactionsRequest
-    { 
-        UInt64 start_index
-        UInt64 max_count
-    }
-
-    class LoggedTransactions { Array LoggedTransaction actions }
 
     class MasterKeyRequest {}
     class MasterKey { String master_key }
@@ -141,7 +143,6 @@ module BlockchainMessage
         String master_key
         UInt64 index
     }
-
     class KeyPair
     {
         String master_key
@@ -155,7 +156,6 @@ module BlockchainMessage
         String private_key
         Object package
     }
-
     class Signature
     {
         String public_key
@@ -184,7 +184,6 @@ module BlockchainMessage
         UInt64 blocks_from
         UInt64 blocks_to
     }
-
     class BlockHeaderResponse
     {
         Array BlockHeader block_headers
@@ -195,7 +194,6 @@ module BlockchainMessage
         UInt64 blocks_from
         UInt64 blocks_to
     }
-
     class BlockChainResponse
     {
         Array SignedBlock signed_blocks
@@ -213,6 +211,12 @@ module BlockchainMessage
         String authority_provided
         String authority_required
     }
+    class NotEnoughBalance
+    {
+        Coin balance
+        Coin spending
+    }
+    class TransactionDone { String tx_hash }
     class FileNotFound { String uri }
     class RemoteError { String message }
 

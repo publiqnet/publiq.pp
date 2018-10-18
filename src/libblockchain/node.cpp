@@ -159,9 +159,9 @@ bool node::run()
             {
                 vector<packet*> composition;
 
-                open_container_packet<Broadcast, SignedTransaction> broadcast_transaction;
+                open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
                 open_container_packet<Broadcast> broadcast_anything;
-                bool is_container = broadcast_transaction.open(received_packet, composition) ||
+                bool is_container = broadcast_signed_transaction.open(received_packet, composition) ||
                                     broadcast_anything.open(received_packet, composition);
 
                 if (is_container == false)
@@ -231,18 +231,34 @@ bool node::run()
                 }
                 case Transfer::rtt:
                 {
-                    if (broadcast_transaction.items.empty())
+                    if (broadcast_signed_transaction.items.empty())
                         throw std::runtime_error("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    Transfer* p_transfer = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_transfer);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_transfer);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    Transfer& transfer = *p_transfer;
                 
-                    if(process_transfer(*broadcast_transaction.items[1], ref_packet, m_pimpl))
-                        broadcast(received_packet,
-                                  m_pimpl->m_ptr_p2p_socket->name(),
-                                  peerid,
-                                  (it == interface_type::rpc),
-                                  //m_pimpl->plogger_node,
-                                  nullptr,
-                                  m_pimpl->m_p2p_peers,
-                                  m_pimpl->m_ptr_p2p_socket.get());
+                    if(process_transfer(signed_tx, transfer, m_pimpl))
+                        process_broadcast(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          (it == interface_type::rpc),
+                                          //m_pimpl->plogger_node,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
                 
                     if (it == interface_type::rpc)
                         psk->send(peerid, Done());
@@ -444,20 +460,8 @@ bool node::run()
                         auto const& front = blockchain_response.signed_blocks.front().block_details;
                         auto const& back = blockchain_response.signed_blocks.back().block_details;
 
-                        if (front.type() == Block::rtt)
-                        {
-                            Block const* p = nullptr;
-                            front.get(p);
-
-                            temp_from = p->header.block_number;
-                        }
-                        if (back.type() == Block::rtt)
-                        {
-                            Block const* p = nullptr;
-                            back.get(p);
-
-                            temp_to = p->header.block_number;
-                        }
+                        temp_from = front.header.block_number;
+                        temp_to = back.header.block_number;
 
                         if(temp_from == temp_to)
                             m_pimpl->writeln_node("processing block " + std::to_string(temp_from) + 
@@ -611,20 +615,17 @@ bool node::run()
                 SignedTransaction signed_transaction;
                 m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-                Broadcast br;
-                br.echoes = 2;
-                br.package = signed_transaction;
+                Broadcast broadcast;
+                broadcast.echoes = 2;
+                broadcast.package = signed_transaction;
 
-                beltpp::packet broadcast_package;
-                broadcast_package.set(br);
-
-                broadcast(broadcast_package,
-                    m_pimpl->m_ptr_p2p_socket->name(),
-                    m_pimpl->m_ptr_p2p_socket->name(),
-                    true, // like from rpc
-                    nullptr, // no logger
-                    m_pimpl->m_p2p_peers,
-                    m_pimpl->m_ptr_p2p_socket.get());
+                process_broadcast(std::move(broadcast),
+                                  m_pimpl->m_ptr_p2p_socket->name(),
+                                  m_pimpl->m_ptr_p2p_socket->name(),
+                                  true, // like from rpc
+                                  nullptr, // no logger
+                                  m_pimpl->m_p2p_peers,
+                                  m_pimpl->m_ptr_p2p_socket.get());
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(50));
             }
@@ -655,7 +656,7 @@ bool node::run()
             m_pimpl->m_blockchain.header(header);
 
             system_clock::time_point current_time_point = system_clock::now();
-            system_clock::time_point previous_time_point = system_clock::from_time_t(header.sign_time.tm);
+            system_clock::time_point previous_time_point = system_clock::from_time_t(header.time_signed.tm);
             chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
 
             if (!m_pimpl->sync_responses.empty())

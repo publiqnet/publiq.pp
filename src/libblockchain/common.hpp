@@ -37,8 +37,7 @@
 #define CACHE_CLEANUP_TIMER 300
 #define SUMMARY_REPORT_TIMER 600
 
-// Transaction maximum lifetime in seconds (24 hours)
-#define TRANSACTION_LIFETIME 86400
+#define TRANSACTION_MAX_LIFETIME_HOURS 24
 
 // Maximum time shift on seconds
 // acceptable between nodes

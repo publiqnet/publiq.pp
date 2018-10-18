@@ -73,8 +73,7 @@ void blockchain::header(BlockHeader& block_header) const
 
 void blockchain::insert(SignedBlock const& signed_block)
 {
-    Block block;
-    signed_block.block_details.get(block);
+    Block const& block = signed_block.block_details;
 
     uint64_t block_number = block.header.block_number;
 

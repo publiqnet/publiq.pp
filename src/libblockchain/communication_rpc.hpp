@@ -33,17 +33,17 @@ void verify_signature(beltpp::packet const& packet,
                       beltpp::isocket& sk,
                       beltpp::isocket::peer_id const& peerid);
 
-bool process_transfer(beltpp::packet const& package_signed_transaction,
-                      beltpp::packet const& package_transfer,
+bool process_transfer(BlockchainMessage::SignedTransaction const& signed_transaction,
+                      BlockchainMessage::Transfer const& transfer,
                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
-void broadcast(beltpp::packet& package_broadcast,
-               beltpp::isocket::peer_id const& self,
-               beltpp::isocket::peer_id const& from,
-               bool from_rpc,
-               beltpp::ilog* plog,
-               std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
-               beltpp::isocket* psk);
+void process_broadcast(BlockchainMessage::Broadcast&& broadcast,
+                       beltpp::isocket::peer_id const& self,
+                       beltpp::isocket::peer_id const& from,
+                       bool from_rpc,
+                       beltpp::ilog* plog,
+                       std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
+                       beltpp::isocket* psk);
 
 
 //---------------- Exceptions -----------------------

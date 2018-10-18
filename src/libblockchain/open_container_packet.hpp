@@ -1,13 +1,14 @@
 #pragma once
 
 #include "message.hpp"
+#include "common.hpp"
 
 #include <belt.pp/packet.hpp>
-#include <belt.pp/scope_helper.hpp>
 
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <vector>
+#include <chrono>
 
 using beltpp::packet;
 using namespace BlockchainMessage;
@@ -18,20 +19,40 @@ packet& contained_member(Broadcast& pck)
     return pck.package;
 }
 
-packet& contained_member(SignedTransaction& pck)
+packet& contained_member(SignedTransaction& signed_tx)
 {
-    meshpp::public_key pb_key(pck.authority);
+    meshpp::public_key pb_key(signed_tx.authority);
     meshpp::signature signature_check(pb_key,
-                                      pck.transaction_details.to_string(),
-                                      pck.signature);
+                                      signed_tx.transaction_details.to_string(),
+                                      signed_tx.signature);
 
-    return pck.transaction_details.action;
+    namespace chrono = std::chrono;
+    using chrono::system_clock;
+    using time_point = system_clock::time_point;
+    time_point creation =
+            system_clock::from_time_t(signed_tx.transaction_details.creation.tm);
+    time_point expiry =
+            system_clock::from_time_t(signed_tx.transaction_details.expiry.tm);
+
+    // Expiry date check
+    auto now = system_clock::now();
+
+    if (now < creation - chrono::seconds(NODES_TIME_SHIFT))
+        throw std::runtime_error("Transaction from the future!");
+
+    if (now > expiry)
+        throw std::runtime_error("Expired transaction!");
+
+    if (expiry - creation > std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS))
+        throw std::runtime_error("Too long lifetime for transaction");
+
+    return signed_tx.transaction_details.action;
 }
 
-packet& contained_member(SignedBlock& pck)
-{
-    return pck.block_details;
-}
+//packet& contained_member(SignedBlock& pck)
+//{
+//    return pck.block_details;
+//}
 
 template <typename... Ts>
 class open_container_packet;

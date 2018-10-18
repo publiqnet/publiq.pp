@@ -61,20 +61,19 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
     if (!m_pimpl->m_enabled)
         return;
 
-    Block block;
-    signed_block.block_details.get(block);
+    Block const& block = signed_block.block_details;
     string block_hash = meshpp::hash(signed_block.to_string());
 
     BlockInfo block_info;
     block_info.block_hash = block_hash;
-    block_info.sign_time = block.header.sign_time;
+    block_info.time_signed = block.header.time_signed;
     block_info.authority = signed_block.authority;
 
     for (auto const& item : block.signed_transactions)
     {
         TransactionInfo transaction_info;
         transaction_info.fee = item.transaction_details.fee;
-        transaction_info.sign_time = item.transaction_details.creation;
+        transaction_info.time_signed = item.transaction_details.creation;
         transaction_info.transaction_hash = meshpp::hash(item.to_string());
         BlockchainMessage::detail::assign_packet(transaction_info.action, item.transaction_details.action);
 
@@ -100,7 +99,7 @@ void action_log::log_transaction(SignedTransaction const& signed_transaction)
 
     TransactionInfo transaction_info;
     transaction_info.fee = signed_transaction.transaction_details.fee;
-    transaction_info.sign_time = signed_transaction.transaction_details.creation;
+    transaction_info.time_signed = signed_transaction.transaction_details.creation;
     transaction_info.transaction_hash = meshpp::hash(signed_transaction.to_string());
     BlockchainMessage::detail::assign_packet(transaction_info.action, signed_transaction.transaction_details.action);
 

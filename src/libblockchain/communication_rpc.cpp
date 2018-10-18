@@ -165,39 +165,15 @@ void verify_signature(beltpp::packet const& packet,
     sk.send(peerid, Done());
 }
 
-bool process_transfer(beltpp::packet const& package_signed_transaction,
-                      beltpp::packet const& package_transfer,
+bool process_transfer(BlockchainMessage::SignedTransaction const& signed_transaction,
+                      BlockchainMessage::Transfer const& transfer,
                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    if (package_signed_transaction.type() != SignedTransaction::rtt)
-        throw std::runtime_error("Unknown object typeid to insert: " + std::to_string(package_signed_transaction.type()));
-
-    SignedTransaction signed_transaction;
-    package_signed_transaction.get(signed_transaction);
-
-    Transfer transfer;
-    package_transfer.get(transfer);
-
-    // Expiry date check
-    auto now = system_clock::now();
-    system_clock::time_point delta = system_clock::from_time_t(NODES_TIME_SHIFT);
-    system_clock::time_point creation = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-    system_clock::time_point expiry = system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm);
-
-    if (now < system_clock::time_point(creation - delta))
-        throw std::runtime_error("Transaction from the future!");
-
-    if (now > expiry)
-        throw std::runtime_error("Expired transaction!");
-
-    if (chrono::duration_cast<chrono::seconds>(expiry - creation).count() > TRANSACTION_LIFETIME)
-        throw std::runtime_error("Too long lifetime for transaction");
-
     // Authority check
     if (signed_transaction.authority != transfer.from)
         throw authority_exception(signed_transaction.authority, transfer.from);
 
-    // Don't need store transaction if sync in process
+    // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
     if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
@@ -226,13 +202,13 @@ bool process_transfer(beltpp::packet const& package_signed_transaction,
     return true;
 }
 
-void broadcast(beltpp::packet& package_broadcast,
-               beltpp::isocket::peer_id const& self,
-               beltpp::isocket::peer_id const& from,
-               bool from_rpc,
-               beltpp::ilog* plog,
-               std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
-               beltpp::isocket* psk)
+void process_broadcast(BlockchainMessage::Broadcast&& broadcast,
+                       beltpp::isocket::peer_id const& self,
+                       beltpp::isocket::peer_id const& from,
+                       bool from_rpc,
+                       beltpp::ilog* plog,
+                       std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
+                       beltpp::isocket* psk)
 {
     auto str_compare = [](string const& first, string const& second)
     {
@@ -256,28 +232,26 @@ void broadcast(beltpp::packet& package_broadcast,
     }
 
     bool chance_to_reflect = beltpp::chance_one_of(10);
-    BlockchainMessage::Broadcast msg_broadcast;
-    package_broadcast.get(msg_broadcast);
 
     if (from_rpc)
     {
         if (plog)
             plog->message("will broadcast to all");
-        msg_broadcast.echoes = 2;
+        broadcast.echoes = 2;
     }
     if (chance_to_reflect)
     {
         if (plog)
             plog->message("can reflect, 1 chance out of 10");
-        if (msg_broadcast.echoes == 0)
+        if (broadcast.echoes == 0)
         {
             if (plog)
                 plog->message("    oh no! reflections are expired");
             chance_to_reflect = false;
         }
     }
-    if (msg_broadcast.echoes > 2)
-        msg_broadcast.echoes = 2;
+    if (broadcast.echoes > 2)
+        broadcast.echoes = 2;
 
     auto filtered_peers = all_peers;
     for (auto const& peer : all_peers)
@@ -295,7 +269,7 @@ void broadcast(beltpp::packet& package_broadcast,
             plog->message("since all peers would be skipped by reflection, "
                           "use the chance to reflect, and broadcast to everyone");
         filtered_peers = all_peers;
-        --msg_broadcast.echoes;
+        --broadcast.echoes;
     }
     else if (filtered_peers.empty())
     {
@@ -308,7 +282,7 @@ void broadcast(beltpp::packet& package_broadcast,
         if (plog)
             plog->message("will rebroadcast to: " + peer);
 
-        psk->send(peer, msg_broadcast);
+        psk->send(peer, broadcast);
     }
 }
 

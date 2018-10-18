@@ -95,8 +95,8 @@ bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
               next_header.c_const != header.c_const * 2 && 
               next_header.c_const != header.c_const / 2);
 
-    system_clock::time_point time_point1 = system_clock::from_time_t(header.sign_time.tm);
-    system_clock::time_point time_point2 = system_clock::from_time_t(next_header.sign_time.tm);
+    system_clock::time_point time_point1 = system_clock::from_time_t(header.time_signed.tm);
+    system_clock::time_point time_point2 = system_clock::from_time_t(next_header.time_signed.tm);
     chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(time_point2 - time_point1);
 
     return t || time_point1 > time_point2 || diff_seconds.count() < BLOCK_MINE_DELAY;
@@ -145,7 +145,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     block_header.c_const = prev_header.c_const;
     block_header.c_sum = prev_header.c_sum + delta;
     block_header.prev_hash = prev_hash;
-    block_header.sign_time.tm = system_clock::to_time_t(system_clock::now());
+    block_header.time_signed.tm = system_clock::to_time_t(system_clock::now());
 
     // update consensus_const if needed
     if (delta > DELTA_UP)
@@ -209,7 +209,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         m_pimpl->m_action_log.revert();
         revert_transaction(signed_transaction.transaction_details, m_pimpl, true);
 
-        if (block_header.sign_time.tm > signed_transaction.transaction_details.expiry.tm)
+        if (block_header.time_signed.tm > signed_transaction.transaction_details.expiry.tm)
             m_pimpl->m_transaction_pool.remove(key); // already expired transaction
         else
             transaction_map.insert(std::pair<BlockchainMessage::ctime, std::pair<string, SignedTransaction>>(
@@ -561,8 +561,7 @@ void process_blockchain_response(BlockChainResponse&& response,
     ++header_it;
     for (auto& block_item : response.signed_blocks)
     {
-        Block block;
-        block_item.block_details.get(block);
+        Block& block = block_item.block_details;
         string str = block.to_string();
 
         // verify block signature
@@ -582,7 +581,6 @@ void process_blockchain_response(BlockChainResponse&& response,
             throw wrong_data_exception("blockchain response. block rewards!");
 
         // verify block transactions
-        system_clock::time_point delta = system_clock::from_time_t(NODES_TIME_SHIFT);
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
             if (!meshpp::verify_signature(meshpp::public_key(tr_it->authority),
@@ -599,13 +597,13 @@ void process_blockchain_response(BlockChainResponse&& response,
             system_clock::time_point creation = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
             system_clock::time_point expiry = system_clock::from_time_t(tr_it->transaction_details.expiry.tm);
 
-            if (chrono::duration_cast<chrono::seconds>(expiry - creation).count() > TRANSACTION_LIFETIME)
+            if (expiry - creation > chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS))
                 throw wrong_data_exception("blockchain response. too long lifetime for transaction");
 
-            if (system_clock::time_point(creation - delta) > system_clock::from_time_t(block.header.sign_time.tm))
+            if (creation - chrono::seconds(NODES_TIME_SHIFT) > system_clock::from_time_t(block.header.time_signed.tm))
                 throw wrong_data_exception("blockchain response. transaction from the future!");
 
-            if (expiry < system_clock::from_time_t(block.header.sign_time.tm))
+            if (expiry < system_clock::from_time_t(block.header.time_signed.tm))
                 throw wrong_data_exception("blockchain response. expired transaction!");
         }
 
@@ -681,8 +679,7 @@ void process_blockchain_response(BlockChainResponse&& response,
         m_pimpl->m_blockchain.remove_last_block();
         m_pimpl->m_action_log.revert();
 
-        Block block;
-        std::move(signed_block.block_details).get(block);
+        Block& block = signed_block.block_details;
 
         // decrease all reward amounts from balances and revert reward
         for (auto it = block.rewards.rbegin(); it != block.rewards.rend(); ++it)
@@ -698,25 +695,25 @@ void process_blockchain_response(BlockChainResponse&& response,
             m_pimpl->m_transaction_cache.erase(key);
 
             if (now <= system_clock::from_time_t(it->transaction_details.expiry.tm))
-                m_pimpl->m_transaction_pool.insert(*it); // still not expired transaction
+                m_pimpl->m_transaction_pool.insert(*it); // not yet expired transaction
         }
 
         --block_number;
     }
 
     // verify new received blocks
-    Block block;
     BlockHeader prev_header;
     m_pimpl->m_blockchain.header_at(lcb_number, prev_header);
     uint64_t c_const = prev_header.c_const;
 
-    for (auto block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
+    //for (auto block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
+    for (auto const& signed_block : m_pimpl->sync_blocks)
     {
-        block_it->block_details.get(block);
+        Block const& block = signed_block.block_details;
 
         // verify consensus_delta
-        Coin amount = m_pimpl->m_state.get_balance(block_it->authority);
-        uint64_t delta = m_pimpl->calc_delta(block_it->authority, amount.whole, block.header.prev_hash, c_const);
+        Coin amount = m_pimpl->m_state.get_balance(signed_block.authority);
+        uint64_t delta = m_pimpl->calc_delta(signed_block.authority, amount.whole, block.header.prev_hash, c_const);
         
         if (delta != block.header.delta)
             throw wrong_data_exception("blockchain response. consensus delta!");
@@ -737,7 +734,7 @@ void process_blockchain_response(BlockChainResponse&& response,
 
             m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(tr_item.transaction_details.creation.tm);
 
-            if(!apply_transaction(tr_item, m_pimpl, block_it->authority))
+            if(!apply_transaction(tr_item, m_pimpl, signed_block.authority))
                 throw wrong_data_exception("blockchain response. sender balance!");
         }
 
@@ -746,8 +743,8 @@ void process_blockchain_response(BlockChainResponse&& response,
             m_pimpl->m_state.increase_balance(reward_item.to, reward_item.amount);
 
         // Insert to blockchain
-        m_pimpl->m_blockchain.insert(*block_it);
-        m_pimpl->m_action_log.log_block(*block_it);
+        m_pimpl->m_blockchain.insert(signed_block);
+        m_pimpl->m_action_log.log_block(signed_block);
 
         c_const = block.header.c_const;
     }
@@ -769,7 +766,9 @@ void process_blockchain_response(BlockChainResponse&& response,
     }
 
     m_pimpl->save(guard);
-    m_pimpl->calc_sync_info(block);
+    if (false == m_pimpl->sync_blocks.empty())
+        //  please pay special attention to this change during code review
+        m_pimpl->calc_sync_info(m_pimpl->sync_blocks.back().block_details);
 
     // request new chain if the process was stopped
     // by BLOCK_INSERT_LENGTH restriction
