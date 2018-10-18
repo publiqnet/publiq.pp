@@ -13,7 +13,7 @@ using std::cin;
 using std::endl;
 using std::string;
 
-int main(int argc, char** argv)
+int main(int /*argc*/, char** /*argv*/)
 {
     try
     {
