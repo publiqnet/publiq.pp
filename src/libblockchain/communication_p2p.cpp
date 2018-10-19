@@ -589,7 +589,7 @@ void process_blockchain_response(BlockChainResponse&& response,
                 throw wrong_data_exception("blockchain response. transaction signature!");
 
             Transfer transfer;
-            std::move(tr_it->transaction_details.action).get(transfer);
+            tr_it->transaction_details.action.get(transfer);
 
             if (tr_it->authority != transfer.from)
                 throw wrong_data_exception("blockchain response. transaction authority!");
