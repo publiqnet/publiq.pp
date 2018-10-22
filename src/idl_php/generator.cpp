@@ -466,9 +466,9 @@ trait RttSerializableTrait
         {
             $member = (static::class)::getMemberName($name);
             if ($member['convertToDate']) {
-                $vars2[(static::class)::getMemberName($name)] = date("Y-m-d H:i:s", $value);
+                $vars2[$member['key']] = date("Y-m-d H:i:s", $value);
             } else {
-                $vars2[(static::class)::getMemberName($name)] = $value;
+                $vars2[$member['key']] = $value;
             }
         }
         return $vars2;
@@ -538,7 +538,7 @@ void analyze_struct(    state_holder& state,
     string mixedTypes;
     string hashCase;
 
-    /////////////////////////// create module files //////////////////////////////////
+    /////////////////////////// create model files //////////////////////////////////
 
     boost::filesystem::path FilePath = ModelFolder.string() + "/" + type_name + ".php";
     boost::filesystem::ofstream model( FilePath );
@@ -574,7 +574,7 @@ void analyze_struct(    state_holder& state,
 
         string camelCaseMemberName = transformString( member_name.value );
 
-        memberNamesMap += "        '" + member_name.value + "'" + " => '['name' => '" + camelCaseMemberName + "', 'convertToDate' => ";
+        memberNamesMap += "        '" + member_name.value + "'" + " => ['name' => '" + camelCaseMemberName + "', 'convertToDate' => ";
         if ( info[0] == "integer")
         {
             memberNamesMap += "true],\n";
@@ -745,7 +745,12 @@ void analyze_struct(    state_holder& state,
     model <<
 R"file_template(    public static function getMemberName(string $camelCaseName)
     {
-        return array_search($camelCaseName, self::memberNames);
+        foreach (self::memberNames as $key => $value) {
+               if ($value['name'] == $camelCaseName) {
+                   $value['key'] = $key;
+                   return $value;
+               }
+       }
     }
 )file_template";
     model << "\n} \n";
