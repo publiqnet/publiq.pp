@@ -583,6 +583,7 @@ void analyze_struct(    state_holder& state,
         {
             memberNamesMap += "false],\n";
         }
+
         if ( info[0] == "::beltpp::packet" )
         {
 
@@ -592,8 +593,18 @@ void analyze_struct(    state_holder& state,
                     "    */ \n"
                     "    private $" + camelCaseMemberName + ";\n";
 
+            setFunction +=
+                    "    /** \n"
+                    "    * @param mixed $" + camelCaseMemberName + "\n"
+                    "    */ \n"
+                    "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "( $" + transformString( member_name.value ) + ") \n"
+                    "    { \n"
+                    "       $this->" + camelCaseMemberName + " = $" + camelCaseMemberName + ";\n"
+                    "    }\n";
+
             mixedTypes +=
-                    "          $this->" + camelCaseMemberName + " = Rtt::validate($data->" +  member_name.value + ");\n";
+                    "        $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(Rtt::validate($data->" +  member_name.value + ")); \n";
+
         }
         else
         if ( info[0] == "hash" || info[0] == "array" )
@@ -722,6 +733,14 @@ void analyze_struct(    state_holder& state,
         else
         if ( !( info[0] == "::beltpp::packet" )  && !( info[0] == "hash" ) && !(info[0] == "array") )
         {
+            setFunction +=
+                    "    /** \n"
+                    "    * @param " + info[0] + " $" + camelCaseMemberName + "\n"
+                    "    */ \n"
+                    "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(" + info[0] +" $" + transformString( member_name.value ) + ") \n"
+                    "    { \n"
+                    "       $this->" + camelCaseMemberName + " = $" + camelCaseMemberName + ";\n"
+                    "    }\n";
             objectTypes +=
                     "        $this->" + camelCaseMemberName + " = new "+ info[0] + "();\n"
                     "        $this->" + camelCaseMemberName + " -> validate($data-> "+ member_name.value  + ");\n";
@@ -751,6 +770,7 @@ R"file_template(    public static function getMemberName(string $camelCaseName)
                    return $value;
                }
        }
+       return null;
     }
 )file_template";
     model << "\n} \n";
