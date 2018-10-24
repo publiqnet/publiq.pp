@@ -14,22 +14,22 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
                  beltpp::isocket& sk,
                  beltpp::isocket::peer_id const& peerid);
 
-void get_hash(beltpp::packet const& packet,
+void get_hash(DigestRequest&& msg_get_hash,
               beltpp::isocket& sk,
               beltpp::isocket::peer_id const& peerid);
 
 void get_random_seed(beltpp::isocket& sk,
                      beltpp::isocket::peer_id const& peerid);
 
-void get_key_pair(beltpp::packet const& packet,
+void get_key_pair(KeyPairRequest const& kpr_msg,
                   beltpp::isocket& sk,
                   beltpp::isocket::peer_id const& peerid);
 
-void get_signature(beltpp::packet const& packet,
+void get_signature(SignRequest&& msg,
                    beltpp::isocket& sk,
                    beltpp::isocket::peer_id const& peerid);
 
-void verify_signature(beltpp::packet const& packet,
+void verify_signature(Signature const& msg,
                       beltpp::isocket& sk,
                       beltpp::isocket::peer_id const& peerid);
 

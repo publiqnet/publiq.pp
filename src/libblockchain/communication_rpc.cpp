@@ -86,13 +86,10 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
     sk.send(peerid, msg_actions);
 }
 
-void get_hash(beltpp::packet const& packet,
+void get_hash(DigestRequest&& msg_get_hash,
               beltpp::isocket& sk,
               beltpp::isocket::peer_id const& peerid)
 {
-    DigestRequest msg_get_hash;
-    packet.get(msg_get_hash);
-
     Digest msg_hash_result;
     msg_hash_result.base58_hash = meshpp::hash(msg_get_hash.package.to_string());
     msg_hash_result.package = std::move(msg_get_hash.package);
@@ -110,13 +107,10 @@ void get_random_seed(beltpp::isocket& sk,
     sk.send(peerid, rs_msg);
 }
 
-void get_key_pair(beltpp::packet const& packet,
+void get_key_pair(KeyPairRequest const& kpr_msg,
                   beltpp::isocket& sk,
                   beltpp::isocket::peer_id const& peerid)
 {
-    KeyPairRequest kpr_msg;
-    packet.get(kpr_msg);
-
     meshpp::random_seed rs(kpr_msg.master_key);
     meshpp::private_key pv = rs.get_private_key(kpr_msg.index);
     meshpp::public_key pb = pv.get_public_key();
@@ -130,13 +124,10 @@ void get_key_pair(beltpp::packet const& packet,
     sk.send(peerid, kp_msg);
 }
 
-void get_signature(beltpp::packet const& packet,
+void get_signature(SignRequest&& msg,
                    beltpp::isocket& sk,
                    beltpp::isocket::peer_id const& peerid)
 {
-    SignRequest msg;
-    packet.get(msg);
-
     meshpp::private_key pv(msg.private_key);
     meshpp::signature signed_msg = pv.sign(msg.package.to_string());
 
@@ -148,13 +139,10 @@ void get_signature(beltpp::packet const& packet,
     sk.send(peerid, sg_msg);
 }
 
-void verify_signature(beltpp::packet const& packet,
+void verify_signature(Signature const& msg,
                       beltpp::isocket& sk,
                       beltpp::isocket::peer_id const& peerid)
 {
-    Signature msg;
-    packet.get(msg);
-
     meshpp::signature signed_msg(msg.public_key, msg.package.to_string(), msg.signature);
 
     sk.send(peerid, Done());

@@ -301,7 +301,9 @@ bool node::run()
                 }
                 case DigestRequest::rtt:
                 {
-                    get_hash(ref_packet, *psk, peerid);
+                    DigestRequest msg_get_hash;
+                    std::move(ref_packet).get(msg_get_hash);
+                    get_hash(std::move(msg_get_hash), *psk, peerid);
                     break;
                 }
                 case MasterKeyRequest::rtt:
@@ -311,17 +313,23 @@ bool node::run()
                 }
                 case KeyPairRequest::rtt:
                 {
-                    get_key_pair(ref_packet, *psk, peerid);
+                    KeyPairRequest kpr_msg;
+                    std::move(ref_packet).get(kpr_msg);
+                    get_key_pair(kpr_msg, *psk, peerid);
                     break;
                 }
                 case SignRequest::rtt:
                 {
-                    get_signature(ref_packet, *psk, peerid);
+                    SignRequest msg_sign_request;
+                    std::move(ref_packet).get(msg_sign_request);
+                    get_signature(std::move(msg_sign_request), *psk, peerid);
                     break;
                 }
                 case Signature::rtt:
                 {
-                    verify_signature(ref_packet, *psk, peerid);
+                    Signature msg_signature;
+                    std::move(ref_packet).get(msg_signature);
+                    verify_signature(msg_signature, *psk, peerid);
                     break;
                 }
                 case SyncRequest::rtt:
