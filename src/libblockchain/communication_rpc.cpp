@@ -76,9 +76,9 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
     len = action_stack.size();
     msg_actions.actions.resize(len);
 
-    for (size_t index = len - 1; index < len; --index)
+    for (i = len - 1; i < len; --i)
     {
-        msg_actions.actions[index] = std::move(action_stack.top());
+        msg_actions.actions[i] = std::move(action_stack.top());
         action_stack.pop();
     }
     assert(action_stack.empty());
