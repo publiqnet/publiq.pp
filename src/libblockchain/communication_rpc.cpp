@@ -18,13 +18,11 @@ size_t get_action_size(beltpp::packet const& package)
     return 1;
 }
 
-void get_actions(beltpp::packet const& package,
+void get_actions(LoggedTransactionsRequest const& msg_get_actions,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
                  beltpp::isocket::peer_id const& peerid)
 {
-    LoggedTransactionsRequest msg_get_actions;
-    package.get(msg_get_actions);
     uint64_t index = msg_get_actions.start_index;
 
     stack<LoggedTransaction> action_stack;
@@ -74,19 +72,16 @@ void get_actions(beltpp::packet const& package,
         }
     }
 
-    std::stack<LoggedTransaction> reverse_stack;
-    while (!action_stack.empty()) // reverse the stack
+    LoggedTransactions msg_actions;
+    len = action_stack.size();
+    msg_actions.actions.resize(len);
+
+    for (size_t index = len - 1; index < len; --index)
     {
-        reverse_stack.push(std::move(action_stack.top()));
+        msg_actions.actions[index] = std::move(action_stack.top());
         action_stack.pop();
     }
-
-    LoggedTransactions msg_actions;
-    while(!reverse_stack.empty()) // list is a vector in reality :)
-    {
-        msg_actions.actions.push_back(std::move(reverse_stack.top()));
-        reverse_stack.pop();
-    }
+    assert(action_stack.empty());
 
     sk.send(peerid, msg_actions);
 }

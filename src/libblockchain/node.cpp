@@ -292,7 +292,11 @@ bool node::run()
                 case LoggedTransactionsRequest::rtt:
                 {
                     if (it == interface_type::rpc)
-                        get_actions(ref_packet, m_pimpl->m_action_log, *psk, peerid);
+                    {
+                        LoggedTransactionsRequest msg_get_actions;
+                        std::move(ref_packet).get(msg_get_actions);
+                        get_actions(msg_get_actions, m_pimpl->m_action_log, *psk, peerid);
+                    }
                     break;
                 }
                 case DigestRequest::rtt:

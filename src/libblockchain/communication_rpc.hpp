@@ -9,7 +9,7 @@ void submit_reward(beltpp::packet&& package,
                    beltpp::isocket& sk,
                    beltpp::isocket::peer_id const& peerid);
 
-void get_actions(beltpp::packet const& packet,
+void get_actions(LoggedTransactionsRequest const& msg_get_actions,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
                  beltpp::isocket::peer_id const& peerid);
