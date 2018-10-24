@@ -539,7 +539,7 @@ void process_blockchain_response(BlockChainResponse&& response,
         throw wrong_data_exception("blockchain response. empty response received!");
 
     // find last common block
-    uint64_t block_number = (*m_pimpl->sync_headers.rbegin()).block_number;
+    uint64_t block_number = m_pimpl->sync_headers.back().block_number;
 
     if (block_number == 0) throw wrong_data_exception("blockchain response. uzum en qcen!");
 
