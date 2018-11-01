@@ -6,7 +6,7 @@ add_custom_command (
 )
 
 # define the executable
-add_executable(exe_publiqd
+add_executable(publiqd
     main.cpp
     pid.hpp
     pid.gen.hpp
@@ -14,7 +14,7 @@ add_executable(exe_publiqd
     settings.hpp)
 
 # libraries this module links to
-target_link_libraries(exe_publiqd PRIVATE
+target_link_libraries(publiqd PRIVATE
     socket
     publiq.pp
     mesh.pp
@@ -31,7 +31,7 @@ target_link_libraries(exe_publiqd PRIVATE
     )
 
 # what to do on make install
-install(TARGETS exe_publiqd
+install(TARGETS publiqd
         EXPORT publiq.pp.package
         RUNTIME DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_RUNTIME}
         LIBRARY DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY}

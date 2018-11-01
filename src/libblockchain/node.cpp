@@ -91,40 +91,6 @@ bool node::run()
 
     enum class interface_type {p2p, rpc};
 
-    auto str_peerid = [](string const& peerid) -> string
-    {
-        if (peerid == "PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
-            return "$tigran(0)";
-        if (peerid == "PBQ8gyokoWdo9tSLcDQQjxdhYgmmnScUPT6YDCaVVoeSFRz1zkGpv")
-            return "$tigran(1)";
-        if (peerid == "PBQ5LNw1peEL8ZRDEw6ukndHpaob8A43dsh2beYg9cwocHm5r3tPR")
-            return "$tigran(2)";
-        if (peerid == "PBQ5pFSs7NKc26b3gpeFN17oGYkn3vFEuf8sA4HhZQsF9MfRrXShC")
-            return "$tigran(3)";
-        if (peerid == "PBQ5Nd79pnM2X6E8NTPPwMXBrX8XigztwU3L51ALPSVBQH2L8tiZw")
-            return "$tigran(4)";
-        if (peerid == "PBQ4te6LkpCnsu9DyoRUZpmhMypbMwqrpofUWvRgGanY8c2vYciwz")
-            return "$tigran(5)";
-        if (peerid == "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu")
-            return "$armen(0)";
-        if (peerid == "PBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
-            return "$armen(1)";
-        if (peerid == "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
-            return "$sona(0)";
-        if (peerid == "PBQ8VLQxxbfD8SNp5LWy2y8rEvLsqcLpKsWCdKqhAEgsjpyhNVqkf")
-            return "$sona(1)";
-        if (peerid == "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
-            return "$gagik(0)";
-        if (peerid == "PBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
-            return "$gagik(1)";
-        if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
-            return "$north.publiq.network:12222";   //  node(0)
-        if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
-            return "$north.publiq.network:13333";   //  state(0)
-
-        return peerid;
-    };
-
     if (wait_result == beltpp::event_handler::event)
     {
         for (auto& pevent_item : wait_sockets)
@@ -180,7 +146,7 @@ bool node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    m_pimpl->writeln_node("joined: " + str_peerid(peerid));
+                    m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -195,7 +161,7 @@ bool node::run()
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    m_pimpl->writeln_node("dropped: " + str_peerid(peerid));
+                    m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                         m_pimpl->remove_peer(peerid);
@@ -206,7 +172,7 @@ bool node::run()
                 {
                     beltpp::isocket_protocol_error msg;
                     ref_packet.get(msg);
-                    m_pimpl->writeln_node("protocol error: " + str_peerid(peerid));
+                    m_pimpl->writeln_node("protocol error: " + detail::peer_short_names(peerid));
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::isocket_drop());
 
@@ -270,7 +236,8 @@ bool node::run()
                     StorageFile file;
                     std::move(ref_packet).get(file);
                     StorageFileAddress addr;
-                    addr.uri = m_pimpl->m_storage.put(std::move(file));
+                    //  block file upload functionality for now
+                    //addr.uri = m_pimpl->m_storage.put(std::move(file));
                     psk->send(peerid, std::move(addr));
                     break;
                 }
@@ -374,7 +341,8 @@ bool node::run()
                         m_pimpl->net_sync_info = sync_info;
 
                         if (m_pimpl->net_sync_info.c_sum > m_pimpl->own_sync_info.c_sum)
-                            m_pimpl->writeln_node("Next block waiting from " + str_peerid(m_pimpl->net_sync_info.authority));
+                            m_pimpl->writeln_node("Next block waiting from " +
+                                                  detail::peer_short_names(m_pimpl->net_sync_info.authority));
                     }
 
                     m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
@@ -410,28 +378,28 @@ bool node::run()
 
                     break;
                 }
-                case BlockChainRequest::rtt:
+                case BlockchainRequest::rtt:
                 {
                     if (it != interface_type::p2p)
                         throw wrong_request_exception("BlockChainRequest received through rpc!");
 
-                    BlockChainRequest blockchain_request;
+                    BlockchainRequest blockchain_request;
                     std::move(ref_packet).get(blockchain_request);
 
                     process_blockchain_request(blockchain_request, m_pimpl, *psk, peerid);
 
                     break;
                 }
-                case BlockChainResponse::rtt:
+                case BlockchainResponse::rtt:
                 {
                     if (it != interface_type::p2p)
                         throw wrong_request_exception("BlockChainResponse received through rpc!");
 
                     m_pimpl->reset_stored_request(peerid);
-                    if (stored_packet.type() != BlockChainRequest::rtt)
+                    if (stored_packet.type() != BlockchainRequest::rtt)
                         throw wrong_data_exception("BlockChainResponse");
 
-                    BlockChainResponse blockchain_response;
+                    BlockchainResponse blockchain_response;
                     std::move(ref_packet).get(blockchain_response);
 
                     bool have_signed_blocks = (false == blockchain_response.signed_blocks.empty());
@@ -448,10 +416,10 @@ bool node::run()
 
                         if(temp_from == temp_to)
                             m_pimpl->writeln_node("proc. block " + std::to_string(temp_from) + 
-                                                  " from " + str_peerid(peerid));
+                                                  " from " + detail::peer_short_names(peerid));
                         else
                             m_pimpl->writeln_node("proc. blocks [" + std::to_string(temp_from) + 
-                                                  "," + std::to_string(temp_to) + "] from " + str_peerid(peerid));
+                                                  "," + std::to_string(temp_to) + "] from " + detail::peer_short_names(peerid));
                     }
 
                     if (m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?
@@ -566,7 +534,7 @@ bool node::run()
         else
         {
             for (auto const& item : m_pimpl->m_p2p_peers)
-                m_pimpl->writeln_node("        " + str_peerid(item));
+                m_pimpl->writeln_node("        " + detail::peer_short_names(item));
         }
         m_pimpl->writeln_node("    blockchain heigth: " +
                               std::to_string(m_pimpl->m_blockchain.length()));
@@ -714,7 +682,8 @@ bool node::run()
 
             psk->send(m_pimpl->sync_peerid, beltpp::isocket_drop());
 
-            m_pimpl->writeln_node("Sync node is not answering: dropping " + str_peerid(m_pimpl->sync_peerid));
+            m_pimpl->writeln_node("Sync node is not answering: dropping " +
+                                  detail::peer_short_names(m_pimpl->sync_peerid));
             m_pimpl->remove_peer(m_pimpl->sync_peerid);
 
             m_pimpl->new_sync_request();

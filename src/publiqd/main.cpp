@@ -328,6 +328,12 @@ bool process_command_line(int argc, char** argv,
             address_item.from_string(item);
             p2p_connect_to_addresses.push_back(address_item);
         }
+        if (p2p_connect_to_addresses.empty())
+        {
+            beltpp::ip_address address_item;
+            address_item.from_string("north.publiq.network:12222");
+            p2p_connect_to_addresses.push_back(address_item);
+        }
 
         if (false == str_pv_key.empty())
             pv_key = meshpp::private_key(str_pv_key);

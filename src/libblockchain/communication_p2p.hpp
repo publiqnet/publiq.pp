@@ -14,12 +14,12 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
                                   beltpp::isocket& sk,
                                   beltpp::isocket::peer_id const& peerid);
 
-void process_blockchain_request(BlockChainRequest const& blockchain_request,
+void process_blockchain_request(BlockchainRequest const& blockchain_request,
                                 unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                 beltpp::isocket& sk,
                                 beltpp::isocket::peer_id const& peerid);
 
-void process_blockchain_response(BlockChainResponse&& blockchain_response,
+void process_blockchain_response(BlockchainResponse&& blockchain_response,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid);

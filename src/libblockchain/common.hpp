@@ -3,6 +3,9 @@
 #include "coin.hpp"
 #include "message.hpp"
 
+#include <string>
+#include <vector>
+
 // Blocks and headers max count per one request - 1
 // corners are included
 #define BLOCK_TR_LENGTH 9
@@ -81,6 +84,40 @@ beltpp::void_unique_ptr get_putl()
         beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
 
     return ptr_utl;
+}
+
+inline std::string peer_short_names(std::string const& peerid)
+{
+    if (peerid == "PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
+        return "$tigran(0)";
+    if (peerid == "PBQ8gyokoWdo9tSLcDQQjxdhYgmmnScUPT6YDCaVVoeSFRz1zkGpv")
+        return "$tigran(1)";
+    if (peerid == "PBQ5LNw1peEL8ZRDEw6ukndHpaob8A43dsh2beYg9cwocHm5r3tPR")
+        return "$tigran(2)";
+    if (peerid == "PBQ5pFSs7NKc26b3gpeFN17oGYkn3vFEuf8sA4HhZQsF9MfRrXShC")
+        return "$tigran(3)";
+    if (peerid == "PBQ5Nd79pnM2X6E8NTPPwMXBrX8XigztwU3L51ALPSVBQH2L8tiZw")
+        return "$tigran(4)";
+    if (peerid == "PBQ4te6LkpCnsu9DyoRUZpmhMypbMwqrpofUWvRgGanY8c2vYciwz")
+        return "$tigran(5)";
+    if (peerid == "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu")
+        return "$armen(0)";
+    if (peerid == "PBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
+        return "$armen(1)";
+    if (peerid == "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
+        return "$sona(0)";
+    if (peerid == "PBQ8VLQxxbfD8SNp5LWy2y8rEvLsqcLpKsWCdKqhAEgsjpyhNVqkf")
+        return "$sona(1)";
+    if (peerid == "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
+        return "$gagik(0)";
+    if (peerid == "PBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
+        return "$gagik(1)";
+    if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
+        return "$north.publiq.network:12222";   //  node(0)
+    if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
+        return "$north.publiq.network:13333";   //  state(0)
+
+    return peerid;
 }
 }
 }

@@ -442,7 +442,7 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
             }
 
             //3. request blockchain from found point
-            BlockChainRequest blockchain_request;
+            BlockchainRequest blockchain_request;
             blockchain_request.blocks_from = m_pimpl->sync_headers.rbegin()->block_number;
             blockchain_request.blocks_to = m_pimpl->sync_headers.begin()->block_number;
 
@@ -467,7 +467,7 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
     }
 }
 
-void process_blockchain_request(BlockChainRequest const& blockchain_request,
+void process_blockchain_request(BlockchainRequest const& blockchain_request,
                                 std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                 beltpp::isocket& sk,
                                 beltpp::isocket::peer_id const& peerid)
@@ -482,7 +482,7 @@ void process_blockchain_request(BlockChainRequest const& blockchain_request,
     to = to > from + BLOCK_TR_LENGTH ? from + BLOCK_TR_LENGTH : to;
     to = to > number ? number : to;
 
-    BlockChainResponse chain_response;
+    BlockchainResponse chain_response;
     for (auto i = from; i <= to; ++i)
     {
         SignedBlock signed_block;
@@ -494,45 +494,11 @@ void process_blockchain_request(BlockChainRequest const& blockchain_request,
     sk.send(peerid, chain_response);
 }
 
-void process_blockchain_response(BlockChainResponse&& response,
+void process_blockchain_response(BlockchainResponse&& response,
                                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid)
 {
-    auto str_peerid = [](string const& peerid) -> string
-    {
-        if (peerid == "PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
-            return "$tigran(0)";
-        if (peerid == "PBQ8gyokoWdo9tSLcDQQjxdhYgmmnScUPT6YDCaVVoeSFRz1zkGpv")
-            return "$tigran(1)";
-        if (peerid == "PBQ5LNw1peEL8ZRDEw6ukndHpaob8A43dsh2beYg9cwocHm5r3tPR")
-            return "$tigran(2)";
-        if (peerid == "PBQ5pFSs7NKc26b3gpeFN17oGYkn3vFEuf8sA4HhZQsF9MfRrXShC")
-            return "$tigran(3)";
-        if (peerid == "PBQ5Nd79pnM2X6E8NTPPwMXBrX8XigztwU3L51ALPSVBQH2L8tiZw")
-            return "$tigran(4)";
-        if (peerid == "PBQ4te6LkpCnsu9DyoRUZpmhMypbMwqrpofUWvRgGanY8c2vYciwz")
-            return "$tigran(5)";
-        if (peerid == "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu")
-            return "$armen(0)";
-        if (peerid == "PBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
-            return "$armen(1)";
-        if (peerid == "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
-            return "$sona(0)";
-        if (peerid == "PBQ8VLQxxbfD8SNp5LWy2y8rEvLsqcLpKsWCdKqhAEgsjpyhNVqkf")
-            return "$sona(1)";
-        if (peerid == "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
-            return "$gagik(0)";
-        if (peerid == "PBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
-            return "$gagik(1)";
-        if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
-            return "$north.publiq.network:12222";   //  node(0)
-        if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
-            return "$north.publiq.network:13333";   //  state(0)
-
-        return peerid;
-    };
-
     //1. check received blockchain validity
 
     if (response.signed_blocks.empty())
@@ -615,7 +581,7 @@ void process_blockchain_response(BlockChainResponse&& response,
     if (m_pimpl->sync_blocks.size() < BLOCK_INSERT_LENGTH &&
         m_pimpl->sync_blocks.size() < m_pimpl->sync_headers.size())
     {
-        BlockChainRequest blockchain_request;
+        BlockchainRequest blockchain_request;
         blockchain_request.blocks_from = (header_it - 1)->block_number;
         blockchain_request.blocks_to = m_pimpl->sync_headers.begin()->block_number;
 
@@ -630,7 +596,8 @@ void process_blockchain_response(BlockChainResponse&& response,
     m_pimpl->writeln_node("applying collected " + std::to_string(m_pimpl->sync_blocks.size()) + " blocks");
 
     if(m_pimpl->sync_blocks.size() == 1)
-        m_pimpl->writeln_node("block mined by " + str_peerid(m_pimpl->sync_blocks.rbegin()->authority));
+        m_pimpl->writeln_node("block mined by " +
+                              publiqpp::detail::peer_short_names(m_pimpl->sync_blocks.rbegin()->authority));
 
     //3. all needed blocks received, start to check
     unordered_map<string, system_clock::time_point> transaction_cache_backup = m_pimpl->m_transaction_cache;
@@ -780,7 +747,7 @@ void process_blockchain_response(BlockChainResponse&& response,
         for (size_t i = 0; i < length; ++i)
             m_pimpl->sync_headers.pop_back();
 
-        BlockChainRequest blockchain_request;
+        BlockchainRequest blockchain_request;
         blockchain_request.blocks_from = m_pimpl->sync_headers.rbegin()->block_number;
         blockchain_request.blocks_to = m_pimpl->sync_headers.begin()->block_number;
 
