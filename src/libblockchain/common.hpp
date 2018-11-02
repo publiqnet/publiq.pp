@@ -54,6 +54,11 @@
 
 #define DIST_MAX    4294967296ull
 
+// Reward coins percents
+#define MINER_REWARD_PERCENT    10
+#define STORAGE_REWARD_PERCENT  30
+#define CHANNEL_REWARD_PERCENT  60
+
 static const coin MINE_AMOUNT_THRESHOLD(1, 0);
 
 static const std::vector<coin> BLOCK_REWARD_ARRAY
