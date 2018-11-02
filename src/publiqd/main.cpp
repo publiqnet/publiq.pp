@@ -195,9 +195,11 @@ int main(int argc, char** argv)
         auto fs_state = settings::data_directory_path("state");
         auto fs_log = settings::data_directory_path("log");
 
-        cout << p2p_bind_to_address.to_string() << endl;
+        cout << "p2p local address: " << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
-            cout << item.to_string() << endl;
+            cout << "p2p host: " << item.to_string() << endl;
+        if (false == rpc_bind_to_address.local.empty())
+            cout << "rpc interface: " << rpc_bind_to_address.to_string() << endl;
 
         beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p", false);
         plogger_p2p->disable();
@@ -300,7 +302,7 @@ bool process_command_line(int argc, char** argv,
                             "(p2p) The local network interface and port to bind to")
             ("p2p_remote_host,p", program_options::value<vector<string>>(&hosts),
                             "Remote nodes addresss with port")
-            ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface)->required(),
+            ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface),
                             "(rpc) The local network interface and port to bind to")
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
@@ -321,7 +323,9 @@ bool process_command_line(int argc, char** argv,
         }
 
         p2p_bind_to_address.from_string(p2p_local_interface);
-        rpc_bind_to_address.from_string(rpc_local_interface);
+        if (false == rpc_local_interface.empty())
+            rpc_bind_to_address.from_string(rpc_local_interface);
+
         for (auto const& item : hosts)
         {
             beltpp::ip_address address_item;

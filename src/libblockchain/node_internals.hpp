@@ -106,7 +106,8 @@ public:
 
         m_broadcast_timer.update();
 
-        m_ptr_rpc_socket->listen(rpc_bind_to_address);
+        if (false == rpc_bind_to_address.local.empty())
+            m_ptr_rpc_socket->listen(rpc_bind_to_address);
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
         m_ptr_eh->add(*m_ptr_p2p_socket);
