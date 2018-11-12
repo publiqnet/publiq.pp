@@ -202,7 +202,7 @@ int main(int argc, char** argv)
             cout << "rpc interface: " << rpc_bind_to_address.to_string() << endl;
 
         beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("exe_publiqd_p2p", false);
-        plogger_p2p->disable();
+        //plogger_p2p->disable();
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc", true);
         //plogger_rpc->disable();
         plogger_exceptions = meshpp::file_logger("exe_publiqd_exceptions",
