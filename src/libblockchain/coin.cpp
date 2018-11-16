@@ -91,6 +91,53 @@ coin& coin::operator -= (coin const& other)
     return *this;
 }
 
+coin& coin::operator *= (uint64_t const times)
+{
+    uint64_t add_to_whole = 0;
+
+    uint64_t current_fraction = fraction * times;
+
+    while (current_fraction >= fractions_in_whole)
+    {
+        current_fraction -= fractions_in_whole;
+        add_to_whole++;
+    }
+
+    uint64_t current_whole = whole * times + add_to_whole;
+
+    this->whole = current_whole;
+    this->fraction = current_fraction;
+    return *this;
+
+}
+
+coin& coin::operator /= (uint64_t const times)
+{
+
+    uint64_t current_fraction;
+    uint64_t current_whole;
+
+    if (times <= 0)
+    {
+       throw std::runtime_error("zero division");
+    }
+
+    current_whole = whole / times;
+    if (whole % times > 0)
+    {
+       current_fraction = ( (whole % times) * fractions_in_whole + fraction ) / times;
+    }
+    else
+    {
+        current_fraction = fraction / times;
+    }
+
+    this->whole = current_whole;
+    this->fraction = current_fraction;
+    return *this;
+
+}
+
 bool coin::operator > (coin const& other) const
 {
     if (whole > other.whole ||
@@ -134,5 +181,17 @@ coin operator + (coin first, coin const& second)
 coin operator - (coin first, coin const& second)
 {
     first -= second;
+    return first;
+}
+
+coin operator * (coin first,  uint64_t const times)
+{
+    first *= times;
+    return first;
+}
+
+coin operator / (coin first,  uint64_t const times)
+{
+    first /= times;
     return first;
 }
