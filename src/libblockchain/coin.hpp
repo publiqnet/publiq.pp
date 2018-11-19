@@ -21,11 +21,9 @@ public:
     coin& operator += (coin const& other);
     coin& operator -= (coin const& other);
 
-    coin& operator *= (uint64_t const times);
-    coin& operator /= (uint64_t const times);
-
-    coin& operator * (uint64_t const times);
-    coin& operator / (uint64_t const times);
+    coin& operator *= (uint64_t  times);
+    coin& operator /= (uint64_t  times);
+    coin& operator %= (uint64_t  times);
 
     bool operator > (coin const& other) const;
     bool operator < (coin const& other) const;
@@ -45,4 +43,7 @@ private:
 coin operator + (coin first, coin const& second);
 coin operator - (coin first, coin const& second);
 
+coin operator * (coin first, uint64_t  times);
+coin operator / (coin first, uint64_t  times);
+coin operator % (coin first, uint64_t  times);
 
