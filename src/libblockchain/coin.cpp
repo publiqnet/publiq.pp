@@ -114,12 +114,8 @@ coin& coin::operator /= (uint64_t  times)
 
 coin& coin::operator %= (uint64_t  times)
 {
-
-    fraction += whole % times * fractions_in_whole;
-    fraction %= times;
-    whole = 0;
-
-    return *this;
+     *this -= (*this / times) * times;
+     return *this;
 }
 
 bool coin::operator > (coin const& other) const
