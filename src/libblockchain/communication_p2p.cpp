@@ -3,7 +3,6 @@
 
 #include "coin.hpp"
 #include "common.hpp"
-#include "node_internals.hpp"
 
 #include <mesh.pp/cryptoutility.hpp>
 

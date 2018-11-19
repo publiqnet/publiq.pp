@@ -3,7 +3,6 @@
 #include "common.hpp"
 #include "http.hpp"
 
-#include "node.hpp"
 #include "state.hpp"
 #include "storage.hpp"
 #include "action_log.hpp"
@@ -46,7 +45,8 @@ using chrono::steady_clock;
 
 namespace publiqpp
 {
-using rpc_sf = beltpp::socket_family_t<&http::message_list_load>;
+    using rpc_sf = beltpp::socket_family_t<&http::message_list_load>;
+    enum class node_type { unknown = 0, miner = 1, channel = 2, storage = 3 };
 
 namespace detail
 {
@@ -57,6 +57,32 @@ public:
     beltpp::packet packet;
     size_t expiry;
 };
+
+inline
+uint64_t node_type_to_int(node_type input)
+{
+    switch (input)
+    {
+    case node_type::miner: return 1;
+    case node_type::channel: return 2;
+    case node_type::storage: return 3;
+    }
+
+    return 0;
+}
+
+inline
+node_type int_to_node_type(uint64_t input)
+{
+    switch (input)
+    {
+    case 1: return node_type::miner;
+    case 2: return node_type::channel;
+    case 3: return node_type::storage;
+    }
+
+    return node_type::unknown;
+}
 
 class node_internals
 {

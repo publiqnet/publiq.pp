@@ -1,8 +1,6 @@
 #include "node.hpp"
 #include "common.hpp"
 
-#include "node_internals.hpp"
-
 #include "communication_rpc.hpp"
 #include "communication_p2p.hpp"
 
