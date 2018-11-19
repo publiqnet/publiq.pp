@@ -60,13 +60,13 @@ module BlockchainMessage
     ///
     // action log info
     ///
-    class RewardInfo
+    class RewardLog
     {
         String to
         Coin amount
     }
 
-    class TransactionInfo
+    class TransactionLog
     {
         Coin fee
         Object action
@@ -74,13 +74,13 @@ module BlockchainMessage
         TimePoint time_signed
     }
 
-    class BlockInfo
+    class BlockLog
     {
         String authority
         String block_hash
         TimePoint time_signed
-        Array RewardInfo rewards
-        Array TransactionInfo transactions
+        Array RewardLog rewards
+        Array TransactionLog transactions
     }
 
     ///
@@ -109,6 +109,45 @@ module BlockchainMessage
     {
         String channel
         Array String file_uris
+    }
+
+    class Contract
+    {
+        UInt64 type
+        String owner
+    }
+
+    class AddressInfo
+    {
+        String owner
+        String public_address
+    }
+
+    class BoostInfo
+    {
+        String author
+        String channel
+        String content_hash
+    }
+
+    class ContentInfo
+    {
+        String node_name
+        String content_hash
+    }
+
+    class StatItem
+    {
+        String node_name
+        String content_hash
+        UInt64 pass_count
+        UInt64 fail_count
+    }
+
+    class StatInfo
+    {
+        String block_hash
+        Array StatItem items
     }
 
     //  request/response
@@ -231,5 +270,6 @@ module BlockchainMessage
     {
         String uri
     }
+
 }
 ////2

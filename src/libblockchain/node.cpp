@@ -50,6 +50,7 @@ node::node(ip_address const& rpc_bind_to_address,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
+           node_type& n_type,
            bool log_enabled)
     : m_pimpl(new detail::node_internals(rpc_bind_to_address,
                                          p2p_bind_to_address,
@@ -62,6 +63,7 @@ node::node(ip_address const& rpc_bind_to_address,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
+                                         n_type,
                                          log_enabled))
 {
 
@@ -228,6 +230,84 @@ bool node::run()
                 
                     if (it == interface_type::rpc)
                         psk->send(peerid, Done());
+
+                    break;
+                }
+                case Contract::rtt:
+                {
+                    if (it == interface_type::rpc)
+                        throw std::runtime_error("request restricted for rpc interface");
+
+                    if (broadcast_signed_transaction.items.empty())
+                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    Contract* p_contract = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_contract);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_contract);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    Contract& contract = *p_contract;
+
+                    if (m_pimpl->m_state.get_contract_type(contract.owner) == 
+                        publiqpp::detail::node_type_to_int(publiqpp::node_type::unknown) &&
+                        process_contract(signed_tx, contract, m_pimpl))
+                    {
+                        process_broadcast(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          false,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+                    }
+
+                    break;
+                }
+                case StatInfo::rtt:
+                {
+                    if (it == interface_type::rpc)
+                        throw std::runtime_error("request restricted for rpc interface");
+
+                    if (broadcast_signed_transaction.items.empty())
+                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    StatInfo* p_stat_info = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_stat_info);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_stat_info);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    StatInfo& stat_info = *p_stat_info;
+
+                    m_pimpl->writeln_node("StatInfo broadcast received -> " + stat_info.to_string());
+
+                    if (process_stat_info(signed_tx, m_pimpl))
+                    {
+                        process_broadcast(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          false,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+                    }
 
                     break;
                 }
@@ -585,6 +665,10 @@ bool node::run()
         m_pimpl->m_cache_cleanup_timer.update();
 
         m_pimpl->clean_transaction_cache();
+
+        // temp place
+        m_pimpl->clean_stat_cache();
+        broadcast_node_type(m_pimpl);
     }
 
     // init sync process and block mining
@@ -669,8 +753,8 @@ bool node::run()
             {
                 if (m_pimpl->m_miner && diff_seconds.count() >= BLOCK_MINE_DELAY &&
                     (m_pimpl->own_sync_info.c_sum >= m_pimpl->net_sync_info.c_sum ||
-                     diff_seconds.count() > BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY))
-                     mine_block(m_pimpl);
+                        diff_seconds.count() > BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY))
+                    mine_block(m_pimpl);
 
                 if (m_pimpl->m_sync_timer.expired())
                     m_pimpl->new_sync_request();

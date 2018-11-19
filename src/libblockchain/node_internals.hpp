@@ -3,6 +3,7 @@
 #include "common.hpp"
 #include "http.hpp"
 
+#include "node.hpp"
 #include "state.hpp"
 #include "storage.hpp"
 #include "action_log.hpp"
@@ -45,7 +46,6 @@ using chrono::steady_clock;
 
 namespace publiqpp
 {
-
 using rpc_sf = beltpp::socket_family_t<&http::message_list_load>;
 
 namespace detail
@@ -72,6 +72,7 @@ public:
         beltpp::ilog* _plogger_p2p,
         beltpp::ilog* _plogger_node,
         meshpp::private_key const& pv_key,
+        node_type& n_type,
         bool log_enabled)
         : plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
@@ -95,7 +96,9 @@ public:
         , m_storage(fs_storage)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)
+        , m_node_type(n_type)
         , m_pv_key(pv_key)
+        , m_pb_key(pv_key.get_public_key())
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -111,7 +114,6 @@ public:
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
         m_ptr_eh->add(*m_ptr_p2p_socket);
-
 
         if (m_blockchain.length() == 0)
             insert_genesis();
@@ -325,6 +327,20 @@ public:
         }
     }
 
+    void clean_stat_cache()
+    {
+        system_clock::time_point cur_time_point = system_clock::now();
+
+        auto it = m_stat_cache.begin();
+        while (it != m_stat_cache.end())
+        {
+            if (cur_time_point > system_clock::from_time_t(it->second.transaction_details.expiry.tm))
+                it = m_stat_cache.erase(it);
+            else
+                ++it;
+        }
+    }
+
     uint64_t calc_delta(string const& key, uint64_t const& amount, string const& prev_hash, uint64_t const& cons_const)
     {
         uint64_t dist = meshpp::distance(meshpp::hash(key), prev_hash);
@@ -338,14 +354,15 @@ public:
 
     void calc_balance()
     {
-        m_balance = m_state.get_balance(m_pv_key.get_public_key().to_string());
-        m_miner = coin(m_balance) >= MINE_AMOUNT_THRESHOLD;
+        m_balance = m_state.get_balance(m_pb_key.to_string());
+        m_miner = m_node_type == node_type::miner &&
+                  coin(m_balance) >= MINE_AMOUNT_THRESHOLD;
     }
 
     void calc_sync_info(Block const& block)
     {
         own_sync_info.number = m_blockchain.length();
-        own_sync_info.authority = m_pv_key.get_public_key().to_string(); // test
+        own_sync_info.authority = m_pb_key.to_string(); // test
 
         // calculate delta for next block for the case if I will mine it
         if (m_miner)
@@ -428,12 +445,14 @@ public:
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
     unordered_map<string, system_clock::time_point> m_transaction_cache;
-
-    meshpp::private_key m_pv_key;
+    unordered_map<string, SignedTransaction> m_stat_cache;
 
     bool m_miner;
     Coin m_balance;
-    
+    node_type m_node_type;
+    meshpp::private_key m_pv_key;
+    meshpp::public_key m_pb_key;
+
     SyncInfo own_sync_info;
     SyncInfo net_sync_info;
     BlockchainMessage::ctime sync_time;

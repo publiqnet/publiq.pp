@@ -64,32 +64,32 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
     Block const& block = signed_block.block_details;
     string block_hash = meshpp::hash(signed_block.to_string());
 
-    BlockInfo block_info;
-    block_info.block_hash = block_hash;
-    block_info.time_signed = block.header.time_signed;
-    block_info.authority = signed_block.authority;
+    BlockLog block_log;
+    block_log.block_hash = block_hash;
+    block_log.time_signed = block.header.time_signed;
+    block_log.authority = signed_block.authority;
 
     for (auto const& item : block.signed_transactions)
     {
-        TransactionInfo transaction_info;
-        transaction_info.fee = item.transaction_details.fee;
-        transaction_info.time_signed = item.transaction_details.creation;
-        transaction_info.transaction_hash = meshpp::hash(item.to_string());
-        BlockchainMessage::detail::assign_packet(transaction_info.action, item.transaction_details.action);
+        TransactionLog transaction_log;
+        transaction_log.fee = item.transaction_details.fee;
+        transaction_log.time_signed = item.transaction_details.creation;
+        transaction_log.transaction_hash = meshpp::hash(item.to_string());
+        BlockchainMessage::detail::assign_packet(transaction_log.action, item.transaction_details.action);
 
-        block_info.transactions.push_back(transaction_info);
+        block_log.transactions.push_back(transaction_log);
     }
 
     for (auto const& item : block.rewards)
     {
-        RewardInfo reward_info;
-        reward_info.to = item.to;
-        reward_info.amount = item.amount;
+        RewardLog reward_log;
+        reward_log.to = item.to;
+        reward_log.amount = item.amount;
 
-        block_info.rewards.push_back(reward_info);
+        block_log.rewards.push_back(reward_log);
     }
 
-    insert(std::move(block_info));
+    insert(std::move(block_log));
 }
 
 void action_log::log_transaction(SignedTransaction const& signed_transaction)
@@ -97,13 +97,13 @@ void action_log::log_transaction(SignedTransaction const& signed_transaction)
     if (!m_pimpl->m_enabled)
         return;
 
-    TransactionInfo transaction_info;
-    transaction_info.fee = signed_transaction.transaction_details.fee;
-    transaction_info.time_signed = signed_transaction.transaction_details.creation;
-    transaction_info.transaction_hash = meshpp::hash(signed_transaction.to_string());
-    BlockchainMessage::detail::assign_packet(transaction_info.action, signed_transaction.transaction_details.action);
+    TransactionLog transaction_log;
+    transaction_log.fee = signed_transaction.transaction_details.fee;
+    transaction_log.time_signed = signed_transaction.transaction_details.creation;
+    transaction_log.transaction_hash = meshpp::hash(signed_transaction.to_string());
+    BlockchainMessage::detail::assign_packet(transaction_log.action, signed_transaction.transaction_details.action);
 
-    insert(std::move(transaction_info));
+    insert(std::move(transaction_log));
 }
 
 void action_log::at(size_t number, LoggedTransaction& action_info) const

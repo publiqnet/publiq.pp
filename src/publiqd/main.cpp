@@ -40,6 +40,7 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
                           meshpp::private_key& pv_key,
+                          publiqpp::node_type& n_type,
                           bool& log_enabled);
 
 static bool g_termination_handled = false;
@@ -141,8 +142,8 @@ int main(int argc, char** argv)
     beltpp::ip_address rpc_bind_to_address;
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
+    publiqpp::node_type n_type = publiqpp::node_type::miner;
     bool log_enabled = false;
-    //  node key
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
 
@@ -152,6 +153,7 @@ int main(int argc, char** argv)
                                       rpc_bind_to_address,
                                       data_directory,
                                       pv_key,
+                                      n_type,
                                       log_enabled))
         return 1;
 
@@ -221,10 +223,12 @@ int main(int argc, char** argv)
                             plogger_p2p.get(),
                             plogger_rpc.get(),
                             pv_key,
+                            n_type,
                             log_enabled);
 
         cout << endl;
-        cout << "Node: " << node.name()/*.substr(0, 5)*/ << endl;
+        cout << "Node: " << node.name() << endl;
+        cout << "Type: " << static_cast<int>(n_type) << endl;
         cout << endl;
 
         g_pnode = &node;
@@ -287,11 +291,13 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
                           meshpp::private_key& pv_key,
+                          publiqpp::node_type& n_type,
                           bool& log_enabled)
 {
     string p2p_local_interface;
     string rpc_local_interface;
     string str_pv_key;
+    string str_n_type;
     vector<string> hosts;
     program_options::options_description options_description;
     try
@@ -306,7 +312,10 @@ bool process_command_line(int argc, char** argv,
                             "(rpc) The local network interface and port to bind to")
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
-            ("node_private_key,k", program_options::value<string>(&str_pv_key));
+            ("node_private_key,k", program_options::value<string>(&str_pv_key),
+                            "Node private key to start with")
+            ("node_type,t", program_options::value<string>(&str_n_type),
+                            "Node start mode");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -332,6 +341,7 @@ bool process_command_line(int argc, char** argv,
             address_item.from_string(item);
             p2p_connect_to_addresses.push_back(address_item);
         }
+
         if (p2p_connect_to_addresses.empty())
         {
             beltpp::ip_address address_item;
@@ -343,6 +353,13 @@ bool process_command_line(int argc, char** argv,
             pv_key = meshpp::private_key(str_pv_key);
         else
             log_enabled = true;
+
+        if (str_n_type == "channel")
+            n_type = publiqpp::node_type::channel;
+        else if (str_n_type == "storage")
+            n_type = publiqpp::node_type::storage;
+        else
+            n_type = publiqpp::node_type::miner;
     }
     catch (std::exception const& ex)
     {

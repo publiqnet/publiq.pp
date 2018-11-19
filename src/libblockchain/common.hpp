@@ -38,7 +38,7 @@
 #define EVENT_TIMER 5
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300
-#define SUMMARY_REPORT_TIMER 600
+#define SUMMARY_REPORT_TIMER 1800
 
 #define TRANSACTION_MAX_LIFETIME_HOURS 24
 
@@ -91,7 +91,8 @@ beltpp::void_unique_ptr get_putl()
     return ptr_utl;
 }
 
-inline std::string peer_short_names(std::string const& peerid)
+inline 
+std::string peer_short_names(std::string const& peerid)
 {
     if (peerid == "PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
         return "$tigran(0)";

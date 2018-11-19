@@ -24,6 +24,16 @@ void process_blockchain_response(BlockchainResponse&& blockchain_response,
                                  beltpp::isocket& sk,
                                  beltpp::isocket::peer_id const& peerid);
 
+void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
+bool process_contract(BlockchainMessage::SignedTransaction const& signed_transaction,
+                      BlockchainMessage::Contract const& contract,
+                      std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
+bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
+
 //---------------- Exceptions -----------------------
 class wrong_data_exception : public std::runtime_error
 {

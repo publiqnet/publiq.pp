@@ -4,11 +4,6 @@
 
 #include "transaction_pool.hpp"
 
-void submit_reward(beltpp::packet&& package,
-                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
-                   beltpp::isocket& sk,
-                   beltpp::isocket::peer_id const& peerid);
-
 void get_actions(LoggedTransactionsRequest const& msg_get_actions,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
@@ -44,7 +39,6 @@ void process_broadcast(BlockchainMessage::Broadcast&& broadcast,
                        beltpp::ilog* plog,
                        std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
                        beltpp::isocket* psk);
-
 
 //---------------- Exceptions -----------------------
 class authority_exception : public std::runtime_error

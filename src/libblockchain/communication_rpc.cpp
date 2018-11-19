@@ -7,12 +7,12 @@ using std::stack;
 
 size_t get_action_size(beltpp::packet const& package)
 {
-    if (package.type() == BlockInfo::rtt)
+    if (package.type() == BlockLog::rtt)
     {
-        BlockInfo block_info;
-        package.get(block_info);
+        BlockLog block_log;
+        package.get(block_log);
 
-        return 1 + block_info.rewards.size() + block_info.transactions.size();
+        return 1 + block_log.rewards.size() + block_log.transactions.size();
     }
 
     return 1;
@@ -268,8 +268,6 @@ void process_broadcast(BlockchainMessage::Broadcast&& broadcast,
         psk->send(peer, broadcast);
     }
 }
-
-
 
 //---------------- Exceptions -----------------------
 authority_exception::authority_exception(string const& _authority_provided, string const& _authority_required)

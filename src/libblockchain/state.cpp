@@ -17,9 +17,11 @@ class state_internals
 public:
     state_internals(filesystem::path const& path)
         :m_accounts("account", path, 10000, detail::get_putl())
+        ,m_contracts("contract", path, 10, detail::get_putl())
     {}
 
     meshpp::map_loader<Coin> m_accounts;
+    meshpp::map_loader<Contract> m_contracts;
 };
 }
 
@@ -33,16 +35,19 @@ state::~state() = default;
 void state::save()
 {
     m_pimpl->m_accounts.save();
+    m_pimpl->m_contracts.save();
 }
 
 void state::commit()
 {
     m_pimpl->m_accounts.commit();
+    m_pimpl->m_contracts.commit();
 }
 
 void state::discard()
 {
     m_pimpl->m_accounts.discard();
+    m_pimpl->m_contracts.discard();
 }
 
 Coin state::get_balance(string const& key) const
@@ -100,6 +105,40 @@ void state::decrease_balance(string const& key, coin const& amount)
 
     if (coin(balance).empty())
         m_pimpl->m_accounts.erase(key);
+}
+
+void state::get_contracts(std::vector<Contract>& contracts, uint64_t const& type) const
+{//TODO
+    contracts.clear();
+
+    for (auto& key : m_pimpl->m_contracts.as_const().keys())
+    {
+        Contract contract = m_pimpl->m_contracts.as_const().at(key);
+
+        if (type == 0 || type == contract.type)
+            contracts.push_back(contract);
+    }
+}
+
+uint64_t state::get_contract_type(string const& key) const
+{//TODO
+    if (m_pimpl->m_contracts.as_const().contains(key))
+        return m_pimpl->m_contracts.as_const().at(key).type;
+
+    return 0;
+}
+
+void state::insert_contract(Contract const& contract)
+{
+    if (contract.type == 0)
+        throw std::runtime_error("TODO");
+
+    m_pimpl->m_contracts.insert(contract.owner, contract);
+}
+
+void state::remove_contract(Contract const& contract)
+{
+    m_pimpl->m_contracts.erase(contract.owner);
 }
 
 }
