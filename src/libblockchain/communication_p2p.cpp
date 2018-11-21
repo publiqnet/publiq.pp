@@ -41,20 +41,37 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     }
     else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
     {
-        Contract contract;
-        signed_transaction.transaction_details.action.get(contract);
-
         if (!key.empty())
         {
-            Coin balance = m_pimpl->m_state.get_balance(contract.owner);
+            Contract contract;
+            signed_transaction.transaction_details.action.get(contract);
+
+            Coin balance = m_pimpl->m_state.get_balance(signed_transaction.authority);
 
             if (coin(balance) < fee)
                 return false;
 
-            m_pimpl->m_state.decrease_balance(contract.owner, fee);
+            m_pimpl->m_state.insert_contract(contract);
+            m_pimpl->m_state.decrease_balance(signed_transaction.authority, fee);
         }
+    }
+    else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
+    {
+        if (!key.empty())
+        {
+            StatInfo stat_info;
+            signed_transaction.transaction_details.action.get(stat_info);
 
-        m_pimpl->m_state.insert_contract(contract);
+            if (stat_info.block_hash != m_pimpl->m_blockchain.last_hash())
+                return false;
+
+            Coin balance = m_pimpl->m_state.get_balance(signed_transaction.authority);
+
+            if (coin(balance) < fee)
+                return false;
+
+            m_pimpl->m_state.decrease_balance(signed_transaction.authority, fee);
+        }
     }
     else
         throw wrong_data_exception("unknown transaction action type!");
@@ -65,7 +82,7 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     return true;
 }
 
-void revert_transaction(Transaction& transaction, 
+void revert_transaction(SignedTransaction const& signed_transaction,
                         unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                         bool const increase,
                         string const& key = string())
@@ -74,31 +91,42 @@ void revert_transaction(Transaction& transaction,
 
     if (!key.empty())
     {
-        fee = transaction.fee;
+        fee = signed_transaction.transaction_details.fee;
 
         if (!increase)
             m_pimpl->m_state.decrease_balance(key, fee);
     }
 
-    if (transaction.action.type() == Transfer::rtt)
+    if (signed_transaction.transaction_details.action.type() == Transfer::rtt)
     {
         Transfer transfer;
-        transaction.action.get(transfer);
+        signed_transaction.transaction_details.action.get(transfer);
 
         if (increase)
             m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + fee);
         else
             m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
     }
-    else if (transaction.action.type() == Contract::rtt)
+    else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
     {
         Contract contract;
-        transaction.action.get(contract);
+        signed_transaction.transaction_details.action.get(contract);
 
         if (increase)
-            m_pimpl->m_state.increase_balance(contract.owner, fee);
+            m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
         else
             m_pimpl->m_state.remove_contract(contract);
+    }
+    else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
+    {
+        if (!fee.empty())
+        {
+            StatInfo stat_info;
+            signed_transaction.transaction_details.action.get(stat_info);
+
+            if (increase)
+                m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
+        }
     }
     else
         throw wrong_data_exception("unknown transaction action type!");
@@ -194,7 +222,7 @@ bool check_rewards(Block const& block, string const& authority,
 }
 
 void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
+{//TODO
     vector<Contract> storages;
     m_pimpl->m_state.get_contracts(storages, publiqpp::detail::node_type_to_int(publiqpp::node_type::storage));
 
@@ -242,9 +270,9 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
 }
 
 void broadcast_channel_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
+{//TODO
     vector<Contract> channels;
-    m_pimpl->m_state.get_contracts(channels, publiqpp::detail::node_type_to_int(publiqpp::node_type::storage));
+    m_pimpl->m_state.get_contracts(channels, publiqpp::detail::node_type_to_int(publiqpp::node_type::channel));
 
     if (channels.empty()) return;
 
@@ -298,7 +326,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->m_blockchain.at(block_number, prev_signed_block);
 
     BlockHeader prev_header;
-    m_pimpl->m_blockchain.header(prev_header);
+    m_pimpl->m_blockchain.last_header(prev_header);
 
     string own_key = m_pimpl->m_pb_key.to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
@@ -373,7 +401,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         pool_transactions.push_back(signed_transaction);
 
         m_pimpl->m_action_log.revert();
-        revert_transaction(signed_transaction.transaction_details, m_pimpl, true);
+        revert_transaction(signed_transaction, m_pimpl, true);
 
         if (block_header.time_signed.tm > signed_transaction.transaction_details.expiry.tm)
             m_pimpl->m_transaction_pool.remove(key); // already expired transaction
@@ -385,7 +413,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     // complete revert started above
     for (auto& signed_transaction : pool_transactions)
-        revert_transaction(signed_transaction.transaction_details, m_pimpl, false);
+        revert_transaction(signed_transaction, m_pimpl, false);
 
     // check and copy transactions to block
     size_t tr_count = 0;
@@ -470,7 +498,7 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
 {
     // find needed header from own data
     BlockHeader tmp_header;
-    m_pimpl->m_blockchain.header(tmp_header);
+    m_pimpl->m_blockchain.last_header(tmp_header);
 
     // validate received headers
     if (header_response.block_headers.empty())
@@ -732,6 +760,10 @@ void process_blockchain_response(BlockchainResponse&& response,
                 if (tr_it->authority != contract.owner)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
+            else if (tr_it->transaction_details.action.type() == StatInfo::rtt)
+            {
+                // nothing to check here
+            }
             else
                 throw wrong_data_exception("unknown transaction action type!");
 
@@ -799,7 +831,7 @@ void process_blockchain_response(BlockchainResponse&& response,
         pool_transactions.push_back(signed_transaction);
 
         m_pimpl->m_action_log.revert();
-        revert_transaction(signed_transaction.transaction_details, m_pimpl, true);
+        revert_transaction(signed_transaction, m_pimpl, true);
 
         // This will make sync process faster
         // Most probably removed transactions we will get with blocks
@@ -809,7 +841,7 @@ void process_blockchain_response(BlockchainResponse&& response,
 
     // complete revert started above
     for(auto& signed_transaction : pool_transactions)
-        revert_transaction(signed_transaction.transaction_details, m_pimpl, false);
+        revert_transaction(signed_transaction, m_pimpl, false);
 
     // calculate back to get state at LCB point
     block_number = m_pimpl->m_blockchain.length() - 1;
@@ -830,8 +862,8 @@ void process_blockchain_response(BlockchainResponse&& response,
         // calculate back transactions
         for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
         {
-            revert_transaction(it->transaction_details, m_pimpl, true, signed_block.authority);
-            revert_transaction(it->transaction_details, m_pimpl, false, signed_block.authority);
+            revert_transaction(*it, m_pimpl, true, signed_block.authority);
+            revert_transaction(*it, m_pimpl, false, signed_block.authority);
 
             string key = meshpp::hash((*it).to_string());
             m_pimpl->m_transaction_cache.erase(key);
@@ -948,27 +980,17 @@ void process_blockchain_response(BlockchainResponse&& response,
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    publiqpp::node_type my_type;
+    publiqpp::node_type my_state_type = publiqpp::detail::int_to_node_type(m_pimpl->m_state.get_contract_type(m_pimpl->m_pb_key.to_string()));
 
-    if (m_pimpl->m_node_type == publiqpp::node_type::channel &&
-        m_pimpl->m_state.get_contract_type(m_pimpl->m_pb_key.to_string()) != 
-        publiqpp::detail::node_type_to_int(publiqpp::node_type::channel))
-    {
-        my_type = publiqpp::node_type::channel;
-    }
-    else 
-    if (m_pimpl->m_node_type == publiqpp::node_type::storage &&
-        m_pimpl->m_state.get_contract_type(m_pimpl->m_pb_key.to_string()) != 
-        publiqpp::detail::node_type_to_int(publiqpp::node_type::storage))
-    {
-        my_type = publiqpp::node_type::storage;
-    }
-    else
+    if (my_state_type == m_pimpl->m_node_type)
         return;
+
+    if (my_state_type != publiqpp::node_type::miner)
+        throw std::runtime_error("Type change is not allowed!");
 
     Contract contract;
     contract.owner = m_pimpl->m_pb_key.to_string();
-    contract.type = publiqpp::detail::node_type_to_int(my_type);
+    contract.type = publiqpp::detail::node_type_to_int(m_pimpl->m_node_type);
 
     Transaction transaction;
     transaction.action = contract;
@@ -1017,6 +1039,9 @@ bool process_contract(BlockchainMessage::SignedTransaction const& signed_transac
 
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
+    // Validate and add to state
+    m_pimpl->m_state.insert_contract(contract);
+
     // Add to the pool
     m_pimpl->m_transaction_pool.insert(signed_transaction);
 
@@ -1029,19 +1054,50 @@ bool process_contract(BlockchainMessage::SignedTransaction const& signed_transac
 }
 
 bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                       BlockchainMessage::StatInfo const& stat_info,
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    //TODO check validity
+    // Authority check
+    uint64_t authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
+    if (authority_type == publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
+        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
+
+    for (auto const& item : stat_info.items)
+    {
+        uint64_t item_node_type = m_pimpl->m_state.get_contract_type(item.node_name);
+
+        if (authority_type == item_node_type)
+            throw wrong_data_exception("wrong node type : " + item.node_name);
+
+        if (item_node_type == publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
+            throw wrong_data_exception("wrong node type : " + item.node_name);
+    }
 
     if (m_pimpl->m_node_type != publiqpp::node_type::miner)
         return true;
+    
+    // Don't need to store transaction if sync in process
+    // and seems is too far from current block.
+    // Just will check the transaction and broadcast
+    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
+        return true;
 
-    string key = meshpp::hash(signed_transaction.to_string());
+    // Check pool
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_stat_cache.find(key) != m_pimpl->m_stat_cache.end())
+    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
+        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
-    m_pimpl->m_stat_cache[key] = signed_transaction;
+    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
+
+    // Add to the pool
+    m_pimpl->m_transaction_pool.insert(signed_transaction);
+
+    // Add to action log
+    m_pimpl->m_action_log.log_transaction(signed_transaction);
+
+    m_pimpl->save(guard);
 
     return true;
 }

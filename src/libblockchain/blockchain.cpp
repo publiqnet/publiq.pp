@@ -4,6 +4,7 @@
 #include <belt.pp/utility.hpp>
 
 #include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -21,6 +22,7 @@ public:
     {
     }
 
+    std::string m_last_hash;
     BlockHeader m_last_header;
     meshpp::vector_loader<BlockHeader> m_header;
     meshpp::vector_loader<SignedBlock> m_blockchain;
@@ -30,7 +32,8 @@ public:
 blockchain::blockchain(boost::filesystem::path const& fs_blockchain)
     : m_pimpl(new detail::blockchain_internals(fs_blockchain))
 {
-    update_header();
+    if (length() > 0)
+        update_state();
 }
 
 blockchain::~blockchain() = default;
@@ -52,13 +55,16 @@ void blockchain::discard()
     m_pimpl->m_header.discard();
     m_pimpl->m_blockchain.discard();
 
-    update_header();
+    update_state();
 }
 
-void blockchain::update_header()
+void blockchain::update_state()
 {
-    if (length() > 0)
-        header_at(length() - 1, m_pimpl->m_last_header);
+    SignedBlock signed_block;
+    at(length() - 1, signed_block);
+
+    m_pimpl->m_last_header = signed_block.block_details.header;
+    m_pimpl->m_last_hash = meshpp::hash(signed_block.block_details.to_string());
 }
 
 uint64_t blockchain::length() const
@@ -66,7 +72,12 @@ uint64_t blockchain::length() const
     return m_pimpl->m_blockchain.as_const().size();
 }
 
-void blockchain::header(BlockHeader& block_header) const
+std::string blockchain::last_hash() const
+{
+    return m_pimpl->m_last_hash;
+}
+
+void blockchain::last_header(BlockHeader& block_header) const
 {
     block_header = m_pimpl->m_last_header;
 }
@@ -80,9 +91,10 @@ void blockchain::insert(SignedBlock const& signed_block)
     if (block_number != length())
         throw std::runtime_error("Wrong block to insert!");
 
-    m_pimpl->m_last_header = block.header;
     m_pimpl->m_header.push_back(block.header);
     m_pimpl->m_blockchain.push_back(signed_block);
+
+    update_state();
 }
 
 void blockchain::at(uint64_t number, SignedBlock& signed_block) const
@@ -103,6 +115,6 @@ void blockchain::remove_last_block()
     m_pimpl->m_header.pop_back();
     m_pimpl->m_blockchain.pop_back();
 
-    update_header();
+    update_state();
 }
 }

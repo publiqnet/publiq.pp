@@ -256,7 +256,7 @@ bool node::run()
                     Contract& contract = *p_contract;
 
                     if (m_pimpl->m_state.get_contract_type(contract.owner) == 
-                        publiqpp::detail::node_type_to_int(publiqpp::node_type::unknown) &&
+                        publiqpp::detail::node_type_to_int(publiqpp::node_type::miner) &&
                         process_contract(signed_tx, contract, m_pimpl))
                     {
                         process_broadcast(std::move(broadcast),
@@ -294,9 +294,9 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     StatInfo& stat_info = *p_stat_info;
 
-                    m_pimpl->writeln_node("StatInfo broadcast received -> " + stat_info.to_string());
+                    //m_pimpl->writeln_node("StatInfo broadcast received -> " + stat_info.to_string());
 
-                    if (process_stat_info(signed_tx, m_pimpl))
+                    if (process_stat_info(signed_tx, stat_info, m_pimpl))
                     {
                         process_broadcast(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
@@ -383,7 +383,7 @@ bool node::run()
                         throw wrong_request_exception("SyncRequest received through rpc!");
 
                     BlockHeader header;
-                    m_pimpl->m_blockchain.header(header);
+                    m_pimpl->m_blockchain.last_header(header);
 
                     SyncResponse sync_response;
                     sync_response.number = header.block_number;
@@ -665,7 +665,6 @@ bool node::run()
         m_pimpl->clean_transaction_cache();
 
         // temp place
-        m_pimpl->clean_stat_cache();
         broadcast_node_type(m_pimpl);
     }
 
@@ -679,7 +678,7 @@ bool node::run()
             bool sync_now = false;
 
             BlockHeader header;
-            m_pimpl->m_blockchain.header(header);
+            m_pimpl->m_blockchain.last_header(header);
 
             system_clock::time_point current_time_point = system_clock::now();
             system_clock::time_point previous_time_point = system_clock::from_time_t(header.time_signed.tm);

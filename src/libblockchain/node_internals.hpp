@@ -68,7 +68,7 @@ uint64_t node_type_to_int(node_type input)
     case node_type::storage: return 3;
     }
 
-    return 0;
+    throw std::runtime_error("unknown node type!");
 }
 
 inline
@@ -81,7 +81,7 @@ node_type int_to_node_type(uint64_t input)
     case 3: return node_type::storage;
     }
 
-    return node_type::unknown;
+    throw std::runtime_error("unknown node type!");
 }
 
 class node_internals
@@ -336,7 +336,7 @@ public:
     void clean_transaction_cache()
     {
         BlockHeader current_header;
-        m_blockchain.header(current_header);
+        m_blockchain.last_header(current_header);
 
         system_clock::time_point cur_time_point = system_clock::from_time_t(current_header.time_signed.tm);
 
@@ -348,20 +348,6 @@ public:
                 std::chrono::seconds(NODES_TIME_SHIFT))
                 //  we don't need to keep in hash the transactions that are definitely expired
                 it = m_transaction_cache.erase(it);
-            else
-                ++it;
-        }
-    }
-
-    void clean_stat_cache()
-    {
-        system_clock::time_point cur_time_point = system_clock::now();
-
-        auto it = m_stat_cache.begin();
-        while (it != m_stat_cache.end())
-        {
-            if (cur_time_point > system_clock::from_time_t(it->second.transaction_details.expiry.tm))
-                it = m_stat_cache.erase(it);
             else
                 ++it;
         }
@@ -471,7 +457,6 @@ public:
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
     unordered_map<string, system_clock::time_point> m_transaction_cache;
-    unordered_map<string, SignedTransaction> m_stat_cache;
 
     bool m_miner;
     Coin m_balance;

@@ -125,12 +125,15 @@ uint64_t state::get_contract_type(string const& key) const
     if (m_pimpl->m_contracts.as_const().contains(key))
         return m_pimpl->m_contracts.as_const().at(key).type;
 
-    return 0;
+    return 1;
 }
 
 void state::insert_contract(Contract const& contract)
 {
-    if (contract.type == 0)
+    if (contract.type == 1)
+        throw std::runtime_error("TODO");
+
+    if(get_contract_type(contract.owner) != 1)
         throw std::runtime_error("TODO");
 
     m_pimpl->m_contracts.insert(contract.owner, contract);

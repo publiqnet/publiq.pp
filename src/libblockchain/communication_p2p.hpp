@@ -31,6 +31,7 @@ bool process_contract(BlockchainMessage::SignedTransaction const& signed_transac
                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                       BlockchainMessage::StatInfo const& stat_info,
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 

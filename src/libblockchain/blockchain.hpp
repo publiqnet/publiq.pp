@@ -27,10 +27,11 @@ public:
     void commit();
     void discard();
 
-    void update_header();
+    void update_state();
 
     uint64_t length() const;
-    void header(BlockchainMessage::BlockHeader& block_header) const;
+    std::string last_hash() const;
+    void last_header(BlockchainMessage::BlockHeader& block_header) const;
 
     void insert(BlockchainMessage::SignedBlock const& signed_block);
     void at(uint64_t number, BlockchainMessage::SignedBlock& signed_block) const;
