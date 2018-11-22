@@ -7,10 +7,9 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <map>
+#include <set>
 
 using namespace BlockchainMessage;
-
-using std::multimap;
 
 ///////////////////////////////////////////////////////////////////////////////////
 //                            Internal Finctions
@@ -139,45 +138,85 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     rewards.clear();
+    std::set<string> channels;
+    std::set<string> storages;
 
     for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
     {
-        //TODO grant real rewards from transactions
+        if (it->transaction_details.action.type() == StatInfo::rtt)
+        {
+            StatInfo stat_info;
+            it->transaction_details.action.get(stat_info);
+
+            publiqpp::node_type authority_type = publiqpp::detail::int_to_node_type(m_pimpl->m_state.get_contract_type(it->authority));
+
+            if (authority_type == publiqpp::node_type::channel)
+            {
+                for (auto const& item : stat_info.items)
+                    storages.insert(item.node_name);
+            }
+            else if (authority_type == publiqpp::node_type::storage)
+            {
+                for (auto const& item : stat_info.items)
+                    channels.insert(item.node_name);
+            }
+        }
     }
 
     size_t year_index = block_number / 50000;
+    coin miner_reward, channel_reward, storage_reward;
 
     if (year_index < 60)
     {
+        miner_reward += BLOCK_REWARD_ARRAY[year_index] * MINER_REWARD_PERCENT / 100;
+        channel_reward += BLOCK_REWARD_ARRAY[year_index] * CHANNEL_REWARD_PERCENT / 100;
+        storage_reward += BLOCK_REWARD_ARRAY[year_index] - miner_reward - channel_reward;
+    }
+
+    // grant channel rewards
+    if (channels.size() && !channel_reward.empty())
+    {
         Reward reward;
+        coin channel_portion = channel_reward / channels.size();
 
-        // grant channel rewards
-        std::vector<Contract> channel_contracts;
-        m_pimpl->m_state.get_contracts(channel_contracts, publiqpp::detail::node_type_to_int(publiqpp::node_type::channel));
-
-        for (auto const& item : channel_contracts)
+        for (auto const& item : channels)
         {
-            reward.to = item.owner;
-            reward.amount = coin(60, 0).to_Coin();
+            reward.to = item;
+            reward.amount = channel_portion.to_Coin();
 
             rewards.push_back(reward);
         }
 
-        // grant storage rewards
-        std::vector<Contract> storage_contracts;
-        m_pimpl->m_state.get_contracts(storage_contracts, publiqpp::detail::node_type_to_int(publiqpp::node_type::storage));
+        rewards.back().amount = (channel_reward - channel_portion * (channels.size() - 1)).to_Coin();
+    }
+    else
+        miner_reward += channel_reward;
 
-        for (auto const& item : storage_contracts)
+    // grant storage rewards
+    if (storages.size() && !storage_reward.empty())
+    {
+        Reward reward;
+        coin storage_portion = storage_reward / storages.size();
+
+        for (auto const& item : storages)
         {
-            reward.to = item.owner;
-            reward.amount = coin(30, 0).to_Coin();
+            reward.to = item;
+            reward.amount = storage_portion.to_Coin();
 
             rewards.push_back(reward);
         }
 
-        // grant miner reward himself
+        rewards.back().amount = (storage_reward - storage_portion * (storages.size() - 1)).to_Coin();
+    }
+    else
+        miner_reward += storage_reward;
+
+    // grant miner reward himself
+    if (!miner_reward.empty())
+    {
+        Reward reward;
         reward.to = authority;
-        reward.amount = coin(100, 0).to_Coin();// BLOCK_REWARD_ARRAY[year_index].to_Coin();
+        reward.amount = miner_reward.to_Coin();
 
         rewards.push_back(reward);
     }
@@ -387,7 +426,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         m_pimpl->calc_balance();
     });
 
-    multimap<BlockchainMessage::ctime, std::pair<string, SignedTransaction>> transaction_map;
+    std::multimap<BlockchainMessage::ctime, std::pair<string, SignedTransaction>> transaction_map;
 
     // Revert action log and state, revert transaction pool records
     vector<string> pool_keys;
@@ -423,7 +462,9 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         // Check block transactions and calculate new state
         if (apply_transaction(it->second.second, m_pimpl, own_key))
         {
-            ++tr_count;
+            if(it->second.second.transaction_details.action.type() != StatInfo::rtt)
+                ++tr_count;
+
             block.signed_transactions.push_back(std::move(it->second.second));
             m_pimpl->m_transaction_cache[it->second.first] = system_clock::from_time_t(it->first.tm);
         }
@@ -1031,7 +1072,7 @@ bool process_contract(BlockchainMessage::SignedTransaction const& signed_transac
         return true;
 
     // Check pool
-    string tr_hash = meshpp::hash(contract.to_string());
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
 
     if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())

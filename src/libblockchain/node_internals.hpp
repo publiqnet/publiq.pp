@@ -46,7 +46,7 @@ using chrono::steady_clock;
 namespace publiqpp
 {
     using rpc_sf = beltpp::socket_family_t<&http::message_list_load>;
-    enum class node_type { unknown = 0, miner = 1, channel = 2, storage = 3 };
+    enum class node_type { miner = 1, channel = 2, storage = 3 };
 
 namespace detail
 {

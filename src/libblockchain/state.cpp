@@ -115,7 +115,7 @@ void state::get_contracts(std::vector<Contract>& contracts, uint64_t const& type
     {
         Contract contract = m_pimpl->m_contracts.as_const().at(key);
 
-        if (type == 0 || type == contract.type)
+        if (type == contract.type)
             contracts.push_back(contract);
     }
 }
