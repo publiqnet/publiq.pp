@@ -40,11 +40,15 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     }
     else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
     {
+        Contract contract;
+        signed_transaction.transaction_details.action.get(contract);
+
+        if (m_pimpl->m_state.get_contract_type(contract.owner) !=
+            publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
+            return false; // technical solution to remove used contract
+
         if (!key.empty())
         {
-            Contract contract;
-            signed_transaction.transaction_details.action.get(contract);
-
             Coin balance = m_pimpl->m_state.get_balance(signed_transaction.authority);
 
             if (coin(balance) < fee)
@@ -981,7 +985,7 @@ void process_blockchain_response(BlockchainResponse&& response,
         if(apply_transaction(signed_transaction, m_pimpl))
             m_pimpl->m_action_log.log_transaction(signed_transaction);
         else
-            m_pimpl->m_transaction_pool.remove(key); // not enough balance
+            m_pimpl->m_transaction_pool.remove(key);
     }
 
     m_pimpl->save(guard);
@@ -1029,19 +1033,47 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     if (my_state_type != publiqpp::node_type::miner)
         throw std::runtime_error("Type change is not allowed!");
 
-    Contract contract;
-    contract.owner = m_pimpl->m_pb_key.to_string();
-    contract.type = publiqpp::detail::node_type_to_int(m_pimpl->m_node_type);
-
-    Transaction transaction;
-    transaction.action = contract;
-    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-
+    bool contract_found = false;
     SignedTransaction signed_transaction;
-    signed_transaction.transaction_details = transaction;
-    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
-    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
+    vector<string> pool_keys;
+    m_pimpl->m_transaction_pool.get_keys(pool_keys);
+
+    for (auto& key : pool_keys)
+    {
+        m_pimpl->m_transaction_pool.at(key, signed_transaction);
+
+        if (signed_transaction.transaction_details.action.type() == Contract::rtt)
+        {
+            Contract contract;
+            signed_transaction.transaction_details.action.get(contract);
+
+            if (contract.owner == m_pimpl->m_pb_key.to_string())
+            {
+                contract_found = true;
+                break;
+            }
+        }
+    }
+
+    if (!contract_found)
+    {
+        Contract contract;
+        contract.owner = m_pimpl->m_pb_key.to_string();
+        contract.type = publiqpp::detail::node_type_to_int(m_pimpl->m_node_type);
+
+        Transaction transaction;
+        transaction.action = contract;
+        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+
+        signed_transaction.transaction_details = transaction;
+        signed_transaction.authority = m_pimpl->m_pb_key.to_string();
+        signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
+        // store to own transaction pool
+        process_contract(signed_transaction, contract, m_pimpl);
+    }
 
     Broadcast broadcast;
     broadcast.echoes = 2;
@@ -1051,7 +1083,6 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
                       m_pimpl->m_ptr_p2p_socket->name(),
                       m_pimpl->m_ptr_p2p_socket->name(),
                       true, // broadcast to all peers
-                      //m_pimpl->plogger_node,
                       nullptr, // log disabled
                       m_pimpl->m_p2p_peers,
                       m_pimpl->m_ptr_p2p_socket.get());
@@ -1076,6 +1107,10 @@ bool process_contract(BlockchainMessage::SignedTransaction const& signed_transac
 
     if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+        return false;
+
+    if (m_pimpl->m_state.get_contract_type(contract.owner) != 
+        publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
         return false;
 
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
