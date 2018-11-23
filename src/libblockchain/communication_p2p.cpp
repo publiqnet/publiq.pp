@@ -43,8 +43,7 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
         Contract contract;
         signed_transaction.transaction_details.action.get(contract);
 
-        if (m_pimpl->m_state.get_contract_type(contract.owner) !=
-            publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
+        if (m_pimpl->m_state.get_contract_type(contract.owner) != NodeType::miner)
             return false; // technical solution to remove used contract
 
         if (!key.empty())
@@ -152,14 +151,14 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             StatInfo stat_info;
             it->transaction_details.action.get(stat_info);
 
-            publiqpp::node_type authority_type = publiqpp::detail::int_to_node_type(m_pimpl->m_state.get_contract_type(it->authority));
+            NodeType authority_type = m_pimpl->m_state.get_contract_type(it->authority);
 
-            if (authority_type == publiqpp::node_type::channel)
+            if (authority_type == NodeType::channel)
             {
                 for (auto const& item : stat_info.items)
                     storages.insert(item.node_name);
             }
-            else if (authority_type == publiqpp::node_type::storage)
+            else if (authority_type == NodeType::storage)
             {
                 for (auto const& item : stat_info.items)
                     channels.insert(item.node_name);
@@ -267,7 +266,7 @@ bool check_rewards(Block const& block, string const& authority,
 void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {//TODO
     vector<Contract> storages;
-    m_pimpl->m_state.get_contracts(storages, publiqpp::detail::node_type_to_int(publiqpp::node_type::storage));
+    m_pimpl->m_state.get_contracts(storages, NodeType::storage);
 
     if (storages.empty()) return;
 
@@ -315,7 +314,7 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
 void broadcast_channel_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {//TODO
     vector<Contract> channels;
-    m_pimpl->m_state.get_contracts(channels, publiqpp::detail::node_type_to_int(publiqpp::node_type::channel));
+    m_pimpl->m_state.get_contracts(channels, NodeType::channel);
 
     if (channels.empty()) return;
 
@@ -1015,22 +1014,22 @@ void process_blockchain_response(BlockchainResponse&& response,
     {
         m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
 
-        if (m_pimpl->m_node_type == publiqpp::node_type::channel)
+        if (m_pimpl->m_node_type == NodeType::channel)
             broadcast_storage_info(m_pimpl);
 
-        if (m_pimpl->m_node_type == publiqpp::node_type::storage)
+        if (m_pimpl->m_node_type == NodeType::storage)
             broadcast_channel_info(m_pimpl);
     }
 }
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    publiqpp::node_type my_state_type = publiqpp::detail::int_to_node_type(m_pimpl->m_state.get_contract_type(m_pimpl->m_pb_key.to_string()));
+    NodeType my_state_type = m_pimpl->m_state.get_contract_type(m_pimpl->m_pb_key.to_string());
 
     if (my_state_type == m_pimpl->m_node_type)
         return;
 
-    if (my_state_type != publiqpp::node_type::miner)
+    if (my_state_type != NodeType::miner)
         throw std::runtime_error("Type change is not allowed!");
 
     bool contract_found = false;
@@ -1060,7 +1059,7 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     {
         Contract contract;
         contract.owner = m_pimpl->m_pb_key.to_string();
-        contract.type = publiqpp::detail::node_type_to_int(m_pimpl->m_node_type);
+        contract.role = m_pimpl->m_node_type;
 
         Transaction transaction;
         transaction.action = contract;
@@ -1109,8 +1108,7 @@ bool process_contract(BlockchainMessage::SignedTransaction const& signed_transac
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
-    if (m_pimpl->m_state.get_contract_type(contract.owner) != 
-        publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
+    if (m_pimpl->m_state.get_contract_type(contract.owner) != NodeType::miner)
         return false;
 
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
@@ -1134,22 +1132,23 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     // Authority check
-    uint64_t authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
-    if (authority_type == publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
+    NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
+    
+    if (authority_type == NodeType::miner)
         throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
 
     for (auto const& item : stat_info.items)
     {
-        uint64_t item_node_type = m_pimpl->m_state.get_contract_type(item.node_name);
+        NodeType item_node_type = m_pimpl->m_state.get_contract_type(item.node_name);
 
         if (authority_type == item_node_type)
             throw wrong_data_exception("wrong node type : " + item.node_name);
 
-        if (item_node_type == publiqpp::detail::node_type_to_int(publiqpp::node_type::miner))
+        if (item_node_type == NodeType::miner)
             throw wrong_data_exception("wrong node type : " + item.node_name);
     }
 
-    if (m_pimpl->m_node_type != publiqpp::node_type::miner)
+    if (m_pimpl->m_node_type != NodeType::miner)
         return true;
     
     // Don't need to store transaction if sync in process

@@ -107,7 +107,7 @@ void state::decrease_balance(string const& key, coin const& amount)
         m_pimpl->m_accounts.erase(key);
 }
 
-void state::get_contracts(std::vector<Contract>& contracts, uint64_t const& type) const
+void state::get_contracts(std::vector<Contract>& contracts, NodeType const& role) const
 {//TODO
     contracts.clear();
 
@@ -115,25 +115,25 @@ void state::get_contracts(std::vector<Contract>& contracts, uint64_t const& type
     {
         Contract contract = m_pimpl->m_contracts.as_const().at(key);
 
-        if (type == contract.type)
+        if (role == contract.role)
             contracts.push_back(contract);
     }
 }
 
-uint64_t state::get_contract_type(string const& key) const
+NodeType state::get_contract_type(string const& key) const
 {//TODO
     if (m_pimpl->m_contracts.as_const().contains(key))
-        return m_pimpl->m_contracts.as_const().at(key).type;
+        return m_pimpl->m_contracts.as_const().at(key).role;
 
-    return 1;
+    return NodeType::miner;
 }
 
 void state::insert_contract(Contract const& contract)
 {
-    if (contract.type == 1)
+    if (contract.role == NodeType::miner)
         throw std::runtime_error("TODO");
 
-    if(get_contract_type(contract.owner) != 1)
+    if(get_contract_type(contract.owner) != NodeType::miner)
         throw std::runtime_error("TODO");
 
     m_pimpl->m_contracts.insert(contract.owner, contract);

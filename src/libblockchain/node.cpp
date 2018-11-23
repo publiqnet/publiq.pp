@@ -48,7 +48,7 @@ node::node(ip_address const& rpc_bind_to_address,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
-           node_type& n_type,
+           NodeType& n_type,
            bool log_enabled)
     : m_pimpl(new detail::node_internals(rpc_bind_to_address,
                                          p2p_bind_to_address,
@@ -255,8 +255,7 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     Contract& contract = *p_contract;
 
-                    if (m_pimpl->m_state.get_contract_type(contract.owner) == 
-                        publiqpp::detail::node_type_to_int(publiqpp::node_type::miner) &&
+                    if (m_pimpl->m_state.get_contract_type(contract.owner) == NodeType::miner &&
                         process_contract(signed_tx, contract, m_pimpl))
                     {
                         process_broadcast(std::move(broadcast),

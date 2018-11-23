@@ -46,7 +46,6 @@ using chrono::steady_clock;
 namespace publiqpp
 {
     using rpc_sf = beltpp::socket_family_t<&http::message_list_load>;
-    enum class node_type { miner = 1, channel = 2, storage = 3 };
 
 namespace detail
 {
@@ -57,32 +56,6 @@ public:
     beltpp::packet packet;
     size_t expiry;
 };
-
-inline
-uint64_t node_type_to_int(node_type input)
-{
-    switch (input)
-    {
-    case node_type::miner: return 1;
-    case node_type::channel: return 2;
-    case node_type::storage: return 3;
-    }
-
-    throw std::runtime_error("unknown node type!");
-}
-
-inline
-node_type int_to_node_type(uint64_t input)
-{
-    switch (input)
-    {
-    case 1: return node_type::miner;
-    case 2: return node_type::channel;
-    case 3: return node_type::storage;
-    }
-
-    throw std::runtime_error("unknown node type!");
-}
 
 class node_internals
 {
@@ -98,7 +71,7 @@ public:
         beltpp::ilog* _plogger_p2p,
         beltpp::ilog* _plogger_node,
         meshpp::private_key const& pv_key,
-        node_type& n_type,
+        NodeType& n_type,
         bool log_enabled)
         : plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
@@ -367,7 +340,7 @@ public:
     void calc_balance()
     {
         m_balance = m_state.get_balance(m_pb_key.to_string());
-        m_miner = m_node_type == node_type::miner &&
+        m_miner = m_node_type == NodeType::miner &&
                   coin(m_balance) >= MINE_AMOUNT_THRESHOLD;
     }
 
@@ -460,7 +433,7 @@ public:
 
     bool m_miner;
     Coin m_balance;
-    node_type m_node_type;
+    NodeType m_node_type;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
 

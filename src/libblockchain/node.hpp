@@ -1,7 +1,7 @@
 #pragma once
 
 #include "global.hpp"
-#include "node_internals.hpp"
+#include "message.hpp"
 
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/isocket.hpp>
@@ -33,7 +33,7 @@ public:
          beltpp::ilog* plogger_p2p,
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,
-         node_type& n_type,
+         BlockchainMessage::NodeType& n_type,
          bool log_enabled);
     node(node&& other) noexcept;
     ~node();

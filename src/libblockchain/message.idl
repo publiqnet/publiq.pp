@@ -110,10 +110,17 @@ module BlockchainMessage
         Array String file_uris
     }
 
+    enum NodeType
+    {
+        miner
+        channel
+        storage
+    }
+
     class Contract
     {
-        UInt64 type
         String owner
+        NodeType role
     }
 
     class AddressInfo

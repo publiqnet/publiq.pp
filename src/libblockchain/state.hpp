@@ -27,8 +27,8 @@ public:
     void increase_balance(std::string const& key, coin const& amount);
     void decrease_balance(std::string const& key, coin const& amount);
 
-    void get_contracts(std::vector<BlockchainMessage::Contract>& contracts, uint64_t const& type) const;
-    uint64_t get_contract_type(std::string const& key) const;
+    void get_contracts(std::vector<BlockchainMessage::Contract>& contracts, BlockchainMessage::NodeType const& role) const;
+    BlockchainMessage::NodeType get_contract_type(std::string const& key) const;
     void insert_contract(BlockchainMessage::Contract const& contract);
     void remove_contract(BlockchainMessage::Contract const& contract);
     

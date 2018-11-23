@@ -25,6 +25,7 @@
 
 #include <csignal>
 
+using namespace BlockchainMessage;
 namespace program_options = boost::program_options;
 
 using std::unique_ptr;
@@ -40,7 +41,7 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
                           meshpp::private_key& pv_key,
-                          publiqpp::node_type& n_type,
+                          NodeType& n_type,
                           bool& log_enabled);
 
 static bool g_termination_handled = false;
@@ -142,7 +143,7 @@ int main(int argc, char** argv)
     beltpp::ip_address rpc_bind_to_address;
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
-    publiqpp::node_type n_type = publiqpp::node_type::miner;
+    NodeType n_type = NodeType::miner;
     bool log_enabled = false;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
@@ -291,7 +292,7 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
                           meshpp::private_key& pv_key,
-                          publiqpp::node_type& n_type,
+                          NodeType& n_type,
                           bool& log_enabled)
 {
     string p2p_local_interface;
@@ -355,11 +356,11 @@ bool process_command_line(int argc, char** argv,
             log_enabled = true;
 
         if (str_n_type == "channel")
-            n_type = publiqpp::node_type::channel;
+            n_type = NodeType::channel;
         else if (str_n_type == "storage")
-            n_type = publiqpp::node_type::storage;
+            n_type = NodeType::storage;
         else
-            n_type = publiqpp::node_type::miner;
+            n_type = NodeType::miner;
     }
     catch (std::exception const& ex)
     {
