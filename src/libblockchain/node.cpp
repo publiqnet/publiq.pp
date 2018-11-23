@@ -632,24 +632,33 @@ bool node::run()
         {
             m_pimpl->writeln_node("broadcasting " + std::to_string(pool_keys.size()) + " stored transactions to all peers");
 
+            auto current_time = system_clock::now();
+
             for (auto& key : pool_keys)
             {
                 SignedTransaction signed_transaction;
                 m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-                Broadcast broadcast;
-                broadcast.echoes = 2;
-                broadcast.package = signed_transaction;
+                if (current_time > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
+                {
+                    m_pimpl->m_transaction_pool.remove(key);
+                }
+                else
+                {
+                    Broadcast broadcast;
+                    broadcast.echoes = 2;
+                    broadcast.package = signed_transaction;
 
-                process_broadcast(std::move(broadcast),
-                                  m_pimpl->m_ptr_p2p_socket->name(),
-                                  m_pimpl->m_ptr_p2p_socket->name(),
-                                  true, // like from rpc
-                                  nullptr, // no logger
-                                  m_pimpl->m_p2p_peers,
-                                  m_pimpl->m_ptr_p2p_socket.get());
+                    process_broadcast(std::move(broadcast),
+                                      m_pimpl->m_ptr_p2p_socket->name(),
+                                      m_pimpl->m_ptr_p2p_socket->name(),
+                                      true, // like from rpc
+                                      nullptr, // no logger
+                                      m_pimpl->m_p2p_peers,
+                                      m_pimpl->m_ptr_p2p_socket.get());
 
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                }
             }
 
             m_pimpl->writeln_node("broadcast done");

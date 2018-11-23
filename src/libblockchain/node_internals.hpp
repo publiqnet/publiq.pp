@@ -66,8 +66,9 @@ uint64_t node_type_to_int(node_type input)
     case node_type::miner: return 1;
     case node_type::channel: return 2;
     case node_type::storage: return 3;
-    case node_type::unknown: throw std::runtime_error("unknown node type!");
     }
+
+    throw std::runtime_error("unknown node type!");
 }
 
 inline
