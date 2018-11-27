@@ -502,8 +502,8 @@ bool node::run()
                     if (m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?
                         process_blockchain_response(std::move(blockchain_response), m_pimpl, *psk, peerid);
 
-                    if (have_signed_blocks)
-                        m_pimpl->writeln_node("    done");
+                    //if (have_signed_blocks)
+                    //    m_pimpl->writeln_node("    done");
 
                     break;
                 }
@@ -660,7 +660,7 @@ bool node::run()
                 }
             }
 
-            m_pimpl->writeln_node("broadcast done");
+            //m_pimpl->writeln_node("broadcast done");
         }
     }
 

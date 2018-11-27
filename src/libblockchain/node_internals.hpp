@@ -303,7 +303,7 @@ public:
             }
         }
 
-        writeln_node("done");
+        //writeln_node("done");
     }
 
     void clean_transaction_cache()
