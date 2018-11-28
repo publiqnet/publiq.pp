@@ -11,6 +11,7 @@
 #include <utility>
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 using std::cout;
 using std::endl;
@@ -22,8 +23,7 @@ using std::pair;
 using std::runtime_error;
 
 state_holder::state_holder()
-    : namespace_name()
-    , map_types{{"String", "string"},
+    : map_types{{"String", "string"},
                 {"Bool", "boolean"},
                 {"Int8", "number"},
                 {"UInt8", "number"},
@@ -124,7 +124,7 @@ void analyze(   state_holder& state,
 boost::filesystem::path root = outputFilePath;
 boost::filesystem::create_directory( root );
 
-/////////////////////////// create BaseModel file //////////////////////////////////
+/////////////////////////// create mapper file //////////////////////////////////
 boost::filesystem::path mapperPath= root.string() + "/" + "mapper.ts";
 boost::filesystem::ofstream mapper( mapperPath );
 
@@ -248,6 +248,8 @@ BaseModel << R"file_template(
     size_t rtt = 0;
     assert(pexpression);
     unordered_map<size_t, string> class_names;
+    vector <string> enum_names;
+
     if (pexpression->lexem.rtt != keyword_module::rtt ||
         pexpression->children.size() != 2 ||
         pexpression->children.front()->lexem.rtt != identifier::rtt ||
@@ -256,8 +258,19 @@ BaseModel << R"file_template(
         throw runtime_error("wtf");
     else
     {
-        string module_name = pexpression->children.front()->lexem.value;
-        state.namespace_name = module_name;
+
+        for ( auto item : pexpression->children.back()->children )
+        {
+            if (item->lexem.rtt == keyword_enum::rtt)
+                        {
+                            if (item->children.size() != 2 ||
+                                item->children.front()->lexem.rtt != identifier::rtt ||
+                                item->children.back()->lexem.rtt != scope_brace::rtt)
+                                throw runtime_error("enum syntax is wrong");
+
+                            enum_names.push_back(item->children.front()->lexem.value);
+            }
+        }
 
         for (auto item : pexpression->children.back()->children)
         {
@@ -269,11 +282,29 @@ BaseModel << R"file_template(
                     throw runtime_error("type syntax is wrong");
 
                 string type_name = item->children.front()->lexem.value;
-                analyze_struct(state, item->children.back(), type_name,  outputFilePath, prefix, rtt);
+                analyze_struct( state,
+                                item->children.back(),
+                                type_name, enum_names,
+                                outputFilePath,
+                                prefix,
+                                rtt);
                 class_names.insert(std::make_pair(rtt, type_name));
+                ++rtt;
 
+            }           
+            else if (item->lexem.rtt == keyword_enum::rtt)
+            {
+                if (item->children.size() != 2 ||
+                    item->children.front()->lexem.rtt != identifier::rtt ||
+                    item->children.back()->lexem.rtt != scope_brace::rtt)
+                    throw runtime_error("enum syntax is wrong");
+
+                string enum_name = item->children.front()->lexem.value;
+                analyze_enum(   item->children.back(),
+                                enum_name,
+                                outputFilePath,
+                                prefix );
             }
-            ++rtt;
         }
     }
 
@@ -333,13 +364,11 @@ export default MODELS_TYPES;)file_template";
 void analyze_struct(    state_holder& state,
                         expression_tree const* pexpression,
                         string const& type_name,
+                        std::vector<std::string> enum_names,
                         std::string const& outputFilePath,
                         std::string const& prefix,
                         size_t rtt )
 {
-    if (state.namespace_name.empty())
-        throw runtime_error("please specify package name");
-
     assert(pexpression);
 
     vector<pair<expression_tree const*, expression_tree const*>> members;
@@ -366,6 +395,7 @@ void analyze_struct(    state_holder& state,
     string params;
     string constructor;
     string memberNamesMap = "";
+    vector <string> imported;
 
     for (auto member_pair : members)
     {
@@ -382,12 +412,35 @@ void analyze_struct(    state_holder& state,
         string camelCaseMemberName = transformString( member_name.value );
         memberNamesMap += "            " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
 
+
+        bool isEnum = false;
+
+        if ( std::find( enum_names.begin(), enum_names.end(), info[0]) != enum_names.end() )
+        {
+            isEnum = true;
+
+            if ( std::find( imported.begin(), imported.end(), info[0]) == imported.end() )
+            {
+                import += "import " + prefix + info[0] + " from './" + prefix + info[0] + "';\n";
+                imported.push_back(info[0]);
+            }
+            params +=
+                 "    " + camelCaseMemberName + ": number;\n";
+            constructor +=
+                        "        this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + ");\n";
+
+        }
+
         /////////////////////////// array of non primitive types ///////////////////
         if ( info[0] == "array" && info[1] != "number" && info[1] != "String" && info[1] != "boolean" && info[1] != "::beltpp::packet" )
         {
             if ( info[1] != "Date")
-            {    
-                import += "import " + prefix + info[1] + " from './" + prefix + info[1] + "';\n";
+            {
+                if ( std::find( imported.begin(), imported.end(), info[1]) == imported.end() )
+                {
+                    import += "import " + prefix + info[1] + " from './" + prefix + info[1] + "';\n";
+                    imported.push_back(info[1]);
+                }
                 params +=
                         "    " + camelCaseMemberName + ": Array<" + prefix + info[1] + ">;\n";
                 constructor +=
@@ -402,7 +455,7 @@ void analyze_struct(    state_holder& state,
             }
 
         }
-        ////////////////////// array of Objects //////////////////////////////
+        ////////////////////// array of objects //////////////////////////////
         else if ( info[0] == "array" && info[1] == "::beltpp::packet" )
         {
             params +=
@@ -419,11 +472,15 @@ void analyze_struct(    state_holder& state,
                         "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
         }
         ///////////////////////// non primitive type /////////////////////////
-        else if ( info[0] != "number" && info[0] != "string" && info[0] != "boolean" && info[0] != "::beltpp::packet" )
+        else if ( info[0] != "number" && info[0] != "string" && info[0] != "boolean" && info[0] != "::beltpp::packet"  && !isEnum)
         {
             if ( info[0] != "Date")
             {
-                import += "import " + prefix + info[0] + " from './" + prefix + info[0] + "';\n";
+                if ( std::find( imported.begin(), imported.end(), info[0]) == imported.end() )
+                {
+                    import += "import " + prefix + info[0] + " from './" + prefix + info[0] + "';\n";
+                    imported.push_back(info[0]);
+                }
                 params +=
                         "    " + camelCaseMemberName + ": " + prefix + info[0] + ";\n";
                 constructor +=
@@ -444,7 +501,7 @@ void analyze_struct(    state_holder& state,
             params +=
                     "    " + camelCaseMemberName + ": Object;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value+ ");\n";
+                        "        this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + ");\n";
 
         }
         /////////////////////////// primitive type ///////////////////////////
@@ -481,4 +538,53 @@ void analyze_struct(    state_holder& state,
     model << "        return " << rtt <<";\n";
     model << "    }\n\n";
     model << "} \n";
+}
+
+void analyze_enum(  expression_tree const* pexpression,
+                    string const& enum_name,
+                    std::string const& outputFilePath,
+                    std::string const& prefix)
+{
+
+    if (pexpression->children.empty())
+        throw runtime_error("inside enum syntax error, wtf - " + enum_name);
+
+    boost::filesystem::path FilePath = outputFilePath + "/models/" + prefix + enum_name + ".ts";
+    boost::filesystem::ofstream model( FilePath );
+    model <<
+    "export default class " + prefix + enum_name + " {\n\n";
+
+    int i = 0;
+
+    string toStringFunction =
+        "    static toString(param: number): string {\n\n"
+        "        switch (param) {\n";
+
+    string toNumberFunction =
+        "    static toNumber(param: string): number {\n\n"
+        "        switch (param) {\n";
+
+    for (auto const& item : pexpression->children)
+    {
+        model << "    public static readonly " << item->lexem.value << " = " << i << ";\n" ;
+
+        string camelCaseMemberName = transformString( item->lexem.value );
+
+        toStringFunction +=
+                "            case " + std::to_string(i) + ": return \"" + camelCaseMemberName + "\";\n";
+        toNumberFunction +=
+                "            case \"" + camelCaseMemberName + "\": return " + std::to_string(i) +  ";\n";
+        i++;
+
+    }
+
+    model << "\n";
+    model << toStringFunction +
+             "        }\n"
+             "    } \n\n";
+    model << toNumberFunction +
+             "        }\n"
+             "    } \n\n";
+    model << "} \n";
+
 }

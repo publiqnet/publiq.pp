@@ -11,7 +11,6 @@ class state_holder
 {
 public:
     state_holder();
-    std::string namespace_name;
     std::unordered_map<std::string, std::string> map_types;
 };
 
@@ -23,6 +22,12 @@ void analyze(               state_holder& state,
 void analyze_struct(        state_holder& state,
                             expression_tree const* pexpression,
                             std::string const& type_name,
+                            std::vector<std::string> enum_names,
                             std::string const& outputFilePath,
                             std::string const& prefix,
                             size_t rtt);
+
+void analyze_enum(          expression_tree const* pexpression,
+                            std::string const& enum_name,
+                            std::string const& outputFilePath,
+                            std::string const& prefix);

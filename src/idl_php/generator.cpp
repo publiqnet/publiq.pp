@@ -20,8 +20,7 @@ using std::runtime_error;
 
 
 state_holder::state_holder()
-    : namespace_name()
-    , map_types{{"String", "string"},
+    : map_types{{"String", "string"},
                 {"Bool", "bool"},
                 {"Int8", "int"},
                 {"UInt8", "int"},
@@ -296,17 +295,18 @@ void analyze(   state_holder& state,
 
     //////////////// create Interface Folder ////////////////
 
-
     boost::filesystem::path root = outputFilePath;
 
     root.append( PackageName );
     boost::filesystem::create_directory( root );
 
     std::string src = "src";
+
     root.append( src );
     boost::filesystem::create_directory( root );
 
     //////////////// create Base Folder ////////////////////
+
     boost::filesystem::path BaseFolderPath = root.string() + "/" + "Base";
     boost::filesystem::create_directory( BaseFolderPath );
 
@@ -325,6 +325,8 @@ interface ValidatorInterface
     ///////////////////////////////////////////////////////
 
     unordered_map<size_t, string> class_names;
+    vector <string> enum_names;
+
     if ( pexpression->lexem.rtt != keyword_module::rtt ||
          pexpression->children.size() != 2 ||
          pexpression->children.front()->lexem.rtt != identifier::rtt ||
@@ -341,10 +343,6 @@ interface ValidatorInterface
 
         ////////////////////////////////////////////////////////
 
-        string module_name = pexpression->children.front()->lexem.value;
-        state.namespace_name = module_name;
-
-        vector <string> enums;
         for ( auto item : pexpression->children.back()->children )
         {
             if (item->lexem.rtt == keyword_enum::rtt)
@@ -354,7 +352,7 @@ interface ValidatorInterface
                                 item->children.back()->lexem.rtt != scope_brace::rtt)
                                 throw runtime_error("enum syntax is wrong");
 
-                            enums.push_back(item->children.front()->lexem.value);
+                            enum_names.push_back(item->children.front()->lexem.value);
             }
         }
 
@@ -371,7 +369,7 @@ interface ValidatorInterface
                 analyze_struct(     state,
                                     item->children.back(),
                                     type_name,
-                                    enums,
+                                    enum_names,
                                     PackageName,
                                     ModelFolder );
 
@@ -386,8 +384,7 @@ interface ValidatorInterface
                     throw runtime_error("enum syntax is wrong");
 
                 string enum_name = item->children.front()->lexem.value;
-                analyze_enum(   state,
-                                item->children.back(),
+                analyze_enum(   item->children.back(),
                                 enum_name,
                                 PackageName,
                                 ModelFolder );
@@ -478,6 +475,7 @@ R"file_template(
                            "namespace " << PackageName << "\\Base;\n";
     RttSerializableTrait <<
 R"file_template(
+
 trait RttSerializableTrait
 {
     public function jsonSerialize()
@@ -496,6 +494,8 @@ trait RttSerializableTrait
             $member = (static::class)::getMemberName($name);
             if ($member['convertToDate']) {
                 $vars2[$member['key']] = date("Y-m-d H:i:s", $value);
+            } elseif ($member['isEnam'] != 'NULL') {
+                $vars2[$member['key']] = $member['isEnam'].toString($value);
             } else {
                 $vars2[$member['key']] = $value;
             }
@@ -503,6 +503,7 @@ trait RttSerializableTrait
         return $vars2;
     }
 }
+
 )file_template";
 
     ////////////////// create RttToJsonTrait.php file /////////////////
@@ -528,14 +529,11 @@ trait RttToJsonTrait
 void analyze_struct(    state_holder& state,
                         expression_tree const* pexpression,
                         string const& type_name,
-                        vector<string> enums,
+                        vector<string> enum_names,
                         std::string const& PackageName,
                         boost::filesystem::path const& ModelFolder
                         )
 {
-    if ( state.namespace_name.empty() )
-        throw runtime_error( "please specify package name" );
-
     assert( pexpression );
 
     vector<pair<expression_tree const*, expression_tree const*>> members;
@@ -562,10 +560,10 @@ void analyze_struct(    state_holder& state,
     string getFunction;
     string addFunction;
     string arrayCase;
+    string hashCase;
     string trivialTypes;
     string objectTypes;
-    string mixedTypes;
-    string hashCase;
+    string mixedTypes;  
     string enumTypes;
 
     /////////////////////////// create model files //////////////////////////////////
@@ -605,24 +603,29 @@ void analyze_struct(    state_holder& state,
 
         string camelCaseMemberName = transformString( member_name.value );
 
-
-        bool enumFlag = false;
-        for ( int i = 0; i < enums.size(); i++) {
-            if (enums[i] == info[0])
+        bool isEnum = false;
+        for ( size_t i = 0; i < enum_names.size(); i++) {
+            if (enum_names[i] == info[0])
             {
-                enumFlag = true;
+                isEnum = true;
+
+                params +=
+                        "    /**\n"
+                        "    * @var int \n"
+                        "    */ \n"
+                        "    private $" + camelCaseMemberName + ";\n";
 
                 setFunction +=
                         "    /** \n"
-                        "    * @param " + info[0] + " $" + camelCaseMemberName + "\n"
+                        "    * @param int $" + camelCaseMemberName + "\n"
                         "    */ \n"
-                        "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(" + info[0] +" $" + transformString( member_name.value ) + ") \n"
+                        "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(int $" + transformString( member_name.value ) + ") \n"
                         "    { \n"
                         "       $this->" + camelCaseMemberName + " = $" + camelCaseMemberName + ";\n"
                         "    }\n";
 
                 enumTypes +=
-                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(toEnum($data->" + member_name.value  + ")); \n";
+                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(" + info[0] + ".toInt($data->" + member_name.value  + ")); \n";
             }
         }
 
@@ -630,11 +633,21 @@ void analyze_struct(    state_holder& state,
         memberNamesMap += "        '" + member_name.value + "'" + " => ['name' => '" + camelCaseMemberName + "', 'convertToDate' => ";
         if ( info[0] == "integer")
         {
-            memberNamesMap += "true],\n";
+            memberNamesMap += "true,";
         }
         else
         {
-            memberNamesMap += "false],\n";
+            memberNamesMap += "false,";
+        }
+
+        if ( isEnum )
+        {
+            memberNamesMap += "'isEnum' => '" + info[0] + "'"
+                                                          "],\n";
+        }
+        else
+        {
+            memberNamesMap += " 'isEnum' => 'NULL'],\n";
         }
 
         if ( info[0] == "::beltpp::packet" )
@@ -668,7 +681,7 @@ void analyze_struct(    state_holder& state,
                     "    */ \n"
                     "    private $" + camelCaseMemberName + " = [];\n";
         }
-        else
+        else if (!isEnum)
         {
             params +=
                     "    /**\n"
@@ -784,7 +797,7 @@ void analyze_struct(    state_holder& state,
 
         }
         else
-        if ( !( info[0] == "::beltpp::packet" )  && !( info[0] == "hash" ) && !(info[0] == "array")  && !enumFlag )
+        if ( !( info[0] == "::beltpp::packet" )  && !( info[0] == "hash" ) && !(info[0] == "array")  && !isEnum )
         {
             setFunction +=
                     "    /** \n"
@@ -806,8 +819,6 @@ void analyze_struct(    state_holder& state,
                 "    }\n";
 
     }
-
-
 
     string  validation =
             "    public function validate(\\stdClass $data) \n"
@@ -836,8 +847,7 @@ R"file_template(    public static function getMemberName(string $camelCaseName)
 
 }
 
-void analyze_enum(  state_holder& state,
-                    expression_tree const* pexpression,
+void analyze_enum(  expression_tree const* pexpression,
                     string const& enum_name,
                     std::string const& PackageName,
                     boost::filesystem::path const& ModelFolder)
@@ -853,33 +863,35 @@ void analyze_enum(  state_holder& state,
 
     "namespace " + PackageName + "\\Model;\n\n"
 
-     "class " + enum_name + "\n"
-     "{\n";
+
+    "class " + enum_name + "\n"
+    "{\n";
 
     int i = 0;
     string memberNamesMap = "";
     string toStringFunction =
-        "    public static function toString()\n"
+        "    public static function toString(int $value)\n"
         "    {\n"
-        "        switch (self) {\n";
+        "        switch ($value) {\n";
 
-    string toEnumFunction =
-        "    public static function toEnum(string $name)\n"
+    string toIntFunction =
+        "    public static function toInt(string $name)\n"
         "    {\n"
         "        switch ($name) {\n";
 
     for (auto const& item : pexpression->children)
     {
         model << "    static " << item->lexem.value << " = " << i << ";\n" ;
-        i++;
+
         string camelCaseMemberName = transformString( item->lexem.value );
         memberNamesMap +=
                 "        '" + item->lexem.value + "'" + " => ['name' => '" + camelCaseMemberName + "', 'convertToDate' => false],\n";
 
         toStringFunction +=
-                "            case self::" + camelCaseMemberName + ": return \"" + camelCaseMemberName + "\";\n";
-        toEnumFunction +=
-                "            case \"" + camelCaseMemberName + "\": return " + enum_name + "::" + camelCaseMemberName + ";\n";
+                "            case " + std::to_string(i) + ": return \"" + camelCaseMemberName + "\";\n";
+        toIntFunction +=
+                "            case \"" + camelCaseMemberName + "\": return " + std::to_string(i) + ";\n";
+        i++;
 
     }
     model << " \n    CONST  memberNames = [\n"
@@ -902,7 +914,7 @@ R"file_template(    public static function getMemberName(string $camelCaseName)
     model << toStringFunction +
              "        }\n"
              "    } \n\n";
-    model << toEnumFunction +
+    model << toIntFunction +
              "        }\n"
              "    } \n\n";
     model << "} \n";
