@@ -11,6 +11,9 @@
 
 using namespace BlockchainMessage;
 
+using std::map;
+using std::set;
+
 ///////////////////////////////////////////////////////////////////////////////////
 //                            Internal Finctions
 bool apply_transaction(SignedTransaction const& signed_transaction,
@@ -64,7 +67,7 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
             StatInfo stat_info;
             signed_transaction.transaction_details.action.get(stat_info);
 
-            if (stat_info.block_hash != m_pimpl->m_blockchain.last_hash())
+            if (stat_info.hash != m_pimpl->m_blockchain.last_hash())
                 return false;
 
             Coin balance = m_pimpl->m_state.get_balance(signed_transaction.authority);
@@ -134,6 +137,73 @@ void revert_transaction(SignedTransaction const& signed_transaction,
         throw wrong_data_exception("unknown transaction action type!");
 }
 
+void validate_delations(map<string, StatInfo> const& right_delations,
+                        map<string, StatInfo> const& check_delations,
+                        map<string, uint64_t>& penals)
+{
+    penals.clear();
+    // to check an algorithm for now
+
+    for (auto const& right_item_it : right_delations)
+    {
+        for (auto const& right_info_item : right_item_it.second.items)
+        {
+            bool compare_failed = true;
+            auto check_item_it = check_delations.find(right_info_item.node);
+
+            if(check_item_it != check_delations.end())
+                for (auto const& check_info_item : check_item_it->second.items)
+                {
+                    if (check_info_item.node == right_item_it.first)
+                    {
+                        if (check_info_item.passed == right_info_item.passed)
+                            compare_failed = false;
+
+                        break;
+                    }
+                }
+
+            if (compare_failed)
+                ++penals[right_info_item.node];
+        }
+    }
+}
+
+void filter_penals(map<string, uint64_t> const& penals, set<string>& result)
+{
+    result.clear();
+    // to check an algorithm for now
+
+    if (penals.empty())
+        return;
+
+    uint64_t total_count = penals.size();
+    uint64_t remove_count = total_count * 50 / 100; // 50%
+    remove_count = remove_count > 0 ? remove_count : 1;
+
+    map<uint64_t, uint64_t> filter_map;
+
+    for (auto const& it : penals)
+        ++filter_map[it.second];
+
+    uint64_t threshold = filter_map.cbegin()->first + 1;
+
+    if (filter_map.size() > 1)
+    {
+        threshold = filter_map.cbegin()->first;
+
+        while (remove_count > filter_map.cbegin()->second)
+        {
+            filter_map.erase(threshold);
+            threshold = filter_map.cbegin()->first;
+        }
+    }
+
+    for (auto const& it : penals)
+        if(it.second < threshold)
+            result.insert(it.first);
+}
+
 void grant_rewards(vector<SignedTransaction> const& signed_transactions, 
                    vector<Reward>& rewards, 
                    string const& authority, 
@@ -141,8 +211,11 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     rewards.clear();
-    std::set<string> channels;
-    std::set<string> storages;
+
+    map<string, uint64_t> channel_penals;
+    map<string, uint64_t> storage_penals;
+    map<string, StatInfo> channel_delations;
+    map<string, StatInfo> storage_delations;
 
     for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
     {
@@ -156,12 +229,18 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             if (authority_type == NodeType::channel)
             {
                 for (auto const& item : stat_info.items)
-                    storages.insert(item.node_name);
+                {
+                    storage_penals[item.node] = 0;
+                    channel_delations[item.node] = stat_info;
+                }
             }
             else if (authority_type == NodeType::storage)
             {
                 for (auto const& item : stat_info.items)
-                    channels.insert(item.node_name);
+                {
+                    channel_penals[item.node] = 0;
+                    storage_delations[item.node] = stat_info;
+                }
             }
         }
     }
@@ -177,6 +256,10 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     }
 
     // grant channel rewards
+    set<string> channels;
+    validate_delations(channel_delations, storage_delations, storage_penals);
+    filter_penals(channel_penals, channels);
+
     if (channels.size() && !channel_reward.empty())
     {
         Reward reward;
@@ -196,6 +279,10 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         miner_reward += channel_reward;
 
     // grant storage rewards
+    set<string> storages;
+    validate_delations(storage_delations, channel_delations, channel_penals);
+    filter_penals(storage_penals, storages);
+
     if (storages.size() && !storage_reward.empty())
     {
         Reward reward;
@@ -275,15 +362,15 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     m_pimpl->m_blockchain.at(block_number, signed_block);
 
     StatInfo storage_info;
-    storage_info.block_hash = meshpp::hash(signed_block.block_details.to_string());
+    storage_info.hash = meshpp::hash(signed_block.block_details.to_string());
 
     for (auto& contract : storages)
     {
         StatItem stat_item;
-        stat_item.node_name = contract.owner;
-        stat_item.content_hash = meshpp::hash("storage");
-        stat_item.pass_count = 1;
-        stat_item.fail_count = 0;
+        stat_item.node = contract.owner;
+        //stat_item.content_hash = meshpp::hash("storage");
+        stat_item.passed = 1;
+        stat_item.failed = 0;
 
         storage_info.items.push_back(stat_item);
     }
@@ -323,15 +410,15 @@ void broadcast_channel_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     m_pimpl->m_blockchain.at(block_number, signed_block);
 
     StatInfo channel_info;
-    channel_info.block_hash = meshpp::hash(signed_block.block_details.to_string());
+    channel_info.hash = meshpp::hash(signed_block.block_details.to_string());
 
     for (auto& contract : channels)
     {
         StatItem stat_item;
-        stat_item.node_name = contract.owner;
-        stat_item.content_hash = meshpp::hash("channel");
-        stat_item.pass_count = 1;
-        stat_item.fail_count = 0;
+        stat_item.node = contract.owner;
+        //stat_item.content_hash = meshpp::hash("channel");
+        stat_item.passed = 1;
+        stat_item.failed = 0;
 
         channel_info.items.push_back(stat_item);
     }
@@ -844,11 +931,11 @@ void process_blockchain_response(BlockchainResponse&& response,
     }
 
     // test log
-    m_pimpl->writeln_node("applying collected " + std::to_string(m_pimpl->sync_blocks.size()) + " blocks");
-
-    if(m_pimpl->sync_blocks.size() == 1)
-        m_pimpl->writeln_node("block mined by " +
-                              publiqpp::detail::peer_short_names(m_pimpl->sync_blocks.rbegin()->authority));
+    //m_pimpl->writeln_node("applying collected " + std::to_string(m_pimpl->sync_blocks.size()) + " blocks");
+    //
+    //if(m_pimpl->sync_blocks.size() == 1)
+    //    m_pimpl->writeln_node("block mined by " +
+    //                          publiqpp::detail::peer_short_names(m_pimpl->sync_blocks.rbegin()->authority));
 
     //3. all needed blocks received, start to check
     unordered_map<string, system_clock::time_point> transaction_cache_backup = m_pimpl->m_transaction_cache;
@@ -1139,13 +1226,13 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
 
     for (auto const& item : stat_info.items)
     {
-        NodeType item_node_type = m_pimpl->m_state.get_contract_type(item.node_name);
+        NodeType item_node_type = m_pimpl->m_state.get_contract_type(item.node);
 
         if (authority_type == item_node_type)
-            throw wrong_data_exception("wrong node type : " + item.node_name);
+            throw wrong_data_exception("wrong node type : " + item.node);
 
         if (item_node_type == NodeType::miner)
-            throw wrong_data_exception("wrong node type : " + item.node_name);
+            throw wrong_data_exception("wrong node type : " + item.node);
     }
 
     if (m_pimpl->m_node_type != NodeType::miner)

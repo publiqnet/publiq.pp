@@ -144,15 +144,15 @@ module BlockchainMessage
 
     class StatItem
     {
-        String node_name
-        String content_hash
-        UInt64 pass_count
-        UInt64 fail_count
+        String node
+        //String content_hash
+        UInt64 passed
+        UInt64 failed
     }
 
     class StatInfo
     {
-        String block_hash
+        String hash
         Array StatItem items
     }
 
