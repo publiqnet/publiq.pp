@@ -46,8 +46,8 @@ namespace
 {
 enum g_type_info {type_empty = 0x0,
                 type_simple = 0x1,
-                type_object=0x2,
-                type_extension=0x4,
+                type_object = 0x2,
+                type_extension = 0x4,
                 type_simple_object = type_simple | type_object,
                 type_simple_extension = type_simple | type_extension,
                 type_object_extension = type_object | type_extension,
@@ -269,6 +269,11 @@ BaseModel << R"file_template(
                                 throw runtime_error("enum syntax is wrong");
 
                             enum_names.push_back(item->children.front()->lexem.value);
+                            string enum_name = item->children.front()->lexem.value;
+                            analyze_enum(   item->children.back(),
+                                            enum_name,
+                                            outputFilePath,
+                                            prefix );
             }
         }
 
@@ -292,19 +297,6 @@ BaseModel << R"file_template(
                 ++rtt;
 
             }           
-            else if (item->lexem.rtt == keyword_enum::rtt)
-            {
-                if (item->children.size() != 2 ||
-                    item->children.front()->lexem.rtt != identifier::rtt ||
-                    item->children.back()->lexem.rtt != scope_brace::rtt)
-                    throw runtime_error("enum syntax is wrong");
-
-                string enum_name = item->children.front()->lexem.value;
-                analyze_enum(   item->children.back(),
-                                enum_name,
-                                outputFilePath,
-                                prefix );
-            }
         }
     }
 
@@ -549,8 +541,14 @@ void analyze_enum(  expression_tree const* pexpression,
     if (pexpression->children.empty())
         throw runtime_error("inside enum syntax error, wtf - " + enum_name);
 
-    boost::filesystem::path FilePath = outputFilePath + "/models/" + prefix + enum_name + ".ts";
+
+    boost::filesystem::path root = outputFilePath;
+    string models = "models";
+    root.append( models );
+    boost::filesystem::create_directory( root );
+    boost::filesystem::path FilePath = root.string() + "/" + prefix + enum_name + ".ts";
     boost::filesystem::ofstream model( FilePath );
+
     model <<
     "export default class " + prefix + enum_name + " {\n\n";
 

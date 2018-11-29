@@ -346,13 +346,18 @@ interface ValidatorInterface
         for ( auto item : pexpression->children.back()->children )
         {
             if (item->lexem.rtt == keyword_enum::rtt)
-                        {
+            {
                             if (item->children.size() != 2 ||
                                 item->children.front()->lexem.rtt != identifier::rtt ||
                                 item->children.back()->lexem.rtt != scope_brace::rtt)
                                 throw runtime_error("enum syntax is wrong");
 
                             enum_names.push_back(item->children.front()->lexem.value);
+                            string enum_name = item->children.front()->lexem.value;
+                            analyze_enum(   item->children.back(),
+                                            enum_name,
+                                            PackageName,
+                                            ModelFolder );
             }
         }
 
@@ -375,19 +380,6 @@ interface ValidatorInterface
 
                 class_names.insert( std::make_pair( rtt, type_name ) );
                 ++rtt;
-            }
-            else if (item->lexem.rtt == keyword_enum::rtt)
-            {
-                if (item->children.size() != 2 ||
-                    item->children.front()->lexem.rtt != identifier::rtt ||
-                    item->children.back()->lexem.rtt != scope_brace::rtt)
-                    throw runtime_error("enum syntax is wrong");
-
-                string enum_name = item->children.front()->lexem.value;
-                analyze_enum(   item->children.back(),
-                                enum_name,
-                                PackageName,
-                                ModelFolder );
             }
 
         }
@@ -494,8 +486,11 @@ trait RttSerializableTrait
             $member = (static::class)::getMemberName($name);
             if ($member['convertToDate']) {
                 $vars2[$member['key']] = date("Y-m-d H:i:s", $value);
-            } elseif ($member['isEnam'] != 'NULL') {
-                $vars2[$member['key']] = $member['isEnam'].toString($value);
+            } elseif ($member['isEnam'] != '') {
+                $str = $member['isEnam'];
+                $class = 'Class'.$str;
+                $EnumType = new $class();
+                $vars2[$member['key']] = EnumType.toString($value);
             } else {
                 $vars2[$member['key']] = $value;
             }
@@ -604,9 +599,10 @@ void analyze_struct(    state_holder& state,
         string camelCaseMemberName = transformString( member_name.value );
 
         bool isEnum = false;
-        for ( size_t i = 0; i < enum_names.size(); i++) {
-            if (enum_names[i] == info[0])
-            {
+
+        if ( std::find( enum_names.begin(), enum_names.end(), info[0]) != enum_names.end() )
+        {
+
                 isEnum = true;
 
                 params +=
@@ -626,7 +622,6 @@ void analyze_struct(    state_holder& state,
 
                 enumTypes +=
                         "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(" + info[0] + ".toInt($data->" + member_name.value  + ")); \n";
-            }
         }
 
 
@@ -647,7 +642,7 @@ void analyze_struct(    state_holder& state,
         }
         else
         {
-            memberNamesMap += " 'isEnum' => 'NULL'],\n";
+            memberNamesMap += " 'isEnum' => ''],\n";
         }
 
         if ( info[0] == "::beltpp::packet" )
