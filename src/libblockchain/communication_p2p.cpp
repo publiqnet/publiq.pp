@@ -1218,7 +1218,14 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
                        BlockchainMessage::StatInfo const& stat_info,
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    // Authority check
+    // Check pool and cache
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
+
+    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
+        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+        return false;
+
+    // Check data and authority
     NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
     
     if (authority_type == NodeType::miner)
@@ -1235,21 +1242,11 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
             throw wrong_data_exception("wrong node type : " + item.node);
     }
 
-    if (m_pimpl->m_node_type != NodeType::miner)
-        return true;
-    
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
     if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
-
-    // Check pool
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
-        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
-        return false;
 
     beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 

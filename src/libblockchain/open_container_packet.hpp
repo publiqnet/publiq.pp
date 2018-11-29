@@ -38,13 +38,16 @@ packet& contained_member(SignedTransaction& signed_tx)
     auto now = system_clock::now();
 
     if (now < creation - chrono::seconds(NODES_TIME_SHIFT))
-        throw std::runtime_error("Transaction from the future!");
+        throw wrong_data_exception("Transaction from the future!");
+        //throw std::runtime_error("Transaction from the future!");
 
     if (now > expiry)
-        throw std::runtime_error("Expired transaction!");
+        throw wrong_data_exception("Expired transaction!");
+        //throw std::runtime_error("Expired transaction!");
 
     if (expiry - creation > std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS))
-        throw std::runtime_error("Too long lifetime for transaction");
+        throw wrong_data_exception("Too long lifetime for transaction");
+        //throw std::runtime_error("Too long lifetime for transaction");
 
     return signed_tx.transaction_details.action;
 }
