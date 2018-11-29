@@ -123,6 +123,46 @@ std::string peer_short_names(std::string const& peerid)
     if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
         return "$north.publiq.network:13333";   //  state(0)
 
+    // test channels
+    if (peerid == "PBQ7MJwGCpZStXbTsukEbunryBKaBL6USPY6n2FyJA97uCiHkvasp")
+        return "Channel 1";
+    if (peerid == "PBQ55JmktyTGavdkoNyYKaGyQc3MoPKeF9GJm9B8DSKyR8wdasLFi")
+        return "Channel 2";
+    if (peerid == "PBQ6QhGD13EVcNPyCoh5TDrMg4qjLEie3bY4TSHguzieGaU76uBTW")
+        return "Channel 3";
+    if (peerid == "PBQ5JS7M2FvurTN6Z4xvArrsTeGkEvozxBynn72mqGvBxFGDkc7sF")
+        return "Channel 4";
+    if (peerid == "PBQ6fRwbcEhy6V7szQcWi3xZGjgSyfc5rG2xJZkEwGDvN911aabqB")
+        return "Channel 5";
+    if (peerid == "PBQ81SSqnfubb49evai9mXNnMKPGbpf1NogRNKfyc4cKZiT4zUt82")
+        return "Channel 6";
+    if (peerid == "PBQ7LeKRHY74LZxremBwGUUYBwahmxF667e5K6QydSRhnMMWjtbpR")
+        return "Channel 7";
+    if (peerid == "PBQ7ed4zmD1oMkCNmtTcL2xovaEPFUCFD2CQTWeJjTsS394ZHcnLS")
+        return "Channel 8";
+    if (peerid == "PBQ7e2QM4PGk4GdFHULGQ8D5pDZEZiUDAEh4giyfoCxE38DmFcuZx")
+        return "Channel 9";
+
+    // test storages
+    if (peerid == "PBQ8mogwgutXv1hJnuYXrQF9z6AeMU69TpVeau7qhwoshCEpSQEbt")
+        return "Storage 1";
+    if (peerid == "PBQ8NBGvuRuaMgWZaehdj5RyZ3eYPoVGqtQPxGL7cpSD4buMNHnoj")
+        return "Storage 2";
+    if (peerid == "PBQ7DZupx4cFDRDLUdfv6kBEcam3HUxJEb12tJcd9YXEUkJqnHBpo")
+        return "Storage 3";
+    if (peerid == "PBQ5YeuYa2Gx46JScNBLodo3rpYGGsvpXanBEa8xDMuTnBLSZ2dUF")
+        return "Storage 4";
+    if (peerid == "PBQ78f9mssRrSCC7vPeRQDURXB4v4GrNt2MRa9hUpxxSMWvVuiXVw")
+        return "Storage 5";
+    if (peerid == "PBQ5Jq6NAcUSvToXGYGBxrFCeptBbiZLDjsiGdAPC6ghpT2Pycdq2")
+        return "Storage 6";
+    if (peerid == "PBQ4va3AgdbeCZaeLeijyAUC9XhUKceLfS65ZaKYCgTgHsxorBM64")
+        return "Storage 7";
+    if (peerid == "PBQ7ifcSMvBeBPcjDfPb9hPxJfJjNAsvHMX6UtzRKwSnuBYVLjMMy")
+        return "Storage 8";
+    if (peerid == "PBQ5ouJXAaRiXbBwZuoXr4Qgn4MPaA6aE44nbJLrRyg6r1FJFBr7G")
+        return "Storage 9";
+
     return peerid;
 }
 }

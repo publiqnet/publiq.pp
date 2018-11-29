@@ -293,7 +293,8 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     StatInfo& stat_info = *p_stat_info;
 
-                    //m_pimpl->writeln_node("StatInfo broadcast received -> " + stat_info.to_string());
+                    //m_pimpl->writeln_node("StatInfo from -> " + detail::peer_short_names(peerid) + 
+                    //                      " signed by -> " + detail::peer_short_names(signed_tx.authority));// +stat_info.to_string());
 
                     if (process_stat_info(signed_tx, stat_info, m_pimpl))
                     {
@@ -417,9 +418,9 @@ bool node::run()
                     {
                         m_pimpl->net_sync_info = sync_info;
 
-                        if (m_pimpl->net_sync_info.c_sum > m_pimpl->own_sync_info.c_sum)
-                            m_pimpl->writeln_node("Next block waiting from " +
-                                                  detail::peer_short_names(m_pimpl->net_sync_info.authority));
+                    //    if (m_pimpl->net_sync_info.c_sum > m_pimpl->own_sync_info.c_sum)
+                    //        m_pimpl->writeln_node("Next block waiting from " +
+                    //                              detail::peer_short_names(m_pimpl->net_sync_info.authority));
                     }
 
                     m_pimpl->sync_responses.push_back(std::pair<beltpp::isocket::peer_id, SyncResponse>(peerid, sync_response));
@@ -492,8 +493,8 @@ bool node::run()
                         temp_to = back.header.block_number;
 
                         if(temp_from == temp_to)
-                            m_pimpl->writeln_node("proc. block " + std::to_string(temp_from) + 
-                                                  " from " + detail::peer_short_names(peerid));
+                            m_pimpl->writeln_node("processing block " + std::to_string(temp_from)/* + 
+                                                  " from " + detail::peer_short_names(peerid)*/);
                         else
                             m_pimpl->writeln_node("proc. blocks [" + std::to_string(temp_from) + 
                                                   "," + std::to_string(temp_to) + "] from " + detail::peer_short_names(peerid));
@@ -593,7 +594,7 @@ bool node::run()
         auto const& peerids_to_remove = m_pimpl->do_step();
         for (auto const& peerid_to_remove : peerids_to_remove)
         {
-            m_pimpl->writeln_node("not answering: dropping " + peerid_to_remove);
+            m_pimpl->writeln_node("not answering: dropping " + detail::peer_short_names(peerid_to_remove));
             m_pimpl->m_ptr_p2p_socket->send(peerid_to_remove, beltpp::isocket_drop());
             m_pimpl->remove_peer(peerid_to_remove);
         }
@@ -638,11 +639,7 @@ bool node::run()
                 SignedTransaction signed_transaction;
                 m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-                if (current_time > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
-                {
-                    m_pimpl->m_transaction_pool.remove(key);
-                }
-                else
+                if (current_time < system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
                 {
                     Broadcast broadcast;
                     broadcast.echoes = 2;
