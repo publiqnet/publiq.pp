@@ -198,7 +198,7 @@ bool node::run()
                 case Transfer::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
-                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
@@ -234,10 +234,10 @@ bool node::run()
                 case Contract::rtt:
                 {
                     if (it == interface_type::rpc)
-                        throw std::runtime_error("request restricted for rpc interface");
+                        throw wrong_data_exception("request restricted for rpc interface");
 
                     if (broadcast_signed_transaction.items.empty())
-                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
@@ -272,10 +272,10 @@ bool node::run()
                 case StatInfo::rtt:
                 {
                     if (it == interface_type::rpc)
-                        throw std::runtime_error("request restricted for rpc interface");
+                        throw wrong_data_exception("request restricted for rpc interface");
 
                     if (broadcast_signed_transaction.items.empty())
-                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
@@ -312,7 +312,7 @@ bool node::run()
                 case BoostInfo::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
-                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
@@ -344,7 +344,7 @@ bool node::run()
                 case ContentInfo::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
-                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
@@ -376,7 +376,7 @@ bool node::run()
                 case AddressInfo::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
-                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
