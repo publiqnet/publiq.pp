@@ -34,6 +34,17 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
                        BlockchainMessage::StatInfo const& stat_info,
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+bool process_boost_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                       BlockchainMessage::BoostInfo const& boost_info,
+                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
+bool process_content_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                          BlockchainMessage::ContentInfo const& content_info,
+                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
+bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                          BlockchainMessage::AddressInfo const& address_info,
+                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 //---------------- Exceptions -----------------------
 class wrong_data_exception : public std::runtime_error

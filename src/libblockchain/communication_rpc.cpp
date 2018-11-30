@@ -185,7 +185,7 @@ bool process_transfer(BlockchainMessage::SignedTransaction const& signed_transac
     return true;
 }
 
-void process_broadcast(BlockchainMessage::Broadcast&& broadcast,
+void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
                        beltpp::isocket::peer_id const& self,
                        beltpp::isocket::peer_id const& from,
                        bool from_rpc,

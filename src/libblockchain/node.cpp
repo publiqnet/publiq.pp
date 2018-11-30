@@ -217,7 +217,7 @@ bool node::run()
                     Transfer& transfer = *p_transfer;
                 
                     if(process_transfer(signed_tx, transfer, m_pimpl))
-                        process_broadcast(std::move(broadcast),
+                        broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
                                           (it == interface_type::rpc),
@@ -258,7 +258,7 @@ bool node::run()
                     if (m_pimpl->m_state.get_contract_type(contract.owner) == NodeType::miner &&
                         process_contract(signed_tx, contract, m_pimpl))
                     {
-                        process_broadcast(std::move(broadcast),
+                        broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
                                           false,
@@ -298,7 +298,7 @@ bool node::run()
 
                     if (process_stat_info(signed_tx, stat_info, m_pimpl))
                     {
-                        process_broadcast(std::move(broadcast),
+                        broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
                                           false,
@@ -306,6 +306,102 @@ bool node::run()
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
+
+                    break;
+                }
+                case BoostInfo::rtt:
+                {
+                    if (broadcast_signed_transaction.items.empty())
+                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    BoostInfo* p_boost_info = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_boost_info);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_boost_info);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    BoostInfo& boost_info = *p_boost_info;
+
+                    if (process_boost_info(signed_tx, boost_info, m_pimpl))
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          false,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+
+                    break;
+                }
+                case ContentInfo::rtt:
+                {
+                    if (broadcast_signed_transaction.items.empty())
+                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    ContentInfo* p_content_info = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_content_info);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_content_info);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    ContentInfo& content_info = *p_content_info;
+
+                    if (process_content_info(signed_tx, content_info, m_pimpl))
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          false,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+
+                    break;
+                }
+                case AddressInfo::rtt:
+                {
+                    if (broadcast_signed_transaction.items.empty())
+                        throw std::runtime_error("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    AddressInfo* p_address_info = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_address_info);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_address_info);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    AddressInfo& address_info = *p_address_info;
+
+                    if (process_address_info(signed_tx, address_info, m_pimpl))
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          false,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
 
                     break;
                 }
@@ -645,7 +741,7 @@ bool node::run()
                     broadcast.echoes = 2;
                     broadcast.package = signed_transaction;
 
-                    process_broadcast(std::move(broadcast),
+                    broadcast_message(std::move(broadcast),
                                       m_pimpl->m_ptr_p2p_socket->name(),
                                       m_pimpl->m_ptr_p2p_socket->name(),
                                       true, // like from rpc
