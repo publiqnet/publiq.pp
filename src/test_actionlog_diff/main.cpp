@@ -86,14 +86,14 @@ int main( int argc, char** argv )
     auto it2 = logged_transactions2.actions.begin();
     for ( ; it1 != logged_transactions1.actions.end() && it2 != logged_transactions2.actions.end(); it1++, it2++ )
     {
-        if ( it1->applied_reverted != it2->applied_reverted || it1->action.to_string() != it2->action.to_string())
+        if ( it1->logging_type != it2->logging_type || it1->action.to_string() != it2->action.to_string())
         {
 
             std::cout << "\t\t\t    Difference\n" << std::endl;
             std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~First~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-            std::cout << "{\"rtt\":" << it1->rtt << ",\"applied_reverted\":" << it1->applied_reverted << ",\"index\":" << it1->index << ",\"action\": " << it1->action.to_string() << "}" << std::endl;
+            std::cout << "{\"rtt\":" << it1->rtt << ",\"logging_type\":" << BlockchainMessage::detail::saver(it1->logging_type) << ",\"index\":" << it1->index << ",\"action\": " << it1->action.to_string() << "}" << std::endl;
             std::cout << "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Second~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" <<std::endl;
-            std::cout << "{\"rtt\":" << it2->rtt << ",\"applied_reverted\":" << it2->applied_reverted << ",\"index\":" << it2->index << ",\"action\": " << it2->action.to_string() << "}" << std::endl;
+            std::cout << "{\"rtt\":" << it2->rtt << ",\"logging_type\":" << BlockchainMessage::detail::saver(it1->logging_type) << ",\"index\":" << it2->index << ",\"action\": " << it2->action.to_string() << "}" << std::endl;
             std::cout << std::endl;
             return 0;
         }

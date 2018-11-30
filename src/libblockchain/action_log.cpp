@@ -114,7 +114,7 @@ void action_log::at(size_t number, LoggedTransaction& action_info) const
 void action_log::insert(beltpp::packet&& action)
 {
     LoggedTransaction action_info;
-    action_info.applied_reverted = true;    //  apply
+    action_info.logging_type = LoggingType::apply;
     action_info.index = length();
     action_info.action = std::move(action);
 
@@ -136,7 +136,7 @@ void action_log::revert()
         LoggedTransaction action_info;
         at(index, action_info);
 
-        revert = (action_info.applied_reverted == false);
+        revert = (action_info.logging_type == LoggingType::revert);
 
         if (revert)
             ++revert_mark;
@@ -156,7 +156,7 @@ void action_log::revert()
     // revert last valid action
     LoggedTransaction action_revert_info;
     at(index, action_revert_info);
-    action_revert_info.applied_reverted = false;   //  revert
+    action_revert_info.logging_type = LoggingType::revert;
     m_pimpl->m_actions.push_back(action_revert_info);
 
     m_pimpl->m_revert_index = index - 1;

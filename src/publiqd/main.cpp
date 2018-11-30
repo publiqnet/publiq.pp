@@ -40,6 +40,7 @@ bool process_command_line(int argc, char** argv,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
+                          string& admin_ip_address,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
                           bool& log_enabled);
@@ -147,12 +148,14 @@ int main(int argc, char** argv)
     bool log_enabled = false;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
+    string admin_ip_address;
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
                                       p2p_connect_to_addresses,
                                       rpc_bind_to_address,
                                       data_directory,
+                                      admin_ip_address,
                                       pv_key,
                                       n_type,
                                       log_enabled))
@@ -291,6 +294,7 @@ bool process_command_line(int argc, char** argv,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory,
+                          string& admin_ip_address,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
                           bool& log_enabled)
@@ -315,8 +319,10 @@ bool process_command_line(int argc, char** argv,
                             "Data directory path")
             ("node_private_key,k", program_options::value<string>(&str_pv_key),
                             "Node private key to start with")
-            ("node_type,t", program_options::value<string>(&str_n_type),
-                            "Node start mode");
+            ("node_type,t", program_options::value<string>(&str_n_type)->required(),
+                            "Node start mode")
+            ("admin_ip_address,a", program_options::value<string>(&admin_ip_address),
+                            "The IP address allowed to make admin calls over rpc. Not set means everyone's allowed");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -355,12 +361,7 @@ bool process_command_line(int argc, char** argv,
         else
             log_enabled = true;
 
-        if (str_n_type == "channel")
-            n_type = NodeType::channel;
-        else if (str_n_type == "storage")
-            n_type = NodeType::storage;
-        else
-            n_type = NodeType::miner;
+        BlockchainMessage::detail::from_string(str_n_type, n_type);
     }
     catch (std::exception const& ex)
     {

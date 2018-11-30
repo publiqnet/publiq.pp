@@ -175,10 +175,11 @@ module BlockchainMessage
     }
     class LoggedTransaction
     {
-        Bool applied_reverted
+        LoggingType logging_type
         UInt64 index
-        Object action // BlockInfo or TransactionInfo
+        Object action // BlockLog or TransactionLog
     }
+    enum LoggingType {apply revert}
 
     class MasterKeyRequest {}
     class MasterKey { String master_key }

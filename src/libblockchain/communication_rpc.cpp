@@ -39,7 +39,7 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
         LoggedTransaction action_info;
         action_log.at(i, action_info);
 
-        revert = (action_info.applied_reverted == false && i < len);
+        revert = (action_info.logging_type == LoggingType::revert && i < len);
 
         if (revert)
         {
@@ -57,7 +57,7 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
         action_log.at(i, action_info);
 
         // remove all not received entries and their reverts
-        if (action_info.applied_reverted == false && action_info.index >= index)
+        if (action_info.logging_type == LoggingType::revert && action_info.index >= index)
         {
             count -= get_action_size(action_stack.top().action);
 
