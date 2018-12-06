@@ -411,7 +411,7 @@ bool node::run()
                     std::move(ref_packet).get(file);
                     StorageFileAddress addr;
                     //  block file upload functionality for now
-                    //addr.uri = m_pimpl->m_storage.put(std::move(file));
+                    addr.uri = m_pimpl->m_storage.put(std::move(file));
                     psk->send(peerid, std::move(addr));
                     break;
                 }
