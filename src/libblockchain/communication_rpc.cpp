@@ -269,6 +269,15 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
     }
 }
 
+bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
+                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+{
+    //TODO
+    B_UNUSED(article_info);
+
+    return m_pimpl->m_node_type == NodeType::storage;
+}
+
 //---------------- Exceptions -----------------------
 authority_exception::authority_exception(string const& _authority_provided, string const& _authority_required)
     : runtime_error("Invalid authority! authority_provided: " + _authority_provided + "  " + " authority_required: " + _authority_required)

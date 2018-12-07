@@ -309,35 +309,53 @@ bool node::run()
 
                     break;
                 }
-                case BoostInfo::rtt:
+                case ArticleInfo::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
-                    BoostInfo* p_boost_info = nullptr;
+                    ArticleInfo* p_article_info = nullptr;
 
                     broadcast_signed_transaction.items[0]->get(p_broadcast);
                     broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_boost_info);
+                    ref_packet.get(p_article_info);
 
                     assert(p_broadcast);
                     assert(p_signed_tx);
-                    assert(p_boost_info);
+                    assert(p_article_info);
 
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
-                    BoostInfo& boost_info = *p_boost_info;
+                    ArticleInfo& article_info = *p_article_info;
 
-                    if (process_boost_info(signed_tx, boost_info, m_pimpl))
+                    m_pimpl->writeln_node("ArticleInfo ftom " + detail::peer_short_names(article_info.channel));
+
+                    if (process_article_info(signed_tx, article_info, m_pimpl))
+                    {
                         broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          false,
-                                          nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
+                            m_pimpl->m_ptr_p2p_socket->name(),
+                            peerid,
+                            false,
+                            nullptr,
+                            m_pimpl->m_p2p_peers,
+                            m_pimpl->m_ptr_p2p_socket.get());
+
+                        if (do_i_need_it(article_info, m_pimpl))
+                        {
+                            // TODO convert this to rpc socket call
+
+                            if (m_pimpl->m_p2p_peers.find(article_info.channel) != m_pimpl->m_p2p_peers.end())
+                            {
+                                StorageFileAddress file_address;
+                                file_address.uri = article_info.content;
+
+                                psk->send(article_info.channel, std::move(file_address));
+                            }
+                        }
+
+                    }
 
                     break;
                 }
@@ -361,6 +379,8 @@ bool node::run()
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
                     ContentInfo& content_info = *p_content_info;
+
+                    m_pimpl->writeln_node("ContentInfo ftom " + detail::peer_short_names(content_info.storage));
 
                     if (process_content_info(signed_tx, content_info, m_pimpl))
                         broadcast_message(std::move(broadcast),
@@ -394,6 +414,8 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     AddressInfo& address_info = *p_address_info;
 
+                    m_pimpl->writeln_node("AddressInfo ftom " + detail::peer_short_names(address_info.owner));
+
                     if (process_address_info(signed_tx, address_info, m_pimpl))
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
@@ -407,12 +429,25 @@ bool node::run()
                 }
                 case StorageFile::rtt:
                 {
+                    if (m_pimpl->m_node_type == NodeType::miner)
+                        throw wrong_request_exception("I am not a channel!");
+
                     StorageFile file;
                     std::move(ref_packet).get(file);
                     StorageFileAddress addr;
-                    //  block file upload functionality for now
                     addr.uri = m_pimpl->m_storage.put(std::move(file));
-                    psk->send(peerid, std::move(addr));
+
+                    if (m_pimpl->m_node_type == NodeType::channel)
+                    {
+                        psk->send(peerid, std::move(addr));
+
+                        broadcast_article_info(addr, m_pimpl);
+                    }
+                    else
+                    {
+                        broadcast_content_info(addr, m_pimpl);
+                    }
+
                     break;
                 }
                 case StorageFileAddress::rtt:
@@ -599,14 +634,22 @@ bool node::run()
                     if (m_pimpl->sync_peerid == peerid) //  is it an error in "else" case?
                         process_blockchain_response(std::move(blockchain_response), m_pimpl, *psk, peerid);
 
-                    //if (have_signed_blocks)
-                    //    m_pimpl->writeln_node("    done");
+                    break;
+                }
+                case FileNotFound::rtt:
+                {
+                    FileNotFound error;
+                    std::move(ref_packet).get(error);
+
+                    m_pimpl->writeln_node("File not found error: " + error.uri);
 
                     break;
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("don't know how to handle: dropping " + peerid);
+                    m_pimpl->writeln_node("don't know how to handle: " + std::to_string(ref_packet.type()) +
+                                          ". dropping " + detail::peer_short_names(peerid));
+
                     psk->send(peerid, beltpp::isocket_drop());
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())

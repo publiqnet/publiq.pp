@@ -26,6 +26,12 @@ void process_blockchain_response(BlockchainResponse&& blockchain_response,
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+void broadcast_article_info(StorageFileAddress file_address,
+                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
+void broadcast_content_info(StorageFileAddress file_address,
+                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
 bool process_contract(BlockchainMessage::SignedTransaction const& signed_transaction,
                       BlockchainMessage::Contract const& contract,
                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
@@ -34,9 +40,9 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
                        BlockchainMessage::StatInfo const& stat_info,
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
-bool process_boost_info(BlockchainMessage::SignedTransaction const& signed_transaction,
-                       BlockchainMessage::BoostInfo const& boost_info,
-                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+bool process_article_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                          BlockchainMessage::ArticleInfo const& article_info,
+                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 bool process_content_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::ContentInfo const& content_info,

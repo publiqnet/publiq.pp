@@ -60,6 +60,18 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
             m_pimpl->m_state.decrease_balance(signed_transaction.authority, fee);
         }
     }
+    else if (signed_transaction.transaction_details.action.type() == ArticleInfo::rtt)
+    {
+        if (!key.empty())
+        {
+            Coin balance = m_pimpl->m_state.get_balance(signed_transaction.authority);
+
+            if (coin(balance) < fee)
+                return false;
+
+            m_pimpl->m_state.decrease_balance(signed_transaction.authority, fee);
+        }
+    }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
         if (!key.empty())
@@ -114,21 +126,28 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     }
     else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
     {
-        Contract contract;
-        signed_transaction.transaction_details.action.get(contract);
-
         if (increase)
             m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
         else
+        {
+            Contract contract;
+            signed_transaction.transaction_details.action.get(contract);
+
             m_pimpl->m_state.remove_contract(contract);
+        }
+    }
+    else if (signed_transaction.transaction_details.action.type() == ArticleInfo::rtt)
+    {
+        if (!fee.empty())
+        {
+            if (increase)
+                m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
+        }
     }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
         if (!fee.empty())
         {
-            StatInfo stat_info;
-            signed_transaction.transaction_details.action.get(stat_info);
-
             if (increase)
                 m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
         }
@@ -416,7 +435,7 @@ void broadcast_channel_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     {
         StatItem stat_item;
         stat_item.node = contract.owner;
-        //stat_item.content_hash = meshpp::hash("channel");
+        //stat_item.content = meshpp::hash("channel");
         stat_item.passed = 1;
         stat_item.failed = 0;
 
@@ -891,6 +910,14 @@ void process_blockchain_response(BlockchainResponse&& response,
                 if (tr_it->authority != contract.owner)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
+            else if (tr_it->transaction_details.action.type() == ArticleInfo::rtt)
+            {
+                ArticleInfo article_info;
+                tr_it->transaction_details.action.get(article_info);
+
+                if(tr_it->authority != article_info.channel)
+                    throw wrong_data_exception("blockchain response. transaction authority!");
+            }
             else if (tr_it->transaction_details.action.type() == StatInfo::rtt)
             {
                 // nothing to check here
@@ -1174,6 +1201,70 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
                       m_pimpl->m_ptr_p2p_socket.get());
 }
 
+void broadcast_article_info(StorageFileAddress file_address,
+                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+{
+    ArticleInfo article_info;
+    article_info.author = "Nikol Pashinyan";
+    article_info.content = file_address.uri;
+    article_info.channel = m_pimpl->m_pb_key.to_string();
+
+    Transaction transaction;
+    transaction.action = article_info;
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+
+    SignedTransaction signed_transaction;
+    signed_transaction.transaction_details = transaction;
+    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
+    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
+    if ((process_article_info(signed_transaction, article_info, m_pimpl)))
+    {
+        Broadcast broadcast;
+        broadcast.echoes = 2;
+        broadcast.package = signed_transaction;
+
+        broadcast_message(std::move(broadcast),
+                          m_pimpl->m_ptr_p2p_socket->name(),
+                          m_pimpl->m_ptr_p2p_socket->name(),
+                          true, // broadcast to all peers
+                          nullptr, // log disabled
+                          m_pimpl->m_p2p_peers,
+                          m_pimpl->m_ptr_p2p_socket.get());
+    }
+}
+
+void broadcast_content_info(StorageFileAddress file_address,
+                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+{
+    ContentInfo content_info;
+    content_info.content = file_address.uri;
+    content_info.storage = m_pimpl->m_pb_key.to_string();
+
+    Transaction transaction;
+    transaction.action = content_info;
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+
+    SignedTransaction signed_transaction;
+    signed_transaction.transaction_details = transaction;
+    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
+    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
+    Broadcast broadcast;
+    broadcast.echoes = 2;
+    broadcast.package = signed_transaction;
+
+    broadcast_message(std::move(broadcast),
+                      m_pimpl->m_ptr_p2p_socket->name(),
+                      m_pimpl->m_ptr_p2p_socket->name(),
+                      true, // broadcast to all peers
+                      nullptr, // log disabled
+                      m_pimpl->m_p2p_peers,
+                      m_pimpl->m_ptr_p2p_socket.get());
+}
+
 bool process_contract(BlockchainMessage::SignedTransaction const& signed_transaction,
                       BlockchainMessage::Contract const& contract,
                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
@@ -1261,10 +1352,12 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
     return true;
 }
 
-bool process_boost_info(BlockchainMessage::SignedTransaction const& signed_transaction,
-                        BlockchainMessage::BoostInfo const& boost_info,
-                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+bool process_article_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                          BlockchainMessage::ArticleInfo const& article_info,
+                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    B_UNUSED(article_info);
+
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
@@ -1293,12 +1386,6 @@ bool process_boost_info(BlockchainMessage::SignedTransaction const& signed_trans
     m_pimpl->m_action_log.log_transaction(signed_transaction);
 
     m_pimpl->save(guard);
-
-    if (m_pimpl->m_node_type == NodeType::storage)
-    {
-        // TODO request data if needed
-        B_UNUSED(boost_info);
-    }
 
     return true;
 }

@@ -126,26 +126,26 @@ module BlockchainMessage
     class AddressInfo
     {
         String owner
-        String public_address
+        String address
     }
 
-    class BoostInfo
+    class ArticleInfo
     {
         String author
+        String content
         String channel
-        String content_hash
     }
 
     class ContentInfo
     {
-        String node_name
-        String content_hash
+        String content
+        String storage
     }
 
     class StatItem
     {
         String node
-        //String content_hash
+        //String content
         UInt64 passed
         UInt64 failed
     }
