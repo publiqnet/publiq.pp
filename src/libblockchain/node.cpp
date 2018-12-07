@@ -330,7 +330,7 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     ArticleInfo& article_info = *p_article_info;
 
-                    m_pimpl->writeln_node("ArticleInfo ftom " + detail::peer_short_names(article_info.channel));
+                    m_pimpl->writeln_node("ArticleInfo from " + detail::peer_short_names(article_info.channel));
 
                     if (process_article_info(signed_tx, article_info, m_pimpl))
                     {
@@ -380,7 +380,7 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     ContentInfo& content_info = *p_content_info;
 
-                    m_pimpl->writeln_node("ContentInfo ftom " + detail::peer_short_names(content_info.storage));
+                    m_pimpl->writeln_node("ContentInfo from " + detail::peer_short_names(content_info.storage));
 
                     if (process_content_info(signed_tx, content_info, m_pimpl))
                         broadcast_message(std::move(broadcast),
@@ -414,7 +414,7 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     AddressInfo& address_info = *p_address_info;
 
-                    m_pimpl->writeln_node("AddressInfo ftom " + detail::peer_short_names(address_info.owner));
+                    m_pimpl->writeln_node("AddressInfo from " + detail::peer_short_names(address_info.owner));
 
                     if (process_address_info(signed_tx, address_info, m_pimpl))
                         broadcast_message(std::move(broadcast),
@@ -434,18 +434,19 @@ bool node::run()
 
                     StorageFile file;
                     std::move(ref_packet).get(file);
-                    StorageFileAddress addr;
-                    addr.uri = m_pimpl->m_storage.put(std::move(file));
+
+                    StorageFileAddress file_address;
+                    file_address.uri = m_pimpl->m_storage.put(std::move(file));
 
                     if (m_pimpl->m_node_type == NodeType::channel)
                     {
-                        psk->send(peerid, std::move(addr));
+                        broadcast_article_info(file_address, m_pimpl);
 
-                        broadcast_article_info(addr, m_pimpl);
+                        //psk->send(peerid, std::move(file_address));
                     }
                     else
                     {
-                        broadcast_content_info(addr, m_pimpl);
+                        broadcast_content_info(file_address, m_pimpl);
                     }
 
                     break;
@@ -454,6 +455,7 @@ bool node::run()
                 {
                     StorageFileAddress addr;
                     std::move(ref_packet).get(addr);
+
                     StorageFile file;
                     if (m_pimpl->m_storage.get(addr.uri, file))
                         psk->send(peerid, std::move(file));
