@@ -18,10 +18,12 @@ public:
     state_internals(filesystem::path const& path)
         :m_accounts("account", path, 10000, detail::get_putl())
         ,m_contracts("contract", path, 10, detail::get_putl())
+        ,m_addresses("address", path, 10, detail::get_putl())
     {}
 
     meshpp::map_loader<Coin> m_accounts;
     meshpp::map_loader<Contract> m_contracts;
+    meshpp::map_loader<AddressInfo> m_addresses;
 };
 }
 
@@ -36,18 +38,21 @@ void state::save()
 {
     m_pimpl->m_accounts.save();
     m_pimpl->m_contracts.save();
+    m_pimpl->m_addresses.save();
 }
 
 void state::commit()
 {
     m_pimpl->m_accounts.commit();
     m_pimpl->m_contracts.commit();
+    m_pimpl->m_addresses.commit();
 }
 
 void state::discard()
 {
     m_pimpl->m_accounts.discard();
     m_pimpl->m_contracts.discard();
+    m_pimpl->m_addresses.discard();
 }
 
 Coin state::get_balance(string const& key) const
@@ -108,20 +113,20 @@ void state::decrease_balance(string const& key, coin const& amount)
 }
 
 void state::get_contracts(std::vector<Contract>& contracts, NodeType const& role) const
-{//TODO
+{
     contracts.clear();
 
     for (auto& key : m_pimpl->m_contracts.as_const().keys())
     {
         Contract contract = m_pimpl->m_contracts.as_const().at(key);
-
+        
         if (role == contract.role)
             contracts.push_back(contract);
     }
 }
 
 NodeType state::get_contract_type(string const& key) const
-{//TODO
+{
     if (m_pimpl->m_contracts.as_const().contains(key))
         return m_pimpl->m_contracts.as_const().at(key).role;
 
@@ -142,6 +147,26 @@ void state::insert_contract(Contract const& contract)
 void state::remove_contract(Contract const& contract)
 {
     m_pimpl->m_contracts.erase(contract.owner);
+}
+
+void state::update_address(AddressInfo const& address_info)
+{
+    if (get_contract_type(address_info.owner) == NodeType::miner)
+        throw std::runtime_error("TODO");
+
+    m_pimpl->m_addresses.insert(address_info.owner, address_info);
+}
+
+bool state::get_address(string const& owner, string& address)
+{
+    if (m_pimpl->m_addresses.as_const().contains(owner))
+    {
+        address = m_pimpl->m_addresses.as_const().at(owner).address;
+
+        return true;
+    }
+
+    return false;
 }
 
 }

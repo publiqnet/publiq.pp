@@ -21,6 +21,7 @@
 
 #include <boost/filesystem/path.hpp>
 
+#include <map>
 #include <chrono>
 
 using namespace BlockchainMessage;
@@ -32,6 +33,7 @@ using beltpp::socket;
 using beltpp::packet;
 using peer_id = socket::peer_id;
 
+using std::map;
 using std::pair;
 using std::string;
 using std::vector;
@@ -55,6 +57,49 @@ class packet_and_expiry
 public:
     beltpp::packet packet;
     size_t expiry;
+};
+
+class stat_counter  //TODO move to better place
+{
+public:
+    void init(string new_hash)
+    {
+        if (block_hash != new_hash)
+        {
+            ussage_map.clear();
+            block_hash = new_hash;
+        }
+    }
+
+    void update(string node_name, bool success)
+    {
+        if(success)
+            ussage_map[node_name].first++;
+        else
+            ussage_map[node_name].second++;
+    }
+
+    bool get_stat_info(StatInfo& stat_info)
+    {
+        stat_info.items.clear();
+        stat_info.hash = block_hash;
+
+        for (auto& item : ussage_map)
+        {
+            StatItem stat_item;
+            stat_item.node = item.first;
+            stat_item.passed = item.second.first;
+            stat_item.failed = item.second.second;
+
+            stat_info.items.push_back(stat_item);
+        }
+
+        return !ussage_map.empty();
+    }
+
+private:
+    string block_hash;
+    map<string, pair<uint64_t, uint64_t>> ussage_map;
 };
 
 class node_internals
@@ -114,20 +159,21 @@ public:
         m_ptr_eh->add(*m_ptr_rpc_socket);
         m_ptr_eh->add(*m_ptr_p2p_socket);
 
+        public_address = rpc_bind_to_address;
+
         if (m_blockchain.length() == 0)
             insert_genesis();
-        else
-        {
-            calc_balance();
-            load_transaction_cache();
 
-            SignedBlock signed_block;
-            m_blockchain.at(m_blockchain.length() - 1, signed_block);
+        calc_balance();
+        load_transaction_cache();
 
-            Block& block = signed_block.block_details;
+        SignedBlock signed_block;
+        m_blockchain.at(m_blockchain.length() - 1, signed_block);
 
-            calc_sync_info(block);
-        }
+        calc_sync_info(signed_block.block_details);
+
+        if(m_node_type == NodeType::storage)
+            m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
     }
 
     void writeln_p2p(string const& value)
@@ -302,8 +348,6 @@ public:
                 m_transaction_cache[key] = system_clock::from_time_t(item.transaction_details.creation.tm);
             }
         }
-
-        //writeln_node("done");
     }
 
     void clean_transaction_cache()
@@ -347,13 +391,12 @@ public:
     void calc_sync_info(Block const& block)
     {
         own_sync_info.number = m_blockchain.length();
-        own_sync_info.authority = m_pb_key.to_string(); // test
 
         // calculate delta for next block for the case if I will mine it
         if (m_miner)
         {
             string prev_hash = meshpp::hash(block.to_string());
-            uint64_t delta = calc_delta(own_sync_info.authority, m_balance.whole, prev_hash, block.header.c_const);
+            uint64_t delta = calc_delta(m_pb_key.to_string(), m_balance.whole, prev_hash, block.header.c_const);
 
             own_sync_info.c_sum = block.header.c_sum + delta;
             net_sync_info.c_sum = 0;
@@ -436,6 +479,8 @@ public:
     NodeType m_node_type;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
+    stat_counter m_stat_counter;
+    ip_address public_address;
 
     SyncInfo own_sync_info;
     SyncInfo net_sync_info;

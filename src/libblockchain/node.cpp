@@ -293,9 +293,6 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     StatInfo& stat_info = *p_stat_info;
 
-                    //m_pimpl->writeln_node("StatInfo from -> " + detail::peer_short_names(peerid) + 
-                    //                      " signed by -> " + detail::peer_short_names(signed_tx.authority));// +stat_info.to_string());
-
                     if (process_stat_info(signed_tx, stat_info, m_pimpl))
                     {
                         broadcast_message(std::move(broadcast),
@@ -414,8 +411,6 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     AddressInfo& address_info = *p_address_info;
 
-                    m_pimpl->writeln_node("AddressInfo from " + detail::peer_short_names(address_info.owner));
-
                     if (process_address_info(signed_tx, address_info, m_pimpl))
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
@@ -458,13 +453,24 @@ bool node::run()
 
                     StorageFile file;
                     if (m_pimpl->m_storage.get(addr.uri, file))
+                    {
+                        if (m_pimpl->m_node_type == NodeType::storage &&
+                            m_pimpl->m_state.get_contract_type(addr.node) == NodeType::channel)
+                            m_pimpl->m_stat_counter.update(addr.node, true);
+
                         psk->send(peerid, std::move(file));
+                    }
                     else
                     {
+                        if (m_pimpl->m_node_type == NodeType::storage &&
+                            m_pimpl->m_state.get_contract_type(addr.node) == NodeType::channel)
+                            m_pimpl->m_stat_counter.update(addr.node, false);
+
                         FileNotFound error;
                         error.uri = addr.uri;
                         psk->send(peerid, std::move(error));
                     }
+
                     break;
                 }
                 case LoggedTransactionsRequest::rtt:
@@ -797,8 +803,6 @@ bool node::run()
                     std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 }
             }
-
-            //m_pimpl->writeln_node("broadcast done");
         }
     }
 
@@ -812,6 +816,7 @@ bool node::run()
 
         // temp place
         broadcast_node_type(m_pimpl);
+        broadcast_address_info(m_pimpl);
     }
 
     // init sync process and block mining

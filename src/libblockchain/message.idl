@@ -213,7 +213,6 @@ module BlockchainMessage
     {
         UInt64 number
         UInt64 c_sum
-        String authority // test
     }
 
     class SyncRequest {}
@@ -276,6 +275,7 @@ module BlockchainMessage
     class StorageFileAddress
     {
         String uri
+        String node
     }
 
 }

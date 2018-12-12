@@ -26,6 +26,8 @@ void process_blockchain_response(BlockchainResponse&& blockchain_response,
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
 void broadcast_article_info(StorageFileAddress file_address,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 

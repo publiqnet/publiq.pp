@@ -31,6 +31,9 @@ public:
     BlockchainMessage::NodeType get_contract_type(std::string const& key) const;
     void insert_contract(BlockchainMessage::Contract const& contract);
     void remove_contract(BlockchainMessage::Contract const& contract);
+
+    void update_address(BlockchainMessage::AddressInfo const& address_info);
+    bool get_address(std::string const& owner, std::string& address);
     
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
