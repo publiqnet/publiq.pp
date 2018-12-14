@@ -6,6 +6,8 @@
 
 #include "open_container_packet.hpp"
 
+#include <belt.pp/session_manager.hpp>
+
 #include <vector>
 #include <string>
 #include <memory>
@@ -155,7 +157,18 @@ bool node::run()
 
                         m_pimpl->add_peer(peerid);
 
+                        beltpp::ip_address external_address =
+                                m_pimpl->m_ptr_p2p_socket->external_address();
+                        assert(external_address.local.empty() == false);
+                        assert(external_address.remote.empty());
+                        external_address.local.port =
+                                m_pimpl->m_rpc_bind_to_address.local.port;
+
                         guard.dismiss();
+
+                        if (nullptr == m_pimpl->m_ptr_external_address &&
+                            m_pimpl->m_rpc_bind_to_address.local.empty() == false)
+                            m_pimpl->m_ptr_external_address.reset(new beltpp::ip_address(external_address));
                     }
                     break;
                 }

@@ -125,8 +125,8 @@ module BlockchainMessage
 
     class AddressInfo
     {
-        String owner
-        String address
+        String node_id
+        IPAddress ip_address
     }
 
     class ArticleInfo
@@ -277,6 +277,22 @@ module BlockchainMessage
         String uri
         String node
     }
+
+    //  ip address information
+    class IPDestination
+    {
+        UInt16 port
+        String address
+    }
+
+    class IPAddress
+    {
+        IPType ip_type
+        IPDestination local
+        IPDestination remote
+    }
+
+    enum IPType {any ipv4 ipv6}
 
 }
 ////2

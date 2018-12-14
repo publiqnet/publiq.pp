@@ -1193,10 +1193,12 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
 
     if (my_state_type == NodeType::miner)
         return;
+    if (nullptr == m_pimpl->m_ptr_external_address)
+        return;
 
     AddressInfo address_info;
-    address_info.owner = m_pimpl->m_pb_key.to_string();
-    address_info.address = m_pimpl->public_address.local.address + ":" + std::to_string(m_pimpl->public_address.local.port);
+    address_info.node_id = m_pimpl->m_pb_key.to_string();
+    beltpp::assign(address_info.ip_address, *m_pimpl->m_ptr_external_address);
 
     Transaction transaction;
     transaction.action = address_info;
@@ -1453,8 +1455,8 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
         return false;
 
     // Check data and authority
-    if (signed_transaction.authority != address_info.owner)
-        throw authority_exception(signed_transaction.authority, address_info.owner);
+    if (signed_transaction.authority != address_info.node_id)
+        throw authority_exception(signed_transaction.authority, address_info.node_id);
 
     NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
 
@@ -1467,7 +1469,11 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     {
         beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
-        m_pimpl->m_state.update_address(address_info);
+        auto address_info_copy = address_info;
+        address_info_copy.ip_address.remote = address_info_copy.ip_address.local;
+        address_info_copy.ip_address.local = BlockchainMessage::IPDestination();
+
+        m_pimpl->m_state.update_address(address_info_copy);
 
         m_pimpl->save(guard);
     }

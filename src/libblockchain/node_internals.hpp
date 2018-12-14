@@ -23,6 +23,7 @@
 
 #include <map>
 #include <chrono>
+#include <memory>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -105,7 +106,8 @@ private:
 class node_internals
 {
 public:
-    node_internals(ip_address const& rpc_bind_to_address,
+    node_internals(
+        ip_address const& rpc_bind_to_address,
         ip_address const& p2p_bind_to_address,
         std::vector<ip_address> const& p2p_connect_to_addresses,
         filesystem::path const& fs_blockchain,
@@ -135,6 +137,7 @@ public:
         , m_sync_timer()
         , m_check_timer()
         , m_summary_report_timer()
+        , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
         , m_storage(fs_storage)
@@ -158,8 +161,6 @@ public:
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
         m_ptr_eh->add(*m_ptr_p2p_socket);
-
-        public_address = rpc_bind_to_address;
 
         if (m_blockchain.length() == 0)
             insert_genesis();
@@ -457,12 +458,15 @@ public:
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
+    unique_ptr<beltpp::ip_address> m_ptr_external_address;
 
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
     beltpp::timer m_broadcast_timer;
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
+
+    beltpp::ip_address m_rpc_bind_to_address;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
