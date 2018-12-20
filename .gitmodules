@@ -1,9 +1,9 @@
 [submodule "src/belt.pp"]
 	path = src/belt.pp
-	url = https://github.com/PubliqNetwork/belt.pp
+	url = https://github.com/publiqnet/belt.pp
 [submodule "src/mesh.pp"]
 	path = src/mesh.pp
-	url = https://github.com/PubliqNetwork/mesh.pp
+	url = https://github.com/publiqnet/mesh.pp
 [submodule "src/cmake_utility"]
 	path = src/cmake_utility
 	url = https://github.com/PubliqNetwork/cmake_utility
