@@ -8,43 +8,44 @@
 + *action log*, interface that allows relational database maintainer to build the blockchain state in any desired DBMS
 
 ## details on supported/unsupported features/technologies
-+ *dependencies?* [boost](https://www.boost.org "boost"), [mesh.pp](https://github.com/PubliqNetwork/mesh.pp "mesh.pp"), [belt.pp](https://github.com/PubliqNetwork/belt.pp "belt.pp") and [a simple cmake utility](https://github.com/PUBLIQNetwork/cmake_utility "the simple title for the simple cmake utility")
++ *dependencies?* [boost](https://www.boost.org "boost"), [mesh.pp](https://github.com/publiqnet/mesh.pp "mesh.pp"), [belt.pp](https://github.com/publiqnet/belt.pp "belt.pp") and [a simple cmake utility](https://github.com/PUBLIQNetwork/cmake_utility "the simple title for the simple cmake utility")
 + *portable?* yes! it's a goal. clang, gcc, msvc working.
 + *build system?* cmake. refer to cmake project generator options for msvc, xcode, etc... project generation.
 + *static linking vs dynamic linking?* both supported, refer to BUILD_SHARED_LIBS cmake option
 + *32 bit build?* never tried to fix build errors/warnings
 + c++11
 + *unicode support?* boost::filesystem::path ensures that unicode paths are well supported and the rest of the code assumes that std::string is utf8 encoded.
-+ *full blown blockchain?*, yes! we hope to solve the distributed consensus algorithm fine details and all the blockchain communication to serve the needs of PUBLIQ protocol soon.
++ *full blown blockchain?*, yes! we hope to solve the rough edges around distributed consensus algorithm and all the blockchain communication to serve the needs of PUBLIQ protocol soon.
 
 ## how to build publiq.pp?
-```
-cd to_somewhere_else
-git clone https://github.com/PubliqNetwork/publiq.pp
-cd publiq.pp
-git submodule update --init --recursive
-cd ..
-mkdir publiq.pp.build
-cd publiq.pp.build
-cmake -DCMAKE_INSTALL_PREFIX=./install ../publiq.pp
-cmake --build . --target install
+```console
+user@pc:~$ mkdir projects
+user@pc:~$ cd projects
+user@pc:~/projects$ git clone https://github.com/publiqnet/publiq.pp
+user@pc:~/projects$ cd publiq.pp
+user@pc:~/projects/publiq.pp$ git submodule update --init --recursive
+user@pc:~/projects/publiq.pp$ cd ..
+user@pc:~/projects$ mkdir publiq.pp.build
+user@pc:~/projects$ cd publiq.pp.build
+user@pc:~/projects/publiq.pp.build$ cmake -DCMAKE_INSTALL_PREFIX=./install ../publiq.pp
+user@pc:~/projects/publiq.pp.build$ cmake --build . --target install
 ```
 
 ### git submodules?
 yes, we keep up with belt.pp and mesh.pp. those are essential parts of the project, so, if you're a developer contributing to mesh.pp and belt.pp too, then
-```
-cd publiq.pp
-cd src/belt.pp
-git checkout master
-git pull
-cd ../..
-cd src/mesh.pp
-cd src/belt.pp
-git checkout master
-git pull
-cd ../..
-git checkout master
-git pull
+```console
+user@pc:~$ cd projects/publiq.pp
+user@pc:~/projects$ cd src/belt.pp
+user@pc:~/projects/src/belt.pp$ git checkout master
+user@pc:~/projects/src/belt.pp$ git pull
+user@pc:~/projects/src/belt.pp$ cd ../..
+user@pc:~/projects$ cd src/mesh.pp
+user@pc:~/projects/src/mesh.pp$ cd src/belt.pp
+user@pc:~/projects/src/mesh.pp/src/belt.pp$ git checkout master
+user@pc:~/projects/src/mesh.pp/src/belt.pp$ git pull
+user@pc:~/projects/src/mesh.pp/src/belt.pp$ cd ../..
+user@pc:~/projects/src/mesh.pp$ git checkout master
+user@pc:~/projects/src/mesh.pp$ git pull
 ```
 as you see, belt.pp appears twice as a submodule, the other one that relies under mesh.pp, does not participate in the build process, we just keep up with it, to have proper repository history
 
