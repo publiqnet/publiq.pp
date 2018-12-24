@@ -125,6 +125,8 @@ bool node::run()
             {
             try
             {
+                if (m_pimpl->m_sessions.process(peerid, std::move(received_packet), psk))
+                    continue;
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
@@ -143,7 +145,7 @@ bool node::run()
                 packet stored_packet;
                 if (it == interface_type::p2p)
                     m_pimpl->find_stored_request(peerid, stored_packet);
-                
+
                 switch (ref_packet.type())
                 {
                 case beltpp::isocket_join::rtt:
@@ -425,6 +427,7 @@ bool node::run()
                     AddressInfo& address_info = *p_address_info;
 
                     if (process_address_info(signed_tx, address_info, m_pimpl))
+                    {
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
@@ -432,6 +435,29 @@ bool node::run()
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
+
+                        AddressInfo any_address_info;
+                        m_pimpl->m_state.get_any_address(any_address_info);
+                        beltpp::ip_address any_address_info_addr;
+                        beltpp::assign(any_address_info_addr, any_address_info.ip_address);
+                        auto peers_wait_to_join =
+                                m_pimpl->m_ptr_rpc_socket->open(any_address_info_addr);
+
+                        for (auto const& item : peers_wait_to_join)
+                        {
+                            beltpp::session<string, ip_address> session_item;
+                            session_item.expected_package_type = beltpp::isocket_join::rtt;
+                            session_item.key = any_address_info.node_id;
+                            session_item.value = any_address_info_addr;
+
+                            auto insert_result =
+                                    m_pimpl->m_sessions.communications.insert(
+                                        std::make_pair(item, session_item));
+
+                            assert(insert_result.second == true);
+                            B_UNUSED(insert_result);
+                        }
+                    }
 
                     break;
                 }
@@ -664,6 +690,18 @@ bool node::run()
 
                     m_pimpl->writeln_node("File not found error: " + error.uri);
 
+                    break;
+                }
+                case Ping::rtt:
+                {
+                    Pong msg_pong;
+                    msg_pong.nodeid = m_pimpl->m_pv_key.get_public_key().to_string();
+                    msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
+                    string message_pong = msg_pong.nodeid + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
+                    auto signed_message = m_pimpl->m_pv_key.sign(message_pong);
+
+                    msg_pong.signature = std::move(signed_message.base58);
+                    psk->send(peerid, std::move(msg_pong));
                     break;
                 }
                 default:

@@ -1458,10 +1458,10 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     if (signed_transaction.authority != address_info.node_id)
         throw authority_exception(signed_transaction.authority, address_info.node_id);
 
-    NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
+    /*NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
 
     if (authority_type == NodeType::miner)
-        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
+        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);*/
 
     m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 
