@@ -151,9 +151,6 @@ void state::remove_contract(Contract const& contract)
 
 void state::update_address(AddressInfo const& address_info)
 {
-    if (get_contract_type(address_info.node_id) == NodeType::miner)
-        throw std::runtime_error("TODO");
-
     m_pimpl->m_addresses.insert(address_info.node_id, address_info.ip_address);
 }
 

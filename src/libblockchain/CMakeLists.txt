@@ -28,6 +28,7 @@ add_library(blockchain
     node.hpp
     node_internals.hpp
     open_container_packet.hpp
+    session_manager.hpp
     state.cpp
     state.hpp
     storage.cpp
