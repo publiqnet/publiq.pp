@@ -294,5 +294,15 @@ module BlockchainMessage
 
     enum IPType {any ipv4 ipv6}
 
+    class Ping
+    {}
+
+    class Pong
+    {
+        String nodeid
+        TimePoint stamp
+        String signature
+    }
+
 }
 ////2
