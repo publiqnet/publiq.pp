@@ -6,4 +6,4 @@
 	url = https://github.com/publiqnet/mesh.pp
 [submodule "src/cmake_utility"]
 	path = src/cmake_utility
-	url = https://github.com/PubliqNetwork/cmake_utility
+	url = https://github.com/publiqnet/cmake_utility
