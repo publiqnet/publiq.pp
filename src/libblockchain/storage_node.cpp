@@ -35,12 +35,10 @@ namespace publiqpp
  */
 storage_node::storage_node(ip_address const& rpc_bind_to_address,
                            boost::filesystem::path const& fs_storage,
-                           beltpp::ilog* plogger_storage_node,
-                           bool log_enabled)
+                           beltpp::ilog* plogger_storage_node)
     : m_pimpl(new detail::storage_node_internals(rpc_bind_to_address,
                                                  fs_storage,
-                                                 plogger_storage_node,
-                                                 log_enabled))
+                                                 plogger_storage_node))
 {}
 
 storage_node::storage_node(storage_node&&) noexcept = default;

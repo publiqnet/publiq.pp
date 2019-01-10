@@ -61,8 +61,7 @@ public:
     storage_node_internals(
         ip_address const& rpc_bind_to_address,
         filesystem::path const& fs_storage,
-        beltpp::ilog* _plogger_storage_node,
-        bool log_enabled)
+        beltpp::ilog* _plogger_storage_node)
         : plogger_storage_node(_plogger_storage_node)
         , m_ptr_eh(new beltpp::event_handler())
         , m_ptr_rpc_socket(new beltpp::socket(

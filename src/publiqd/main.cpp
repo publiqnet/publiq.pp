@@ -244,10 +244,11 @@ int main(int argc, char** argv)
 
         auto storage_bind_to_address = rpc_bind_to_address;
         storage_bind_to_address.local.port++;
+
         publiqpp::storage_node storage_node(storage_bind_to_address,
                                             fs_storage,
-                                            plogger_rpc.get(),
-                                            log_enabled);
+                                            plogger_rpc.get());
+
         cout << endl;
         cout << "Node: " << node.name() << endl;
         cout << "Type: " << static_cast<int>(n_type) << endl;
