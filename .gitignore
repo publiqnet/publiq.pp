@@ -7,3 +7,4 @@ CMakeLists.txt.user
 /build
 /CMakeSettings.json
 *.DS_Store
+*.DS_Store2
