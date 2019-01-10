@@ -1,6 +1,7 @@
 #pragma once
 
 #include "message.hpp"
+#include "storage_message.hpp"
 
 #include <string>
 #include <vector>
@@ -322,7 +323,11 @@ check_end(std::string::const_iterator const& iter_scan_begin,
     return std::make_pair(it_scan_begin, it_scan);
 }
 
-inline
+template <beltpp::detail::pmsg_all (*fallback_message_list_load)(
+        std::string::const_iterator&,
+        std::string::const_iterator const&,
+        beltpp::detail::session_special_data&,
+        void*)>
 beltpp::detail::pmsg_all message_list_load(
         std::string::const_iterator& iter_scan_begin,
         std::string::const_iterator const& iter_scan_end,
@@ -552,7 +557,8 @@ beltpp::detail::pmsg_all message_list_load(
                 ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
                 ssd.parser_unrecognized_limit = 0;
 
-                return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+                return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+                //return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
             }
         }
         else if (pss->type == scan_status::options)
@@ -585,7 +591,8 @@ beltpp::detail::pmsg_all message_list_load(
             ssd.parser_unrecognized_limit = 1024;
         }
 
-        return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+        return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
+        //return BlockchainMessage::message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
     }
 }
 }

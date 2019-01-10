@@ -50,7 +50,7 @@ using chrono::steady_clock;
 
 namespace publiqpp
 {
-    using rpc_sf = beltpp::socket_family_t<&http::message_list_load>;
+    using rpc_sf = beltpp::socket_family_t<&http::message_list_load<&BlockchainMessage::message_list_load>>;
 
 namespace detail
 {

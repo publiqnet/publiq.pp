@@ -18,7 +18,8 @@ install(TARGETS publiq.pp
 
 set(SRC_FILES
     global.hpp
-    node.hpp)
+    node.hpp
+    storage_node.hpp)
 
 install(FILES
     ${SRC_FILES}

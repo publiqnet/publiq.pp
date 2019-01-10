@@ -65,9 +65,7 @@ node::node(ip_address const& rpc_bind_to_address,
                                          pv_key,
                                          n_type,
                                          log_enabled))
-{
-
-}
+{}
 
 node::node(node&&) noexcept = default;
 

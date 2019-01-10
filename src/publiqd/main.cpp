@@ -11,6 +11,7 @@
 #include <mesh.pp/log.hpp>
 
 #include <publiq.pp/node.hpp>
+#include <publiq.pp/storage_node.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/locale.hpp>
@@ -22,6 +23,8 @@
 #include <vector>
 #include <sstream>
 #include <exception>
+#include <thread>
+#include <functional>
 
 #include <csignal>
 
@@ -47,11 +50,14 @@ bool process_command_line(int argc, char** argv,
 
 static bool g_termination_handled = false;
 static publiqpp::node* g_pnode = nullptr;
+static publiqpp::storage_node* g_pstorage_node = nullptr;
 void termination_handler(int /*signum*/)
 {
     g_termination_handled = true;
     if (g_pnode)
         g_pnode->terminate();
+    if (g_pstorage_node)
+        g_pstorage_node->terminate();
 }
 
 class port2pid_helper
@@ -124,6 +130,9 @@ private:
     std::exception_ptr eptr;
 };
 
+template <typename NODE>
+void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled);
+
 int main(int argc, char** argv)
 {
     try
@@ -174,6 +183,7 @@ int main(int argc, char** argv)
 #endif
 
     beltpp::ilog_ptr plogger_exceptions = beltpp::t_unique_nullptr<beltpp::ilog>();
+    beltpp::ilog_ptr plogger_storage_exceptions = beltpp::t_unique_nullptr<beltpp::ilog>();
 
     try
     {
@@ -211,8 +221,10 @@ int main(int argc, char** argv)
         plogger_p2p->disable();
         beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("exe_publiqd_rpc", true);
         //plogger_rpc->disable();
-        plogger_exceptions = meshpp::file_logger("exe_publiqd_exceptions",
+        plogger_exceptions = meshpp::file_logger("publiqd_exceptions",
                                                  fs_log / "exceptions.txt");
+        plogger_storage_exceptions = meshpp::file_logger("storage_exceptions",
+                                                         fs_log / "storage_exceptions.txt");
 
         //__debugbreak();
 
@@ -230,45 +242,31 @@ int main(int argc, char** argv)
                             n_type,
                             log_enabled);
 
+        auto storage_bind_to_address = rpc_bind_to_address;
+        storage_bind_to_address.local.port++;
+        publiqpp::storage_node storage_node(storage_bind_to_address,
+                                            fs_storage,
+                                            plogger_rpc.get(),
+                                            log_enabled);
         cout << endl;
         cout << "Node: " << node.name() << endl;
         cout << "Type: " << static_cast<int>(n_type) << endl;
         cout << endl;
 
         g_pnode = &node;
+        g_pstorage_node = &storage_node;
 
-        while (true)
+        std::thread node_thread([&node, &plogger_exceptions]
         {
-            try
-            {
-            if (false == node.run())
-                break;
+            loop(node, plogger_exceptions, g_termination_handled);
+        });
+        std::thread storage_node_thread([&storage_node, &plogger_storage_exceptions]
+        {
+            loop(storage_node, plogger_storage_exceptions, g_termination_handled);
+        });
 
-            if (g_termination_handled)
-                break;
-            }
-            catch (std::bad_alloc const& ex)
-            {
-                if (plogger_exceptions)
-                    plogger_exceptions->message(ex.what());
-                cout << "exception cought: " << ex.what() << endl;
-                cout << "will exit now" << endl;
-                break;
-            }
-            catch (std::exception const& ex)
-            {
-                if (plogger_exceptions)
-                    plogger_exceptions->message(ex.what());
-                cout << "exception cought: " << ex.what() << endl;
-            }
-            catch (...)
-            {
-                if (plogger_exceptions)
-                    plogger_exceptions->message("always throw std::exceptions, will exit now");
-                cout << "always throw std::exceptions, will exit now" << endl;
-                break;
-            }
-        }
+        node_thread.join();
+        storage_node_thread.join();
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         dda.save();
@@ -287,6 +285,44 @@ int main(int argc, char** argv)
         cout << "always throw std::exceptions" << endl;
     }
     return 0;
+}
+
+template <typename NODE>
+void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled)
+{
+    while (true)
+    {
+        try
+        {
+            if (termination_handled)
+                break;
+            if (false == node.run())
+                break;
+        }
+        catch (std::bad_alloc const& ex)
+        {
+            if (plogger_exceptions)
+                plogger_exceptions->message(ex.what());
+            cout << "exception cought: " << ex.what() << endl;
+            cout << "will exit now" << endl;
+            termination_handler(0);
+            break;
+        }
+        catch (std::exception const& ex)
+        {
+            if (plogger_exceptions)
+                plogger_exceptions->message(ex.what());
+            cout << "exception cought: " << ex.what() << endl;
+        }
+        catch (...)
+        {
+            if (plogger_exceptions)
+                plogger_exceptions->message("always throw std::exceptions, will exit now");
+            cout << "always throw std::exceptions, will exit now" << endl;
+            termination_handler(0);
+            break;
+        }
+    }
 }
 
 bool process_command_line(int argc, char** argv,

@@ -1,0 +1,6 @@
+module StorageMessage
+{
+    class Hello
+    {}
+}
+////2
