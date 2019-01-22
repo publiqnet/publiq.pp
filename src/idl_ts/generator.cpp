@@ -121,129 +121,8 @@ void analyze(   state_holder& state,
                 std::string const& outputFilePath,
                 std::string const& prefix)
 {
-boost::filesystem::path root = outputFilePath;
-boost::filesystem::create_directory( root );
-
-/////////////////////////// create mapper file //////////////////////////////////
-boost::filesystem::path mapperPath= root.string() + "/" + "mapper.ts";
-boost::filesystem::ofstream mapper( mapperPath );
-
-mapper << R"file_template(import MODELS_TYPES from './ModelTypes';
-
-export const parceToModel = jsonData => {
-     const data = JSON.parse(jsonData);
-     const ModelClass = MODELS_TYPES[data.rtt];
-     if(!ModelClass){
-         throw new Error("invalid model class");
-     }
-     return new ModelClass(data);
-};
-
-export const parceToJson = typedData => {
-     return JSON.stringify(typedData.toJson())
-};
-
-)file_template";
-
-/////////////////////////// create BaseModel file //////////////////////////////////
-boost::filesystem::path baseMoselPath = root.string() + "/" + "BaseModel.ts" ;
-boost::filesystem::ofstream BaseModel( baseMoselPath );
-
-BaseModel << R"file_template(
- const dateToFormatString = d => {
-
-      const addZero = d => {
-         return d.length == 2 ? d : `0${d}`;
-      };
-
-     const year = d.getUTCFullYear().toString();
-     const month = (d.getUTCMonth()+1).toString();
-     const day = d.getUTCDate().toString();
-     const hours = d.getUTCHours().toString();
-     const minutes = d.getUTCMinutes().toString();
-     const seconds = d.getUTCSeconds().toString();
-
-     return `${
-       year
-     }-${
-       addZero(month)
-     }-${
-       addZero(day)
-     } ${
-       addZero(hours)
-     }:${
-       addZero(minutes)
-     }:${
-       addZero(seconds)
-     }`;
-
- }
-
- export default class BaseModel {
-
-    static get PropertyMap () {
-        return {};
-    }
-
-    static setProperty (propertyName, propertyValue, toObject, constructor) {
-        const PropertyMap = constructor.PropertyMap || BaseModel.PropertyMap;
-        const pn = PropertyMap[propertyName] || propertyName;
-        toObject[pn] = propertyValue;
-    }
-
-    static hasRtt (type) {
-        if(type.Rtt !== undefined) {
-            return true;
-        }
-        return false;
-    }
-
-    static getRtt (type) {
-      return type.Rtt
-    }
-
-    static getDataWithRtt(data) {
-
-        let dataWithRtt = {};
-
-        if(BaseModel.hasRtt(data.constructor)){
-            dataWithRtt['rtt'] = BaseModel.getRtt(data.constructor);
-        }
-
-        for (let i in data) {
-            const pv = data[i];
-            const constructor = pv.constructor;
-            let propertySetValue;
-
-            if(constructor === Function){
-                continue;
-
-            } else if (constructor === Array){
-                propertySetValue = pv.map(d => BaseModel.getDataWithRtt(d));
-
-            } else if(BaseModel.hasRtt(constructor)){
-                propertySetValue = BaseModel.getDataWithRtt(pv);
-
-            } else if(constructor === Date) {
-                propertySetValue = dateToFormatString(pv);
-            }
-             else {
-                propertySetValue = pv;
-            }
-
-            BaseModel.setProperty(i, propertySetValue, dataWithRtt, data.constructor);
-        }
-
-
-        return dataWithRtt;
-    }
-
-    toJson() {
-        return BaseModel.getDataWithRtt(this);
-    }
-
- }
-)file_template";
+    boost::filesystem::path root = outputFilePath;
+    boost::filesystem::create_directory( root );
 
     size_t rtt = 0;
     assert(pexpression);
@@ -335,7 +214,7 @@ BaseModel << R"file_template(
 
 export const createInstanceFromJson = data => {
 
-    if(data.constructor.Rtt !== undefined){
+    if(data.constructor.Rtt === undefined){
         return  data;
     }
 
