@@ -2,6 +2,7 @@
 
 #include "message.hpp"
 #include "common.hpp"
+#include "exception.hpp"
 
 #include <belt.pp/packet.hpp>
 
@@ -14,12 +15,22 @@ using beltpp::packet;
 using namespace BlockchainMessage;
 using std::vector;
 
-packet& contained_member(Broadcast& pck)
+inline packet& contained_member(TaskRequest& task_request, meshpp::public_key& pb_key)
+{
+    B_UNUSED(pb_key);
+    meshpp::signature signature_check(pb_key,
+                                      task_request.task_id + task_request.package.to_string(),
+                                      task_request.signature);
+
+    return task_request.package;
+}
+
+inline packet& contained_member(Broadcast& pck)
 {
     return pck.package;
 }
 
-packet& contained_member(SignedTransaction& signed_tx)
+inline packet& contained_member(SignedTransaction& signed_tx)
 {
     meshpp::public_key pb_key(signed_tx.authority);
     meshpp::signature signature_check(pb_key,
@@ -49,11 +60,6 @@ packet& contained_member(SignedTransaction& signed_tx)
     return signed_tx.transaction_details.action;
 }
 
-//packet& contained_member(SignedBlock& pck)
-//{
-//    return pck.block_details;
-//}
-
 template <typename... Ts>
 class open_container_packet;
 
@@ -61,7 +67,8 @@ template <typename T_container>
 class open_container_packet<T_container>
 {
 public:
-    bool open(packet& pck, vector<packet*>& composition)
+    template <typename... T_args>
+    bool open(packet& pck, vector<packet*>& composition, T_args&&... args)
     {
         if (T_container::rtt != pck.type())
             return false;
@@ -69,7 +76,7 @@ public:
         T_container* pcontainer;
         pck.get(pcontainer);
 
-        packet& temp = contained_member(*pcontainer);
+        packet& temp = contained_member(*pcontainer, std::forward<T_args>(args)...);
 
         items.reserve(items.size() + 2);
         items.push_back(&pck);
@@ -86,7 +93,8 @@ template <typename T_container, typename... Ts>
 class open_container_packet<T_container, Ts...>
 {
 public:
-    bool open(packet& pck, vector<packet*>& composition)
+    template <typename... T_args>
+    bool open(packet& pck, vector<packet*>& composition, T_args&&... args)
     {
         if (T_container::rtt != pck.type())
             return false;
@@ -94,10 +102,10 @@ public:
         T_container* pcontainer;
         pck.get(pcontainer);
 
-        packet& temp = contained_member(*pcontainer);
+        packet& temp = contained_member(*pcontainer, std::forward<T_args>(args)...);
 
         open_container_packet<Ts...> sub;
-        if (false == sub.open(temp, composition))
+        if (false == sub.open(temp, composition, std::forward<T_args>(args)...))
             return false;
 
         items.reserve(items.size() + 1 + sub.items.size());

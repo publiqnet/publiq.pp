@@ -3,6 +3,7 @@
 
 #include "coin.hpp"
 #include "common.hpp"
+#include "exception.hpp"
 
 #include <mesh.pp/cryptoutility.hpp>
 
@@ -419,36 +420,37 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
 
 void broadcast_channel_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    StatInfo channel_info;
-
-    if (m_pimpl->m_stat_counter.get_stat_info(channel_info))
-    {
-        Transaction transaction;
-        transaction.action = channel_info;
-        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
-
-        SignedTransaction signed_transaction;
-        signed_transaction.authority = m_pimpl->m_pb_key.to_string();
-        signed_transaction.transaction_details = transaction;
-        signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
-
-        Broadcast broadcast;
-        broadcast.echoes = 2;
-        broadcast.package = signed_transaction;
-
-        broadcast_message(std::move(broadcast),
-            m_pimpl->m_ptr_p2p_socket->name(),
-            m_pimpl->m_ptr_p2p_socket->name(),
-            true,
-            nullptr,
-            m_pimpl->m_p2p_peers,
-            m_pimpl->m_ptr_p2p_socket.get());
-    }
-
-    SignedBlock signed_block;
-    m_pimpl->m_blockchain.at(m_pimpl->m_blockchain.length() - 1, signed_block);
-    m_pimpl->m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
+    B_UNUSED(m_pimpl);
+//    StatInfo channel_info;
+//
+//    if (m_pimpl->m_stat_counter.get_stat_info(channel_info))
+//    {
+//        Transaction transaction;
+//        transaction.action = channel_info;
+//        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+//        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
+//
+//        SignedTransaction signed_transaction;
+//        signed_transaction.authority = m_pimpl->m_pb_key.to_string();
+//        signed_transaction.transaction_details = transaction;
+//        signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+//
+//        Broadcast broadcast;
+//        broadcast.echoes = 2;
+//        broadcast.package = signed_transaction;
+//
+//        broadcast_message(std::move(broadcast),
+//            m_pimpl->m_ptr_p2p_socket->name(),
+//            m_pimpl->m_ptr_p2p_socket->name(),
+//            true,
+//            nullptr,
+//            m_pimpl->m_p2p_peers,
+//            m_pimpl->m_ptr_p2p_socket.get());
+//    }
+//
+//    SignedBlock signed_block;
+//    m_pimpl->m_blockchain.at(m_pimpl->m_blockchain.length() - 1, signed_block);
+//    m_pimpl->m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -1200,6 +1202,12 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     address_info.node_id = m_pimpl->m_pb_key.to_string();
     beltpp::assign(address_info.ip_address, *m_pimpl->m_ptr_external_address);
 
+    // tmp solution
+    beltpp::ip_address pub_address;
+    beltpp::assign(pub_address, *m_pimpl->m_ptr_external_address);
+    pub_address.local.port += 10;
+    beltpp::assign(address_info.ip_address, std::move(pub_address));
+
     Transaction transaction;
     transaction.action = address_info;
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
@@ -1481,20 +1489,3 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     return true;
 }
 
-//---------------- Exceptions -----------------------
-wrong_data_exception::wrong_data_exception(string const& _message)
-    : runtime_error("wrong_data_exception -> " + _message)
-    , message(_message)
-{}
-wrong_data_exception::wrong_data_exception(wrong_data_exception const& other) noexcept
-    : runtime_error(other)
-    , message(other.message)
-{}
-wrong_data_exception& wrong_data_exception::operator=(wrong_data_exception const& other) noexcept
-{
-    dynamic_cast<runtime_error*>(this)->operator =(other);
-    message = other.message;
-    return *this;
-}
-wrong_data_exception::~wrong_data_exception() noexcept
-{}

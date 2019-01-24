@@ -27,7 +27,6 @@ public:
          std::vector<beltpp::ip_address> const& p2p_connect_to_addresses,
          boost::filesystem::path const& fs_blockchain,
          boost::filesystem::path const& fs_action_log,
-         boost::filesystem::path const& fs_storage,
          boost::filesystem::path const& fs_transaction_pool,
          boost::filesystem::path const& fs_state,
          beltpp::ilog* plogger_p2p,

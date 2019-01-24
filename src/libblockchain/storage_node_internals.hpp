@@ -27,7 +27,7 @@
 #include <memory>
 
 using namespace libblockchain;
-using namespace StorageMessage;
+using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 using beltpp::ip_address;
@@ -50,10 +50,53 @@ using chrono::steady_clock;
 
 namespace publiqpp
 {
-    using rpc_storage_sf = beltpp::socket_family_t<&http::message_list_load<&StorageMessage::message_list_load>>;
+    using rpc_storage_sf = beltpp::socket_family_t<&http::message_list_load<&BlockchainMessage::message_list_load>>;
 
 namespace detail
 {
+
+class stat_counter
+{
+public:
+    void init(string new_hash)
+    {
+        if (block_hash != new_hash)
+        {
+            ussage_map.clear();
+            block_hash = new_hash;
+        }
+    }
+
+    void update(string node_name, bool success)
+    {
+        if (success)
+            ussage_map[node_name].first++;
+        else
+            ussage_map[node_name].second++;
+    }
+
+    bool get_stat_info(StatInfo& stat_info)
+    {
+        stat_info.items.clear();
+        stat_info.hash = block_hash;
+
+        for (auto& item : ussage_map)
+        {
+            StatItem stat_item;
+            stat_item.node = item.first;
+            stat_item.passed = item.second.first;
+            stat_item.failed = item.second.second;
+
+            stat_info.items.push_back(stat_item);
+        }
+
+        return !ussage_map.empty();
+    }
+
+private:
+    string block_hash;
+    map<string, pair<uint64_t, uint64_t>> ussage_map;
+};
 
 class storage_node_internals
 {
@@ -61,6 +104,7 @@ public:
     storage_node_internals(
         ip_address const& rpc_bind_to_address,
         filesystem::path const& fs_storage,
+        meshpp::public_key parent_pb_key,
         beltpp::ilog* _plogger_storage_node)
         : plogger_storage_node(_plogger_storage_node)
         , m_ptr_eh(new beltpp::event_handler())
@@ -69,6 +113,7 @@ public:
                                ))
         , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_storage(fs_storage)
+        , m_parent_pb_key(parent_pb_key)
     {
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
@@ -77,8 +122,7 @@ public:
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
 
-//        if(m_node_type == NodeType::storage)
-//            m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
+        //m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
     }
 
     void writeln_node(string const& value)
@@ -98,8 +142,10 @@ public:
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 
     beltpp::ip_address m_rpc_bind_to_address;
-
     publiqpp::storage m_storage;
+    meshpp::public_key m_parent_pb_key;
+
+    stat_counter m_stat_counter;
 };
 
 }

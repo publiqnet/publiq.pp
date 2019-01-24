@@ -4,7 +4,6 @@
 #include "http.hpp"
 
 #include "state.hpp"
-#include "storage.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
 #include "session_manager.hpp"
@@ -62,47 +61,48 @@ public:
     size_t expiry;
 };
 
-class stat_counter  //TODO move to better place
+class task_table
 {
 public:
-    void init(string new_hash)
+    void add(string task_id, packet& task_packet) 
     {
-        if (block_hash != new_hash)
+        task_map[task_id] = pair<system_clock::time_point, packet>(system_clock::now(), std::move(task_packet));
+    };
+
+    bool remove(string task_id, packet& task_packet)
+    {
+        auto task_it = task_map.find(task_id);
+
+        if (task_it != task_map.end())
         {
-            ussage_map.clear();
-            block_hash = new_hash;
-        }
-    }
+            task_packet = std::move(task_it->second.second);
 
-    void update(string node_name, bool success)
-    {
-        if(success)
-            ussage_map[node_name].first++;
-        else
-            ussage_map[node_name].second++;
-    }
+            task_map.erase(task_it);
 
-    bool get_stat_info(StatInfo& stat_info)
-    {
-        stat_info.items.clear();
-        stat_info.hash = block_hash;
-
-        for (auto& item : ussage_map)
-        {
-            StatItem stat_item;
-            stat_item.node = item.first;
-            stat_item.passed = item.second.first;
-            stat_item.failed = item.second.second;
-
-            stat_info.items.push_back(stat_item);
+            return true;
         }
 
-        return !ussage_map.empty();
+        return false;
     }
+
+    void clean() 
+    {
+        auto current_time = system_clock::now();
+
+        auto it = task_map.begin();
+        while (it != task_map.end())
+        {
+            chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time - it->second.first);
+
+            if (diff_seconds.count() < BLOCK_MINE_DELAY)
+                ++it;
+            else
+                it = task_map.erase(it);
+        }
+    };
 
 private:
-    string block_hash;
-    map<string, pair<uint64_t, uint64_t>> ussage_map;
+    map<string, pair<system_clock::time_point, packet>> task_map;
 };
 
 class node_internals
@@ -114,7 +114,6 @@ public:
         std::vector<ip_address> const& p2p_connect_to_addresses,
         filesystem::path const& fs_blockchain,
         filesystem::path const& fs_action_log,
-        filesystem::path const& fs_storage,
         filesystem::path const& fs_transaction_pool,
         filesystem::path const& fs_state,
         beltpp::ilog* _plogger_p2p,
@@ -142,7 +141,6 @@ public:
         , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
-        , m_storage(fs_storage)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)
         , m_node_type(n_type)
@@ -152,6 +150,7 @@ public:
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
+        m_reconnect_timer.set(chrono::seconds(RECONNECT_TIMER));
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
@@ -174,9 +173,6 @@ public:
         m_blockchain.at(m_blockchain.length() - 1, signed_block);
 
         calc_sync_info(signed_block.block_details);
-
-        if(m_node_type == NodeType::storage)
-            m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
     }
 
     void writeln_p2p(string const& value)
@@ -215,6 +211,40 @@ public:
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
     }
 
+    void set_public_peer(string nodeid, socket::peer_id const& peerid)
+    {
+        m_public_map[nodeid] = peerid;
+    }
+
+    bool get_public_peer(string nodeid, socket::peer_id& peerid)
+    {
+        auto map_it = m_public_map.find(nodeid);
+
+        if (map_it != m_public_map.end())
+        {
+            peerid = map_it->second;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    void add_public_peer(socket::peer_id const& peerid)
+    {
+        pair<unordered_set<socket::peer_id>::iterator, bool> result =
+            m_public_peers.insert(peerid);
+
+        if (result.second == false)
+            throw std::runtime_error("p2p peer already exists: " + peerid);
+    }
+
+    void remove_public_peer(socket::peer_id peerid)
+    {
+        if (0 == m_public_peers.erase(peerid))
+            throw std::runtime_error("p2p peer not found to remove: " + peerid);
+    }
+
     bool find_stored_request(socket::peer_id const& peerid, beltpp::packet& packet)
     {
         auto it = m_stored_requests.find(peerid);
@@ -230,6 +260,18 @@ public:
     void reset_stored_request(beltpp::isocket::peer_id const& peerid)
     {
         m_stored_requests.erase(peerid);
+    }
+
+    void reconnect_slave()
+    {
+        if (m_node_type != NodeType::miner && m_slave_peer.empty())
+        {
+            auto storage_bind_to_address = m_rpc_bind_to_address;
+            storage_bind_to_address.local.port += 10;
+
+            auto peers_list = m_ptr_rpc_socket.get()->open(storage_bind_to_address);
+            m_slave_peer_attempt = peers_list.front();
+        }
     }
 
     void store_request(socket::peer_id const& peerid, beltpp::packet const& packet)
@@ -465,6 +507,7 @@ public:
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
     beltpp::timer m_broadcast_timer;
+    beltpp::timer m_reconnect_timer;
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
 
@@ -472,11 +515,16 @@ public:
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
-    publiqpp::storage m_storage;
     publiqpp::transaction_pool m_transaction_pool;
     publiqpp::state m_state;
 
     session_manager m_sessions;
+
+    beltpp::isocket::peer_id m_slave_peer;
+    beltpp::isocket::peer_id m_slave_peer_attempt;
+
+    unordered_set<beltpp::isocket::peer_id> m_public_peers;
+    unordered_map<string, beltpp::isocket::peer_id> m_public_map;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
@@ -485,9 +533,9 @@ public:
     bool m_miner;
     Coin m_balance;
     NodeType m_node_type;
+    task_table m_slave_tasks;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
-    stat_counter m_stat_counter;
     ip_address public_address;
 
     SyncInfo own_sync_info;

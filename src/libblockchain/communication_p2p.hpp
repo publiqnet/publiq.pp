@@ -53,17 +53,3 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-
-//---------------- Exceptions -----------------------
-class wrong_data_exception : public std::runtime_error
-{
-public:
-    explicit wrong_data_exception(std::string const& _message);
-
-    wrong_data_exception(wrong_data_exception const&) noexcept;
-    wrong_data_exception& operator=(wrong_data_exception const&) noexcept;
-
-    virtual ~wrong_data_exception() noexcept;
-
-    std::string message;
-};

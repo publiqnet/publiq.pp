@@ -1,5 +1,6 @@
 #include "node.hpp"
 #include "common.hpp"
+#include "exception.hpp"
 
 #include "communication_rpc.hpp"
 #include "communication_p2p.hpp"
@@ -44,7 +45,6 @@ node::node(ip_address const& rpc_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
            boost::filesystem::path const& fs_blockchain,
            boost::filesystem::path const& fs_action_log,
-           boost::filesystem::path const& fs_storage,
            boost::filesystem::path const& fs_transaction_pool,
            boost::filesystem::path const& fs_state,
            beltpp::ilog* plogger_p2p,
@@ -57,7 +57,6 @@ node::node(ip_address const& rpc_bind_to_address,
                                          p2p_connect_to_addresses,
                                          fs_blockchain,
                                          fs_action_log,
-                                         fs_storage,
                                          fs_transaction_pool,
                                          fs_state,
                                          plogger_p2p,
@@ -148,7 +147,8 @@ bool node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
+                    if (peerid != m_pimpl->m_slave_peer_attempt)
+                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -170,6 +170,22 @@ bool node::run()
                             m_pimpl->m_rpc_bind_to_address.local.empty() == false)
                             m_pimpl->m_ptr_external_address.reset(new beltpp::ip_address(external_address));
                     }
+                    else
+                    {
+                        beltpp::on_failure guard(
+                            [&peerid, &psk] { psk->send(peerid, beltpp::isocket_drop()); });
+
+                        if (peerid == m_pimpl->m_slave_peer_attempt)
+                        {
+                            m_pimpl->m_slave_peer = peerid;
+                            m_pimpl->writeln_node(" <=====> Slave connected!");
+                        }
+                        else
+                            m_pimpl->add_public_peer(peerid);
+
+                        guard.dismiss();
+                    }
+
                     break;
                 }
                 case beltpp::isocket_drop::rtt:
@@ -178,6 +194,16 @@ bool node::run()
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                         m_pimpl->remove_peer(peerid);
+                    else
+                    {
+                        m_pimpl->remove_public_peer(peerid);
+
+                        if (peerid == m_pimpl->m_slave_peer)
+                        {
+                            m_pimpl->m_slave_peer.clear();
+                            m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
+                        }
+                    }
 
                     break;
                 }
@@ -354,17 +380,17 @@ bool node::run()
 
                         if (do_i_need_it(article_info, m_pimpl))
                         {
-                            // TODO convert this to rpc socket call
+                            beltpp::socket::peer_id public_peerid;
 
-                            if (m_pimpl->m_p2p_peers.find(article_info.channel) != m_pimpl->m_p2p_peers.end())
+                            if (m_pimpl->get_public_peer(article_info.channel, public_peerid) &&
+                                m_pimpl->m_public_peers.count(public_peerid))
                             {
-                                StorageFileAddress file_address;
+                                GetStorageFile file_address;
                                 file_address.uri = article_info.content;
 
-                                psk->send(article_info.channel, std::move(file_address));
+                                m_pimpl->m_ptr_rpc_socket.get()->send(public_peerid, std::move(file_address));
                             }
                         }
-
                     }
 
                     break;
@@ -434,27 +460,44 @@ bool node::run()
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
 
-                        AddressInfo any_address_info;
-                        m_pimpl->m_state.get_any_address(any_address_info);
-                        beltpp::ip_address any_address_info_addr;
-                        beltpp::assign(any_address_info_addr, any_address_info.ip_address);
-                        auto peers_wait_to_join =
-                                m_pimpl->m_ptr_rpc_socket->open(any_address_info_addr);
-
-                        for (auto const& item : peers_wait_to_join)
+                        if (m_pimpl->m_node_type == NodeType::storage)
                         {
-                            beltpp::session<string, ip_address> session_item;
-                            session_item.expected_package_type = beltpp::isocket_join::rtt;
-                            session_item.key = any_address_info.node_id;
-                            session_item.value = any_address_info_addr;
+                            beltpp::socket::peer_id public_peerid;
 
-                            auto insert_result =
-                                    m_pimpl->m_sessions.communications.insert(
-                                        std::make_pair(item, session_item));
-
-                            assert(insert_result.second == true);
-                            B_UNUSED(insert_result);
+                            if (address_info.node_id != m_pimpl->m_pb_key.to_string() &&
+                                (!m_pimpl->get_public_peer(address_info.node_id, public_peerid) ||
+                                0 == m_pimpl->m_public_peers.count(public_peerid)))
+                            {
+                                // connect
+                                beltpp::ip_address address_info_addr;
+                                beltpp::assign(address_info_addr, address_info.ip_address);
+                                
+                                auto peers_list = m_pimpl->m_ptr_rpc_socket.get()->open(address_info_addr);
+                                m_pimpl->set_public_peer(address_info.node_id, peers_list.front());
+                            }
                         }
+
+                        //AddressInfo any_address_info;
+                        //m_pimpl->m_state.get_any_address(any_address_info);
+                        //beltpp::ip_address any_address_info_addr;
+                        //beltpp::assign(any_address_info_addr, any_address_info.ip_address);
+                        //auto peers_wait_to_join =
+                        //        m_pimpl->m_ptr_rpc_socket->open(any_address_info_addr);
+                        //
+                        //for (auto const& item : peers_wait_to_join)
+                        //{
+                        //    beltpp::session<string, ip_address> session_item;
+                        //    session_item.expected_package_type = beltpp::isocket_join::rtt;
+                        //    session_item.key = any_address_info.node_id;
+                        //    session_item.value = any_address_info_addr;
+                        //
+                        //    auto insert_result =
+                        //            m_pimpl->m_sessions.communications.insert(
+                        //                std::make_pair(item, session_item));
+                        //
+                        //    assert(insert_result.second == true);
+                        //    B_UNUSED(insert_result);
+                        //}
                     }
 
                     break;
@@ -462,50 +505,74 @@ bool node::run()
                 case StorageFile::rtt:
                 {
                     if (m_pimpl->m_node_type == NodeType::miner)
-                        throw wrong_request_exception("I am not a channel!");
+                        throw wrong_request_exception("Do not distrub!");
 
-                    StorageFile file;
-                    std::move(ref_packet).get(file);
-
-                    StorageFileAddress file_address;
-                    file_address.uri = m_pimpl->m_storage.put(std::move(file));
-
-                    if (m_pimpl->m_node_type == NodeType::channel)
+                    if (!m_pimpl->m_slave_peer.empty())
                     {
-                        broadcast_article_info(file_address, m_pimpl);
+                        TaskRequest task_request;
+                        task_request.task_id = "test";
+                        ::detail::assign_packet(task_request.package, ref_packet);
+                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(task_request.task_id + ref_packet.to_string());
+                        task_request.signature = signed_msg.base58;
 
-                        //psk->send(peerid, std::move(file_address));
+                        // send task to slave
+                        psk->send(m_pimpl->m_slave_peer, task_request);
+
+                        if (m_pimpl->m_node_type == NodeType::channel)
+                        {
+                            StorageFile file;
+                            ref_packet.get(file);
+                            StorageFileAddress file_address;
+                            file_address.uri = meshpp::hash(file.data);
+
+                            psk->send(peerid, file_address);
+                        }
+
+                        m_pimpl->m_slave_tasks.add(task_request.task_id, ref_packet);
                     }
                     else
                     {
-                        broadcast_content_info(file_address, m_pimpl);
-                    }
+                        m_pimpl->reconnect_slave();
 
+                        RemoteError error;
+                        error.message = "Please try later!";
+
+                        psk->send(peerid, error);
+                    }
+                    
                     break;
                 }
-                case StorageFileAddress::rtt:
+                //case StorageFileAddress::rtt:
+                //{
+                //    // stop recursive call
+                //    break;
+                //}
+                case TaskResponse::rtt:
                 {
-                    StorageFileAddress addr;
-                    std::move(ref_packet).get(addr);
+                    //TODO security
 
-                    StorageFile file;
-                    if (m_pimpl->m_storage.get(addr.uri, file))
+                    if (m_pimpl->m_node_type == NodeType::miner)
+                        throw wrong_request_exception("Do not distrub!");
+
+                    TaskResponse task_response;
+                    std::move(ref_packet).get(task_response);
+
+                    if (task_response.package.type() == StorageFileAddress::rtt)
                     {
-                        if (m_pimpl->m_node_type == NodeType::storage &&
-                            m_pimpl->m_state.get_contract_type(addr.node) == NodeType::channel)
-                            m_pimpl->m_stat_counter.update(addr.node, true);
+                        packet task_packet;
 
-                        psk->send(peerid, std::move(file));
-                    }
-                    else
-                    {
-                        if (m_pimpl->m_node_type == NodeType::storage &&
-                            m_pimpl->m_state.get_contract_type(addr.node) == NodeType::channel)
-                            m_pimpl->m_stat_counter.update(addr.node, false);
-
-                        FileNotFound error;
-                        error.uri = addr.uri;
-                        psk->send(peerid, std::move(error));
+                        if (m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet) &&
+                            task_packet.type() == StorageFile::rtt)
+                        {
+                            StorageFileAddress file_address;
+                            std::move(task_response.package).get(file_address);
+                            file_address.node = name();
+                            
+                            if (m_pimpl->m_node_type == NodeType::channel)
+                                broadcast_article_info(file_address, m_pimpl);
+                            else
+                                broadcast_content_info(file_address, m_pimpl);
+                        }
                     }
 
                     break;
@@ -796,6 +863,16 @@ bool node::run()
         }
     }
 
+    // channels and storages connect to slave threads
+    if (m_pimpl->m_reconnect_timer.expired())
+    {
+        m_pimpl->m_reconnect_timer.update();
+
+        m_pimpl->reconnect_slave();
+
+        broadcast_address_info(m_pimpl);
+    }
+
     // test ! print summary report about connections
     if (m_pimpl->m_summary_report_timer.expired())
     {
@@ -863,9 +940,11 @@ bool node::run()
 
         m_pimpl->clean_transaction_cache();
 
+        m_pimpl->m_slave_tasks.clean();
+
         // temp place
         broadcast_node_type(m_pimpl);
-        broadcast_address_info(m_pimpl);
+        //broadcast_address_info(m_pimpl);
     }
 
     // init sync process and block mining

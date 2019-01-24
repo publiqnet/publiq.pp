@@ -127,6 +127,7 @@ module BlockchainMessage
     {
         String node_id
         IPAddress ip_address
+        IPAddress pub_address
     }
 
     class ArticleInfo
@@ -262,7 +263,7 @@ module BlockchainMessage
         Coin spending
     }
     class TransactionDone { String tx_hash }
-    class FileNotFound { String uri }
+    class FileNotFound{ String uri }
     class RemoteError { String message }
 
     //  distributed storage related
@@ -278,6 +279,12 @@ module BlockchainMessage
         String node
     }
 
+    class GetStorageFile
+    {
+        String uri
+        String node
+    }
+        
     //  ip address information
     class IPDestination
     {
@@ -304,5 +311,18 @@ module BlockchainMessage
         String signature
     }
 
+    // master-slave requests
+    class TaskRequest
+    {
+        Object package
+        String task_id
+        String signature
+    }
+
+    class TaskResponse 
+    {
+        Object package
+        String task_id
+    }
 }
 ////2

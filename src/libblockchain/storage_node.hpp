@@ -6,6 +6,8 @@
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/isocket.hpp>
 
+#include <mesh.pp/cryptoutility.hpp>
+
 #include <boost/filesystem/path.hpp>
 
 #include <memory>
@@ -22,6 +24,7 @@ class BLOCKCHAINSHARED_EXPORT storage_node
 public:
     storage_node(beltpp::ip_address const& rpc_bind_to_address,
                  boost::filesystem::path const& fs_storage,
+                 meshpp::public_key parent_pb_key,
                  beltpp::ilog* plogger_storage_node);
     storage_node(storage_node&& other) noexcept;
     ~storage_node();

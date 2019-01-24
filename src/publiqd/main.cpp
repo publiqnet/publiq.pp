@@ -227,13 +227,12 @@ int main(int argc, char** argv)
                                                          fs_log / "storage_exceptions.txt");
 
         //__debugbreak();
-
+        
         publiqpp::node node(rpc_bind_to_address,
                             p2p_bind_to_address,
                             p2p_connect_to_addresses,
                             fs_blockchain,
                             fs_action_log,
-                            fs_storage,
                             fs_transaction_pool,
                             fs_state,
                             plogger_p2p.get(),
@@ -242,32 +241,45 @@ int main(int argc, char** argv)
                             n_type,
                             log_enabled);
 
-        auto storage_bind_to_address = rpc_bind_to_address;
-        storage_bind_to_address.local.port++;
-
-        publiqpp::storage_node storage_node(storage_bind_to_address,
-                                            fs_storage,
-                                            plogger_rpc.get());
-
         cout << endl;
         cout << "Node: " << node.name() << endl;
         cout << "Type: " << static_cast<int>(n_type) << endl;
         cout << endl;
 
         g_pnode = &node;
-        g_pstorage_node = &storage_node;
 
-        std::thread node_thread([&node, &plogger_exceptions]
+        if (n_type != NodeType::miner)
         {
-            loop(node, plogger_exceptions, g_termination_handled);
-        });
-        std::thread storage_node_thread([&storage_node, &plogger_storage_exceptions]
-        {
-            loop(storage_node, plogger_storage_exceptions, g_termination_handled);
-        });
+            auto storage_bind_to_address = rpc_bind_to_address;
+            storage_bind_to_address.local.port += 10;
 
-        node_thread.join();
-        storage_node_thread.join();
+            publiqpp::storage_node storage_node(storage_bind_to_address,
+                                                fs_storage,
+                                                pv_key.get_public_key(),
+                                                plogger_rpc.get());
+            g_pstorage_node = &storage_node;
+
+            std::thread node_thread([&node, &plogger_exceptions]
+            {
+                loop(node, plogger_exceptions, g_termination_handled);
+            });
+            std::thread storage_node_thread([&storage_node, &plogger_storage_exceptions]
+            {
+                loop(storage_node, plogger_storage_exceptions, g_termination_handled);
+            });
+
+            node_thread.join();
+            storage_node_thread.join();
+        }
+        else
+        {
+            std::thread node_thread([&node, &plogger_exceptions]
+            {
+                loop(node, plogger_exceptions, g_termination_handled);
+            });
+
+            node_thread.join();
+        }
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         dda.save();
