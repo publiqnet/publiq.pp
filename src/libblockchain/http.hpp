@@ -494,13 +494,13 @@ beltpp::detail::pmsg_all message_list_load(
             pss->resource.path.size() == 1 &&
             pss->resource.path.front() == "storage")
         {
-            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFileAddress>();
-            BlockchainMessage::StorageFileAddress& ref = *reinterpret_cast<BlockchainMessage::StorageFileAddress*>(p.get());
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::GetStorageFile>();
+            BlockchainMessage::GetStorageFile& ref = *reinterpret_cast<BlockchainMessage::GetStorageFile*>(p.get());
             ref.uri = pss->resource.arguments["file"];
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-            return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFileAddress::rtt,
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::GetStorageFile::rtt,
                                               std::move(p),
-                                              &BlockchainMessage::StorageFileAddress::pvoid_saver);
+                                              &BlockchainMessage::GetStorageFile::pvoid_saver);
         }
         else if (pss->type == scan_status::post &&
                  pss->resource.path.size() == 1 &&
@@ -588,7 +588,7 @@ beltpp::detail::pmsg_all message_list_load(
         if (pss)
         {
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-            ssd.parser_unrecognized_limit = 1024;
+            ssd.parser_unrecognized_limit = 1024 * 1024;
         }
 
         return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
