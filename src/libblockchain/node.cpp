@@ -512,7 +512,8 @@ bool node::run()
                         TaskRequest task_request;
                         task_request.task_id = ++m_pimpl->m_slave_taskid;
                         ::detail::assign_packet(task_request.package, ref_packet);
-                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + ref_packet.to_string());
+                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + 
+                                                                              meshpp::hash(ref_packet.to_string()));
                         task_request.signature = signed_msg.base58;
 
                         // send task to slave
@@ -520,10 +521,10 @@ bool node::run()
 
                         if (m_pimpl->m_node_type == NodeType::channel)
                         {
-                            StorageFile file;
-                            ref_packet.get(file);
+                            StorageFile storage_file;
+                            ref_packet.get(storage_file);
                             StorageFileAddress file_address;
-                            file_address.uri = meshpp::hash(file.data);
+                            file_address.uri = meshpp::hash(storage_file.data);
 
                             psk->send(peerid, file_address);
                         }

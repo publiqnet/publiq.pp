@@ -19,7 +19,7 @@ using std::string;
 inline packet& contained_member(TaskRequest& task_request, meshpp::public_key& pb_key)
 {
     meshpp::signature signature_check(pb_key,
-                                      std::to_string(task_request.task_id) + task_request.package.to_string(),
+                                      std::to_string(task_request.task_id) + meshpp::hash(task_request.package.to_string()),
                                       task_request.signature);
 
     return task_request.package;
