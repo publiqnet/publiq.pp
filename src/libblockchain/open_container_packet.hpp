@@ -17,7 +17,6 @@ using std::vector;
 
 inline packet& contained_member(TaskRequest& task_request, meshpp::public_key& pb_key)
 {
-    B_UNUSED(pb_key);
     meshpp::signature signature_check(pb_key,
                                       task_request.task_id + task_request.package.to_string(),
                                       task_request.signature);

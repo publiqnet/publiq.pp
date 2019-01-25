@@ -542,11 +542,6 @@ bool node::run()
                     
                     break;
                 }
-                //case StorageFileAddress::rtt:
-                //{
-                //    // stop recursive call
-                //    break;
-                //}
                 case TaskResponse::rtt:
                 {
                     //TODO security

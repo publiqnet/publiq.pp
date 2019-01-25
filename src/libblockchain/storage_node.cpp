@@ -167,11 +167,6 @@ bool storage_node::run()
 
                     break;
                 }
-                //case StorageFileAddress::rtt:
-                //{
-                //    // stop recursive call
-                //    break;
-                //}
                 case StatInfo::rtt:
                 {
                     //TODO response to parent
