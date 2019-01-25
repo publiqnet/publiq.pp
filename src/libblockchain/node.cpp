@@ -510,9 +510,9 @@ bool node::run()
                     if (!m_pimpl->m_slave_peer.empty())
                     {
                         TaskRequest task_request;
-                        task_request.task_id = "test";
+                        task_request.task_id = ++m_pimpl->m_slave_taskid;
                         ::detail::assign_packet(task_request.package, ref_packet);
-                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(task_request.task_id + ref_packet.to_string());
+                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + ref_packet.to_string());
                         task_request.signature = signed_msg.base58;
 
                         // send task to slave
@@ -544,9 +544,7 @@ bool node::run()
                 }
                 case TaskResponse::rtt:
                 {
-                    //TODO security
-
-                    if (m_pimpl->m_node_type == NodeType::miner)
+                    if(peerid != m_pimpl->m_slave_peer)
                         throw wrong_request_exception("Do not distrub!");
 
                     TaskResponse task_response;

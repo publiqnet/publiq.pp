@@ -315,14 +315,14 @@ module BlockchainMessage
     class TaskRequest
     {
         Object package
-        String task_id
+        UInt64 task_id
         String signature
     }
 
     class TaskResponse 
     {
         Object package
-        String task_id
+        UInt64 task_id
     }
 }
 ////2

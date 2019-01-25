@@ -64,12 +64,12 @@ public:
 class task_table
 {
 public:
-    void add(string task_id, packet& task_packet) 
+    void add(uint64_t task_id, packet& task_packet) 
     {
         task_map[task_id] = pair<system_clock::time_point, packet>(system_clock::now(), std::move(task_packet));
     };
 
-    bool remove(string task_id, packet& task_packet)
+    bool remove(uint64_t task_id, packet& task_packet)
     {
         auto task_it = task_map.find(task_id);
 
@@ -102,7 +102,7 @@ public:
     };
 
 private:
-    map<string, pair<system_clock::time_point, packet>> task_map;
+    map<uint64_t, pair<system_clock::time_point, packet>> task_map;
 };
 
 class node_internals
@@ -165,6 +165,8 @@ public:
 
         if (m_blockchain.length() == 0)
             insert_genesis();
+
+        m_slave_taskid = 0;
 
         calc_balance();
         load_transaction_cache();
@@ -533,6 +535,7 @@ public:
     bool m_miner;
     Coin m_balance;
     NodeType m_node_type;
+    uint64_t m_slave_taskid;
     task_table m_slave_tasks;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;

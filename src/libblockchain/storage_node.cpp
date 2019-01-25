@@ -127,15 +127,23 @@ bool storage_node::run()
                 }
                 case StorageFile::rtt:
                 {
-                    StorageFile file;
-                    std::move(ref_packet).get(file);
+                    TaskRequest* p_task_request = nullptr;
+                    StorageFile* p_storage_file = nullptr;
+
+                    any_task.items[0]->get(p_task_request);
+                    ref_packet.get(p_storage_file);
+
+                    assert(p_task_request);
+                    assert(p_storage_file);
+
+                    TaskRequest& task_request = *p_task_request;
+                    StorageFile& storage_file = *p_storage_file;
 
                     StorageFileAddress file_address;
-                    file_address.node = "slave";
-                    file_address.uri = m_pimpl->m_storage.put(std::move(file));
+                    file_address.uri = m_pimpl->m_storage.put(std::move(storage_file));
 
                     TaskResponse task_response;
-                    task_response.task_id = "test";
+                    task_response.task_id = task_request.task_id;
                     task_response.package = file_address;
 
                     psk->send(peerid, task_response);
