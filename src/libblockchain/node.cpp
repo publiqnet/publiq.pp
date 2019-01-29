@@ -512,6 +512,7 @@ bool node::run()
                         TaskRequest task_request;
                         task_request.task_id = ++m_pimpl->m_slave_taskid;
                         ::detail::assign_packet(task_request.package, ref_packet);
+                        task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
                         meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + 
                                                                               meshpp::hash(ref_packet.to_string()));
                         task_request.signature = signed_msg.base58;
@@ -567,6 +568,24 @@ bool node::run()
                             else
                                 broadcast_content_info(file_address, m_pimpl);
                         }
+                    }
+                    else if (task_response.package.type() == StatInfo::rtt)
+                    {
+                        if (m_pimpl->m_node_type == NodeType::storage)
+                        {
+                            packet task_packet;
+
+                            if (m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet) &&
+                                task_packet.type() == StatInfo::rtt)
+                            {
+                                StatInfo stat_info;
+                                std::move(task_response.package).get(stat_info);
+
+                                broadcast_storage_stat(stat_info, m_pimpl);
+                            }
+                        }
+                        else
+                            throw wrong_request_exception("Do not distrub!");
                     }
 
                     break;
@@ -863,8 +882,6 @@ bool node::run()
         m_pimpl->m_reconnect_timer.update();
 
         m_pimpl->reconnect_slave();
-
-        broadcast_address_info(m_pimpl);
     }
 
     // test ! print summary report about connections
@@ -938,7 +955,7 @@ bool node::run()
 
         // temp place
         broadcast_node_type(m_pimpl);
-        //broadcast_address_info(m_pimpl);
+        broadcast_address_info(m_pimpl);
     }
 
     // init sync process and block mining

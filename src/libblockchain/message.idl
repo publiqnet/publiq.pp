@@ -317,6 +317,7 @@ module BlockchainMessage
         Object package
         UInt64 task_id
         String signature
+        TimePoint time_signed
     }
 
     class TaskResponse 

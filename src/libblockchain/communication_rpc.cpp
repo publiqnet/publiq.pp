@@ -25,12 +25,12 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
                  beltpp::isocket& sk,
                  beltpp::isocket::peer_id const& peerid)
 {
-    uint64_t index = msg_get_actions.start_index;
+    uint64_t start_index = msg_get_actions.start_index;
 
     stack<LoggedTransaction> action_stack;
 
     size_t count = 0;
-    size_t i = index;
+    size_t i = start_index;
     size_t len = action_log.length();
     size_t max_count = msg_get_actions.max_count < ACTION_LOG_MAX_RESPONSE ?
                        msg_get_actions.max_count : ACTION_LOG_MAX_RESPONSE;
@@ -59,7 +59,7 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
         action_log.at(i, action_info);
 
         // remove all not received entries and their reverts
-        if (action_info.logging_type == LoggingType::revert && action_info.index >= index)
+        if (action_info.logging_type == LoggingType::revert && action_info.index >= start_index)
         {
             count -= get_action_size(action_stack.top().action);
 

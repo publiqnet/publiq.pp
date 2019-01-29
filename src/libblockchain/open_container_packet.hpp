@@ -22,6 +22,13 @@ inline packet& contained_member(TaskRequest& task_request, meshpp::public_key& p
                                       std::to_string(task_request.task_id) + meshpp::hash(task_request.package.to_string()),
                                       task_request.signature);
 
+    system_clock::time_point current_time_point = system_clock::now();
+    system_clock::time_point previous_time_point = system_clock::from_time_t(task_request.time_signed.tm);
+    chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
+
+    if(diff_seconds.count() > 3) // 3 is magic number )
+        throw wrong_request_exception("Do not distrub!");
+
     return task_request.package;
 }
 

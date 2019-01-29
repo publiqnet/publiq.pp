@@ -177,8 +177,25 @@ bool storage_node::run()
                 }
                 case StatInfo::rtt:
                 {
-                    //TODO response to parent
+                    TaskRequest* p_task_request = nullptr;
+                    any_task.items[0]->get(p_task_request);
+                   
+                    assert(p_task_request);
+                    
+                    TaskRequest& task_request = *p_task_request;
+                    
+                    StatInfo stat_info;
+                    
+                    m_pimpl->m_stat_counter.get_stat_info(stat_info);
 
+                    TaskResponse task_response;
+                    task_response.package = stat_info;
+                    task_response.task_id = task_request.task_id;
+                    
+                    psk->send(peerid, task_response);
+
+                    m_pimpl->m_stat_counter.init();
+                    
                     break;
                 }
                 default:
@@ -186,7 +203,7 @@ bool storage_node::run()
                     m_pimpl->writeln_node("don't know how to handle: " + std::to_string(ref_packet.type()) +
                                           " from " + detail::peer_short_names(peerid));
 
-                    //psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::isocket_drop());
                     break;
                 }
                 }   // switch ref_packet.type()

@@ -34,6 +34,9 @@ void broadcast_article_info(StorageFileAddress file_address,
 void broadcast_content_info(StorageFileAddress file_address,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+void broadcast_storage_stat(StatInfo& stat_info,
+                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
 bool process_contract(BlockchainMessage::SignedTransaction const& signed_transaction,
                       BlockchainMessage::Contract const& contract,
                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);

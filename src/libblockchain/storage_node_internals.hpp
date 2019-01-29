@@ -58,13 +58,9 @@ namespace detail
 class stat_counter
 {
 public:
-    void init(string new_hash)
+    void init()
     {
-        if (block_hash != new_hash)
-        {
-            ussage_map.clear();
-            block_hash = new_hash;
-        }
+        ussage_map.clear();
     }
 
     void update(string node_name, bool success)
@@ -75,10 +71,9 @@ public:
             ussage_map[node_name].second++;
     }
 
-    bool get_stat_info(StatInfo& stat_info)
+    void get_stat_info(StatInfo& stat_info)
     {
         stat_info.items.clear();
-        stat_info.hash = block_hash;
 
         for (auto& item : ussage_map)
         {
@@ -89,12 +84,9 @@ public:
 
             stat_info.items.push_back(stat_item);
         }
-
-        return !ussage_map.empty();
     }
 
 private:
-    string block_hash;
     map<string, pair<uint64_t, uint64_t>> ussage_map;
 };
 

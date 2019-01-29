@@ -418,41 +418,6 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
                       m_pimpl->m_ptr_p2p_socket.get());
 }
 
-void broadcast_channel_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
-    B_UNUSED(m_pimpl);
-//    StatInfo channel_info;
-//
-//    if (m_pimpl->m_stat_counter.get_stat_info(channel_info))
-//    {
-//        Transaction transaction;
-//        transaction.action = channel_info;
-//        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-//        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
-//
-//        SignedTransaction signed_transaction;
-//        signed_transaction.authority = m_pimpl->m_pb_key.to_string();
-//        signed_transaction.transaction_details = transaction;
-//        signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
-//
-//        Broadcast broadcast;
-//        broadcast.echoes = 2;
-//        broadcast.package = signed_transaction;
-//
-//        broadcast_message(std::move(broadcast),
-//            m_pimpl->m_ptr_p2p_socket->name(),
-//            m_pimpl->m_ptr_p2p_socket->name(),
-//            true,
-//            nullptr,
-//            m_pimpl->m_p2p_peers,
-//            m_pimpl->m_ptr_p2p_socket.get());
-//    }
-//
-//    SignedBlock signed_block;
-//    m_pimpl->m_blockchain.at(m_pimpl->m_blockchain.length() - 1, signed_block);
-//    m_pimpl->m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
-}
-
 ///////////////////////////////////////////////////////////////////////////////////
 
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
@@ -903,7 +868,7 @@ void process_blockchain_response(BlockchainResponse&& response,
                 ArticleInfo article_info;
                 tr_it->transaction_details.action.get(article_info);
 
-                if(tr_it->authority != article_info.channel)
+                if (tr_it->authority != article_info.channel)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == StatInfo::rtt)
@@ -956,8 +921,8 @@ void process_blockchain_response(BlockchainResponse&& response,
     unordered_map<string, system_clock::time_point> transaction_cache_backup = m_pimpl->m_transaction_cache;
 
     auto now = system_clock::now();
-    beltpp::on_failure guard([&m_pimpl, &transaction_cache_backup] 
-    { 
+    beltpp::on_failure guard([&m_pimpl, &transaction_cache_backup]
+    {
         m_pimpl->discard();
         m_pimpl->calc_balance();
         m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
@@ -986,7 +951,7 @@ void process_blockchain_response(BlockchainResponse&& response,
     }
 
     // complete revert started above
-    for(auto& signed_transaction : pool_transactions)
+    for (auto& signed_transaction : pool_transactions)
         revert_transaction(signed_transaction, m_pimpl, false);
 
     // calculate back to get state at LCB point
@@ -1034,7 +999,7 @@ void process_blockchain_response(BlockchainResponse&& response,
         // verify consensus_delta
         Coin amount = m_pimpl->m_state.get_balance(signed_block.authority);
         uint64_t delta = m_pimpl->calc_delta(signed_block.authority, amount.whole, block.header.prev_hash, c_const);
-        
+
         if (delta != block.header.delta)
             throw wrong_data_exception("blockchain response. consensus delta!");
 
@@ -1054,7 +1019,7 @@ void process_blockchain_response(BlockchainResponse&& response,
 
             m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(tr_item.transaction_details.creation.tm);
 
-            if(!apply_transaction(tr_item, m_pimpl, signed_block.authority))
+            if (!apply_transaction(tr_item, m_pimpl, signed_block.authority))
                 throw wrong_data_exception("blockchain response. sender balance!");
         }
 
@@ -1083,7 +1048,7 @@ void process_blockchain_response(BlockchainResponse&& response,
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-        if(apply_transaction(signed_transaction, m_pimpl))
+        if (apply_transaction(signed_transaction, m_pimpl))
             m_pimpl->m_action_log.log_transaction(signed_transaction);
         else
             m_pimpl->m_transaction_pool.remove(key);
@@ -1119,8 +1084,21 @@ void process_blockchain_response(BlockchainResponse&& response,
         if (m_pimpl->m_node_type == NodeType::channel)
             broadcast_storage_info(m_pimpl);
 
-        if (m_pimpl->m_node_type == NodeType::storage)
-            broadcast_channel_info(m_pimpl);
+        if (m_pimpl->m_node_type == NodeType::storage && !m_pimpl->m_slave_peer.empty())
+        {
+            beltpp::packet stat_info;
+            TaskRequest task_request;
+            task_request.task_id = ++m_pimpl->m_slave_taskid;
+            ::detail::assign_packet(task_request.package, stat_info);
+            task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
+            meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id));//TODO security
+            task_request.signature = signed_msg.base58;
+
+            // send task to slave
+            m_pimpl->m_ptr_rpc_socket.get()->send(m_pimpl->m_slave_peer, task_request);
+
+            m_pimpl->m_slave_tasks.add(task_request.task_id, stat_info);
+        }
     }
 }
 
@@ -1293,6 +1271,57 @@ void broadcast_content_info(StorageFileAddress file_address,
                       nullptr, // log disabled
                       m_pimpl->m_p2p_peers,
                       m_pimpl->m_ptr_p2p_socket.get());
+}
+
+void broadcast_storage_stat(StatInfo& stat_info, 
+                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+{
+    vector<Contract> channels;
+    unordered_set<string> channels_set;
+    m_pimpl->m_state.get_contracts(channels, NodeType::channel);
+
+    if (channels.empty()) return;
+
+    for (auto& contract : channels)
+        channels_set.insert(contract.owner);
+
+    for (auto it = stat_info.items.begin(); it != stat_info.items.end();)
+    {
+        if (channels_set.count(it->node))
+            ++it;
+        else
+            it = stat_info.items.erase(it);
+    }
+
+    if (stat_info.items.empty()) return;
+
+    SignedBlock signed_block;
+    uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
+    m_pimpl->m_blockchain.at(block_number, signed_block);
+
+    stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
+
+    Transaction transaction;
+    transaction.action = stat_info;
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
+
+    SignedTransaction signed_transaction;
+    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
+    signed_transaction.transaction_details = transaction;
+    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
+    Broadcast broadcast;
+    broadcast.echoes = 2;
+    broadcast.package = signed_transaction;
+
+    broadcast_message(std::move(broadcast),
+        m_pimpl->m_ptr_p2p_socket->name(),
+        m_pimpl->m_ptr_p2p_socket->name(),
+        true,
+        nullptr,
+        m_pimpl->m_p2p_peers,
+        m_pimpl->m_ptr_p2p_socket.get());
 }
 
 bool process_contract(BlockchainMessage::SignedTransaction const& signed_transaction,
