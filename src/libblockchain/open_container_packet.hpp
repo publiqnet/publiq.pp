@@ -19,7 +19,9 @@ using std::string;
 inline packet& contained_member(TaskRequest& task_request, meshpp::public_key& pb_key)
 {
     meshpp::signature signature_check(pb_key,
-                                      std::to_string(task_request.task_id) + meshpp::hash(task_request.package.to_string()),
+                                      std::to_string(task_request.task_id) + 
+                                      meshpp::hash(task_request.package.to_string()) +
+                                      std::to_string(task_request.time_signed.tm),
                                       task_request.signature);
 
     system_clock::time_point current_time_point = system_clock::now();

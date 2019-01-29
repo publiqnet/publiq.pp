@@ -244,7 +244,7 @@ public:
     void remove_public_peer(socket::peer_id peerid)
     {
         if (0 == m_public_peers.erase(peerid))
-            throw std::runtime_error("p2p peer not found to remove: " + peerid);
+            throw std::runtime_error("public peer not found to remove: " + peerid);
     }
 
     bool find_stored_request(socket::peer_id const& peerid, beltpp::packet& packet)

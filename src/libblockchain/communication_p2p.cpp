@@ -1091,7 +1091,9 @@ void process_blockchain_response(BlockchainResponse&& response,
             task_request.task_id = ++m_pimpl->m_slave_taskid;
             ::detail::assign_packet(task_request.package, stat_info);
             task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
-            meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id));//TODO security
+            meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + 
+                                                                  meshpp::hash(stat_info.to_string()) +
+                                                                  std::to_string(task_request.time_signed.tm));
             task_request.signature = signed_msg.base58;
 
             // send task to slave

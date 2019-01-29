@@ -178,7 +178,7 @@ bool node::run()
                         if (peerid == m_pimpl->m_slave_peer_attempt)
                         {
                             m_pimpl->m_slave_peer = peerid;
-                            m_pimpl->writeln_node(" <=====> Slave connected!");
+                            m_pimpl->writeln_node(" <=======> Slave connected!");
                         }
                         else
                             m_pimpl->add_public_peer(peerid);
@@ -196,13 +196,13 @@ bool node::run()
                         m_pimpl->remove_peer(peerid);
                     else
                     {
-                        m_pimpl->remove_public_peer(peerid);
-
                         if (peerid == m_pimpl->m_slave_peer)
                         {
                             m_pimpl->m_slave_peer.clear();
                             m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
                         }
+                        else
+                            m_pimpl->remove_public_peer(peerid);
                     }
 
                     break;
@@ -514,7 +514,8 @@ bool node::run()
                         ::detail::assign_packet(task_request.package, ref_packet);
                         task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
                         meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + 
-                                                                              meshpp::hash(ref_packet.to_string()));
+                                                                              meshpp::hash(ref_packet.to_string()) +
+                                                                              std::to_string(task_request.time_signed.tm));
                         task_request.signature = signed_msg.base58;
 
                         // send task to slave
