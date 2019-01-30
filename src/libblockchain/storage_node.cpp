@@ -98,6 +98,8 @@ bool storage_node::run()
                 }
                 case beltpp::isocket_drop::rtt:
                 {
+                    m_pimpl->writeln_node("slave dropped: " + detail::peer_short_names(peerid));
+
                     break;
                 }
                 case beltpp::isocket_protocol_error::rtt:
@@ -200,7 +202,7 @@ bool storage_node::run()
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("don't know how to handle: " + std::to_string(ref_packet.type()) +
+                    m_pimpl->writeln_node("slave don't know how to handle: " + std::to_string(ref_packet.type()) +
                                           " from " + detail::peer_short_names(peerid));
 
                     psk->send(peerid, beltpp::isocket_drop());

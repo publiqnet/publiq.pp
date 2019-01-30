@@ -190,7 +190,7 @@ bool node::run()
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("master dropped: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                         m_pimpl->remove_peer(peerid);
@@ -785,7 +785,7 @@ bool node::run()
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("don't know how to handle: " + std::to_string(ref_packet.type()) +
+                    m_pimpl->writeln_node("master don't know how to handle: " + std::to_string(ref_packet.type()) +
                                           ". dropping " + detail::peer_short_names(peerid));
 
                     psk->send(peerid, beltpp::isocket_drop());

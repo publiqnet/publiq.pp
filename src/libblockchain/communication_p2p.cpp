@@ -1086,7 +1086,7 @@ void process_blockchain_response(BlockchainResponse&& response,
 
         if (m_pimpl->m_node_type == NodeType::storage && !m_pimpl->m_slave_peer.empty())
         {
-            beltpp::packet stat_info;
+            StatInfo stat_info;
             TaskRequest task_request;
             task_request.task_id = ++m_pimpl->m_slave_taskid;
             ::detail::assign_packet(task_request.package, stat_info);
@@ -1099,7 +1099,10 @@ void process_blockchain_response(BlockchainResponse&& response,
             // send task to slave
             m_pimpl->m_ptr_rpc_socket.get()->send(m_pimpl->m_slave_peer, task_request);
 
-            m_pimpl->m_slave_tasks.add(task_request.task_id, stat_info);
+            beltpp::packet task_packet;
+            task_packet.set(stat_info);
+
+            m_pimpl->m_slave_tasks.add(task_request.task_id, task_packet);
         }
     }
 }
