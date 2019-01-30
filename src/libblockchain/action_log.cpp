@@ -66,6 +66,7 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
 
     BlockLog block_log;
     block_log.block_hash = block_hash;
+    block_log.block_number = block.header.block_number;
     block_log.time_signed = block.header.time_signed;
     block_log.authority = signed_block.authority;
 

@@ -77,6 +77,7 @@ module BlockchainMessage
     {
         String authority
         String block_hash
+        UInt64 block_number
         TimePoint time_signed
         Array RewardLog rewards
         Array TransactionLog transactions

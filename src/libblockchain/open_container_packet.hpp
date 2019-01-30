@@ -31,6 +31,9 @@ inline packet& contained_member(TaskRequest& task_request, meshpp::public_key& p
     if(diff_seconds.count() > 3) // 3 is magic number )
         throw wrong_request_exception("Do not distrub!");
 
+    if(task_request.package.empty())
+        throw wrong_request_exception("Empty request!");
+
     return task_request.package;
 }
 
