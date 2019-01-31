@@ -118,6 +118,24 @@ bool node::run()
             if (psk != nullptr)
                 received_packets = psk->receive(peerid);
 
+            //-----------------------------------------------------//
+            auto remove_peer = [&]()
+            {
+                if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                    m_pimpl->remove_peer(peerid);
+                else
+                {
+                    if (peerid == m_pimpl->m_slave_peer)
+                    {
+                        m_pimpl->m_slave_peer.clear();
+                        m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
+                    }
+                    else
+                        m_pimpl->remove_public_peer(peerid);
+                }
+            };
+            //-----------------------------------------------------//
+
             for (auto& received_packet : received_packets)
             {
             try
@@ -148,7 +166,7 @@ bool node::run()
                 case beltpp::isocket_join::rtt:
                 {
                     if (peerid != m_pimpl->m_slave_peer_attempt)
-                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
+                        m_pimpl->writeln_node("master joined: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -192,18 +210,19 @@ bool node::run()
                 {
                     m_pimpl->writeln_node("master dropped: " + detail::peer_short_names(peerid));
 
-                    if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                        m_pimpl->remove_peer(peerid);
-                    else
-                    {
-                        if (peerid == m_pimpl->m_slave_peer)
-                        {
-                            m_pimpl->m_slave_peer.clear();
-                            m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
-                        }
-                        else
-                            m_pimpl->remove_public_peer(peerid);
-                    }
+                    //if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                    //    m_pimpl->remove_peer(peerid);
+                    //else
+                    //{
+                    //    if (peerid == m_pimpl->m_slave_peer)
+                    //    {
+                    //        m_pimpl->m_slave_peer.clear();
+                    //        m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
+                    //    }
+                    //    else
+                    //        m_pimpl->remove_public_peer(peerid);
+                    //}
+                    remove_peer();
 
                     break;
                 }
@@ -215,9 +234,10 @@ bool node::run()
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::isocket_drop());
 
-                    if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                        m_pimpl->remove_peer(peerid);
-
+                    //if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                    //    m_pimpl->remove_peer(peerid);
+                    remove_peer();
+                    
                     break;
                 }
                 case beltpp::isocket_open_refused::rtt:
@@ -790,8 +810,10 @@ bool node::run()
 
                     psk->send(peerid, beltpp::isocket_drop());
 
-                    if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                        m_pimpl->remove_peer(peerid);
+                    //if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                    //    m_pimpl->remove_peer(peerid);
+                    remove_peer();
+
                     break;
                 }
                 }   // switch ref_packet.type()
@@ -825,7 +847,8 @@ bool node::run()
             catch (wrong_data_exception const&)
             {
                 psk->send(peerid, beltpp::isocket_drop());
-                m_pimpl->remove_peer(peerid);
+                //m_pimpl->remove_peer(peerid);
+                remove_peer();
                 throw;
             }
             catch (wrong_request_exception const& e)
