@@ -16,7 +16,7 @@ using std::map;
 using std::set;
 
 ///////////////////////////////////////////////////////////////////////////////////
-//                            Internal Finctions
+//                            Internal Functions
 bool apply_transaction(SignedTransaction const& signed_transaction,
                        unique_ptr<publiqpp::detail::node_internals>& m_pimpl, 
                        string const& key = string())
