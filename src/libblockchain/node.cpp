@@ -166,7 +166,7 @@ bool node::run()
                 case beltpp::isocket_join::rtt:
                 {
                     if (peerid != m_pimpl->m_slave_peer_attempt)
-                        m_pimpl->writeln_node("master joined: " + detail::peer_short_names(peerid));
+                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -208,20 +208,8 @@ bool node::run()
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    m_pimpl->writeln_node("master dropped: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
 
-                    //if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                    //    m_pimpl->remove_peer(peerid);
-                    //else
-                    //{
-                    //    if (peerid == m_pimpl->m_slave_peer)
-                    //    {
-                    //        m_pimpl->m_slave_peer.clear();
-                    //        m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
-                    //    }
-                    //    else
-                    //        m_pimpl->remove_public_peer(peerid);
-                    //}
                     remove_peer();
 
                     break;
@@ -234,8 +222,6 @@ bool node::run()
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::isocket_drop());
 
-                    //if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                    //    m_pimpl->remove_peer(peerid);
                     remove_peer();
                     
                     break;
@@ -529,6 +515,16 @@ bool node::run()
 
                     if (!m_pimpl->m_slave_peer.empty())
                     {
+                        if (m_pimpl->m_node_type == NodeType::channel)
+                        {
+                            StorageFile storage_file;
+                            ref_packet.get(storage_file);
+                            StorageFileAddress file_address;
+                            file_address.uri = meshpp::hash(storage_file.data);
+
+                            psk->send(peerid, file_address);
+                        }
+
                         TaskRequest task_request;
                         task_request.task_id = ++m_pimpl->m_slave_taskid;
                         ::detail::assign_packet(task_request.package, ref_packet);
@@ -540,16 +536,6 @@ bool node::run()
 
                         // send task to slave
                         psk->send(m_pimpl->m_slave_peer, task_request);
-
-                        if (m_pimpl->m_node_type == NodeType::channel)
-                        {
-                            StorageFile storage_file;
-                            ref_packet.get(storage_file);
-                            StorageFileAddress file_address;
-                            file_address.uri = meshpp::hash(storage_file.data);
-
-                            psk->send(peerid, file_address);
-                        }
 
                         m_pimpl->m_slave_tasks.add(task_request.task_id, ref_packet);
                     }
@@ -810,8 +796,6 @@ bool node::run()
 
                     psk->send(peerid, beltpp::isocket_drop());
 
-                    //if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                    //    m_pimpl->remove_peer(peerid);
                     remove_peer();
 
                     break;
@@ -847,7 +831,6 @@ bool node::run()
             catch (wrong_data_exception const&)
             {
                 psk->send(peerid, beltpp::isocket_drop());
-                //m_pimpl->remove_peer(peerid);
                 remove_peer();
                 throw;
             }
