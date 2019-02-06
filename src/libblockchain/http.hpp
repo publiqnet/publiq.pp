@@ -1,7 +1,6 @@
 #pragma once
 
 #include "message.hpp"
-#include "storage_message.hpp"
 
 #include <string>
 #include <vector>

@@ -202,7 +202,7 @@ filesystem::path data_directory_path(string const& dir)
 }
 
 string settings::s_data_dir = config_directory_path().string();
-string settings::s_application_name = "exe_publiqd";
+string settings::s_application_name = "publiqd";
 
 void settings::set_data_directory(string const& data_dir)
 {

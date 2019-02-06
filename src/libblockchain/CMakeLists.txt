@@ -4,12 +4,6 @@ add_custom_command (
   MAIN_DEPENDENCY message.idl
   COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
 )
-# generate storage_message.gen.hpp from storage_message.idl
-add_custom_command (
-  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/storage_message.gen.hpp
-  MAIN_DEPENDENCY storage_message.idl
-  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/storage_message.idl ${CMAKE_CURRENT_SOURCE_DIR}/storage_message.gen.hpp
-)
 
 add_definitions(-DBLOCKCHAIN_LIBRARY)
 
@@ -42,8 +36,6 @@ add_library(blockchain
     state.hpp
     storage.cpp
     storage.hpp
-    storage_message.hpp
-    storage_message.gen.hpp
     storage_node.cpp
     storage_node.hpp
     storage_node_internals.hpp
@@ -55,6 +47,7 @@ target_link_libraries(blockchain
     PUBLIC
         mesh.pp
         belt.pp
+        publiq.pp
     PRIVATE
         packet
         utility
@@ -75,5 +68,7 @@ install(TARGETS blockchain
 install(FILES
     global.hpp
     node.hpp
+    message.hpp
+    message.gen.hpp
     storage_node.hpp
     DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/libblockchain)

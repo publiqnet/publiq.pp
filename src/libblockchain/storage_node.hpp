@@ -1,7 +1,6 @@
 #pragma once
 
 #include "global.hpp"
-#include "storage_message.hpp"
 
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/isocket.hpp>
