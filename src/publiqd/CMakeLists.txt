@@ -5,6 +5,10 @@ add_custom_command (
   COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/pid.idl ${CMAKE_CURRENT_SOURCE_DIR}/pid.gen.hpp
 )
 
+if(NOT WIN32 AND NOT APPLE)
+set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread")
+endif()
+
 # define the executable
 add_executable(publiqd
     main.cpp

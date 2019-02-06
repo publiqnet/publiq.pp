@@ -1,7 +1,10 @@
 #pragma once
 
+#include "global.hpp"
+
 #include <exception>
 #include <string>
+#include <stdexcept>
 
 class wrong_data_exception : public std::runtime_error
 {

@@ -27,8 +27,8 @@ add_library(blockchain
     coin.cpp
     coin.hpp
     common.hpp
-	exception.hpp
-	exception.cpp
+    exception.hpp
+    exception.cpp
     http.hpp
     message.hpp
     message.gen.hpp

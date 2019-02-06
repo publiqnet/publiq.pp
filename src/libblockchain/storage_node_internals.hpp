@@ -7,7 +7,6 @@
 #include "storage.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
-#include "session_manager.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -26,7 +25,6 @@
 #include <chrono>
 #include <memory>
 
-using namespace libblockchain;
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 

@@ -1,4 +1,5 @@
 #include "exception.hpp"
+#include "common.hpp"
 
 wrong_data_exception::wrong_data_exception(std::string const& _message)
     : runtime_error("wrong_data_exception -> " + _message)
