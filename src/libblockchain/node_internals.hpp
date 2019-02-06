@@ -6,7 +6,6 @@
 #include "state.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
-#include "session_manager.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -18,6 +17,7 @@
 
 #include <mesh.pp/p2psocket.hpp>
 #include <mesh.pp/cryptoutility.hpp>
+#include <mesh.pp/sessionutility.hpp>
 
 #include <boost/filesystem/path.hpp>
 
@@ -25,7 +25,6 @@
 #include <chrono>
 #include <memory>
 
-using namespace libblockchain;
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
@@ -520,7 +519,7 @@ public:
     publiqpp::transaction_pool m_transaction_pool;
     publiqpp::state m_state;
 
-    session_manager m_sessions;
+    meshpp::session_manager m_sessions;
 
     beltpp::isocket::peer_id m_slave_peer;
     beltpp::isocket::peer_id m_slave_peer_attempt;

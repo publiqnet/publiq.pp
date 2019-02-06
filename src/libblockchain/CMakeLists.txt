@@ -36,7 +36,8 @@ add_library(blockchain
     node.hpp
     node_internals.hpp
     open_container_packet.hpp
-    session_manager.hpp
+    sessions.cpp
+    sessions.hpp
     state.cpp
     state.hpp
     storage.cpp
@@ -61,6 +62,7 @@ target_link_libraries(blockchain
         socket
         systemutility
         cryptoutility
+        sessionutility
         log)
 
 # what to do on make install

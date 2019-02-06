@@ -6,8 +6,7 @@
 #include "communication_p2p.hpp"
 
 #include "open_container_packet.hpp"
-
-#include <belt.pp/session_manager.hpp>
+#include "sessions.hpp"
 
 #include <vector>
 #include <string>
@@ -33,6 +32,7 @@ using std::pair;
 using std::string;
 using std::vector;
 using std::unordered_set;
+using std::unique_ptr;
 
 namespace publiqpp
 {
@@ -136,11 +136,12 @@ bool node::run()
             };
             //-----------------------------------------------------//
 
+
             for (auto& received_packet : received_packets)
             {
             try
             {
-                if (m_pimpl->m_sessions.process(peerid, std::move(received_packet), psk))
+                if (m_pimpl->m_sessions.process(peerid, std::move(received_packet)))
                     continue;
                 vector<packet*> composition;
 
@@ -456,6 +457,16 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     AddressInfo& address_info = *p_address_info;
 
+                    beltpp::ip_address beltpp_ip_address;
+                    beltpp::assign(beltpp_ip_address, address_info.ip_address);
+
+                    vector<unique_ptr<meshpp::session_action>> actions;
+                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(), beltpp_ip_address));
+                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(), address_info.node_id));
+                    m_pimpl->m_sessions.add(address_info.node_id,
+                                            beltpp_ip_address,
+                                            std::move(actions));
+
                     if (process_address_info(signed_tx, address_info, m_pimpl))
                     {
                         broadcast_message(std::move(broadcast),
@@ -465,45 +476,6 @@ bool node::run()
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
-
-                        if (m_pimpl->m_node_type == NodeType::storage)
-                        {
-                            beltpp::socket::peer_id public_peerid;
-
-                            if (address_info.node_id != m_pimpl->m_pb_key.to_string() &&
-                                (!m_pimpl->get_public_peer(address_info.node_id, public_peerid) ||
-                                0 == m_pimpl->m_public_peers.count(public_peerid)))
-                            {
-                                // connect
-                                beltpp::ip_address address_info_addr;
-                                beltpp::assign(address_info_addr, address_info.ip_address);
-                                
-                                auto peers_list = m_pimpl->m_ptr_rpc_socket.get()->open(address_info_addr);
-                                m_pimpl->set_public_peer(address_info.node_id, peers_list.front());
-                            }
-                        }
-
-                        //AddressInfo any_address_info;
-                        //m_pimpl->m_state.get_any_address(any_address_info);
-                        //beltpp::ip_address any_address_info_addr;
-                        //beltpp::assign(any_address_info_addr, any_address_info.ip_address);
-                        //auto peers_wait_to_join =
-                        //        m_pimpl->m_ptr_rpc_socket->open(any_address_info_addr);
-                        //
-                        //for (auto const& item : peers_wait_to_join)
-                        //{
-                        //    beltpp::session<string, ip_address> session_item;
-                        //    session_item.expected_package_type = beltpp::isocket_join::rtt;
-                        //    session_item.key = any_address_info.node_id;
-                        //    session_item.value = any_address_info_addr;
-                        //
-                        //    auto insert_result =
-                        //            m_pimpl->m_sessions.communications.insert(
-                        //                std::make_pair(item, session_item));
-                        //
-                        //    assert(insert_result.second == true);
-                        //    B_UNUSED(insert_result);
-                        //}
                     }
 
                     break;
