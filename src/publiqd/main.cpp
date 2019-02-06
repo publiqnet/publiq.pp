@@ -4,6 +4,7 @@
 
 #include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>
+#include <belt.pp/scope_helper.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
@@ -37,6 +38,7 @@ using std::cout;
 using std::endl;
 using std::vector;
 using std::runtime_error;
+using std::thread;
 
 bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& p2p_bind_to_address,
@@ -248,37 +250,32 @@ int main(int argc, char** argv)
 
         g_pnode = &node;
 
-        if (n_type != NodeType::miner)
         {
-            auto storage_bind_to_address = rpc_bind_to_address;
-            storage_bind_to_address.local.port += 10;
-
-            publiqpp::storage_node storage_node(storage_bind_to_address,
-                                                fs_storage,
-                                                pv_key.get_public_key(),
-                                                plogger_rpc.get());
-            g_pstorage_node = &storage_node;
-
-            std::thread node_thread([&node, &plogger_exceptions]
-            {
-                loop(node, plogger_exceptions, g_termination_handled);
-            });
-            std::thread storage_node_thread([&storage_node, &plogger_storage_exceptions]
-            {
-                loop(storage_node, plogger_storage_exceptions, g_termination_handled);
-            });
-
-            node_thread.join();
-            storage_node_thread.join();
-        }
-        else
-        {
-            std::thread node_thread([&node, &plogger_exceptions]
+            thread node_thread([&node, &plogger_exceptions]
             {
                 loop(node, plogger_exceptions, g_termination_handled);
             });
 
-            node_thread.join();
+            beltpp::finally join_node_thread([&node_thread](){ node_thread.join(); });
+
+            if (n_type != NodeType::miner)
+            {
+                auto storage_bind_to_address = rpc_bind_to_address;
+                storage_bind_to_address.local.port += 10;
+
+                publiqpp::storage_node storage_node(storage_bind_to_address,
+                                                    fs_storage,
+                                                    pv_key.get_public_key(),
+                                                    plogger_rpc.get());
+                g_pstorage_node = &storage_node;
+
+                std::thread storage_node_thread([&storage_node, &plogger_storage_exceptions]
+                {
+                    loop(storage_node, plogger_storage_exceptions, g_termination_handled);
+                });
+
+                beltpp::finally join_node_thread([&storage_node_thread](){ storage_node_thread.join(); });
+            }
         }
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());

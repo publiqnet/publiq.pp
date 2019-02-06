@@ -55,8 +55,10 @@ bool session_action_connections::process(beltpp::packet&& package)
             need_to_drop = true;
             completed = true;
             expected_next_package_type = size_t(-1);
+            break;
         default:
             assert(false);
+            break;
         }
     }
     else
@@ -77,6 +79,7 @@ bool session_action_connections::process(beltpp::packet&& package)
             break;
         default:
             code = false;
+            break;
         }
     }
 
