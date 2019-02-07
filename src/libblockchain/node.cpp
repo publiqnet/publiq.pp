@@ -40,7 +40,8 @@ namespace publiqpp
 /*
  * node
  */
-node::node(ip_address const& rpc_bind_to_address,
+node::node(string const& genesis_signed_block,
+           ip_address const& rpc_bind_to_address,
            ip_address const& p2p_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
            boost::filesystem::path const& fs_blockchain,
@@ -52,7 +53,8 @@ node::node(ip_address const& rpc_bind_to_address,
            meshpp::private_key const& pv_key,
            NodeType& n_type,
            bool log_enabled)
-    : m_pimpl(new detail::node_internals(rpc_bind_to_address,
+    : m_pimpl(new detail::node_internals(genesis_signed_block,
+                                         rpc_bind_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,
                                          fs_blockchain,

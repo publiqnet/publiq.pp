@@ -108,6 +108,7 @@ class node_internals
 {
 public:
     node_internals(
+        string const& genesis_signed_block,
         ip_address const& rpc_bind_to_address,
         ip_address const& p2p_bind_to_address,
         std::vector<ip_address> const& p2p_connect_to_addresses,
@@ -163,7 +164,15 @@ public:
         m_ptr_eh->add(*m_ptr_p2p_socket);
 
         if (m_blockchain.length() == 0)
-            insert_genesis();
+            insert_genesis(genesis_signed_block);
+        else
+        {
+            SignedBlock signed_block;
+            m_blockchain.at(0, signed_block);
+
+            if (signed_block.to_string() != genesis_signed_block)
+                throw std::runtime_error("the stored genesis is different from the one built in");
+        }
 
         m_slave_taskid = 0;
 
@@ -456,14 +465,14 @@ public:
         }
     }
 
-    void insert_genesis()
+    void insert_genesis(string const& genesis_signed_block)
     {
         if (m_blockchain.length() > 0)
             return;
 
         SignedBlock signed_block;
 
-        signed_block.from_string(R"genesis({"rtt":6,"block_details":{"rtt":5,"header":{"rtt":4,"block_number":0,"delta":0,"c_sum":0,"c_const":1,"prev_hash":"6dLZpsgPsE2rBUq8PHzWAGXx8bUqykLmFgqKjR7H8yJk","time_signed":"2019-02-07 12:59:08"},"rewards":[{"rtt":10,"amount":{"rtt":0,"whole":100,"fraction":0},"to":"PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ","reward_type":"initial"},{"rtt":10,"amount":{"rtt":0,"whole":100,"fraction":0},"to":"PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu","reward_type":"initial"},{"rtt":10,"amount":{"rtt":0,"whole":100,"fraction":0},"to":"PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G","reward_type":"initial"},{"rtt":10,"amount":{"rtt":0,"whole":100,"fraction":0},"to":"PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk","reward_type":"initial"},{"rtt":10,"amount":{"rtt":0,"whole":100,"fraction":0},"to":"PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6","reward_type":"initial"}],"signed_transactions":[]},"authority":"PBQ5HnbMEwb8AYsqZrrEwPaKZ1kzADmwuUMhhtdhL5ZdCCW5pkWmq","signature":"AN1rKrNFepV72Xm6fu51jcx68bBMjWs7LmrAp5ikeWZc91qBmBsztEsoWDvD6poaPwsu5Uvtyot8xuWxkoLMvYaLzsWZ7aPce"})genesis");
+        signed_block.from_string(genesis_signed_block);
 
         beltpp::on_failure guard([&] { discard(); });
 
