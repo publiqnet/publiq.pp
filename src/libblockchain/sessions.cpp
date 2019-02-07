@@ -41,12 +41,10 @@ void session_action_connections::initiate()
 
 bool session_action_connections::process(beltpp::packet&& package)
 {
-    if (expected_next_package_type == size_t(-1))
-        return false;
-
     bool code = true;
 
-    if (expected_next_package_type == package.type())
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
     {
         switch (package.type())
         {
@@ -65,17 +63,23 @@ bool session_action_connections::process(beltpp::packet&& package)
     {
         switch (package.type())
         {
-        case beltpp::isocket_protocol_error::rtt:
         case beltpp::isocket_drop::rtt:
+            errored = true;
+            need_to_drop = false;
+            break;
+        case beltpp::isocket_protocol_error::rtt:
+            errored = true;
             if (need_to_drop)
             {
                 psk->send(peerid_update, beltpp::isocket_drop());
-                need_to_drop = true;
+                need_to_drop = false;
             }
             break;
         case beltpp::isocket_open_error::rtt:
+            errored = true;
             break;
         case beltpp::isocket_open_refused::rtt:
+            errored = true;
             break;
         default:
             code = false;
@@ -105,12 +109,10 @@ void session_action_signatures::initiate()
 
 bool session_action_signatures::process(beltpp::packet&& package)
 {
-    if (expected_next_package_type == size_t(-1))
-        return false;
-
     bool code = true;
 
-    if (expected_next_package_type == package.type())
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
     {
         switch (package.type())
         {
@@ -143,7 +145,9 @@ bool session_action_signatures::process(beltpp::packet&& package)
         }
     }
     else
+    {
         code = false;
+    }
 
     return code;
 }
