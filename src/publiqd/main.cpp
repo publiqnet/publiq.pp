@@ -274,7 +274,7 @@ int main(int argc, char** argv)
                     loop(storage_node, plogger_storage_exceptions, g_termination_handled);
                 });
 
-                beltpp::finally join_node_thread([&storage_node_thread](){ storage_node_thread.join(); });
+                beltpp::finally join_storage_node_thread([&storage_node_thread](){ storage_node_thread.join(); });
             }
         }
 

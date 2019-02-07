@@ -92,8 +92,9 @@ module BlockchainMessage
         channel
         storage
         author
-        miner_fee
+        fee
     }
+
     class Reward
     {
         Coin amount
