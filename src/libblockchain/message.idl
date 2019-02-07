@@ -86,10 +86,19 @@ module BlockchainMessage
     ///
     //  blockchain transactions
     ///
+    enum RewardType
+    {
+        miner
+        channel
+        storage
+        author
+        miner_fee
+    }
     class Reward
     {
         Coin amount
         String to
+        RewardType type
     }
 
     class Transfer

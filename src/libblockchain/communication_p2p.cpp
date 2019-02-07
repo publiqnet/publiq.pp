@@ -232,6 +232,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 {
     rewards.clear();
 
+    coin fee = coin(0, 0);
     map<string, uint64_t> channel_penals;
     map<string, uint64_t> storage_penals;
     map<string, StatInfo> channel_delations;
@@ -239,6 +240,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
     {
+        fee += it->transaction_details.fee;
+
         if (it->transaction_details.action.type() == StatInfo::rtt)
         {
             StatInfo stat_info;
@@ -283,6 +286,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     if (channels.size() && !channel_reward.empty())
     {
         Reward reward;
+        reward.type = RewardType::channel;
         coin channel_portion = channel_reward / channels.size();
 
         for (auto const& item : channels)
@@ -306,6 +310,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     if (storages.size() && !storage_reward.empty())
     {
         Reward reward;
+        reward.type = RewardType::storage;
         coin storage_portion = storage_reward / storages.size();
 
         for (auto const& item : storages)
@@ -321,11 +326,23 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     else
         miner_reward += storage_reward;
 
+    // grant transactions fee himself as a reward
+    if (!fee.empty())
+    {
+        Reward reward;
+        reward.to = authority;
+        reward.type = RewardType::miner_fee;
+        reward.amount = fee.to_Coin();
+
+        rewards.push_back(reward);
+    }
+
     // grant miner reward himself
     if (!miner_reward.empty())
     {
         Reward reward;
         reward.to = authority;
+        reward.type = RewardType::miner;
         reward.amount = miner_reward.to_Coin();
 
         rewards.push_back(reward);
