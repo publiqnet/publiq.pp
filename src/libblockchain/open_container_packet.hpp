@@ -16,6 +16,8 @@ using namespace BlockchainMessage;
 using std::vector;
 using std::string;
 
+namespace publiqpp
+{
 inline packet& contained_member(TaskRequest& task_request, meshpp::public_key const& pb_key)
 {
     meshpp::signature signature_check(pb_key,
@@ -132,3 +134,4 @@ public:
 
     vector<packet*> items;
 };
+}// end of namespace publiqpp

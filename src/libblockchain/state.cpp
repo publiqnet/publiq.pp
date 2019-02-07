@@ -1,5 +1,6 @@
 #include "state.hpp"
 #include "common.hpp"
+#include "exception.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 
@@ -16,9 +17,9 @@ class state_internals
 {
 public:
     state_internals(filesystem::path const& path)
-        :m_accounts("account", path, 10000, detail::get_putl())
-        ,m_contracts("contract", path, 10, detail::get_putl())
-        ,m_addresses("address", path, 10, detail::get_putl())
+        : m_accounts("account", path, 10000, detail::get_putl())
+        , m_contracts("contract", path, 10, detail::get_putl())
+        , m_addresses("address", path, 10, detail::get_putl())
     {}
 
     meshpp::map_loader<Coin> m_accounts;
@@ -70,7 +71,7 @@ void state::apply_transfer(Transfer const& transfer, Coin const& fee)
 
     Coin balance = get_balance(transfer.from);
     if (coin(balance) < transfer.amount + fee)
-        throw low_balance_exception(transfer.from);
+        throw not_enough_balance_exception(coin(balance), transfer.amount + fee);
 
     // decrease "from" balance
     decrease_balance(transfer.from, transfer.amount);
@@ -99,12 +100,12 @@ void state::decrease_balance(string const& key, coin const& amount)
         return;
 
     if (!m_pimpl->m_accounts.contains(key))
-        throw low_balance_exception(key);
+        throw not_enough_balance_exception(coin(), amount);
 
     Coin& balance = m_pimpl->m_accounts.at(key);
 
     if (coin(balance) < amount)
-        throw low_balance_exception(key);
+        throw not_enough_balance_exception(coin(balance), amount);
 
     balance = coin(balance - amount).to_Coin();
 
@@ -181,22 +182,4 @@ bool state::get_any_address(BlockchainMessage::AddressInfo& address_info)
 }
 
 }
-
-//---------------- Exceptions -----------------------
-low_balance_exception::low_balance_exception(string const& _account)
-    : runtime_error("Low balance! account: " + _account)
-    , account(_account)
-{}
-low_balance_exception::low_balance_exception(low_balance_exception const& other) noexcept
-    : runtime_error(other)
-    , account(other.account)
-{}
-low_balance_exception& low_balance_exception::operator=(low_balance_exception const& other) noexcept
-{
-    dynamic_cast<runtime_error*>(this)->operator =(other);
-    account = other.account;
-    return *this;
-}
-low_balance_exception::~low_balance_exception() noexcept
-{}
 

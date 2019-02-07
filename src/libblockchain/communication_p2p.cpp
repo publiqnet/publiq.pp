@@ -15,6 +15,8 @@ using namespace BlockchainMessage;
 using std::map;
 using std::set;
 
+namespace publiqpp
+{
 ///////////////////////////////////////////////////////////////////////////////////
 //                            Internal Functions
 bool apply_transaction(SignedTransaction const& signed_transaction,
@@ -1539,4 +1541,4 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
 
     return true;
 }
-
+}// end of namespace publiqpp

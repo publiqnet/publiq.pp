@@ -809,6 +809,21 @@ bool node::run()
                 psk->send(peerid, msg);
                 throw;
             }
+            catch (not_enough_balance_exception const& e)
+            {
+                NotEnoughBalance msg;
+                msg.balance = e.balance.to_Coin();
+                msg.spending = e.spending.to_Coin();
+                psk->send(peerid, msg);
+                throw;
+            }
+            catch (too_long_string const& e)
+            {
+                TooLongString msg;
+                beltpp::assign(msg, e);
+                psk->send(peerid, msg);
+                throw;
+            }
             catch (std::exception const& e)
             {
                 if (it == interface_type::rpc)

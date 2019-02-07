@@ -2,6 +2,8 @@
 
 #include "node_internals.hpp"
 
+namespace publiqpp
+{
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 void process_blockheader_request(BlockHeaderRequest const& header_request,
@@ -56,3 +58,4 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+}// end of namespace publiqpp

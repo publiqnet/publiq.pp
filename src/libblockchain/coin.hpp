@@ -15,6 +15,7 @@ public:
 
     uint64_t to_uint64_t() const;
     BlockchainMessage::Coin to_Coin() const;
+    std::string to_string() const;
     bool empty() const;
 
     coin& operator = (coin const& other);

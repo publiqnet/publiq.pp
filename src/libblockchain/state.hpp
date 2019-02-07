@@ -40,17 +40,3 @@ private:
     std::unique_ptr<detail::state_internals> m_pimpl;
 };
 }
-
-//---------------- Exceptions -----------------------
-class low_balance_exception : public std::runtime_error
-{
-public:
-    explicit low_balance_exception(std::string const& account);
-
-    low_balance_exception(low_balance_exception const&) noexcept;
-    low_balance_exception& operator=(low_balance_exception const&) noexcept;
-
-    virtual ~low_balance_exception() noexcept;
-
-    std::string account;
-};

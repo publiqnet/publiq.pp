@@ -40,6 +40,11 @@ BlockchainMessage::Coin coin::to_Coin() const
     return c;
 }
 
+std::string coin::to_string() const
+{
+    return "(" + std::to_string(whole) + "," + std::to_string(fraction) + ")";
+}
+
 bool coin::empty() const
 {
     return (whole == 0) && (fraction == 0);

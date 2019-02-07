@@ -7,6 +7,8 @@
 
 using std::stack;
 
+namespace publiqpp
+{
 size_t get_action_size(beltpp::packet const& package)
 {
     if (package.type() == BlockLog::rtt)
@@ -158,6 +160,12 @@ bool process_transfer(BlockchainMessage::SignedTransaction const& signed_transac
     if (signed_transaction.authority != transfer.from)
         throw authority_exception(signed_transaction.authority, transfer.from);
 
+    meshpp::public_key pb_key_to(transfer.to);
+    meshpp::public_key pb_key_from(transfer.from);
+
+    if (transfer.message.size() > 80)
+        throw too_long_string(transfer.message, 80);
+
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
@@ -279,3 +287,4 @@ bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
 
     return m_pimpl->m_node_type == NodeType::storage;
 }
+}// end of namespace publiqpp

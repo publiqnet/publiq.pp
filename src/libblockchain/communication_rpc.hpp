@@ -1,9 +1,10 @@
 #pragma once
 
 #include "node_internals.hpp"
-
 #include "transaction_pool.hpp"
 
+namespace publiqpp
+{
 void get_actions(LoggedTransactionsRequest const& msg_get_actions,
                  publiqpp::action_log& action_log,
                  beltpp::isocket& sk,
@@ -42,3 +43,4 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
 
 bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
                   std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+}// end of namespace publiqpp

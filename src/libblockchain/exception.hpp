@@ -1,11 +1,14 @@
 #pragma once
 
 #include "global.hpp"
+#include "coin.hpp"
 
 #include <exception>
 #include <string>
 #include <stdexcept>
 
+namespace publiqpp
+{
 class wrong_data_exception : public std::runtime_error
 {
 public:
@@ -45,3 +48,32 @@ public:
 
     std::string message;
 };
+
+class not_enough_balance_exception : public std::runtime_error
+{
+public:
+    explicit not_enough_balance_exception(coin const& balance, coin const& spending);
+
+    not_enough_balance_exception(not_enough_balance_exception const&) noexcept;
+    not_enough_balance_exception& operator=(not_enough_balance_exception const&) noexcept;
+
+    virtual ~not_enough_balance_exception() noexcept;
+
+    coin balance;
+    coin spending;
+};
+
+class too_long_string : public std::runtime_error
+{
+public:
+    explicit too_long_string(std::string const& used_string, size_t max_length);
+
+    too_long_string(too_long_string const&) noexcept;
+    too_long_string& operator=(too_long_string const&) noexcept;
+
+    virtual ~too_long_string() noexcept;
+
+    std::string used_string;
+    size_t max_length;
+};
+}// end of namespace publiqpp
