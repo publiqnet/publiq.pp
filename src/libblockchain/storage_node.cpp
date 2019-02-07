@@ -37,11 +37,11 @@ namespace publiqpp
  */
 storage_node::storage_node(ip_address const& rpc_bind_to_address,
                            boost::filesystem::path const& fs_storage,
-                           meshpp::public_key parent_pb_key,
+                           meshpp::private_key const& pv_key,
                            beltpp::ilog* plogger_storage_node)
     : m_pimpl(new detail::storage_node_internals(rpc_bind_to_address,
                                                  fs_storage,
-                                                 parent_pb_key,
+                                                 pv_key,
                                                  plogger_storage_node))
 {}
 
@@ -82,7 +82,7 @@ bool storage_node::run()
                 vector<packet*> composition;
                 open_container_packet<TaskRequest> any_task;
 
-                if (false == any_task.open(received_packet, composition, m_pimpl->m_parent_pb_key))
+                if (false == any_task.open(received_packet, composition, m_pimpl->m_pv_key.get_public_key()))
                 {
                     composition.clear();
                     composition.push_back(&received_packet);
@@ -198,6 +198,18 @@ bool storage_node::run()
 
                     m_pimpl->m_stat_counter.init();
                     
+                    break;
+                }
+                case Ping::rtt:
+                {
+                    Pong msg_pong;
+                    msg_pong.nodeid = m_pimpl->m_pv_key.get_public_key().to_string();
+                    msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
+                    string message_pong = msg_pong.nodeid + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
+                    auto signed_message = m_pimpl->m_pv_key.sign(message_pong);
+
+                    msg_pong.signature = std::move(signed_message.base58);
+                    psk->send(peerid, std::move(msg_pong));
                     break;
                 }
                 default:

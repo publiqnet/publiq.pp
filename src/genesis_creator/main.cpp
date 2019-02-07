@@ -17,7 +17,19 @@ int main(int /*argc*/, char** /*argv*/)
 {
     try
     {
-        meshpp::config::set_public_key_prefix("PBQ");
+        size_t count = 0;
+        cout << "enter the count of rewards, then all the rewards to be used in genesis" << endl;
+        cin >> count;
+
+        string public_key_prefix;
+        cout << "enter the public key prefix" << endl;
+        cin >> public_key_prefix;
+
+        string genesis_reference;
+        cout << "enter the string, which will be hashed and referenced in genesis" << endl;
+        cin >> genesis_reference;
+
+        meshpp::config::set_public_key_prefix(public_key_prefix);
         SignedBlock signed_block;
 
         Block& block = signed_block.block_details;
@@ -27,13 +39,14 @@ int main(int /*argc*/, char** /*argv*/)
         block_header.c_sum = 0;
         block_header.delta = 0;
         block_header.c_const = 1;
-        block_header.prev_hash = meshpp::hash("Ice Age");
+        block_header.prev_hash = meshpp::hash(genesis_reference);
         auto now = std::chrono::system_clock::now();
         block_header.time_signed.tm = std::chrono::system_clock::to_time_t(now);
 
         Reward reward;
         reward.amount.whole = 100;
         reward.amount.fraction = 0;
+        reward.reward_type = RewardType::initial;
 
         meshpp::random_seed node_rs("NODE");
         meshpp::private_key node_pv = node_rs.get_private_key(0);
@@ -59,10 +72,6 @@ int main(int /*argc*/, char** /*argv*/)
         meshpp::private_key sona_pv = sona_rs.get_private_key(0);
         reward.to = sona_pv.get_public_key().to_string();
         block.rewards.push_back(std::move(reward));
-
-        size_t count = 0;
-        cout << "enter the count of rewards, then all the rewards to be used in genesis\n";
-        cin >> count;
 
         for (size_t index = 0; index < count; ++index)
         {

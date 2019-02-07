@@ -265,7 +265,7 @@ int main(int argc, char** argv)
 
                 publiqpp::storage_node storage_node(storage_bind_to_address,
                                                     fs_storage,
-                                                    pv_key.get_public_key(),
+                                                    pv_key,
                                                     plogger_rpc.get());
                 g_pstorage_node = &storage_node;
 

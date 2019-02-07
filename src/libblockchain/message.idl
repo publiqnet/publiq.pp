@@ -57,12 +57,24 @@ module BlockchainMessage
     }
 
     ///
+    enum RewardType
+    {
+        fee
+        initial
+        miner
+        channel
+        storage
+        author
+    }
+
+    ///
     // action log info
     ///
     class RewardLog
     {
         String to
         Coin amount
+        RewardType reward_type
     }
 
     class TransactionLog
@@ -71,6 +83,7 @@ module BlockchainMessage
         Object action
         String transaction_hash
         TimePoint time_signed
+        UInt64 transaction_size
     }
 
     class BlockLog
@@ -78,6 +91,7 @@ module BlockchainMessage
         String authority
         String block_hash
         UInt64 block_number
+        UInt64 block_size
         TimePoint time_signed
         Array RewardLog rewards
         Array TransactionLog transactions
@@ -86,20 +100,12 @@ module BlockchainMessage
     ///
     //  blockchain transactions
     ///
-    enum RewardType
-    {
-        miner
-        channel
-        storage
-        author
-        fee
-    }
 
     class Reward
     {
         Coin amount
         String to
-        RewardType type
+        RewardType reward_type
     }
 
     class Transfer

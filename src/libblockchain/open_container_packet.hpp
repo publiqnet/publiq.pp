@@ -16,7 +16,7 @@ using namespace BlockchainMessage;
 using std::vector;
 using std::string;
 
-inline packet& contained_member(TaskRequest& task_request, meshpp::public_key& pb_key)
+inline packet& contained_member(TaskRequest& task_request, meshpp::public_key const& pb_key)
 {
     meshpp::signature signature_check(pb_key,
                                       std::to_string(task_request.task_id) + 

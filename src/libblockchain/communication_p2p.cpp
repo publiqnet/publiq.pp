@@ -286,7 +286,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     if (channels.size() && !channel_reward.empty())
     {
         Reward reward;
-        reward.type = RewardType::channel;
+        reward.reward_type = RewardType::channel;
         coin channel_portion = channel_reward / channels.size();
 
         for (auto const& item : channels)
@@ -310,7 +310,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     if (storages.size() && !storage_reward.empty())
     {
         Reward reward;
-        reward.type = RewardType::storage;
+        reward.reward_type = RewardType::storage;
         coin storage_portion = storage_reward / storages.size();
 
         for (auto const& item : storages)
@@ -331,7 +331,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         Reward reward;
         reward.to = authority;
-        reward.type = RewardType::fee;
+        reward.reward_type = RewardType::fee;
         reward.amount = fee.to_Coin();
 
         rewards.push_back(reward);
@@ -342,7 +342,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         Reward reward;
         reward.to = authority;
-        reward.type = RewardType::miner;
+        reward.reward_type = RewardType::miner;
         reward.amount = miner_reward.to_Coin();
 
         rewards.push_back(reward);

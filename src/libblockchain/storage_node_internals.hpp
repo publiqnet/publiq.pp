@@ -94,7 +94,7 @@ public:
     storage_node_internals(
         ip_address const& rpc_bind_to_address,
         filesystem::path const& fs_storage,
-        meshpp::public_key parent_pb_key,
+        meshpp::private_key const& pv_key,
         beltpp::ilog* _plogger_storage_node)
         : plogger_storage_node(_plogger_storage_node)
         , m_ptr_eh(new beltpp::event_handler())
@@ -103,7 +103,7 @@ public:
                                ))
         , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_storage(fs_storage)
-        , m_parent_pb_key(parent_pb_key)
+        , m_pv_key(pv_key)
     {
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
@@ -133,7 +133,7 @@ public:
 
     beltpp::ip_address m_rpc_bind_to_address;
     publiqpp::storage m_storage;
-    meshpp::public_key m_parent_pb_key;
+    meshpp::private_key m_pv_key;
 
     stat_counter m_stat_counter;
 };

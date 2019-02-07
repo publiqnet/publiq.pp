@@ -62,20 +62,24 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
         return;
 
     Block const& block = signed_block.block_details;
-    string block_hash = meshpp::hash(signed_block.to_string());
+    string block_serialized = signed_block.to_string();
+    string block_hash = meshpp::hash(block_serialized);
 
     BlockLog block_log;
     block_log.block_hash = block_hash;
     block_log.block_number = block.header.block_number;
     block_log.time_signed = block.header.time_signed;
     block_log.authority = signed_block.authority;
+    block_log.block_size = block_serialized.size();
 
     for (auto const& item : block.signed_transactions)
     {
+        string transaction_serialized = item.to_string();
         TransactionLog transaction_log;
         transaction_log.fee = item.transaction_details.fee;
         transaction_log.time_signed = item.transaction_details.creation;
-        transaction_log.transaction_hash = meshpp::hash(item.to_string());
+        transaction_log.transaction_hash = meshpp::hash(transaction_serialized);
+        transaction_log.transaction_size = transaction_serialized.size();
         BlockchainMessage::detail::assign_packet(transaction_log.action, item.transaction_details.action);
 
         block_log.transactions.push_back(transaction_log);
@@ -86,6 +90,7 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
         RewardLog reward_log;
         reward_log.to = item.to;
         reward_log.amount = item.amount;
+        reward_log.reward_type = item.reward_type;
 
         block_log.rewards.push_back(reward_log);
     }
@@ -98,10 +103,13 @@ void action_log::log_transaction(SignedTransaction const& signed_transaction)
     if (!m_pimpl->m_enabled)
         return;
 
+    string transaction_serialized = signed_transaction.to_string();
+
     TransactionLog transaction_log;
     transaction_log.fee = signed_transaction.transaction_details.fee;
     transaction_log.time_signed = signed_transaction.transaction_details.creation;
-    transaction_log.transaction_hash = meshpp::hash(signed_transaction.to_string());
+    transaction_log.transaction_hash = meshpp::hash(transaction_serialized);
+    transaction_log.transaction_size = transaction_serialized.size();
     BlockchainMessage::detail::assign_packet(transaction_log.action, signed_transaction.transaction_details.action);
 
     insert(std::move(transaction_log));
