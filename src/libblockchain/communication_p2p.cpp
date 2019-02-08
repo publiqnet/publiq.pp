@@ -333,8 +333,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         Reward reward;
         reward.to = authority;
-        reward.reward_type = RewardType::fee;
         reward.amount = fee.to_Coin();
+        reward.reward_type = RewardType::fee;
 
         rewards.push_back(reward);
     }
@@ -344,8 +344,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         Reward reward;
         reward.to = authority;
-        reward.reward_type = RewardType::miner;
         reward.amount = miner_reward.to_Coin();
+        reward.reward_type = RewardType::miner;
 
         rewards.push_back(reward);
     }

@@ -44,7 +44,6 @@ int main(int /*argc*/, char** /*argv*/)
         block_header.time_signed.tm = std::chrono::system_clock::to_time_t(now);
 
         Reward reward;
-        reward.type = RewardType::initial;
         reward.amount.whole = 100;
         reward.amount.fraction = 0;
         reward.reward_type = RewardType::initial;
