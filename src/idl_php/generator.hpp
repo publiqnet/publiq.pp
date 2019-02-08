@@ -29,4 +29,4 @@ void analyze_struct(    state_holder& state,
 void analyze_enum(      expression_tree const* pexpression,
                         std::string const& type_name,
                         std::string const& PackageName,
-                        boost::filesystem::path const& ModelFolder);
+                        boost::filesystem::path const& BaseFolderPath);

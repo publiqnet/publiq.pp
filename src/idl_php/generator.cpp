@@ -335,13 +335,7 @@ interface ValidatorInterface
         throw runtime_error( "wtf" );
     else
     {
-        //////////////// create Model Folder ////////////////////
 
-        std::string Model = "Model";
-        boost::filesystem::path ModelFolder = outputFilePath + "/" + PackageName + "/" + src + "/" + Model;
-        boost::filesystem::create_directory( ModelFolder );
-
-        ////////////////////////////////////////////////////////
 
         for ( auto item : pexpression->children.back()->children )
         {
@@ -357,9 +351,17 @@ interface ValidatorInterface
                             analyze_enum(   item->children.back(),
                                             enum_name,
                                             PackageName,
-                                            ModelFolder );
+                                            BaseFolderPath );
             }
         }
+
+        //////////////// create Model Folder ////////////////////
+
+        std::string Model = "Model";
+        boost::filesystem::path ModelFolder = outputFilePath + "/" + PackageName + "/" + src + "/" + Model;
+        boost::filesystem::create_directory( ModelFolder );
+
+        ////////////////////////////////////////////////////////
 
         for ( auto item : pexpression->children.back()->children )
         {
@@ -486,11 +488,6 @@ trait RttSerializableTrait
             $member = (static::class)::getMemberName($name);
             if ($member['convertToDate']) {
                 $vars2[$member['key']] = date("Y-m-d H:i:s", $value);
-            } elseif ($member['isEnum'] != '') {
-                $str = $member['isEnum'];
-                $class = 'Class'.$str;
-                $EnumType = new $class();
-                $vars2[$member['key']] = EnumType.toString($value);
             } else {
                 $vars2[$member['key']] = $value;
             }
@@ -517,6 +514,82 @@ trait RttToJsonTrait
     }
 }
 )file_template";
+
+    ////////////////// create BasicEnum.php file /////////////////
+
+    boost::filesystem::path BasicEnumFilePath = BaseFolderPath.string() + "/" + "BasicEnum.php";
+    boost::filesystem::ofstream BasicEnum( BasicEnumFilePath );
+    BasicEnum << "<?php\n" <<
+                     "namespace " << PackageName << "\\Base;\n";
+    BasicEnum <<
+R"file_template(
+use ReflectionClass;
+
+abstract class BasicEnum
+{
+    private static $constCacheArray = NULL;
+
+    /**
+     * @return mixed
+     * @throws \ReflectionException
+     */
+    private static function getConstants()
+    {
+        if (self::$constCacheArray == NULL) {
+            self::$constCacheArray = [];
+        }
+        $calledClass = get_called_class();
+        if (!array_key_exists($calledClass, self::$constCacheArray)) {
+            $reflect = new ReflectionClass($calledClass);
+            self::$constCacheArray[$calledClass] = $reflect->getConstants();
+        }
+        return self::$constCacheArray[$calledClass];
+    }
+
+    /**
+     * @param $name
+     * @param bool $strict
+     * @return bool
+     * @throws \ReflectionException
+     */
+    public static function isValidName($name, $strict = false)
+    {
+        $constants = self::getConstants();
+
+        if ($strict) {
+            return array_key_exists($name, $constants);
+        }
+
+        $keys = array_map('strtolower', array_keys($constants));
+        return in_array(strtolower($name), $keys);
+    }
+
+    /**
+     * @param $value
+     * @param bool $strict
+     * @return bool
+     * @throws \ReflectionException
+     */
+    public static function isValidValue($value, $strict = true)
+    {
+        $values = array_values(self::getConstants());
+        return in_array($value, $values, $strict);
+    }
+
+    /**
+     * @param $value
+     * @throws \ReflectionException
+     * @throws \Exception
+     */
+    public static function validate($value)
+    {
+        if (!self::isValidValue($value)) {
+            throw new \Exception("'$value' is not of type " . static::class);
+        }
+    }
+}
+)file_template";
+
 
 }
 
@@ -549,7 +622,7 @@ void analyze_struct(    state_holder& state,
     }
 
     /////////////////////
-
+    string usings;
     string params;
     string setFunction;
     string getFunction;
@@ -565,21 +638,12 @@ void analyze_struct(    state_holder& state,
 
     boost::filesystem::path FilePath = ModelFolder.string() + "/" + type_name + ".php";
     boost::filesystem::ofstream model( FilePath );
-    model <<
-            "<?php\n"
-
-            "namespace " + PackageName + "\\Model;\n" +
-            "use " + PackageName +  "\\Base\\RttSerializableTrait;\n" +
-            "use " + PackageName +  "\\Base\\RttToJsonTrait;\n" +
-            "use " + PackageName +  "\\Base\\ValidatorInterface;\n" +
-            "use " + PackageName +  "\\Base\\Rtt;\n" +
-
-
-
-            "class " + type_name + " implements ValidatorInterface, \\JsonSerializable\n"+
-            "{\n" +
-            "    use RttSerializableTrait;\n" +
-            "    use RttToJsonTrait;\n";
+    usings = "<?php\n";
+    usings += "namespace " + PackageName + "\\Model;\n";
+    usings +=       "use " + PackageName +  "\\Base\\RttSerializableTrait;\n";
+    usings +=       "use " + PackageName +  "\\Base\\RttToJsonTrait;\n";
+    usings +=       "use " + PackageName +  "\\Base\\ValidatorInterface;\n";
+    usings +=       "use " + PackageName +  "\\Base\\Rtt;\n";
 
     string memberNamesMap = "";
     for ( auto member_pair : members )
@@ -605,44 +669,37 @@ void analyze_struct(    state_holder& state,
 
                 isEnum = true;
 
+                usings += "use " + PackageName +  "\\Base\\" + info [0] +";\n";
+
                 params +=
                         "    /**\n"
-                        "    * @var int \n"
+                        "    * @var string \n"
                         "    */ \n"
                         "    private $" + camelCaseMemberName + ";\n";
 
                 setFunction +=
                         "    /** \n"
-                        "    * @param int $" + camelCaseMemberName + "\n"
+                        "    * @param string $" + camelCaseMemberName + "\n"
                         "    */ \n"
-                        "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(int $" + transformString( member_name.value ) + ") \n"
+                        "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(string $" + transformString( member_name.value ) + ") \n"
                         "    { \n"
                         "       $this->" + camelCaseMemberName + " = $" + camelCaseMemberName + ";\n"
                         "    }\n";
 
+                //$this->setType(RewardType::validate($data->type));
                 enumTypes +=
-                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(" + info[0] + ".toInt($data->" + member_name.value  + ")); \n";
+                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(" + info[0] + "::validate($data->" + member_name.value  + ")); \n";
         }
 
 
         memberNamesMap += "        '" + member_name.value + "'" + " => ['name' => '" + camelCaseMemberName + "', 'convertToDate' => ";
         if ( info[0] == "integer")
         {
-            memberNamesMap += "true,";
+            memberNamesMap += "true],\n";
         }
         else
         {
-            memberNamesMap += "false,";
-        }
-
-        if ( isEnum )
-        {
-            memberNamesMap += "'isEnum' => '" + info[0] + "'"
-                                                          "],\n";
-        }
-        else
-        {
-            memberNamesMap += " 'isEnum' => ''],\n";
+            memberNamesMap += "false],\n";
         }
 
         if ( info[0] == "::beltpp::packet" )
@@ -804,7 +861,7 @@ void analyze_struct(    state_holder& state,
                     "    }\n";
             objectTypes +=
                     "        $this->" + camelCaseMemberName + " = new "+ info[0] + "();\n"
-                    "        $this->" + camelCaseMemberName + " -> validate($data-> "+ member_name.value  + ");\n";
+                    "        $this->" + camelCaseMemberName + "->validate($data->"+ member_name.value  + ");\n";
         }
 
         getFunction +=
@@ -820,6 +877,13 @@ void analyze_struct(    state_holder& state,
             "    { \n"
                     + objectTypes + trivialTypes + arrayCase + mixedTypes + hashCase + enumTypes +
             "    } \n";
+
+    model << usings;
+    model<<
+            "\nclass " + type_name + " implements ValidatorInterface, \\JsonSerializable\n"+
+            "{\n" +
+            "    use RttSerializableTrait;\n" +
+            "    use RttToJsonTrait;\n";
     model << " \n    CONST  memberNames = [\n"
             + memberNamesMap +
             "    ];\n\n";
@@ -845,73 +909,35 @@ R"file_template(    public static function getMemberName(string $camelCaseName)
 void analyze_enum(  expression_tree const* pexpression,
                     string const& enum_name,
                     std::string const& PackageName,
-                    boost::filesystem::path const& ModelFolder)
+                    boost::filesystem::path const& BaseFolderPath)
 {
 
     if (pexpression->children.empty())
         throw runtime_error("inside enum syntax error, wtf - " + enum_name);
 
-    boost::filesystem::path FilePath = ModelFolder.string() + "/" + enum_name + ".php";
-    boost::filesystem::ofstream model( FilePath );
-    model <<
+    boost::filesystem::path FilePath = BaseFolderPath.string() + "/" + enum_name + ".php";
+    boost::filesystem::ofstream enumFile( FilePath );
+    enumFile <<
     "<?php\n"
 
-    "namespace " + PackageName + "\\Model;\n\n"
+    "namespace " + PackageName + "\\Base;\n\n"
 
 
-    "class " + enum_name + "\n"
+    "abstract class " + enum_name + " extends BasicEnum\n"
     "{\n";
 
     int i = 0;
     string memberNamesMap = "";
-    string toStringFunction =
-        "    public static function toString(int $value)\n"
-        "    {\n"
-        "        switch ($value) {\n";
-
-    string toIntFunction =
-        "    public static function toInt(string $name)\n"
-        "    {\n"
-        "        switch ($name) {\n";
 
     for (auto const& item : pexpression->children)
     {
-        model << "    static " << item->lexem.value << " = " << i << ";\n" ;
+        enumFile << "    const " << item->lexem.value << " = " << i << ";\n" ;
 
         string camelCaseMemberName = transformString( item->lexem.value );
-        memberNamesMap +=
-                "        '" + item->lexem.value + "'" + " => ['name' => '" + camelCaseMemberName + "', 'convertToDate' => false],\n";
 
-        toStringFunction +=
-                "            case " + std::to_string(i) + ": return \"" + camelCaseMemberName + "\";\n";
-        toIntFunction +=
-                "            case \"" + camelCaseMemberName + "\": return " + std::to_string(i) + ";\n";
         i++;
 
-    }
-    model << " \n    CONST  memberNames = [\n"
-            + memberNamesMap +
-            "    ];\n\n";
-    model <<
-R"file_template(    public static function getMemberName(string $camelCaseName)
-    {
-        foreach (self::memberNames as $key => $value) {
-               if ($value['name'] == $camelCaseName) {
-                   $value['key'] = $key;
-                   return $value;
-               }
-       }
-       return null;
-    }
-
-)file_template";
-
-    model << toStringFunction +
-             "        }\n"
-             "    } \n\n";
-    model << toIntFunction +
-             "        }\n"
-             "    } \n\n";
-    model << "} \n";
+    }   
+    enumFile << "} \n";
 
 }
