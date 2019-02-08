@@ -100,6 +100,15 @@ module BlockchainMessage
     ///
     //  blockchain transactions
     ///
+    enum RewardType
+    {
+        initial
+        miner
+        channel
+        storage
+        author
+        fee
+    }
 
     class Reward
     {
