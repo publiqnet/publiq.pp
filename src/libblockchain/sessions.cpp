@@ -1,11 +1,14 @@
 #include "sessions.hpp"
 #include "common.hpp"
 #include "message.hpp"
+#include "communication_rpc.hpp"
+#include "node_internals.hpp"
 
 #include <mesh.pp/cryptoutility.hpp>
 #include <belt.pp/utility.hpp>
 
 #include <iostream>
+#include <algorithm>
 
 namespace chrono = std::chrono;
 using chrono::system_clock;
@@ -49,7 +52,7 @@ bool session_action_connections::process(beltpp::packet&& package)
         switch (package.type())
         {
         case beltpp::isocket_join::rtt:
-            std::cout << "session 1" << std::endl;
+            std::cout << "session 1 - join" << std::endl;
             need_to_drop = true;
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -66,9 +69,11 @@ bool session_action_connections::process(beltpp::packet&& package)
         case beltpp::isocket_drop::rtt:
             errored = true;
             need_to_drop = false;
+            std::cout << "session 1 - join" << std::endl;
             break;
         case beltpp::isocket_protocol_error::rtt:
             errored = true;
+            std::cout << "session 1 - protocol error" << std::endl;
             if (need_to_drop)
             {
                 psk->send(peerid_update, beltpp::isocket_drop());
@@ -76,9 +81,11 @@ bool session_action_connections::process(beltpp::packet&& package)
             }
             break;
         case beltpp::isocket_open_error::rtt:
+            std::cout << "session 1 - open error" << std::endl;
             errored = true;
             break;
         case beltpp::isocket_open_refused::rtt:
+            std::cout << "session 1 - open refused" << std::endl;
             errored = true;
             break;
         default:
@@ -90,16 +97,25 @@ bool session_action_connections::process(beltpp::packet&& package)
     return code;
 }
 
-
 session_action_signatures::session_action_signatures(beltpp::socket& sk,
-                                                     string const& _nodeid)
+                                                     nodeid_service& service,
+                                                     std::string const& _nodeid,
+                                                     beltpp::ip_address const& _address)
     : session_action()
     , psk(&sk)
+    , pnodeid_service(&service)
     , nodeid(_nodeid)
+    , address(_address)
 {}
 
 session_action_signatures::~session_action_signatures()
-{}
+{
+    if (completed &&
+        false == errored)
+        erase(true, false);
+    else if (expected_next_package_type != size_t(-1))
+        erase(false, false);
+}
 
 void session_action_signatures::initiate()
 {
@@ -128,11 +144,17 @@ bool session_action_signatures::process(beltpp::packet&& package)
             if ((chrono::seconds(-30) <= diff && diff < chrono::seconds(30)) &&
                 meshpp::verify_signature(msg.nodeid, message, msg.signature) &&
                 nodeid == msg.nodeid)
+            {
                 std::cout << "session 2 - ok verify" << std::endl;
+
+                erase(true, true);
+            }
             else
             {
                 errored = true;
                 std::cout << "session 2 - fail verify" << std::endl;
+
+                erase(false, false);
             }
 
             completed = true;
@@ -150,6 +172,68 @@ bool session_action_signatures::process(beltpp::packet&& package)
     }
 
     return code;
+}
+
+void session_action_signatures::erase(bool success, bool verified)
+{
+    auto it = pnodeid_service->nodeids.find(nodeid);
+    if (it == pnodeid_service->nodeids.end())
+    {
+        assert(false);
+        throw std::logic_error("session_action_signatures::process "
+                               "cannot find the expected entry");
+    }
+    else
+    {
+        auto& array = it->second.addresses;
+        auto it_end = std::remove_if(array.begin(), array.end(),
+        [this, success](nodeid_address_unit const& unit)
+        {
+            if (success)
+                return unit.address != address;
+            else
+                return unit.address == address;
+        });
+        array.erase(it_end, array.end());
+
+        if (success)
+        {
+            assert(array.size() == 1);
+            array.front().verified = verified;
+        }
+    }
+}
+
+session_action_broadcast_address_info::session_action_broadcast_address_info(detail::node_internals* _pimpl,
+                                                                             meshpp::p2psocket::peer_id const& _source_peer,
+                                                                             BlockchainMessage::Broadcast&& _msg)
+    : session_action()
+    , pimpl(_pimpl)
+    , source_peer(_source_peer)
+    , msg(std::move(_msg))
+{}
+
+session_action_broadcast_address_info::~session_action_broadcast_address_info()
+{}
+
+void session_action_broadcast_address_info::initiate()
+{
+    std::cout << "session 3 - broadcasting" << std::endl;
+    broadcast_message(std::move(msg),
+                      pimpl->m_ptr_p2p_socket->name(),
+                      source_peer,
+                      false,
+                      nullptr,
+                      pimpl->m_p2p_peers,
+                      pimpl->m_ptr_p2p_socket.get());
+
+    expected_next_package_type = size_t(-1);
+    completed = true;
+}
+
+bool session_action_broadcast_address_info::process(beltpp::packet&&)
+{
+    return false;
 }
 
 }

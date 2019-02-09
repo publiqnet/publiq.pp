@@ -6,6 +6,7 @@
 #include "state.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
+#include "nodeid_service.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -524,6 +525,7 @@ public:
     publiqpp::transaction_pool m_transaction_pool;
     publiqpp::state m_state;
 
+    publiqpp::nodeid_service m_nodeid_service;
     meshpp::session_manager m_sessions;
 
     beltpp::isocket::peer_id m_slave_peer;

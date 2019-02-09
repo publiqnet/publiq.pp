@@ -29,6 +29,8 @@ add_library(blockchain
     node.cpp
     node.hpp
     node_internals.hpp
+    nodeid_service.cpp
+    nodeid_service.hpp
     open_container_packet.hpp
     sessions.cpp
     sessions.hpp

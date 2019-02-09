@@ -94,11 +94,12 @@ bool storage_node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
+                    m_pimpl->writeln_node("joined to slave: " + detail::peer_short_names(peerid));
                     break;
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    m_pimpl->writeln_node("slave dropped: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("dropped from slave: " + detail::peer_short_names(peerid));
 
                     break;
                 }
@@ -106,7 +107,7 @@ bool storage_node::run()
                 {
                     beltpp::isocket_protocol_error msg;
                     ref_packet.get(msg);
-                    m_pimpl->writeln_node("protocol error: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("slave has protocol error: " + detail::peer_short_names(peerid));
                     m_pimpl->writeln_node(msg.buffer);
 
                     break;
