@@ -222,39 +222,24 @@ public:
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
     }
 
-    void set_public_peer(string nodeid, socket::peer_id const& peerid)
-    {
-        m_public_map[nodeid] = peerid;
-    }
-
-    bool get_public_peer(string nodeid, socket::peer_id& peerid)
-    {
-        auto map_it = m_public_map.find(nodeid);
-
-        if (map_it != m_public_map.end())
-        {
-            peerid = map_it->second;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    void add_public_peer(socket::peer_id const& peerid)
-    {
-        pair<unordered_set<socket::peer_id>::iterator, bool> result =
-            m_public_peers.insert(peerid);
-
-        if (result.second == false)
-            throw std::runtime_error("p2p peer already exists: " + peerid);
-    }
-
-    void remove_public_peer(socket::peer_id peerid)
-    {
-        if (0 == m_public_peers.erase(peerid))
-            throw std::runtime_error("public peer not found to remove: " + peerid);
-    }
+    //void set_public_peer(string nodeid, socket::peer_id const& peerid)
+    //{
+    //    m_public_map[nodeid] = peerid;
+    //}
+    //
+    //bool get_public_peer(string nodeid, socket::peer_id& peerid)
+    //{
+    //    auto map_it = m_public_map.find(nodeid);
+    //
+    //    if (map_it != m_public_map.end())
+    //    {
+    //        peerid = map_it->second;
+    //
+    //        return true;
+    //    }
+    //
+    //    return false;
+    //}
 
     bool find_stored_request(socket::peer_id const& peerid, beltpp::packet& packet)
     {
@@ -531,8 +516,8 @@ public:
     beltpp::isocket::peer_id m_slave_peer;
     beltpp::isocket::peer_id m_slave_peer_attempt;
 
-    unordered_set<beltpp::isocket::peer_id> m_public_peers;
-    unordered_map<string, beltpp::isocket::peer_id> m_public_map;
+    //unordered_set<beltpp::isocket::peer_id> m_public_peers;
+    //unordered_map<string, beltpp::isocket::peer_id> m_public_map;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;

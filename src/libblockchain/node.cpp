@@ -125,15 +125,10 @@ bool node::run()
             {
                 if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     m_pimpl->remove_peer(peerid);
-                else
+                else if (peerid == m_pimpl->m_slave_peer)
                 {
-                    if (peerid == m_pimpl->m_slave_peer)
-                    {
-                        m_pimpl->m_slave_peer.clear();
-                        m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
-                    }
-                    else
-                        m_pimpl->remove_public_peer(peerid);
+                    m_pimpl->m_slave_peer.clear();
+                    m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
                 }
             };
             //-----------------------------------------------------//
@@ -201,8 +196,6 @@ bool node::run()
                             m_pimpl->m_slave_peer = peerid;
                             m_pimpl->writeln_node(" <=======> Slave connected!");
                         }
-                        else
-                            m_pimpl->add_public_peer(peerid);
 
                         guard.dismiss();
                     }
@@ -389,15 +382,20 @@ bool node::run()
 
                         if (do_i_need_it(article_info, m_pimpl))
                         {
-                            beltpp::socket::peer_id public_peerid;
+                            BlockchainMessage::IPAddress channel_ip_address;
 
-                            if (m_pimpl->get_public_peer(article_info.channel, public_peerid) &&
-                                m_pimpl->m_public_peers.count(public_peerid))
+                            if (m_pimpl->m_state.get_address(article_info.channel, channel_ip_address))
                             {
-                                GetStorageFile file_address;
-                                file_address.uri = article_info.content;
+                                beltpp::ip_address beltpp_ip_address;
+                                beltpp::assign(beltpp_ip_address, channel_ip_address);
 
-                                m_pimpl->m_ptr_rpc_socket.get()->send(public_peerid, std::move(file_address));
+                                vector<unique_ptr<meshpp::session_action>> actions;
+
+                                actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(), beltpp_ip_address));
+                                actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(), article_info.channel));
+                                actions.emplace_back(new session_action_storagefile(*m_pimpl->m_ptr_rpc_socket.get(), article_info.uri));
+
+                                m_pimpl->m_sessions.add(article_info.channel, beltpp_ip_address, std::move(actions));
                             }
                         }
                     }

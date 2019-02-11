@@ -328,17 +328,6 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     else
         miner_reward += storage_reward;
 
-    // grant transactions fee himself as a reward
-    if (!fee.empty())
-    {
-        Reward reward;
-        reward.to = authority;
-        reward.amount = fee.to_Coin();
-        reward.reward_type = RewardType::fee;
-
-        rewards.push_back(reward);
-    }
-
     // grant miner reward himself
     if (!miner_reward.empty())
     {
@@ -929,13 +918,6 @@ void process_blockchain_response(BlockchainResponse&& response,
         return; // will wait new chain
     }
 
-    // test log
-    //m_pimpl->writeln_node("applying collected " + std::to_string(m_pimpl->sync_blocks.size()) + " blocks");
-    //
-    //if(m_pimpl->sync_blocks.size() == 1)
-    //    m_pimpl->writeln_node("block mined by " +
-    //                          publiqpp::detail::peer_short_names(m_pimpl->sync_blocks.rbegin()->authority));
-
     //3. all needed blocks received, start to check
     unordered_map<string, system_clock::time_point> transaction_cache_backup = m_pimpl->m_transaction_cache;
 
@@ -1238,7 +1220,7 @@ void broadcast_article_info(StorageFileAddress file_address,
 {
     ArticleInfo article_info;
     article_info.author = "Nikol Pashinyan";
-    article_info.content = file_address.uri;
+    article_info.uri = file_address.uri;
     article_info.channel = m_pimpl->m_pb_key.to_string();
 
     Transaction transaction;
@@ -1271,7 +1253,7 @@ void broadcast_content_info(StorageFileAddress file_address,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     ContentInfo content_info;
-    content_info.content = file_address.uri;
+    content_info.uri = file_address.uri;
     content_info.storage = m_pimpl->m_pb_key.to_string();
 
     Transaction transaction;

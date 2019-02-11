@@ -17,7 +17,7 @@ using std::string;
 
 namespace publiqpp
 {
-
+// --------------------------- session_action_connections ---------------------------
 session_action_connections::session_action_connections(beltpp::socket& sk,
                                                        beltpp::ip_address const& _address)
     : meshpp::session_action()
@@ -97,6 +97,8 @@ bool session_action_connections::process(beltpp::packet&& package)
     return code;
 }
 
+// --------------------------- session_action_signatures ---------------------------
+
 session_action_signatures::session_action_signatures(beltpp::socket& sk,
                                                      nodeid_service& service,
                                                      std::string const& _nodeid,
@@ -134,7 +136,7 @@ bool session_action_signatures::process(beltpp::packet&& package)
         {
         case BlockchainMessage::Pong::rtt:
         {
-            std::cout << "session 2" << std::endl;
+            //std::cout << "session -> pong received" << std::endl;
             BlockchainMessage::Pong msg;
             std::move(package).get(msg);
 
@@ -152,7 +154,7 @@ bool session_action_signatures::process(beltpp::packet&& package)
             else
             {
                 errored = true;
-                std::cout << "session 2 - fail verify" << std::endl;
+                std::cout << "session -> signiture filed" << std::endl;
 
                 erase(false, false);
             }
@@ -202,9 +204,10 @@ void session_action_signatures::erase(bool success, bool verified)
             array.front().verified = verified;
         }
     }
-}
 
-session_action_broadcast_address_info::session_action_broadcast_address_info(detail::node_internals* _pimpl,
+
+
+// --------------------------- session_action_broadcast_address_info ---------------------------session_action_broadcast_address_info::session_action_broadcast_address_info(detail::node_internals* _pimpl,
                                                                              meshpp::p2psocket::peer_id const& _source_peer,
                                                                              BlockchainMessage::Broadcast&& _msg)
     : session_action()
@@ -234,6 +237,69 @@ void session_action_broadcast_address_info::initiate()
 bool session_action_broadcast_address_info::process(beltpp::packet&&)
 {
     return false;
+}
+
+// --------------------------- session_action_storagefile ---------------------------
+
+session_action_storagefile::session_action_storagefile(beltpp::socket& sk,
+                                                       string const& _file_uri)
+    : session_action()
+    , file_uri(_file_uri)
+    , psk(&sk)
+{}
+
+session_action_storagefile::~session_action_storagefile()
+{}
+
+void session_action_storagefile::initiate()
+{
+    BlockchainMessage::GetStorageFile get_storagefile;
+    get_storagefile.uri = file_uri;
+
+    psk->send(parent->peerid, get_storagefile);
+    expected_next_package_type = BlockchainMessage::StorageFile::rtt;
+}bool session_action_storagefile::process(beltpp::packet&& package)
+{
+    bool code = true;
+
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
+    {
+        switch (package.type())
+        {
+        case BlockchainMessage::StorageFile::rtt:
+        {
+            std::cout << "session -> StorageFile received" << std::endl;
+            BlockchainMessage::StorageFile storage_file;
+            std::move(package).get(storage_file);
+
+            if (file_uri == meshpp::hash(storage_file.data))
+            {
+                std::cout << "session -> File verified" << std::endl;
+
+                //TODO send to slave
+            }
+            else
+            {
+                errored = true;
+                std::cout << "session -> File verification filed" << std::endl;
+            }
+
+            completed = true;
+            expected_next_package_type = size_t(-1);
+            break;
+        }
+        default:
+            assert(false);
+            break;
+        }
+    }
+    else
+    {
+        code = false;
+    }
+
+    return code;
 }
 
 }

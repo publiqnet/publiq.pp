@@ -65,5 +65,19 @@ public:
     BlockchainMessage::Broadcast msg;
 };
 
+class session_action_storagefile : public meshpp::session_action
+{
+public:
+    session_action_storagefile(beltpp::socket& sk,
+                               std::string const& _file_uri);
+    ~session_action_storagefile() override;
+
+    void initiate() override;
+    bool process(beltpp::packet&& package) override;
+
+    std::string file_uri;
+    beltpp::socket* psk;
+};
+
 }
 
