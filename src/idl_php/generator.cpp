@@ -55,8 +55,7 @@ enum g_type_info {
 
 string transformString( string const& scoreString )
 {
-    string camelString =  "";
-    camelString = scoreString;
+    string camelString = scoreString;
 
     for ( size_t x = 0; x < camelString.length() - 1; x++ )
     {
@@ -444,20 +443,17 @@ public static function validate($jsonObj)
     if (!isset(Rtt::types[$jsonObj->rtt])) {
         return false;
     }
-    try {
-        $className = ')file_template";
+    $className = ')file_template";
     RTT << PackageName<<"\\\\Model\\\\' . Rtt::types[$jsonObj->rtt];";
     RTT <<
 R"file_template(
-        /**
-        * @var ValidatorInterface $class
-        */
-        $class = new $className;
-        $class->validate($jsonObj);
-        return $class;
-        } catch (\Throwable $e) {
-            return $e->getMessage();
-        }
+    /**
+    * @var ValidatorInterface $class
+    */
+    $class = new $className;
+    $class->validate($jsonObj);
+    return $class;
+
     }
 })file_template";
 
@@ -682,13 +678,13 @@ void analyze_struct(    state_holder& state,
                         "    * @param string $" + camelCaseMemberName + "\n"
                         "    */ \n"
                         "    public function set" + static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) + "(string $" + transformString( member_name.value ) + ") \n"
-                        "    { \n"
-                        "       $this->" + camelCaseMemberName + " = $" + camelCaseMemberName + ";\n"
+                        "    { \n" +
+                        "        " + info[0] + "::validate($" + transformString( member_name.value )  + ");\n"
+                        "        $this->" + camelCaseMemberName + " = $" + camelCaseMemberName + ";\n"
                         "    }\n";
 
-                //$this->setType(RewardType::validate($data->type));
                 enumTypes +=
-                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(" + info[0] + "::validate($data->" + member_name.value  + ")); \n";
+                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
         }
 
 
@@ -926,16 +922,13 @@ void analyze_enum(  expression_tree const* pexpression,
     "abstract class " + enum_name + " extends BasicEnum\n"
     "{\n";
 
-    int i = 0;
     string memberNamesMap = "";
 
     for (auto const& item : pexpression->children)
     {
-        enumFile << "    const " << item->lexem.value << " = " << i << ";\n" ;
+        enumFile << "    const " << item->lexem.value << " = " << "\"" << item->lexem.value << "\"" <<  ";\n" ;
 
         string camelCaseMemberName = transformString( item->lexem.value );
-
-        i++;
 
     }   
     enumFile << "} \n";
