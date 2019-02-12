@@ -1,21 +1,10 @@
-# generate pid.gen.hpp from pid.idl
-add_custom_command (
-  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/pid.gen.hpp
-  MAIN_DEPENDENCY pid.idl
-  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/pid.idl ${CMAKE_CURRENT_SOURCE_DIR}/pid.gen.hpp
-)
-
 if(NOT WIN32 AND NOT APPLE)
 set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread")
 endif()
 
 # define the executable
 add_executable(publiqd
-    main.cpp
-    pid.hpp
-    pid.gen.hpp
-    settings.cpp
-    settings.hpp)
+    main.cpp)
 
 # libraries this module links to
 target_link_libraries(publiqd PRIVATE

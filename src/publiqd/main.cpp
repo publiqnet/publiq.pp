@@ -1,7 +1,3 @@
-#include "settings.hpp"
-
-#include "pid.hpp"
-
 #include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>
 #include <belt.pp/scope_helper.hpp>
@@ -10,6 +6,8 @@
 #include <mesh.pp/processutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
 #include <mesh.pp/log.hpp>
+#include <mesh.pp/settings.hpp>
+#include <mesh.pp/pid.hpp>
 
 #include <publiq.pp/node.hpp>
 #include <publiq.pp/storage_node.hpp>
@@ -66,9 +64,9 @@ void termination_handler(int /*signum*/)
 
 class port2pid_helper
 {
-    using Loader = meshpp::file_locker<meshpp::file_loader<Config::Port2PID,
-                                                            &Config::Port2PID::from_string,
-                                                            &Config::Port2PID::to_string>>;
+    using Loader = meshpp::file_locker<meshpp::file_loader<PidConfig::Port2PID,
+                                                            &PidConfig::Port2PID::from_string,
+                                                            &PidConfig::Port2PID::to_string>>;
 public:
     port2pid_helper(boost::filesystem::path const& _path, unsigned short _port)
         : port(_port)
@@ -150,8 +148,8 @@ int main(int argc, char** argv)
     //
     meshpp::config::set_public_key_prefix("PBQ");
     //
-    settings::settings::set_application_name("publiqd");
-    settings::settings::set_data_directory(settings::config_directory_path().string());
+    meshpp::settings::set_application_name("publiqd");
+    meshpp::settings::set_data_directory(meshpp::config_directory_path().string());
 
     beltpp::ip_address p2p_bind_to_address;
     beltpp::ip_address rpc_bind_to_address;
@@ -175,7 +173,7 @@ int main(int argc, char** argv)
         return 1;
 
     if (false == data_directory.empty())
-        settings::settings::set_data_directory(data_directory);
+        meshpp::settings::set_data_directory(data_directory);
 
 #ifdef B_OS_WINDOWS
     signal(SIGINT, termination_handler);
@@ -191,29 +189,29 @@ int main(int argc, char** argv)
 
     try
     {
-        settings::create_config_directory();
-        settings::create_data_directory();
+        meshpp::create_config_directory();
+        meshpp::create_data_directory();
 
-        unique_ptr<port2pid_helper> port2pid(new port2pid_helper(settings::config_file_path("pid"), p2p_bind_to_address.local.port));
+        unique_ptr<port2pid_helper> port2pid(new port2pid_helper(meshpp::config_file_path("pid"), p2p_bind_to_address.local.port));
 
-        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<Config::DataDirAttribute,
-                                                                                &Config::DataDirAttribute::from_string,
-                                                                                &Config::DataDirAttribute::to_string>>;
-        DataDirAttributeLoader dda(settings::data_file_path("running.txt"));
+        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<PidConfig::DataDirAttribute,
+                                                                                &PidConfig::DataDirAttribute::from_string,
+                                                                                &PidConfig::DataDirAttribute::to_string>>;
+        DataDirAttributeLoader dda(meshpp::data_file_path("running.txt"));
         {
-            Config::RunningDuration item;
+            PidConfig::RunningDuration item;
             item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
             dda->history.push_back(item);
             dda.save();
         }
 
-        auto fs_blockchain = settings::data_directory_path("blockchain");
-        auto fs_action_log = settings::data_directory_path("action_log");
-        auto fs_storage = settings::data_directory_path("storage");
-        auto fs_transaction_pool = settings::data_directory_path("transaction_pool");
-        auto fs_state = settings::data_directory_path("state");
-        auto fs_log = settings::data_directory_path("log");
+        auto fs_blockchain = meshpp::data_directory_path("blockchain");
+        auto fs_action_log = meshpp::data_directory_path("action_log");
+        auto fs_storage = meshpp::data_directory_path("storage");
+        auto fs_transaction_pool = meshpp::data_directory_path("transaction_pool");
+        auto fs_state = meshpp::data_directory_path("state");
+        auto fs_log = meshpp::data_directory_path("log");
 
         cout << "p2p local address: " << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
