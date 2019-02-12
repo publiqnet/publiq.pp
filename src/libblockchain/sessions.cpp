@@ -32,7 +32,7 @@ session_action_connections::~session_action_connections()
         psk->send(peerid_update, beltpp::isocket_drop());
 }
 
-void session_action_connections::initiate()
+void session_action_connections::initiate(meshpp::session const&)
 {
     auto peerids = psk->open(address);
     if (peerids.size() != 1)
@@ -42,7 +42,7 @@ void session_action_connections::initiate()
     expected_next_package_type = beltpp::isocket_join::rtt;
 }
 
-bool session_action_connections::process(beltpp::packet&& package)
+bool session_action_connections::process(beltpp::packet&& package, meshpp::session const&)
 {
     bool code = true;
 
@@ -119,13 +119,13 @@ session_action_signatures::~session_action_signatures()
         erase(false, false);
 }
 
-void session_action_signatures::initiate()
+void session_action_signatures::initiate(meshpp::session const& parent)
 {
-    psk->send(parent->peerid, BlockchainMessage::Ping());
+    psk->send(parent.peerid, BlockchainMessage::Ping());
     expected_next_package_type = BlockchainMessage::Pong::rtt;
 }
 
-bool session_action_signatures::process(beltpp::packet&& package)
+bool session_action_signatures::process(beltpp::packet&& package, meshpp::session const&)
 {
     bool code = true;
 
@@ -220,7 +220,7 @@ session_action_broadcast_address_info::session_action_broadcast_address_info(det
 session_action_broadcast_address_info::~session_action_broadcast_address_info()
 {}
 
-void session_action_broadcast_address_info::initiate()
+void session_action_broadcast_address_info::initiate(meshpp::session const&)
 {
     std::cout << "action_broadcast - broadcasting" << std::endl;
     broadcast_message(std::move(msg),
@@ -235,7 +235,7 @@ void session_action_broadcast_address_info::initiate()
     completed = true;
 }
 
-bool session_action_broadcast_address_info::process(beltpp::packet&&)
+bool session_action_broadcast_address_info::process(beltpp::packet&&, meshpp::session const&)
 {
     return false;
 }
@@ -252,16 +252,16 @@ session_action_storagefile::session_action_storagefile(detail::node_internals* _
 session_action_storagefile::~session_action_storagefile()
 {}
 
-void session_action_storagefile::initiate()
+void session_action_storagefile::initiate(meshpp::session const& parent)
 {
     BlockchainMessage::GetStorageFile get_storagefile;
     get_storagefile.uri = file_uri;
 
-    pimpl->m_ptr_rpc_socket.get()->send(parent->peerid, get_storagefile);
+    pimpl->m_ptr_rpc_socket.get()->send(parent.peerid, get_storagefile);
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
 }
 
-bool session_action_storagefile::process(beltpp::packet&& package)
+bool session_action_storagefile::process(beltpp::packet&& package, meshpp::session const&)
 {
     bool code = true;
 

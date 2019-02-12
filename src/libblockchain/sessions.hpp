@@ -21,8 +21,8 @@ public:
                                beltpp::ip_address const& address);
     ~session_action_connections() override;
 
-    void initiate() override;
-    bool process(beltpp::packet&& package) override;
+    void initiate(meshpp::session const& parent) override;
+    bool process(beltpp::packet&& package, meshpp::session const& parent) override;
 
     bool need_to_drop;
     beltpp::socket* psk;
@@ -38,8 +38,8 @@ public:
                               beltpp::ip_address const& address);
     ~session_action_signatures() override;
 
-    void initiate() override;
-    bool process(beltpp::packet&& package) override;
+    void initiate(meshpp::session const& parent) override;
+    bool process(beltpp::packet&& package, meshpp::session const& parent) override;
 
     void erase(bool success, bool verified);
 
@@ -57,8 +57,8 @@ public:
                                           BlockchainMessage::Broadcast&& msg);
     ~session_action_broadcast_address_info() override;
 
-    void initiate() override;
-    bool process(beltpp::packet&& package) override;
+    void initiate(meshpp::session const& parent) override;
+    bool process(beltpp::packet&& package, meshpp::session const& parent) override;
 
     detail::node_internals* pimpl;
     meshpp::p2psocket::peer_id source_peer;
@@ -72,8 +72,8 @@ public:
                                std::string const& _file_uri);
     ~session_action_storagefile() override;
 
-    void initiate() override;
-    bool process(beltpp::packet&& package) override;
+    void initiate(meshpp::session const& parent) override;
+    bool process(beltpp::packet&& package, meshpp::session const& parent) override;
 
     detail::node_internals* pimpl;
     std::string file_uri;

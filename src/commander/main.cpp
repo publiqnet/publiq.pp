@@ -30,7 +30,7 @@ using namespace CommanderMessage;
 int main(int argc, char** argv)
 {
     unique_ptr<beltpp::event_handler> m_ptr_eh(new beltpp::event_handler());
-    unique_ptr<beltpp::socket>  m_ptr_rpc_socket(new beltpp::socket(
+    unique_ptr<beltpp::socket> m_ptr_rpc_socket(new beltpp::socket(
                                    beltpp::getsocket<sf>(*m_ptr_eh)
                                    ));
 
