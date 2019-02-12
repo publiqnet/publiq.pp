@@ -32,10 +32,6 @@ public:
     void insert_contract(BlockchainMessage::Contract const& contract);
     void remove_contract(BlockchainMessage::Contract const& contract);
 
-    void update_address(BlockchainMessage::AddressInfo const& address_info);
-    bool get_address(std::string const& owner, BlockchainMessage::IPAddress& ip_address);
-    bool get_any_address(BlockchainMessage::AddressInfo& address_info);
-    
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
 };

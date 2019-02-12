@@ -19,12 +19,10 @@ public:
     state_internals(filesystem::path const& path)
         : m_accounts("account", path, 10000, detail::get_putl())
         , m_contracts("contract", path, 10, detail::get_putl())
-        , m_addresses("address", path, 10, detail::get_putl())
     {}
 
     meshpp::map_loader<Coin> m_accounts;
     meshpp::map_loader<Contract> m_contracts;
-    meshpp::map_loader<IPAddress> m_addresses;
 };
 }
 
@@ -39,21 +37,18 @@ void state::save()
 {
     m_pimpl->m_accounts.save();
     m_pimpl->m_contracts.save();
-    m_pimpl->m_addresses.save();
 }
 
 void state::commit()
 {
     m_pimpl->m_accounts.commit();
     m_pimpl->m_contracts.commit();
-    m_pimpl->m_addresses.commit();
 }
 
 void state::discard()
 {
     m_pimpl->m_accounts.discard();
     m_pimpl->m_contracts.discard();
-    m_pimpl->m_addresses.discard();
 }
 
 Coin state::get_balance(string const& key) const
@@ -148,37 +143,6 @@ void state::insert_contract(Contract const& contract)
 void state::remove_contract(Contract const& contract)
 {
     m_pimpl->m_contracts.erase(contract.owner);
-}
-
-void state::update_address(AddressInfo const& address_info)
-{
-    m_pimpl->m_addresses.insert(address_info.node_id, address_info.ip_address);
-}
-
-bool state::get_address(string const& owner, BlockchainMessage::IPAddress& ip_address)
-{
-    if (m_pimpl->m_addresses.as_const().contains(owner)) // contains is a slow function
-    {
-        ip_address = m_pimpl->m_addresses.as_const().at(owner);
-
-        return true;
-    }
-
-    return false;
-}
-
-bool state::get_any_address(BlockchainMessage::AddressInfo& address_info)
-{
-    // this is just a test code
-    auto keys = m_pimpl->m_addresses.as_const().keys();
-    if (keys.empty())
-        return false;
-
-    auto const& node_id = *keys.begin();
-    address_info.node_id = node_id;
-    address_info.ip_address = m_pimpl->m_addresses.as_const().at(node_id);
-
-    return true;
 }
 
 }

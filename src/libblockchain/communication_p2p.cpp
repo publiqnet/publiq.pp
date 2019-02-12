@@ -1421,16 +1421,16 @@ bool process_article_info(BlockchainMessage::SignedTransaction const& signed_tra
                           BlockchainMessage::ArticleInfo const& article_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    // Check data and authority
+    if (signed_transaction.authority != article_info.channel)
+        throw authority_exception(signed_transaction.authority, article_info.channel);
+
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
     if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
-
-    // Check data and authority
-    if (signed_transaction.authority != article_info.channel)
-        throw authority_exception(signed_transaction.authority, article_info.channel);
 
     NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
 
@@ -1460,16 +1460,16 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
                           BlockchainMessage::ContentInfo const& content_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    // Check data and authority
+    if (signed_transaction.authority != content_info.storage)
+        throw authority_exception(signed_transaction.authority, content_info.storage);
+
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
     if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
-
-    // Check data and authority
-    if (signed_transaction.authority != content_info.storage)
-        throw authority_exception(signed_transaction.authority, content_info.storage);
 
     NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
 
@@ -1490,36 +1490,23 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    // Check pool and cache
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
-        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
-        return false;
-
     // Check data and authority
     if (signed_transaction.authority != address_info.node_id)
         throw authority_exception(signed_transaction.authority, address_info.node_id);
 
-    /*NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
+    // Check pool and cache
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
+
+//    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
+//        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+//        return false;
+
+    NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
 
     if (authority_type == NodeType::miner)
-        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);*/
+        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
 
     m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-
-    if (m_pimpl->m_node_type != NodeType::miner)
-    {
-        beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
-
-        auto address_info_copy = address_info;
-        address_info_copy.ip_address.remote = address_info_copy.ip_address.local;
-        address_info_copy.ip_address.local = BlockchainMessage::IPDestination();
-
-        m_pimpl->m_state.update_address(address_info_copy);
-
-        m_pimpl->save(guard);
-    }
 
     return true;
 }

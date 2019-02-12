@@ -143,7 +143,6 @@ module BlockchainMessage
     {
         String node_id
         IPAddress ip_address
-        IPAddress pub_address
     }
 
     class ArticleInfo

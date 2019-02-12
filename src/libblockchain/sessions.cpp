@@ -52,7 +52,7 @@ bool session_action_connections::process(beltpp::packet&& package)
         switch (package.type())
         {
         case beltpp::isocket_join::rtt:
-            std::cout << "session 1 - join" << std::endl;
+            std::cout << "session_action_connections - join" << std::endl;
             need_to_drop = true;
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -69,11 +69,11 @@ bool session_action_connections::process(beltpp::packet&& package)
         case beltpp::isocket_drop::rtt:
             errored = true;
             need_to_drop = false;
-            std::cout << "session 1 - join" << std::endl;
+            std::cout << "action_connections - join" << std::endl;
             break;
         case beltpp::isocket_protocol_error::rtt:
             errored = true;
-            std::cout << "session 1 - protocol error" << std::endl;
+            std::cout << "action_connections - protocol error" << std::endl;
             if (need_to_drop)
             {
                 psk->send(peerid_update, beltpp::isocket_drop());
@@ -81,11 +81,11 @@ bool session_action_connections::process(beltpp::packet&& package)
             }
             break;
         case beltpp::isocket_open_error::rtt:
-            std::cout << "session 1 - open error" << std::endl;
+            std::cout << "action_connections - open error" << std::endl;
             errored = true;
             break;
         case beltpp::isocket_open_refused::rtt:
-            std::cout << "session 1 - open refused" << std::endl;
+            std::cout << "action_connections - open refused" << std::endl;
             errored = true;
             break;
         default:
@@ -136,7 +136,7 @@ bool session_action_signatures::process(beltpp::packet&& package)
         {
         case BlockchainMessage::Pong::rtt:
         {
-            //std::cout << "session -> pong received" << std::endl;
+            //std::cout << "action_signatures -> pong received" << std::endl;
             BlockchainMessage::Pong msg;
             std::move(package).get(msg);
 
@@ -147,14 +147,14 @@ bool session_action_signatures::process(beltpp::packet&& package)
                 meshpp::verify_signature(msg.nodeid, message, msg.signature) &&
                 nodeid == msg.nodeid)
             {
-                std::cout << "session 2 - ok verify" << std::endl;
+                std::cout << "action_signatures - ok verify" << std::endl;
 
                 erase(true, true);
             }
             else
             {
                 errored = true;
-                std::cout << "session -> signiture filed" << std::endl;
+                std::cout << "action_signatures -> signiture filed" << std::endl;
 
                 erase(false, false);
             }
@@ -183,13 +183,13 @@ void session_action_signatures::erase(bool success, bool verified)
     {
         assert(false);
         throw std::logic_error("session_action_signatures::process "
-                               "cannot find the expected entry");
+            "cannot find the expected entry");
     }
     else
     {
         auto& array = it->second.addresses;
         auto it_end = std::remove_if(array.begin(), array.end(),
-        [this, success](nodeid_address_unit const& unit)
+            [this, success](nodeid_address_unit const& unit)
         {
             if (success)
                 return unit.address != address;
@@ -204,10 +204,11 @@ void session_action_signatures::erase(bool success, bool verified)
             array.front().verified = verified;
         }
     }
+}
 
+// --------------------------- session_action_broadcast_address_info ---------------------------
 
-
-// --------------------------- session_action_broadcast_address_info ---------------------------session_action_broadcast_address_info::session_action_broadcast_address_info(detail::node_internals* _pimpl,
+session_action_broadcast_address_info::session_action_broadcast_address_info(detail::node_internals* _pimpl,
                                                                              meshpp::p2psocket::peer_id const& _source_peer,
                                                                              BlockchainMessage::Broadcast&& _msg)
     : session_action()
@@ -221,7 +222,7 @@ session_action_broadcast_address_info::~session_action_broadcast_address_info()
 
 void session_action_broadcast_address_info::initiate()
 {
-    std::cout << "session 3 - broadcasting" << std::endl;
+    std::cout << "action_broadcast - broadcasting" << std::endl;
     broadcast_message(std::move(msg),
                       pimpl->m_ptr_p2p_socket->name(),
                       source_peer,
@@ -241,11 +242,11 @@ bool session_action_broadcast_address_info::process(beltpp::packet&&)
 
 // --------------------------- session_action_storagefile ---------------------------
 
-session_action_storagefile::session_action_storagefile(beltpp::socket& sk,
+session_action_storagefile::session_action_storagefile(detail::node_internals* _pimpl,
                                                        string const& _file_uri)
     : session_action()
+    , pimpl(_pimpl)
     , file_uri(_file_uri)
-    , psk(&sk)
 {}
 
 session_action_storagefile::~session_action_storagefile()
@@ -256,9 +257,11 @@ void session_action_storagefile::initiate()
     BlockchainMessage::GetStorageFile get_storagefile;
     get_storagefile.uri = file_uri;
 
-    psk->send(parent->peerid, get_storagefile);
+    pimpl->m_ptr_rpc_socket.get()->send(parent->peerid, get_storagefile);
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
-}bool session_action_storagefile::process(beltpp::packet&& package)
+}
+
+bool session_action_storagefile::process(beltpp::packet&& package)
 {
     bool code = true;
 
@@ -269,20 +272,35 @@ void session_action_storagefile::initiate()
         {
         case BlockchainMessage::StorageFile::rtt:
         {
-            std::cout << "session -> StorageFile received" << std::endl;
+            std::cout << "action_storagefile -> File received" << std::endl;
             BlockchainMessage::StorageFile storage_file;
-            std::move(package).get(storage_file);
+            package.get(storage_file);
 
             if (file_uri == meshpp::hash(storage_file.data))
             {
-                std::cout << "session -> File verified" << std::endl;
+                std::cout << "action_storagefile -> File verified" << std::endl;
 
-                //TODO send to slave
+                if (!pimpl->m_slave_peer.empty())
+                {
+                    TaskRequest task_request;
+                    task_request.task_id = ++pimpl->m_slave_taskid;
+                    ::detail::assign_packet(task_request.package, package);
+                    task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
+                    meshpp::signature signed_msg = pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
+                                                                        meshpp::hash(package.to_string()) +
+                                                                        std::to_string(task_request.time_signed.tm));
+                    task_request.signature = signed_msg.base58;
+
+                    // send task to slave
+                    pimpl->m_ptr_rpc_socket.get()->send(pimpl->m_slave_peer, task_request);
+
+                    pimpl->m_slave_tasks.add(task_request.task_id, package);
+                }
             }
             else
             {
                 errored = true;
-                std::cout << "session -> File verification filed" << std::endl;
+                std::cout << "action_storagefile -> File verification filed" << std::endl;
             }
 
             completed = true;

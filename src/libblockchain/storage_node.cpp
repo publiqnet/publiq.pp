@@ -94,12 +94,12 @@ bool storage_node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    m_pimpl->writeln_node("joined to slave: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("slave joined: " + detail::peer_short_names(peerid));
                     break;
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    m_pimpl->writeln_node("dropped from slave: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("slave dropped: " + detail::peer_short_names(peerid));
 
                     break;
                 }

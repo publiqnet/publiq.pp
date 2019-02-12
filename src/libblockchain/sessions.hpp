@@ -68,15 +68,15 @@ public:
 class session_action_storagefile : public meshpp::session_action
 {
 public:
-    session_action_storagefile(beltpp::socket& sk,
+    session_action_storagefile(detail::node_internals* _pimpl,
                                std::string const& _file_uri);
     ~session_action_storagefile() override;
 
     void initiate() override;
     bool process(beltpp::packet&& package) override;
 
+    detail::node_internals* pimpl;
     std::string file_uri;
-    beltpp::socket* psk;
 };
 
 }

@@ -382,20 +382,24 @@ bool node::run()
 
                         if (do_i_need_it(article_info, m_pimpl))
                         {
-                            BlockchainMessage::IPAddress channel_ip_address;
-
-                            if (m_pimpl->m_state.get_address(article_info.channel, channel_ip_address))
+                            auto it_nodeid = m_pimpl->m_nodeid_service.nodeids.find(article_info.channel);
+                            if (it_nodeid != m_pimpl->m_nodeid_service.nodeids.end())
                             {
-                                beltpp::ip_address beltpp_ip_address;
-                                beltpp::assign(beltpp_ip_address, channel_ip_address);
+                                auto addresses = it_nodeid->second.get();
+                                if (false == addresses.empty())
+                                {
+                                    beltpp::ip_address ip_address = addresses.front();
 
-                                vector<unique_ptr<meshpp::session_action>> actions;
-
-                                actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(), beltpp_ip_address));
-                                actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(), article_info.channel));
-                                actions.emplace_back(new session_action_storagefile(*m_pimpl->m_ptr_rpc_socket.get(), article_info.uri));
-
-                                m_pimpl->m_sessions.add(article_info.channel, beltpp_ip_address, std::move(actions));
+                                    vector<unique_ptr<meshpp::session_action>> actions;
+                                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(),
+                                                                                        ip_address));
+                                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
+                                                                                        m_pimpl->m_nodeid_service,
+                                                                                        article_info.channel,
+                                                                                        ip_address));
+                                    actions.emplace_back(new session_action_storagefile(m_pimpl.get(), article_info.uri));
+                                    m_pimpl->m_sessions.add(article_info.channel, ip_address, std::move(actions));
+                                }
                             }
                         }
                     }
@@ -457,13 +461,12 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     AddressInfo& address_info = *p_address_info;
 
-                    if (signed_tx.authority == address_info.node_id)
+                    if (process_address_info(signed_tx, address_info, m_pimpl))
                     {
                         beltpp::ip_address beltpp_ip_address;
                         beltpp::assign(beltpp_ip_address, address_info.ip_address);
 
-                        nodeid_address_info& nodeid_info =
-                                m_pimpl->m_nodeid_service.nodeids[address_info.node_id];
+                        nodeid_address_info& nodeid_info = m_pimpl->m_nodeid_service.nodeids[address_info.node_id];
 
                         nodeid_info.add(beltpp_ip_address,
                                         unique_ptr<session_action_broadcast_address_info>(
@@ -476,26 +479,24 @@ bool node::run()
                 }
                 case StorageFile::rtt:
                 {
-                    if (m_pimpl->m_node_type == NodeType::miner)
+                    if (m_pimpl->m_node_type != NodeType::channel)
                         throw wrong_request_exception("Do not distrub!");
 
                     if (!m_pimpl->m_slave_peer.empty())
                     {
-                        if (m_pimpl->m_node_type == NodeType::channel)
-                        {
-                            StorageFile storage_file;
-                            ref_packet.get(storage_file);
-                            StorageFileAddress file_address;
-                            file_address.uri = meshpp::hash(storage_file.data);
+                        StorageFile storage_file;
+                        ref_packet.get(storage_file);
+                        StorageFileAddress file_address;
+                        file_address.uri = meshpp::hash(storage_file.data);
 
-                            psk->send(peerid, file_address);
-                        }
+                        psk->send(peerid, file_address);
+
 
                         TaskRequest task_request;
                         task_request.task_id = ++m_pimpl->m_slave_taskid;
                         ::detail::assign_packet(task_request.package, ref_packet);
                         task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
-                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + 
+                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
                                                                               meshpp::hash(ref_packet.to_string()) +
                                                                               std::to_string(task_request.time_signed.tm));
                         task_request.signature = signed_msg.base58;
@@ -860,24 +861,24 @@ bool node::run()
         m_pimpl->reconnect_slave();
     }
 
-    // test ! print summary report about connections
-    if (m_pimpl->m_summary_report_timer.expired())
-    {
-        m_pimpl->m_summary_report_timer.update();
-
-        m_pimpl->writeln_node("Summary Report");
-        m_pimpl->writeln_node("    p2p nodes connected");
-        if (m_pimpl->m_p2p_peers.empty())
-            m_pimpl->writeln_node("        none");
-        else
-        {
-            for (auto const& item : m_pimpl->m_p2p_peers)
-                m_pimpl->writeln_node("        " + detail::peer_short_names(item));
-        }
-        m_pimpl->writeln_node("    blockchain heigth: " +
-                              std::to_string(m_pimpl->m_blockchain.length()));
-        m_pimpl->writeln_node("End Summary Report");
-    }
+//    // test ! print summary report about connections
+//    if (m_pimpl->m_summary_report_timer.expired())
+//    {
+//        m_pimpl->m_summary_report_timer.update();
+//
+//        m_pimpl->writeln_node("Summary Report");
+//        m_pimpl->writeln_node("    p2p nodes connected");
+//        if (m_pimpl->m_p2p_peers.empty())
+//            m_pimpl->writeln_node("        none");
+//        else
+//        {
+//            for (auto const& item : m_pimpl->m_p2p_peers)
+//                m_pimpl->writeln_node("        " + detail::peer_short_names(item));
+//        }
+//        m_pimpl->writeln_node("    blockchain heigth: " +
+//                              std::to_string(m_pimpl->m_blockchain.length()));
+//        m_pimpl->writeln_node("End Summary Report");
+//    }
 
     // broadcast own transactions to all peers for the case
     // if node could not do this when received it through rpc
@@ -948,13 +949,13 @@ bool node::run()
                                       address.to_string());
 
                 vector<unique_ptr<meshpp::session_action>> actions;
-                actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                    address));
+                actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(), address));
                 actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
                                                                    m_pimpl->m_nodeid_service,
                                                                    nodeid_item.first,
                                                                    address));
                 auto ptr_action = nodeid_item.second.take_action(address);
+
                 if (ptr_action)
                     actions.emplace_back(std::move(ptr_action));
 
