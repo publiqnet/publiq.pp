@@ -1,0 +1,11 @@
+module CommanderMessage
+{
+    class UsersRequest
+    {}
+
+    class UsersResponse
+    {
+        Array String users
+    }
+}
+////2

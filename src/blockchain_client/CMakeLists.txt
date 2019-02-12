@@ -5,7 +5,6 @@ add_executable(blockchain_client
 # libraries this module links to
 target_link_libraries(blockchain_client PRIVATE
     socket
-    processor
     packet
     mesh.pp
     belt.pp

@@ -1,6 +1,7 @@
 CMakeLists.txt.user
 /src/publiqd/pid.gen.hpp
 /src/libblockchain/message.gen.hpp
+/src/commander/message.gen.hpp
 /.vs
 /.vscode
 /build
