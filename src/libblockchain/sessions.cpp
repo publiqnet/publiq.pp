@@ -296,6 +296,8 @@ bool session_action_storagefile::process(beltpp::packet&& package, meshpp::sessi
 
                     pimpl->m_slave_tasks.add(task_request.task_id, package);
                 }
+                else
+                    pimpl->reconnect_slave();
             }
             else
             {
