@@ -100,8 +100,7 @@ void construct_type_name(expression_tree const* member_type,
 
 string transformString( string const& scoreString )
 {
-    string camelString =  "";
-    camelString = scoreString;
+    string camelString = scoreString;
 
     for ( size_t x = 0; x < camelString.length() - 1; x++ )
     {
@@ -214,18 +213,21 @@ void analyze(   state_holder& state,
 
 export const createInstanceFromJson = data => {
 
-    if(data.constructor.Rtt === undefined){
-        return  data;
-    }
+  if(data.constructor.Rtt !== undefined){
+      return  data;
+  }
 
-    const ModelClass = MODELS_TYPES[data.rtt];
+  if(data.rtt !== undefined){
+      const ModelClass = MODELS_TYPES[data.rtt];
 
-    if(!ModelClass){
-        throw new Error("invalid model class");
-    }
+      if(!ModelClass){
+          throw new Error("invalid model class");
+      }
 
-    return new ModelClass(data);
+      return new ModelClass(data);
+  }
 
+  return  data;
 };
 
 export default MODELS_TYPES;)file_template";
