@@ -1,11 +1,42 @@
 module CommanderMessage
 {
-    class UsersRequest
+    class NumberValue
+    {
+        UInt64 value
+    }
+
+    class Coin
+    {
+        UInt64 whole
+        UInt64 fraction
+    }
+
+    class Account
+    {
+        String address
+        Coin balance
+    }
+
+    class Done
+    {
+    }
+
+    class Failed
+    {
+        String message
+    }
+
+    class AccountsRequest
     {}
 
-    class UsersResponse
+    class AccountsResponse
     {
-        Array String users
+        Array Account accounts
+    }
+
+    class ImportAccount
+    {
+        String address
     }
 }
 ////2

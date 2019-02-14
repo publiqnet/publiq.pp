@@ -68,6 +68,7 @@ install(TARGETS blockchain
         ARCHIVE DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_ARCHIVE})
 
 install(FILES
+    coin.hpp
     global.hpp
     node.hpp
     message.hpp

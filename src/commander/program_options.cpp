@@ -48,10 +48,10 @@ bool process_command_line(int argc, char** argv,
         connect_to_address.from_string(str_connect_to_address);
         listen_on_address.from_string(str_listen_on_address);
 
-        if (connect_to_address.remote.empty())
+        if (false == connect_to_address.remote.empty())
         {
-            connect_to_address.remote = connect_to_address.local;
-            connect_to_address.local = beltpp::ip_destination();
+            connect_to_address.local = connect_to_address.remote;
+            connect_to_address.remote = beltpp::ip_destination();
         }
         if (listen_on_address.local.empty())
         {

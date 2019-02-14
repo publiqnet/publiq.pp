@@ -17,6 +17,7 @@ install(TARGETS publiq.pp
         DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY})
 
 set(SRC_FILES
+    coin.hpp
     global.hpp
     node.hpp
     storage_node.hpp)

@@ -208,7 +208,6 @@ int main(int argc, char** argv)
 
         auto fs_blockchain = meshpp::data_directory_path("blockchain");
         auto fs_action_log = meshpp::data_directory_path("action_log");
-        auto fs_storage = meshpp::data_directory_path("storage");
         auto fs_transaction_pool = meshpp::data_directory_path("transaction_pool");
         auto fs_state = meshpp::data_directory_path("state");
         auto fs_log = meshpp::data_directory_path("log");
@@ -261,6 +260,7 @@ int main(int argc, char** argv)
 
             if (n_type != NodeType::miner)
             {
+                auto fs_storage = meshpp::data_directory_path("storage");
                 auto storage_bind_to_address = rpc_bind_to_address;
                 storage_bind_to_address.local.port += 10;
 

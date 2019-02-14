@@ -5,7 +5,9 @@
 
 #include <string>
 
-class coin
+namespace publiqpp
+{
+class BLOCKCHAINSHARED_EXPORT coin
 {
 public:
     coin();
@@ -41,10 +43,10 @@ private:
     uint64_t fraction;
 };
 
-coin operator + (coin first, coin const& second);
-coin operator - (coin first, coin const& second);
+BLOCKCHAINSHARED_EXPORT coin operator + (coin first, coin const& second);
+BLOCKCHAINSHARED_EXPORT coin operator - (coin first, coin const& second);
 
-coin operator * (coin first, uint64_t  times);
-coin operator / (coin first, uint64_t  times);
-coin operator % (coin first, uint64_t  times);
-
+BLOCKCHAINSHARED_EXPORT coin operator * (coin first, uint64_t  times);
+BLOCKCHAINSHARED_EXPORT coin operator / (coin first, uint64_t  times);
+BLOCKCHAINSHARED_EXPORT coin operator % (coin first, uint64_t  times);
+}// end namespace publiqpp

@@ -12,7 +12,11 @@ add_executable(commander
     message.hpp
     message.gen.hpp
     program_options.cpp
-    program_options.hpp)
+    program_options.hpp
+    rpc.cpp
+    rpc.hpp
+    daemon_rpc.cpp
+    daemon_rpc.hpp)
 
 # libraries this module links to
 target_link_libraries(commander PRIVATE

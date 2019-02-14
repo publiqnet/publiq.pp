@@ -3,6 +3,8 @@
 
 #include <exception>
 
+namespace publiqpp
+{
 coin::coin()
     : whole(0)
     , fraction(0)
@@ -189,4 +191,4 @@ coin operator % (coin first, uint64_t  times)
     first %= times;
     return first;
 }
-
+}// end namespace publiqpp

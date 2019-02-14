@@ -282,7 +282,6 @@ module BlockchainMessage
         String used_string
         UInt64 max_length
     }
-    class TransactionDone { String tx_hash }
     class FileNotFound{ String uri }
     class RemoteError { String message }
 

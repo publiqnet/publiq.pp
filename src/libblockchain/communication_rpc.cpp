@@ -49,9 +49,10 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
         {
             count += get_action_size(action_info.action);
 
-            ++i;
             action_info.index = i;
             action_stack.push(std::move(action_info));
+
+            ++i;
         }
     }
 

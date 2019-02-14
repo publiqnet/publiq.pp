@@ -89,15 +89,28 @@ beltpp::detail::pmsg_all message_list_load(
 
         if (pss->type == meshpp::http::detail::scan_status::get &&
             pss->resource.path.size() == 1 &&
-            pss->resource.path.front() == "users")
+            pss->resource.path.front() == "accounts")
         {
-            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::UsersRequest>();
-            //CommanderMessage::UsersRequest& ref = *reinterpret_cast<CommanderMessage::UsersRequest*>(p.get());
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::AccountsRequest>();
+            //CommanderMessage::UsersRequest& ref = *reinterpret_cast<CommanderMessage::AccountsRequest*>(p.get());
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-            return ::beltpp::detail::pmsg_all(CommanderMessage::UsersRequest::rtt,
+            return ::beltpp::detail::pmsg_all(CommanderMessage::AccountsRequest::rtt,
                                               std::move(p),
-                                              &CommanderMessage::UsersRequest::pvoid_saver);
+                                              &CommanderMessage::AccountsRequest::pvoid_saver);
         }
+        else if (pss->type == meshpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 2 &&
+                 pss->resource.path.front() == "import")
+         {
+             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::ImportAccount>();
+             CommanderMessage::ImportAccount& ref = *reinterpret_cast<CommanderMessage::ImportAccount*>(p.get());
+             ref.address = pss->resource.path.back();
+
+             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+             return ::beltpp::detail::pmsg_all(CommanderMessage::ImportAccount::rtt,
+                                               std::move(p),
+                                               &CommanderMessage::ImportAccount::pvoid_saver);
+         }
         else
             return protocol_error();
     }
