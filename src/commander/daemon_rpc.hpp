@@ -6,6 +6,8 @@
 
 #include <mesh.pp/fileutility.hpp>
 
+#include <publiq.pp/message.hpp>
+
 #include <utility>
 #include <unordered_set>
 #include <string>

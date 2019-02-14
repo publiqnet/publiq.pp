@@ -11,15 +11,29 @@
 #include <publiq.pp/message.hpp>
 
 #include <unordered_set>
+#include <unordered_map>
 #include <exception>
 
 using beltpp::packet;
 using peer_id = beltpp::socket::peer_id;
 using std::unordered_set;
+using std::unordered_map;
 using namespace BlockchainMessage;
 using std::string;
 
 using sf = beltpp::socket_family_t<&BlockchainMessage::message_list_load>;
+
+static inline
+beltpp::void_unique_ptr bm_get_putl()
+{
+    beltpp::message_loader_utility utl;
+    BlockchainMessage::detail::extension_helper(utl);
+
+    auto ptr_utl =
+        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+
+    return ptr_utl;
+}
 
 daemon_rpc::daemon_rpc()
     : eh()
@@ -112,6 +126,58 @@ void update_balance(string const& str_account,
     }
 }
 
+using TransactionLogLoader = meshpp::vector_loader<BlockchainMessage::TransactionLog>;
+using RewardLogLoader = meshpp::vector_loader<BlockchainMessage::RewardLog>;
+
+void process_transaction(string const& str_account,
+                         BlockchainMessage::TransactionLog const& transaction_log,
+                         unordered_set<string> const& set_accounts,
+                         unordered_map<string, TransactionLogLoader>& transactions,
+                         LoggingType type)
+{
+    auto it = set_accounts.find(str_account);
+    if (it != set_accounts.end())
+    {
+        auto insert_res = transactions.emplace(std::make_pair(str_account,
+                                                              TransactionLogLoader("tx",
+                                                                                   meshpp::data_directory_path("accounts_log", str_account),
+                                                                                   100,
+                                                                                   10,
+                                                                                   bm_get_putl())));
+
+        TransactionLogLoader& tlogloader = insert_res.first->second;
+
+        if (LoggingType::apply == type)
+            tlogloader.push_back(transaction_log);
+        else
+            tlogloader.pop_back();
+    }
+}
+void process_reward(string const& str_account,
+                    BlockchainMessage::RewardLog const& reward_log,
+                    unordered_set<string> const& set_accounts,
+                    unordered_map<string, RewardLogLoader>& rewards,
+                    LoggingType type)
+{
+    auto it = set_accounts.find(str_account);
+    if (it != set_accounts.end())
+    {
+        auto insert_res = rewards.emplace(std::make_pair(str_account,
+                                                         RewardLogLoader("rw",
+                                                                         meshpp::data_directory_path("accounts_log", str_account),
+                                                                         100,
+                                                                         10,
+                                                                         bm_get_putl())));
+
+        RewardLogLoader& rlogloader = insert_res.first->second;
+
+        if (LoggingType::apply == type)
+            rlogloader.push_back(reward_log);
+        else
+            rlogloader.pop_back();
+    }
+}
+
 void daemon_rpc::sync(rpc& rpc_server,
                       unordered_set<string> const& set_accounts,
                       bool const new_import)
@@ -119,11 +185,19 @@ void daemon_rpc::sync(rpc& rpc_server,
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to close");
 
-    beltpp::on_failure discard([this, &rpc_server]()
+    unordered_map<string, TransactionLogLoader> transactions;
+    unordered_map<string, RewardLogLoader> rewards;
+
+    beltpp::on_failure discard([this, &rpc_server, &transactions, &rewards]()
     {
         log_index.discard();
         rpc_server.accounts.discard();
         rpc_server.head_block_index.discard();
+
+        for (auto& tr : transactions)
+            tr.second.discard();
+        for (auto& rw : rewards)
+            rw.second.discard();
     });
 
     uint64_t local_start_index = 0;
@@ -144,14 +218,14 @@ void daemon_rpc::sync(rpc& rpc_server,
             log_index->value = index;
     };
 
-    auto increment_head_block_index = [new_import, this, &rpc_server, &local_head_block_index]()
+    auto increment_head_block_index = [new_import, &rpc_server, &local_head_block_index]()
     {
         if (new_import)
             ++local_head_block_index;
         else
             ++rpc_server.head_block_index->value;
     };
-    auto decrement_head_block_index = [new_import, this, &rpc_server, &local_head_block_index]()
+    auto decrement_head_block_index = [new_import, &rpc_server, &local_head_block_index]()
     {
         if (new_import)
             --local_head_block_index;
@@ -161,7 +235,7 @@ void daemon_rpc::sync(rpc& rpc_server,
 
     while (true)
     {
-        size_t const max_count = 3;
+        size_t const max_count = 3000;
         LoggedTransactionsRequest req;
         req.max_count = max_count;
         req.start_index = start_index();
@@ -217,7 +291,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         if (transaction_log.action.type() == Transfer::rtt)
                                         {
                                             Transfer tf;
-                                            std::move(transaction_log.action).get(tf);
+                                            transaction_log.action.get(tf);
 
                                             update_balance(tf.from,
                                                            tf.amount,
@@ -230,18 +304,32 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::increase);
-
                                             update_balance(tf.from,
                                                            transaction_log.fee,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::decrease);
-
                                             update_balance(block_log.authority,
                                                            transaction_log.fee,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::increase);
+
+                                            process_transaction(tf.from,
+                                                                transaction_log,
+                                                                set_accounts,
+                                                                transactions,
+                                                                LoggingType::apply);
+                                            process_transaction(tf.to,
+                                                                transaction_log,
+                                                                set_accounts,
+                                                                transactions,
+                                                                LoggingType::apply);
+                                            process_transaction(block_log.authority,
+                                                                transaction_log,
+                                                                set_accounts,
+                                                                transactions,
+                                                                LoggingType::apply);
                                         }
                                         else
                                         {
@@ -261,6 +349,12 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::increase);
+
+                                        process_reward(reward_info.to,
+                                                       reward_info,
+                                                       set_accounts,
+                                                       rewards,
+                                                       LoggingType::apply);
                                     }
                                 }
                                 else if (action_type == TransactionLog::rtt)
@@ -278,18 +372,28 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::decrease);
-
                                         update_balance(tf.to,
                                                        tf.amount,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::increase);
-
                                         update_balance(tf.from,
                                                        transaction_log.fee,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::decrease);
+
+
+                                        process_transaction(tf.from,
+                                                            transaction_log,
+                                                            set_accounts,
+                                                            transactions,
+                                                            LoggingType::apply);
+                                        process_transaction(tf.to,
+                                                            transaction_log,
+                                                            set_accounts,
+                                                            transactions,
+                                                            LoggingType::apply);
                                     }
                                     else
                                     {
@@ -328,24 +432,37 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::increase);
-
                                             update_balance(tf.to,
                                                            tf.amount,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::decrease);
-
                                             update_balance(tf.from,
                                                            transaction_log.fee,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::increase);
-
                                             update_balance(block_log.authority,
                                                            transaction_log.fee,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::decrease);
+
+                                            process_transaction(tf.from,
+                                                                transaction_log,
+                                                                set_accounts,
+                                                                transactions,
+                                                                LoggingType::revert);
+                                            process_transaction(tf.to,
+                                                                transaction_log,
+                                                                set_accounts,
+                                                                transactions,
+                                                                LoggingType::revert);
+                                            process_transaction(block_log.authority,
+                                                                transaction_log,
+                                                                set_accounts,
+                                                                transactions,
+                                                                LoggingType::revert);
                                         }
                                         else
                                         {
@@ -365,6 +482,12 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::decrease);
+
+                                        process_reward(reward_info.to,
+                                                       reward_info,
+                                                       set_accounts,
+                                                       rewards,
+                                                       LoggingType::revert);
                                     }
                                 }
                                 else if (action_type == TransactionLog::rtt)
@@ -382,18 +505,27 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::increase);
-
                                         update_balance(tf.to,
                                                        tf.amount,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::decrease);
-
                                         update_balance(tf.from,
                                                        transaction_log.fee,
                                                        set_accounts,
                                                        rpc_server.accounts,
                                                        update_balance_type::increase);
+
+                                        process_transaction(tf.from,
+                                                            transaction_log,
+                                                            set_accounts,
+                                                            transactions,
+                                                            LoggingType::revert);
+                                        process_transaction(tf.to,
+                                                            transaction_log,
+                                                            set_accounts,
+                                                            transactions,
+                                                            LoggingType::revert);
                                     }
                                     else
                                     {
@@ -436,9 +568,20 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.save();
     log_index.save();
 
+    for (auto& tr : transactions)
+        tr.second.save();
+    for (auto& rw : rewards)
+        rw.second.save();
+
     discard.dismiss();
 
     rpc_server.head_block_index.commit();
     rpc_server.accounts.commit();
     log_index.commit();
+
+
+    for (auto& tr : transactions)
+        tr.second.commit();
+    for (auto& rw : rewards)
+        rw.second.commit();
 }

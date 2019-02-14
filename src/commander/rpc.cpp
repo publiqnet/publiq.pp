@@ -21,7 +21,7 @@ using namespace CommanderMessage;
 
 using sf = beltpp::socket_family_t<&commander::http::message_list_load<&CommanderMessage::message_list_load>>;
 
-inline
+static inline
 beltpp::void_unique_ptr get_putl()
 {
     beltpp::message_loader_utility utl;
