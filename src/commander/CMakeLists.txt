@@ -8,10 +8,11 @@ add_custom_command (
 # define the executable
 add_executable(commander
     main.cpp
-
     http.hpp
     message.hpp
-    message.gen.hpp)
+    message.gen.hpp
+    program_options.cpp
+    program_options.hpp)
 
 # libraries this module links to
 target_link_libraries(commander PRIVATE
@@ -20,8 +21,12 @@ target_link_libraries(commander PRIVATE
     mesh.pp
     belt.pp
     utility
+    systemutility
+    cryptoutility
     blockchain
-    Boost::filesystem)
+    Boost::filesystem
+    Boost::program_options
+    Boost::locale)
 
 # what to do on make install
 install(TARGETS commander

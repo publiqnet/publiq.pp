@@ -1,18 +1,31 @@
 #include "message.hpp"
 #include "http.hpp"
+#include "program_options.hpp"
+
+#include <belt.pp/global.hpp>
+#include <belt.pp/log.hpp>
+#include <belt.pp/scope_helper.hpp>
+#include <belt.pp/socket.hpp>
+
+#include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
+#include <mesh.pp/settings.hpp>
 
 #include <publiq.pp/message.hpp>
 
-#include <belt.pp/socket.hpp>
-
-#include <boost/filesystem.hpp>
+#include <boost/locale.hpp>
+#include <boost/filesystem/path.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 #include <iostream>
-#include <chrono>
 #include <thread>
 #include <memory>
 #include <chrono>
 #include <unordered_set>
+#include <vector>
+#include <exception>
+#include <functional>
+#include <csignal>
 
 using peer_id = beltpp::socket::peer_id;
 
@@ -29,6 +42,36 @@ using namespace CommanderMessage;
 
 int main(int argc, char** argv)
 {
+    try
+    {
+        //  boost filesystem UTF-8 support
+        std::locale::global(boost::locale::generator().generate(""));
+        boost::filesystem::path::imbue(std::locale());
+    }
+    catch (...)
+    {}  //  don't care for exception, for now
+
+    beltpp::ip_address server_address;
+    beltpp::ip_address rpc_address;
+    string prefix;
+
+    if (false == process_command_line(argc, argv,
+                                      prefix,
+                                      server_address,
+                                      rpc_address))
+        return 1;
+    //
+    meshpp::config::set_public_key_prefix(prefix);
+    //
+    string application_name = "commander";
+    if (prefix.empty() == false)
+        application_name += "_" + prefix;
+    application_name += "_" + server_address.to_string();
+
+    meshpp::settings::set_application_name(application_name);
+    meshpp::settings::set_data_directory(meshpp::config_directory_path().string());
+
+
     unique_ptr<beltpp::event_handler> m_ptr_eh(new beltpp::event_handler());
     unique_ptr<beltpp::socket> m_ptr_rpc_socket(new beltpp::socket(
                                    beltpp::getsocket<sf>(*m_ptr_eh)
@@ -37,7 +80,7 @@ int main(int argc, char** argv)
     m_ptr_eh->set_timer(chrono::seconds(10));
     m_ptr_eh->add(*m_ptr_rpc_socket);
 
-    m_ptr_rpc_socket->listen(beltpp::ip_address("0.0.0.0", 8080));
+    m_ptr_rpc_socket->listen(rpc_address);
 
     while (true)
     {
