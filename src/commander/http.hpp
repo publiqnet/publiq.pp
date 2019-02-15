@@ -2,6 +2,7 @@
 
 #include "message.hpp"
 
+#include <belt.pp/global.hpp>
 #include <belt.pp/parser.hpp>
 #include <mesh.pp/http.hpp>
 
@@ -101,18 +102,71 @@ beltpp::detail::pmsg_all message_list_load(
         else if (pss->type == meshpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 2 &&
                  pss->resource.path.front() == "import")
-         {
-             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::ImportAccount>();
-             CommanderMessage::ImportAccount& ref = *reinterpret_cast<CommanderMessage::ImportAccount*>(p.get());
-             ref.address = pss->resource.path.back();
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::ImportAccount>();
+            CommanderMessage::ImportAccount& ref = *reinterpret_cast<CommanderMessage::ImportAccount*>(p.get());
+            ref.address = pss->resource.path.back();
 
-             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-             return ::beltpp::detail::pmsg_all(CommanderMessage::ImportAccount::rtt,
-                                               std::move(p),
-                                               &CommanderMessage::ImportAccount::pvoid_saver);
-         }
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::ImportAccount::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::ImportAccount::pvoid_saver);
+        }
+        else if (pss->type == meshpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 4 &&
+                 pss->resource.path.front() == "log")
+        {
+            size_t pos;
+
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::AccountHistoryRequest>();
+            CommanderMessage::AccountHistoryRequest& ref = *reinterpret_cast<CommanderMessage::AccountHistoryRequest*>(p.get());
+            ref.address = pss->resource.path.back();
+            ref.start_block_index = beltpp::stoui64(pss->resource.path[1], pos);
+            ref.max_block_count = beltpp::stoui64(pss->resource.path[2], pos);
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::AccountHistoryRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::AccountHistoryRequest::pvoid_saver);
+        }
+        else if (pss->type == meshpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "head_block")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::HeadBlockRequest>();
+            //CommanderMessage::HeadBlockRequest& ref = *reinterpret_cast<CommanderMessage::HeadBlockRequest*>(p.get());
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::HeadBlockRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::HeadBlockRequest::pvoid_saver);
+        }
+        else if (pss->type == meshpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 2 &&
+                 pss->resource.path.front() == "account")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::AccountRequest>();
+            CommanderMessage::AccountRequest& ref = *reinterpret_cast<CommanderMessage::AccountRequest*>(p.get());
+            ref.address = pss->resource.path.back();
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::AccountRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::AccountRequest::pvoid_saver);
+        }
         else
-            return protocol_error();
+        {
+            ssd.session_specal_handler = nullptr;
+
+            ssd.autoreply = meshpp::http::http_not_found(ssd, "nooo!!!");
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+
+            iter_scan_begin = it_fallback;
+            return ::beltpp::detail::pmsg_all(size_t(-1),
+                                              ::beltpp::void_unique_nullptr(),
+                                              nullptr);
+        }
     }
 }
 }

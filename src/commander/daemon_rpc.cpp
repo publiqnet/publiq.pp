@@ -8,7 +8,6 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <publiq.pp/coin.hpp>
-#include <publiq.pp/message.hpp>
 
 #include <unordered_set>
 #include <unordered_map>
@@ -28,6 +27,17 @@ beltpp::void_unique_ptr bm_get_putl()
 {
     beltpp::message_loader_utility utl;
     BlockchainMessage::detail::extension_helper(utl);
+
+    auto ptr_utl =
+        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+
+    return ptr_utl;
+}
+static inline
+beltpp::void_unique_ptr cm_get_putl()
+{
+    beltpp::message_loader_utility utl;
+    CommanderMessage::detail::extension_helper(utl);
 
     auto ptr_utl =
         beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
@@ -126,56 +136,180 @@ void update_balance(string const& str_account,
     }
 }
 
-using TransactionLogLoader = meshpp::vector_loader<BlockchainMessage::TransactionLog>;
-using RewardLogLoader = meshpp::vector_loader<BlockchainMessage::RewardLog>;
+using TransactionLogLoader = daemon_rpc::TransactionLogLoader;
+using RewardLogLoader = daemon_rpc::RewardLogLoader;
+using LogIndexLoader = daemon_rpc::LogIndexLoader;
 
-void process_transaction(string const& str_account,
+void process_transaction(uint64_t block_index,
+                         string const& str_account,
                          BlockchainMessage::TransactionLog const& transaction_log,
                          unordered_set<string> const& set_accounts,
                          unordered_map<string, TransactionLogLoader>& transactions,
+                         unordered_map<string, LogIndexLoader>& index_transactions,
                          LoggingType type)
 {
     auto it = set_accounts.find(str_account);
     if (it != set_accounts.end())
     {
-        auto insert_res = transactions.emplace(std::make_pair(str_account,
-                                                              TransactionLogLoader("tx",
-                                                                                   meshpp::data_directory_path("accounts_log", str_account),
-                                                                                   100,
-                                                                                   10,
-                                                                                   bm_get_putl())));
+        auto tl_insert_res = transactions.emplace(std::make_pair(str_account,
+                                                                 daemon_rpc::get_transaction_log(str_account)));
 
-        TransactionLogLoader& tlogloader = insert_res.first->second;
+        TransactionLogLoader& tlogloader = tl_insert_res.first->second;
 
         if (LoggingType::apply == type)
             tlogloader.push_back(transaction_log);
         else
             tlogloader.pop_back();
+
+        auto idx_insert_res = index_transactions.emplace(std::make_pair(str_account,
+                                                                        daemon_rpc::get_transaction_log_index(str_account)));
+
+        string str_block_index = std::to_string(block_index);
+        LogIndexLoader& idxlogloader = idx_insert_res.first->second;
+        if (LoggingType::apply == type)
+        {
+            size_t current_tx_index = tlogloader.size() - 1;
+            CommanderMessage::NumberPair value;
+            value.first = current_tx_index;
+            value.second = 1;
+
+            if (false == idxlogloader.insert(str_block_index, value))
+            {
+                auto& stored_value = idxlogloader.at(str_block_index);
+                bool verify = stored_value.first + stored_value.second == current_tx_index;
+                assert(verify);
+                ++stored_value.second;
+
+                if (false == verify)
+                    throw std::logic_error("cannot add to transaction index");
+            }
+        }
+        else
+        {
+            size_t current_tx_index = tlogloader.size();
+
+            bool verify = idxlogloader.contains(str_block_index);
+            assert(verify);
+
+            if (false == verify)
+                throw std::logic_error("cannot remove from transaction index");
+
+            auto& stored_value = idxlogloader.at(str_block_index);
+
+            verify = stored_value.first + stored_value.second == current_tx_index + 1;
+            assert(verify);
+            if (false == verify)
+                throw std::logic_error("cannot remove from transaction index - check error");
+
+            if (stored_value.second == 1)
+                idxlogloader.erase(str_block_index);
+            else
+                --stored_value.second;
+        }
     }
 }
-void process_reward(string const& str_account,
+void process_reward(uint64_t block_index,
+                    string const& str_account,
                     BlockchainMessage::RewardLog const& reward_log,
                     unordered_set<string> const& set_accounts,
                     unordered_map<string, RewardLogLoader>& rewards,
+                    unordered_map<string, LogIndexLoader>& index_rewards,
                     LoggingType type)
 {
     auto it = set_accounts.find(str_account);
     if (it != set_accounts.end())
     {
-        auto insert_res = rewards.emplace(std::make_pair(str_account,
-                                                         RewardLogLoader("rw",
-                                                                         meshpp::data_directory_path("accounts_log", str_account),
-                                                                         100,
-                                                                         10,
-                                                                         bm_get_putl())));
+        auto rw_insert_res = rewards.emplace(std::make_pair(str_account,
+                                                            daemon_rpc::get_reward_log(str_account)));
 
-        RewardLogLoader& rlogloader = insert_res.first->second;
+        RewardLogLoader& rlogloader = rw_insert_res.first->second;
 
         if (LoggingType::apply == type)
             rlogloader.push_back(reward_log);
         else
             rlogloader.pop_back();
+
+        auto idx_insert_res = index_rewards.emplace(std::make_pair(str_account,
+                                                                   daemon_rpc::get_reward_log_index(str_account)));
+
+        string str_block_index = std::to_string(block_index);
+        LogIndexLoader& idxlogloader = idx_insert_res.first->second;
+        if (LoggingType::apply == type)
+        {
+            size_t current_rw_index = rlogloader.size() - 1;
+            CommanderMessage::NumberPair value;
+            value.first = current_rw_index;
+            value.second = 1;
+
+            if (false == idxlogloader.insert(str_block_index, value))
+            {
+                auto& stored_value = idxlogloader.at(str_block_index);
+                bool verify = stored_value.first + stored_value.second == current_rw_index;
+                assert(verify);
+                ++stored_value.second;
+
+                if (false == verify)
+                    throw std::logic_error("cannot add to reward index");
+            }
+        }
+        else
+        {
+            size_t current_rw_index = rlogloader.size();
+
+            bool verify = idxlogloader.contains(str_block_index);
+            assert(verify);
+
+            if (false == verify)
+                throw std::logic_error("cannot remove from reward index");
+
+            auto& stored_value = idxlogloader.at(str_block_index);
+
+            verify = stored_value.first + stored_value.second == current_rw_index + 1;
+            assert(verify);
+            if (false == verify)
+                throw std::logic_error("cannot remove from reward index - check error");
+
+            if (stored_value.second == 1)
+                idxlogloader.erase(str_block_index);
+            else
+                --stored_value.second;
+        }
     }
+}
+
+TransactionLogLoader daemon_rpc::get_transaction_log(std::string const& address)
+{
+    return
+    TransactionLogLoader("tx",
+                         meshpp::data_directory_path("accounts_log", address),
+                         1000,
+                         10,
+                         bm_get_putl());
+}
+RewardLogLoader daemon_rpc::get_reward_log(std::string const& address)
+{
+    return
+    RewardLogLoader("rw",
+                    meshpp::data_directory_path("accounts_log", address),
+                    1000,
+                    10,
+                    bm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_transaction_log_index(std::string const& address)
+{
+    return
+    LogIndexLoader("index_tx",
+                   meshpp::data_directory_path("accounts_log", address),
+                   1000,
+                   cm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_reward_log_index(std::string const& address)
+{
+    return
+    LogIndexLoader("index_rw",
+                   meshpp::data_directory_path("accounts_log", address),
+                   1000,
+                   cm_get_putl());
 }
 
 void daemon_rpc::sync(rpc& rpc_server,
@@ -183,12 +317,20 @@ void daemon_rpc::sync(rpc& rpc_server,
                       bool const new_import)
 {
     if (peerid.empty())
-        throw std::runtime_error("no daemon_rpc connection to close");
+        throw std::runtime_error("no daemon_rpc connection to work");
 
     unordered_map<string, TransactionLogLoader> transactions;
     unordered_map<string, RewardLogLoader> rewards;
+    unordered_map<string, LogIndexLoader> index_transactions;
+    unordered_map<string, LogIndexLoader> index_rewards;
 
-    beltpp::on_failure discard([this, &rpc_server, &transactions, &rewards]()
+
+    beltpp::on_failure discard([this,
+                               &rpc_server,
+                               &transactions,
+                               &rewards,
+                               &index_transactions,
+                               &index_rewards]()
     {
         log_index.discard();
         rpc_server.accounts.discard();
@@ -197,6 +339,10 @@ void daemon_rpc::sync(rpc& rpc_server,
         for (auto& tr : transactions)
             tr.second.discard();
         for (auto& rw : rewards)
+            rw.second.discard();
+        for (auto& tr : index_transactions)
+            tr.second.discard();
+        for (auto& rw : index_rewards)
             rw.second.discard();
     });
 
@@ -218,6 +364,13 @@ void daemon_rpc::sync(rpc& rpc_server,
             log_index->value = index;
     };
 
+    auto head_block_index = [new_import, &rpc_server, &local_head_block_index]()
+    {
+        if (new_import)
+            return local_head_block_index;
+        else
+            return rpc_server.head_block_index->value;
+    };
     auto increment_head_block_index = [new_import, &rpc_server, &local_head_block_index]()
     {
         if (new_import)
@@ -271,6 +424,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                         {
                             ++count;
 
+                            bool dont_increment_head_block_index = false;
+                            if (start_index() == 0)
+                                dont_increment_head_block_index = true;
+
                             set_start_index(action_info.index + 1);
 
                             auto action_type = action_info.action.type();
@@ -279,10 +436,13 @@ void daemon_rpc::sync(rpc& rpc_server,
                             {
                                 if (action_type == BlockLog::rtt)
                                 {
-                                    increment_head_block_index();
+                                    if (false == dont_increment_head_block_index)
+                                        increment_head_block_index();
 
                                     BlockLog block_log;
                                     std::move(action_info.action).get(block_log);
+
+                                    uint64_t block_index = head_block_index();
 
                                     for (auto& transaction_log: block_log.transactions)
                                     {
@@ -315,20 +475,26 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                            rpc_server.accounts,
                                                            update_balance_type::increase);
 
-                                            process_transaction(tf.from,
+                                            process_transaction(block_index,
+                                                                tf.from,
                                                                 transaction_log,
                                                                 set_accounts,
                                                                 transactions,
+                                                                index_transactions,
                                                                 LoggingType::apply);
-                                            process_transaction(tf.to,
+                                            process_transaction(block_index,
+                                                                tf.to,
                                                                 transaction_log,
                                                                 set_accounts,
                                                                 transactions,
+                                                                index_transactions,
                                                                 LoggingType::apply);
-                                            process_transaction(block_log.authority,
+                                            process_transaction(block_index,
+                                                                block_log.authority,
                                                                 transaction_log,
                                                                 set_accounts,
                                                                 transactions,
+                                                                index_transactions,
                                                                 LoggingType::apply);
                                         }
                                         else
@@ -350,22 +516,26 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        rpc_server.accounts,
                                                        update_balance_type::increase);
 
-                                        process_reward(reward_info.to,
+                                        process_reward(block_index,
+                                                       reward_info.to,
                                                        reward_info,
                                                        set_accounts,
                                                        rewards,
+                                                       index_rewards,
                                                        LoggingType::apply);
                                     }
                                 }
                                 else if (action_type == TransactionLog::rtt)
                                 {
+                                    uint64_t block_index = head_block_index() + 1;
+
                                     TransactionLog transaction_log;
                                     std::move(action_info.action).get(transaction_log);
 
                                     if (transaction_log.action.type() == Transfer::rtt)
                                     {
                                         Transfer tf;
-                                        std::move(transaction_log.action).get(tf);
+                                        transaction_log.action.get(tf);
 
                                         update_balance(tf.from,
                                                        tf.amount,
@@ -384,15 +554,19 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        update_balance_type::decrease);
 
 
-                                        process_transaction(tf.from,
+                                        process_transaction(block_index,
+                                                            tf.from,
                                                             transaction_log,
                                                             set_accounts,
                                                             transactions,
+                                                            index_transactions,
                                                             LoggingType::apply);
-                                        process_transaction(tf.to,
+                                        process_transaction(block_index,
+                                                            tf.to,
                                                             transaction_log,
                                                             set_accounts,
                                                             transactions,
+                                                            index_transactions,
                                                             LoggingType::apply);
                                     }
                                     else
@@ -413,6 +587,8 @@ void daemon_rpc::sync(rpc& rpc_server,
                             {
                                 if (action_type == BlockLog::rtt)
                                 {
+                                    uint64_t block_index = head_block_index();
+
                                     decrement_head_block_index();
 
                                     BlockLog block_log;
@@ -425,7 +601,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         if (transaction_log.action.type() == Transfer::rtt)
                                         {
                                             Transfer tf;
-                                            std::move(transaction_log.action).get(tf);
+                                            transaction_log.action.get(tf);
 
                                             update_balance(tf.from,
                                                            tf.amount,
@@ -448,20 +624,26 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                            rpc_server.accounts,
                                                            update_balance_type::decrease);
 
-                                            process_transaction(tf.from,
+                                            process_transaction(block_index,
+                                                                tf.from,
                                                                 transaction_log,
                                                                 set_accounts,
                                                                 transactions,
+                                                                index_transactions,
                                                                 LoggingType::revert);
-                                            process_transaction(tf.to,
+                                            process_transaction(block_index,
+                                                                tf.to,
                                                                 transaction_log,
                                                                 set_accounts,
                                                                 transactions,
+                                                                index_transactions,
                                                                 LoggingType::revert);
-                                            process_transaction(block_log.authority,
+                                            process_transaction(block_index,
+                                                                block_log.authority,
                                                                 transaction_log,
                                                                 set_accounts,
                                                                 transactions,
+                                                                index_transactions,
                                                                 LoggingType::revert);
                                         }
                                         else
@@ -483,10 +665,12 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        rpc_server.accounts,
                                                        update_balance_type::decrease);
 
-                                        process_reward(reward_info.to,
+                                        process_reward(block_index,
+                                                       reward_info.to,
                                                        reward_info,
                                                        set_accounts,
                                                        rewards,
+                                                       index_rewards,
                                                        LoggingType::revert);
                                     }
                                 }
@@ -495,10 +679,12 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     TransactionLog transaction_log;
                                     std::move(action_info.action).get(transaction_log);
 
+                                    uint64_t block_index = head_block_index() + 1;
+
                                     if (transaction_log.action.type() == Transfer::rtt)
                                     {
                                         Transfer tf;
-                                        std::move(transaction_log.action).get(tf);
+                                        transaction_log.action.get(tf);
 
                                         update_balance(tf.from,
                                                        tf.amount,
@@ -516,15 +702,19 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        rpc_server.accounts,
                                                        update_balance_type::increase);
 
-                                        process_transaction(tf.from,
+                                        process_transaction(block_index,
+                                                            tf.from,
                                                             transaction_log,
                                                             set_accounts,
                                                             transactions,
+                                                            index_transactions,
                                                             LoggingType::revert);
-                                        process_transaction(tf.to,
+                                        process_transaction(block_index,
+                                                            tf.to,
                                                             transaction_log,
                                                             set_accounts,
                                                             transactions,
+                                                            index_transactions,
                                                             LoggingType::revert);
                                     }
                                     else
@@ -572,6 +762,10 @@ void daemon_rpc::sync(rpc& rpc_server,
         tr.second.save();
     for (auto& rw : rewards)
         rw.second.save();
+    for (auto& tr : index_transactions)
+        tr.second.save();
+    for (auto& rw : index_rewards)
+        rw.second.save();
 
     discard.dismiss();
 
@@ -579,9 +773,12 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.commit();
     log_index.commit();
 
-
     for (auto& tr : transactions)
         tr.second.commit();
     for (auto& rw : rewards)
+        rw.second.commit();
+    for (auto& tr : index_transactions)
+        tr.second.commit();
+    for (auto& rw : index_rewards)
         rw.second.commit();
 }

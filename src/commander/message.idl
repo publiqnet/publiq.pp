@@ -5,6 +5,12 @@ module CommanderMessage
         UInt64 value
     }
 
+    class NumberPair
+    {
+        UInt64 first
+        UInt64 second
+    }
+
     class Coin
     {
         UInt64 whole
@@ -17,6 +23,15 @@ module CommanderMessage
         Coin balance
     }
 
+    class AccountResponse
+    {
+        String address
+        Coin balance
+        Coin confirmed_balance
+        Coin unconfirmed_sent
+        Coin unconfirmed_received
+    }
+
     class Done
     {
     }
@@ -26,12 +41,87 @@ module CommanderMessage
         String message
     }
 
+    class HeadBlockRequest
+    {}
+
+    class AccountRequest
+    {
+        String address
+    }
+
     class AccountsRequest
     {}
 
     class AccountsResponse
     {
-        Array Account accounts
+        Array AccountResponse accounts
+    }
+
+    class AccountHistoryRequest
+    {
+        String address
+        UInt64 start_block_index
+        UInt64 max_block_count
+    }
+
+    class AccountHistory
+    {
+        Array Object history
+    }
+
+    enum AccountHistoryItemType
+    {
+        received
+        received_fee
+        sent
+        sent_fee
+        rewarded
+    }
+    class AccountHistoryReceived
+    {
+        UInt64 block_index
+        UInt64 confirmations
+        AccountHistoryItemType item_type
+        TimePoint timestamp
+        String from
+        Coin amount
+        String message
+    }
+    class AccountHistoryReceivedFee
+    {
+        UInt64 block_index
+        UInt64 confirmations
+        AccountHistoryItemType item_type
+        TimePoint timestamp
+        String from
+        Coin amount
+    }
+    class AccountHistorySent
+    {
+        UInt64 block_index
+        UInt64 confirmations
+        AccountHistoryItemType item_type
+        TimePoint timestamp
+        String to
+        Coin amount
+        String message
+    }
+    class AccountHistorySentFee
+    {
+        UInt64 block_index
+        UInt64 confirmations
+        AccountHistoryItemType item_type
+        TimePoint timestamp
+        String to
+        Coin amount
+    }
+    class AccountHistoryRewarded
+    {
+        UInt64 block_index
+        UInt64 confirmations
+        AccountHistoryItemType item_type
+        TimePoint timestamp
+        Coin amount
     }
 
     class ImportAccount
