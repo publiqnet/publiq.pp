@@ -298,6 +298,8 @@ bool session_action_storagefile::process(beltpp::packet&& package, meshpp::sessi
                 }
                 else
                     pimpl->reconnect_slave();
+
+                errored = true; // for test only
             }
             else
             {

@@ -944,25 +944,27 @@ bool node::run()
 
             for (auto& address : nodeid_item.second.get())
             {
-                m_pimpl->writeln_node(std::to_string(nodeid_item.second.is_verified(address)) +
-                                      " - " + nodeid_item.first + ": " +
-                                      address.to_string());
-
-                vector<unique_ptr<meshpp::session_action>> actions;
-                actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(), address));
-                actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                   m_pimpl->m_nodeid_service,
-                                                                   nodeid_item.first,
-                                                                   address));
                 auto ptr_action = nodeid_item.second.take_action(address);
 
                 if (ptr_action)
+                {
+                    m_pimpl->writeln_node(std::to_string(nodeid_item.second.is_verified(address)) +
+                        " - " + nodeid_item.first + ": " +
+                        address.to_string());
+
+                    vector<unique_ptr<meshpp::session_action>> actions;
+                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(), address));
+                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
+                                                                        m_pimpl->m_nodeid_service,
+                                                                        nodeid_item.first,
+                                                                        address));
+
                     actions.emplace_back(std::move(ptr_action));
 
-                m_pimpl->m_sessions.add(nodeid_item.first,
-                                        address,
-                                        std::move(actions));
-
+                    m_pimpl->m_sessions.add(nodeid_item.first,
+                        address,
+                        std::move(actions));
+                }
                 ++collected;
             }
         }

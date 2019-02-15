@@ -1467,7 +1467,7 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
+    if (m_pimpl->m_transaction_pool.contains(tr_hash) || // may be content_info will stored
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
@@ -1497,9 +1497,8 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-//    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
-//        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
-//        return false;
+    if (m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+        return false;
 
     NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
 
