@@ -807,8 +807,8 @@ bool node::run()
             catch (not_enough_balance_exception const& e)
             {
                 NotEnoughBalance msg;
-                msg.balance = e.balance.to_Coin();
-                msg.spending = e.spending.to_Coin();
+                e.balance.to_Coin(msg.balance);
+                e.spending.to_Coin(msg.spending);
                 psk->send(peerid, msg);
                 throw;
             }

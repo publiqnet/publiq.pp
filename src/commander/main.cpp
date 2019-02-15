@@ -7,6 +7,7 @@
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
 #include <mesh.pp/settings.hpp>
+#include <mesh.pp/pid.hpp>
 
 #include <publiq.pp/message.hpp>
 
@@ -70,6 +71,18 @@ int main(int argc, char** argv)
         meshpp::create_config_directory();
         meshpp::create_data_directory();
 
+        using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<PidConfig::DataDirAttribute,
+                                                                                &PidConfig::DataDirAttribute::from_string,
+                                                                                &PidConfig::DataDirAttribute::to_string>>;
+        DataDirAttributeLoader dda(meshpp::data_file_path("running.txt"));
+        {
+            PidConfig::RunningDuration item;
+            item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+            dda->history.push_back(item);
+            dda.save();
+        }
+
         rpc server(rpc_address, connect_to_address);
 
         while (true)
@@ -90,6 +103,9 @@ int main(int argc, char** argv)
             break;
         }
         }
+
+        dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        dda.save();
     }
     catch (std::exception const& ex)
     {

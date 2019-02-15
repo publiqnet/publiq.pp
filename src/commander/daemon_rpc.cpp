@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <exception>
+#include <chrono>
 
 using beltpp::packet;
 using peer_id = beltpp::socket::peer_id;
@@ -19,6 +20,7 @@ using std::unordered_set;
 using std::unordered_map;
 using namespace BlockchainMessage;
 using std::string;
+namespace chrono = std::chrono;
 
 using sf = beltpp::socket_family_t<&BlockchainMessage::message_list_load>;
 
@@ -45,6 +47,45 @@ beltpp::void_unique_ptr cm_get_putl()
     return ptr_utl;
 }
 
+using TransactionLogLoader = daemon_rpc::TransactionLogLoader;
+using RewardLogLoader = daemon_rpc::RewardLogLoader;
+using LogIndexLoader = daemon_rpc::LogIndexLoader;
+
+TransactionLogLoader daemon_rpc::get_transaction_log(std::string const& address)
+{
+    return
+    TransactionLogLoader("tx",
+                         meshpp::data_directory_path("accounts_log", address),
+                         1000,
+                         10,
+                         bm_get_putl());
+}
+RewardLogLoader daemon_rpc::get_reward_log(std::string const& address)
+{
+    return
+    RewardLogLoader("rw",
+                    meshpp::data_directory_path("accounts_log", address),
+                    1000,
+                    10,
+                    bm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_transaction_log_index(std::string const& address)
+{
+    return
+    LogIndexLoader("index_tx",
+                   meshpp::data_directory_path("accounts_log", address),
+                   1000,
+                   cm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_reward_log_index(std::string const& address)
+{
+    return
+    LogIndexLoader("index_rw",
+                   meshpp::data_directory_path("accounts_log", address),
+                   1000,
+                   cm_get_putl());
+}
+
 daemon_rpc::daemon_rpc()
     : eh()
     , socket(beltpp::getsocket<sf>(eh))
@@ -61,7 +102,8 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
     if (peerids.size() != 1)
         throw std::runtime_error(connect_to_address.to_string() + " is ambigous or unknown");
 
-    while (true)
+    bool keep_trying = true;
+    while (keep_trying)
     {
         unordered_set<beltpp::ievent_item const*> wait_sockets;
         auto wait_result = eh.wait(wait_sockets);
@@ -74,7 +116,7 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
             auto received_packets = socket.receive(peerid);
 
             if (peerids.front() != peerid)
-                std::logic_error("logic error in open() - peerids.front() != peerid");
+                throw std::logic_error("logic error in open() - peerids.front() != peerid");
 
             for (auto& received_packet : received_packets)
             {
@@ -85,11 +127,15 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
                 case beltpp::isocket_join::rtt:
                 {
                     this->peerid = peerid;
-                    return;
+                    keep_trying = false;
+                    break;
                 }
                 default:
                     throw std::runtime_error(connect_to_address.to_string() + " cannot open");
                 }
+
+                if (false == keep_trying)
+                    break;
             }
         }
     }
@@ -132,13 +178,9 @@ void update_balance(string const& str_account,
         else
             balance += change;
 
-        account.balance = balance.to_Coin();
+        balance.to_Coin(account.balance);
     }
 }
-
-using TransactionLogLoader = daemon_rpc::TransactionLogLoader;
-using RewardLogLoader = daemon_rpc::RewardLogLoader;
-using LogIndexLoader = daemon_rpc::LogIndexLoader;
 
 void process_transaction(uint64_t block_index,
                          string const& str_account,
@@ -277,39 +319,78 @@ void process_reward(uint64_t block_index,
     }
 }
 
-TransactionLogLoader daemon_rpc::get_transaction_log(std::string const& address)
+string daemon_rpc::send(CommanderMessage::Send const& send,
+                        rpc& rpc_server)
 {
-    return
-    TransactionLogLoader("tx",
-                         meshpp::data_directory_path("accounts_log", address),
-                         1000,
-                         10,
-                         bm_get_putl());
-}
-RewardLogLoader daemon_rpc::get_reward_log(std::string const& address)
-{
-    return
-    RewardLogLoader("rw",
-                    meshpp::data_directory_path("accounts_log", address),
-                    1000,
-                    10,
-                    bm_get_putl());
-}
-LogIndexLoader daemon_rpc::get_transaction_log_index(std::string const& address)
-{
-    return
-    LogIndexLoader("index_tx",
-                   meshpp::data_directory_path("accounts_log", address),
-                   1000,
-                   cm_get_putl());
-}
-LogIndexLoader daemon_rpc::get_reward_log_index(std::string const& address)
-{
-    return
-    LogIndexLoader("index_rw",
-                   meshpp::data_directory_path("accounts_log", address),
-                   1000,
-                   cm_get_putl());
+    if (peerid.empty())
+        throw std::runtime_error("no daemon_rpc connection to work");
+
+    string transaction_hash;
+
+    meshpp::private_key pv(send.private_key);
+    meshpp::public_key pb(send.to);
+
+    BlockchainMessage::Transfer tf;
+    publiqpp::coin(send.amount).to_Coin(tf.amount);
+    tf.from = pv.get_public_key().to_string();
+    tf.message = send.message;
+    tf.to = pb.to_string();
+
+    BlockchainMessage::Transaction tx;
+    tx.action = std::move(tf);
+    publiqpp::coin(send.fee).to_Coin(tx.fee);
+    tx.creation.tm = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    tx.expiry.tm =  chrono::system_clock::to_time_t(chrono::system_clock::now() + chrono::seconds(send.seconds_to_expire));
+
+    BlockchainMessage::SignedTransaction stx;
+    stx.authority = pv.get_public_key().to_string();
+    stx.signature = pv.sign(tx.to_string()).base58;
+    stx.transaction_details = std::move(tx);
+
+    transaction_hash = meshpp::hash(stx.to_string());
+
+    BlockchainMessage::Broadcast bc;
+    bc.echoes = 2;
+    bc.package = std::move(stx);
+
+    socket.send(peerid, std::move(bc));
+
+    bool keep_trying = true;
+    while (keep_trying)
+    {
+        unordered_set<beltpp::ievent_item const*> wait_sockets;
+        auto wait_result = eh.wait(wait_sockets);
+        B_UNUSED(wait_sockets);
+
+        if (wait_result == beltpp::event_handler::event)
+        {
+            peer_id peerid;
+
+            auto received_packets = socket.receive(peerid);
+
+            for (auto& received_packet : received_packets)
+            {
+                packet& ref_packet = received_packet;
+
+                switch (ref_packet.type())
+                {
+                case BlockchainMessage::Done::rtt:
+                {
+                    this->peerid = peerid;
+                    keep_trying = false;
+                    break;
+                }
+                default:
+                    throw std::runtime_error("broadcast error");
+                }
+
+                if (false == keep_trying)
+                    break;
+            }
+        }
+    }
+
+    return transaction_hash;
 }
 
 void daemon_rpc::sync(rpc& rpc_server,
@@ -482,6 +563,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 transactions,
                                                                 index_transactions,
                                                                 LoggingType::apply);
+                                            if (tf.to != tf.from)
                                             process_transaction(block_index,
                                                                 tf.to,
                                                                 transaction_log,
@@ -489,6 +571,8 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 transactions,
                                                                 index_transactions,
                                                                 LoggingType::apply);
+                                            if (block_log.authority != tf.to &&
+                                                block_log.authority != tf.from)
                                             process_transaction(block_index,
                                                                 block_log.authority,
                                                                 transaction_log,
@@ -561,6 +645,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                             transactions,
                                                             index_transactions,
                                                             LoggingType::apply);
+                                        if (tf.to != tf.from)
                                         process_transaction(block_index,
                                                             tf.to,
                                                             transaction_log,
@@ -631,6 +716,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 transactions,
                                                                 index_transactions,
                                                                 LoggingType::revert);
+                                            if (tf.to != tf.from)
                                             process_transaction(block_index,
                                                                 tf.to,
                                                                 transaction_log,
@@ -638,6 +724,8 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 transactions,
                                                                 index_transactions,
                                                                 LoggingType::revert);
+                                            if (block_log.authority != tf.to &&
+                                                block_log.authority != tf.from)
                                             process_transaction(block_index,
                                                                 block_log.authority,
                                                                 transaction_log,
@@ -709,6 +797,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                             transactions,
                                                             index_transactions,
                                                             LoggingType::revert);
+                                        if (tf.to != tf.from)
                                         process_transaction(block_index,
                                                             tf.to,
                                                             transaction_log,

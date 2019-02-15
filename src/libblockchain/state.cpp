@@ -83,10 +83,14 @@ void state::increase_balance(string const& key, coin const& amount)
     if (m_pimpl->m_accounts.contains(key))
     {
         Coin& balance = m_pimpl->m_accounts.at(key);
-        balance = (balance + amount).to_Coin();
+        (balance + amount).to_Coin(balance);
     }
     else
-        m_pimpl->m_accounts.insert(key, amount.to_Coin());
+    {
+        Coin temp;
+        amount.to_Coin(temp);
+        m_pimpl->m_accounts.insert(key, temp);
+    }
 }
 
 void state::decrease_balance(string const& key, coin const& amount)
@@ -102,7 +106,7 @@ void state::decrease_balance(string const& key, coin const& amount)
     if (coin(balance) < amount)
         throw not_enough_balance_exception(coin(balance), amount);
 
-    balance = coin(balance - amount).to_Coin();
+    coin(balance - amount).to_Coin(balance);
 
     if (coin(balance).empty())
         m_pimpl->m_accounts.erase(key);
