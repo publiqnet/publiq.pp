@@ -1049,10 +1049,15 @@ void process_blockchain_response(BlockchainResponse&& response,
         SignedTransaction signed_transaction;
         m_pimpl->m_transaction_pool.at(key, signed_transaction);
 
-        if (apply_transaction(signed_transaction, m_pimpl))
-            m_pimpl->m_action_log.log_transaction(signed_transaction);
+        if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
+            m_pimpl->m_transaction_pool.remove(key); // already expired transaction
         else
-            m_pimpl->m_transaction_pool.remove(key);
+        {
+            if (apply_transaction(signed_transaction, m_pimpl))
+                m_pimpl->m_action_log.log_transaction(signed_transaction);
+            else
+                m_pimpl->m_transaction_pool.remove(key);
+        }
     }
 
     m_pimpl->save(guard);
