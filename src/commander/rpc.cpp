@@ -69,7 +69,9 @@ void process_rewards(uint64_t head_block_index,
         item.confirmations = head_block_index - block_index + 1;
         item.item_type = AccountHistoryItemType::rewarded;
         item.timestamp.tm = 0;  //  todo
-        item.amount = reward_log.amount;
+        
+        item.amount.whole = reward_log.amount.whole;
+        item.amount.fraction = reward_log.amount.fraction;
 
         result.history.push_back(std::move(item));
     }
@@ -101,7 +103,8 @@ void process_transactions(uint64_t head_block_index,
             item.timestamp.tm = transaction_log.time_signed.tm;
 
             item.from = tf.from;
-            item.amount = tf.amount;
+            item.amount.whole = tf.amount.whole;
+            item.amount.fraction = tf.amount.fraction;
             item.message = tf.message;
 
             result.history.push_back(std::move(item));
@@ -116,7 +119,8 @@ void process_transactions(uint64_t head_block_index,
                 item.timestamp.tm = transaction_log.time_signed.tm;
 
                 item.to = tf.to;
-                item.amount = tf.amount;
+                item.amount.whole = tf.amount.whole;
+                item.amount.fraction = tf.amount.fraction;
                 item.message = tf.message;
 
                 result.history.push_back(std::move(item));
@@ -130,7 +134,8 @@ void process_transactions(uint64_t head_block_index,
                 item.timestamp.tm = transaction_log.time_signed.tm;
 
                 item.to = string(); //  todo
-                item.amount = transaction_log.fee;
+                item.amount.whole = transaction_log.fee.whole;
+                item.amount.fraction = transaction_log.fee.fraction;
 
                 result.history.push_back(std::move(item));
             }
@@ -144,7 +149,8 @@ void process_transactions(uint64_t head_block_index,
             item.timestamp.tm = transaction_log.time_signed.tm;
 
             item.from = tf.from;
-            item.amount = transaction_log.fee;
+            item.amount.whole = transaction_log.fee.whole;
+            item.amount.fraction = transaction_log.fee.fraction;
 
             result.history.push_back(std::move(item));
         }
@@ -386,9 +392,12 @@ AccountResponse AccountResponseFromRawAccount(size_t head_index,
     confirmed_balance -= unconfirmed_received;
     confirmed_balance += unconfirmed_sent;
 
-    response.confirmed_balance = confirmed_balance.to_Coin();
-    response.unconfirmed_received = unconfirmed_received.to_Coin();
-    response.unconfirmed_sent = unconfirmed_sent.to_Coin();
+    response.confirmed_balance.whole = confirmed_balance.to_Coin().whole;
+    response.confirmed_balance.fraction = confirmed_balance.to_Coin().fraction;
+    response.unconfirmed_received.whole = unconfirmed_received.to_Coin().whole;
+    response.unconfirmed_received.fraction = unconfirmed_received.to_Coin().fraction;
+    response.unconfirmed_sent.whole = unconfirmed_sent.to_Coin().whole;
+    response.unconfirmed_sent.fraction = unconfirmed_sent.to_Coin().fraction;
 
     return response;
 }

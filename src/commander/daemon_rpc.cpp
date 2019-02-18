@@ -66,15 +66,15 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
         unordered_set<beltpp::ievent_item const*> wait_sockets;
         auto wait_result = eh.wait(wait_sockets);
         B_UNUSED(wait_sockets);
-
+        
         if (wait_result == beltpp::event_handler::event)
         {
-            peer_id peerid;
+            peer_id _peerid;
 
-            auto received_packets = socket.receive(peerid);
+            auto received_packets = socket.receive(_peerid);
 
-            if (peerids.front() != peerid)
-                std::logic_error("logic error in open() - peerids.front() != peerid");
+            if (peerids.front() != _peerid)
+                throw std::logic_error("logic error in open() - peerids.front() != peerid");
 
             for (auto& received_packet : received_packets)
             {
@@ -84,8 +84,9 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    this->peerid = peerid;
-                    return;
+                    peerid = _peerid;
+                    //return;
+                    break;
                 }
                 default:
                     throw std::runtime_error(connect_to_address.to_string() + " cannot open");
@@ -132,7 +133,8 @@ void update_balance(string const& str_account,
         else
             balance += change;
 
-        account.balance = balance.to_Coin();
+        account.balance.whole = balance.to_Coin().whole;
+        account.balance.fraction = balance.to_Coin().fraction;
     }
 }
 
@@ -405,9 +407,9 @@ void daemon_rpc::sync(rpc& rpc_server,
 
             if (wait_result == beltpp::event_handler::event)
             {
-                peer_id peerid;
+                peer_id _peerid;
 
-                auto received_packets = socket.receive(peerid);
+                auto received_packets = socket.receive(_peerid);
 
                 for (auto& received_packet : received_packets)
                 {
