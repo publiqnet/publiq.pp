@@ -20,6 +20,17 @@ namespace commander
 {
 namespace http
 {
+
+inline
+string response(beltpp::detail::session_special_data& ssd,
+                beltpp::packet const& pc)
+{
+    if (pc.type() == CommanderMessage::Failed::rtt)
+        return meshpp::http::http_not_found(ssd, pc.to_string());
+    else
+        return meshpp::http::http_response(ssd, pc);
+}
+
 template <beltpp::detail::pmsg_all (*fallback_message_list_load)(
         std::string::const_iterator&,
         std::string::const_iterator const&,
@@ -84,7 +95,7 @@ beltpp::detail::pmsg_all message_list_load(
     {
         //if (pss->type == meshpp::http::detail::scan_status::post)
         {
-            ssd.session_specal_handler = &meshpp::http::http_response;
+            ssd.session_specal_handler = &response;
             ssd.autoreply.clear();
         }
 
@@ -153,6 +164,29 @@ beltpp::detail::pmsg_all message_list_load(
             return ::beltpp::detail::pmsg_all(CommanderMessage::AccountRequest::rtt,
                                               std::move(p),
                                               &CommanderMessage::AccountRequest::pvoid_saver);
+        }
+        else if (pss->type == meshpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 2 &&
+                 pss->resource.path.front() == "send")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Send>();
+            CommanderMessage::Send& ref = *reinterpret_cast<CommanderMessage::Send*>(p.get());
+
+            size_t pos;
+
+            ref.private_key = pss->resource.path.back();
+            ref.to = pss->resource.arguments["to"];
+            ref.amount.whole = beltpp::stoui64(pss->resource.arguments["whole"], pos);
+            ref.amount.fraction = beltpp::stoui64(pss->resource.arguments["fraction"], pos);
+            ref.fee.whole = beltpp::stoui64(pss->resource.arguments["fee_whole"], pos);
+            ref.fee.fraction = beltpp::stoui64(pss->resource.arguments["fee_fraction"], pos);
+            ref.message = pss->resource.arguments["message"];
+            ref.seconds_to_expire = beltpp::stoui64(pss->resource.arguments["seconds"], pos);
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::Send::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::Send::pvoid_saver);
         }
         else
         {

@@ -26,6 +26,12 @@ public:
     void open(beltpp::ip_address const& connect_to_address);
     void close();
 
+    std::string send(CommanderMessage::Send const& send,
+                     rpc& rpc_server);
+    void sync(rpc& rpc_server,
+              std::unordered_set<std::string> const& set_accounts,
+              bool const new_import);
+
     static
     TransactionLogLoader get_transaction_log(std::string const& address);
     static
@@ -34,10 +40,6 @@ public:
     LogIndexLoader get_transaction_log_index(std::string const& address);
     static
     LogIndexLoader get_reward_log_index(std::string const& address);
-
-    void sync(rpc& rpc_server,
-              std::unordered_set<std::string> const& set_accounts,
-              bool const new_import);
 
     beltpp::event_handler eh;
     beltpp::socket socket;

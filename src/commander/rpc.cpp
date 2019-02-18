@@ -64,16 +64,16 @@ void process_rewards(uint64_t head_block_index,
          ++index)
     {
         auto& reward_log = reward_logs.at(index);
-        AccountHistoryRewarded item;
+        AccountHistoryItem item;
         item.block_index = block_index;
         item.confirmations = head_block_index - block_index + 1;
         item.item_type = AccountHistoryItemType::rewarded;
         item.timestamp.tm = 0;  //  todo
-        
-        item.amount.whole = reward_log.amount.whole;
-        item.amount.fraction = reward_log.amount.fraction;
+        publiqpp::coin(reward_log.amount).to_Coin(item.amount);
 
-        result.history.push_back(std::move(item));
+        item.details = AccountHistoryRewarded();
+
+        result.log.push_back(std::move(item));
     }
 }
 
@@ -96,63 +96,71 @@ void process_transactions(uint64_t head_block_index,
 
         if (tf.to == address)
         {
-            AccountHistoryReceived item;
+            AccountHistoryItem item;
+            AccountHistoryReceived details;
             item.block_index = block_index;
             item.confirmations = head_block_index - block_index + 1;
             item.item_type = AccountHistoryItemType::received;
             item.timestamp.tm = transaction_log.time_signed.tm;
+            publiqpp::coin(tf.amount).to_Coin(item.amount);
 
-            item.from = tf.from;
-            item.amount.whole = tf.amount.whole;
-            item.amount.fraction = tf.amount.fraction;
-            item.message = tf.message;
+            details.from = tf.from;
+            details.message = tf.message;
+            details.transaction_hash = transaction_log.transaction_hash;
+            item.details = std::move(details);
 
-            result.history.push_back(std::move(item));
+            result.log.push_back(std::move(item));
         }
         else if (tf.from == address)
         {
             {
-                AccountHistorySent item;
+                AccountHistoryItem item;
+                AccountHistorySent details;
                 item.block_index = block_index;
                 item.confirmations = head_block_index - block_index + 1;
                 item.item_type = AccountHistoryItemType::sent;
                 item.timestamp.tm = transaction_log.time_signed.tm;
+                publiqpp::coin(tf.amount).to_Coin(item.amount);
 
-                item.to = tf.to;
-                item.amount.whole = tf.amount.whole;
-                item.amount.fraction = tf.amount.fraction;
-                item.message = tf.message;
+                details.to = tf.to;
+                details.message = tf.message;
+                details.transaction_hash = transaction_log.transaction_hash;
+                item.details = std::move(details);
 
-                result.history.push_back(std::move(item));
+                result.log.push_back(std::move(item));
             }
             if (transaction_log.fee != BlockchainMessage::Coin())
             {
-                AccountHistorySentFee item;
+                AccountHistoryItem item;
+                AccountHistorySentFee details;
                 item.block_index = block_index;
                 item.confirmations = head_block_index - block_index + 1;
                 item.item_type = AccountHistoryItemType::sent_fee;
                 item.timestamp.tm = transaction_log.time_signed.tm;
+                publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
 
-                item.to = string(); //  todo
-                item.amount.whole = transaction_log.fee.whole;
-                item.amount.fraction = transaction_log.fee.fraction;
+                details.to = string(); //  todo
+                details.transaction_hash = transaction_log.transaction_hash;
+                item.details = std::move(details);
 
-                result.history.push_back(std::move(item));
+                result.log.push_back(std::move(item));
             }
         }
         else if (transaction_log.fee != BlockchainMessage::Coin())
         {   //  todo fix by checking against actual block authority
-            AccountHistoryReceivedFee item;
+            AccountHistoryItem item;
+            AccountHistoryReceivedFee details;
             item.block_index = block_index;
             item.confirmations = head_block_index - block_index + 1;
             item.item_type = AccountHistoryItemType::received_fee;
             item.timestamp.tm = transaction_log.time_signed.tm;
+            publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
 
-            item.from = tf.from;
-            item.amount.whole = transaction_log.fee.whole;
-            item.amount.fraction = transaction_log.fee.fraction;
+            details.from = tf.from;
+            details.transaction_hash = transaction_log.transaction_hash;
+            item.details = std::move(details);
 
-            result.history.push_back(std::move(item));
+            result.log.push_back(std::move(item));
         }
     }
 }
@@ -172,7 +180,7 @@ AccountHistory get_history(uint64_t head_block_index,
     {
         size_t pos;
         uint64_t block_index = beltpp::stoui64(str_block, pos);
-        if (block_index > block_start &&
+        if (block_index >= block_start &&
             (
                 block_index < block_start + block_count ||
                 block_start > block_start + block_count
@@ -314,73 +322,22 @@ AccountResponse AccountResponseFromRawAccount(size_t head_index,
     publiqpp::coin unconfirmed_sent;
     publiqpp::coin unconfirmed_received;
 
-    for (auto const& item : history.history)
+    for (auto const& item : history.log)
     {
-        switch (item.type())
+        if (item.confirmations == 0)
         {
-        case AccountHistoryRewarded::rtt:
-        {
-            AccountHistoryRewarded pc;
-            item.get(pc);
-
-            if (pc.confirmations == 0)
+            if (item.item_type == AccountHistoryItemType::received ||
+                item.item_type == AccountHistoryItemType::received_fee ||
+                item.item_type == AccountHistoryItemType::rewarded)
             {
-                publiqpp::coin temp(pc.amount.whole, pc.amount.fraction);
+                publiqpp::coin temp(item.amount.whole, item.amount.fraction);
                 unconfirmed_received += temp;
             }
-            break;
-        }
-        case AccountHistorySent::rtt:
-        {
-            AccountHistorySent pc;
-            item.get(pc);
-
-            if (pc.confirmations == 0)
+            else
             {
-                publiqpp::coin temp(pc.amount.whole, pc.amount.fraction);
+                publiqpp::coin temp(item.amount.whole, item.amount.fraction);
                 unconfirmed_sent += temp;
             }
-            break;
-        }
-        case AccountHistorySentFee::rtt:
-        {
-            AccountHistorySentFee pc;
-            item.get(pc);
-
-            if (pc.confirmations == 0)
-            {
-                publiqpp::coin temp(pc.amount.whole, pc.amount.fraction);
-                unconfirmed_sent += temp;
-            }
-            break;
-        }
-        case AccountHistoryReceived::rtt:
-        {
-            AccountHistoryReceived pc;
-            item.get(pc);
-
-            if (pc.confirmations == 0)
-            {
-                publiqpp::coin temp(pc.amount.whole, pc.amount.fraction);
-                unconfirmed_received += temp;
-            }
-            break;
-        }
-        case AccountHistoryReceivedFee::rtt:
-        {
-            AccountHistoryReceivedFee pc;
-            item.get(pc);
-
-            if (pc.confirmations == 0)
-            {
-                publiqpp::coin temp(pc.amount.whole, pc.amount.fraction);
-                unconfirmed_received += temp;
-            }
-            break;
-        }
-        default:
-            assert(false);
-            throw std::logic_error("history item type is unknown");
         }
     }
 
@@ -392,14 +349,52 @@ AccountResponse AccountResponseFromRawAccount(size_t head_index,
     confirmed_balance -= unconfirmed_received;
     confirmed_balance += unconfirmed_sent;
 
-    response.confirmed_balance.whole = confirmed_balance.to_Coin().whole;
-    response.confirmed_balance.fraction = confirmed_balance.to_Coin().fraction;
-    response.unconfirmed_received.whole = unconfirmed_received.to_Coin().whole;
-    response.unconfirmed_received.fraction = unconfirmed_received.to_Coin().fraction;
-    response.unconfirmed_sent.whole = unconfirmed_sent.to_Coin().whole;
-    response.unconfirmed_sent.fraction = unconfirmed_sent.to_Coin().fraction;
+    confirmed_balance.to_Coin(response.confirmed_balance);
+    unconfirmed_received.to_Coin(response.unconfirmed_received);
+    unconfirmed_sent.to_Coin(response.unconfirmed_sent);
 
     return response;
+}
+
+void import_account_if_needed(string const& address,
+                              rpc& rpc_server,
+                              beltpp::ip_address const& connect_to_address)
+{
+    Account account;
+    account.address = address;
+
+    meshpp::public_key pb(account.address);
+
+    if (false == rpc_server.accounts.contains(address))
+    {
+        daemon_rpc dm;
+        dm.open(connect_to_address);
+        beltpp::finally finally_close([&dm]{ dm.close(); });
+
+        unordered_set<string> set_accounts = {address};
+
+        dm.sync(rpc_server, set_accounts, true);
+    }
+    if (false == rpc_server.accounts.contains(address))
+    {
+        beltpp::on_failure guard([&rpc_server](){rpc_server.accounts.discard();});
+        rpc_server.accounts.insert(address, account);
+        rpc_server.accounts.save();
+
+        guard.dismiss();
+        rpc_server.accounts.commit();
+    }
+}
+
+string send(Send const& send,
+            rpc& rpc_server,
+            beltpp::ip_address const& connect_to_address)
+{
+    daemon_rpc dm;
+    dm.open(connect_to_address);
+    beltpp::finally finally_close([&dm]{ dm.close(); });
+
+    return dm.send(send, rpc_server);
 }
 
 void rpc::run()
@@ -443,30 +438,7 @@ void rpc::run()
                 ImportAccount msg;
                 std::move(ref_packet).get(msg);
 
-                Account account;
-                account.address = msg.address;
-
-                meshpp::public_key pb(account.address);
-
-                if (false == accounts.contains(msg.address))
-                {
-                    daemon_rpc dm;
-                    dm.open(connect_to_address);
-                    beltpp::finally finally_close([&dm]{ dm.close(); });
-
-                    unordered_set<string> set_accounts = {msg.address};
-
-                    dm.sync(*this, set_accounts, true);
-                }
-                if (false == accounts.contains(msg.address))
-                {
-                    beltpp::on_failure guard([this](){accounts.discard();});
-                    accounts.insert(msg.address, account);
-                    accounts.save();
-
-                    guard.dismiss();
-                    accounts.commit();
-                }
+                import_account_if_needed(msg.address, *this, connect_to_address);
 
                 rpc_socket.send(peerid, Done());
                 break;
@@ -509,6 +481,23 @@ void rpc::run()
 
                 rpc_socket.send(peerid, AccountResponseFromRawAccount(head_block_index.as_const()->value,
                                                                       account_raw));
+                break;
+            }
+            case Send::rtt:
+            {
+                Send msg;
+                std::move(ref_packet).get(msg);
+
+                meshpp::private_key pv(msg.private_key);
+
+                import_account_if_needed(pv.get_public_key().to_string(),
+                                         *this,
+                                         connect_to_address);
+
+                StringValue response;
+                response.value = send(msg, *this, connect_to_address);
+                rpc_socket.send(peerid, response);
+
                 break;
             }
             }

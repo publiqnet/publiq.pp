@@ -25,21 +25,9 @@ coin::coin(uint64_t whole, uint64_t fraction)
                                  std::to_string(fraction) + ")");
 }
 
-coin::coin(BlockchainMessage::Coin const& other)
-    : coin(other.whole, other.fraction)
-{}
-
 uint64_t coin::to_uint64_t() const
 {
     return fractions_in_whole * whole + fraction;
-}
-
-BlockchainMessage::Coin coin::to_Coin() const
-{
-    BlockchainMessage::Coin c;
-    c.whole = whole;
-    c.fraction = fraction;
-    return c;
 }
 
 std::string coin::to_string() const

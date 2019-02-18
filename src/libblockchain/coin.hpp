@@ -1,7 +1,6 @@
 #pragma once
 
 #include "global.hpp"
-#include "message.hpp"
 
 #include <string>
 
@@ -13,10 +12,18 @@ public:
     coin();
     coin(coin const& other);
     coin(uint64_t whole, uint64_t fraction);
-    coin(BlockchainMessage::Coin const& number);
+    template <typename Coin>
+    coin(Coin const& other)
+        : coin(other.whole, other.fraction) {}
 
     uint64_t to_uint64_t() const;
-    BlockchainMessage::Coin to_Coin() const;
+    template <typename Coin>
+    void to_Coin(Coin& other) const
+    {
+        other.whole = whole;
+        other.fraction = fraction;
+    }
+
     std::string to_string() const;
     bool empty() const;
 

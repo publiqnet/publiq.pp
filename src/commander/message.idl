@@ -1,5 +1,9 @@
 module CommanderMessage
 {
+    class StringValue
+    {
+        String value
+    }
     class NumberValue
     {
         UInt64 value
@@ -66,7 +70,7 @@ module CommanderMessage
 
     class AccountHistory
     {
-        Array Object history
+        Array AccountHistoryItem log
     }
 
     enum AccountHistoryItemType
@@ -77,56 +81,55 @@ module CommanderMessage
         sent_fee
         rewarded
     }
-    class AccountHistoryReceived
+    class AccountHistoryItem
     {
         UInt64 block_index
         UInt64 confirmations
         AccountHistoryItemType item_type
         TimePoint timestamp
-        String from
         Coin amount
+
+        Object details
+    }
+    class AccountHistoryReceived
+    {
+        String from
         String message
+        String transaction_hash
     }
     class AccountHistoryReceivedFee
     {
-        UInt64 block_index
-        UInt64 confirmations
-        AccountHistoryItemType item_type
-        TimePoint timestamp
         String from
-        Coin amount
+        String transaction_hash
     }
     class AccountHistorySent
     {
-        UInt64 block_index
-        UInt64 confirmations
-        AccountHistoryItemType item_type
-        TimePoint timestamp
         String to
-        Coin amount
         String message
+        String transaction_hash
     }
     class AccountHistorySentFee
     {
-        UInt64 block_index
-        UInt64 confirmations
-        AccountHistoryItemType item_type
-        TimePoint timestamp
         String to
-        Coin amount
+        String transaction_hash
     }
     class AccountHistoryRewarded
     {
-        UInt64 block_index
-        UInt64 confirmations
-        AccountHistoryItemType item_type
-        TimePoint timestamp
-        Coin amount
     }
 
     class ImportAccount
     {
         String address
+    }
+
+    class Send
+    {
+        String private_key
+        String to
+        Coin amount
+        Coin fee
+        String message
+        UInt64 seconds_to_expire
     }
 }
 ////2
