@@ -140,21 +140,15 @@ beltpp::detail::pmsg_all message_list_load(
     }
     else// if (code == beltpp::e_three_state_result::success)
     {
-        if (pss->type == meshpp::http::detail::scan_status::get)
-        {
-            ssd.session_specal_handler = &file_response;
-            ssd.autoreply.clear();
-        }
-        else if (pss->type == meshpp::http::detail::scan_status::post)
-        {
-            ssd.session_specal_handler = &response;
-            ssd.autoreply.clear();
-        }
+        ssd.session_specal_handler = &response;
+        ssd.autoreply.clear();
 
         if (pss->type == meshpp::http::detail::scan_status::get &&
             pss->resource.path.size() == 1 &&
             pss->resource.path.front() == "storage")
         {
+            ssd.session_specal_handler = &file_response;
+
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::GetStorageFile>();
             BlockchainMessage::GetStorageFile& ref = *reinterpret_cast<BlockchainMessage::GetStorageFile*>(p.get());
             ref.uri = pss->resource.arguments["file"];

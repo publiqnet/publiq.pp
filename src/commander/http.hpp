@@ -93,11 +93,8 @@ beltpp::detail::pmsg_all message_list_load(
     }
     else// if (code == beltpp::e_three_state_result::success)
     {
-        //if (pss->type == meshpp::http::detail::scan_status::post)
-        {
-            ssd.session_specal_handler = &response;
-            ssd.autoreply.clear();
-        }
+        ssd.session_specal_handler = &response;
+        ssd.autoreply.clear();
 
         if (pss->type == meshpp::http::detail::scan_status::get &&
             pss->resource.path.size() == 1 &&
