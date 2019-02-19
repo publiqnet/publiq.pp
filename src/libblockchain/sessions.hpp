@@ -23,6 +23,7 @@ public:
 
     void initiate(meshpp::session const& parent) override;
     bool process(beltpp::packet&& package, meshpp::session const& parent) override;
+    bool permanent() const override;
 
     bool need_to_drop;
     beltpp::socket* psk;
@@ -40,6 +41,7 @@ public:
 
     void initiate(meshpp::session const& parent) override;
     bool process(beltpp::packet&& package, meshpp::session const& parent) override;
+    bool permanent() const override;
 
     void erase(bool success, bool verified);
 
@@ -59,6 +61,7 @@ public:
 
     void initiate(meshpp::session const& parent) override;
     bool process(beltpp::packet&& package, meshpp::session const& parent) override;
+    bool permanent() const override;
 
     detail::node_internals* pimpl;
     meshpp::p2psocket::peer_id source_peer;
@@ -74,6 +77,7 @@ public:
 
     void initiate(meshpp::session const& parent) override;
     bool process(beltpp::packet&& package, meshpp::session const& parent) override;
+    bool permanent() const override;
 
     detail::node_internals* pimpl;
     std::string file_uri;

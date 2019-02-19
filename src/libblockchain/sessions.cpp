@@ -97,6 +97,11 @@ bool session_action_connections::process(beltpp::packet&& package, meshpp::sessi
     return code;
 }
 
+bool session_action_connections::permanent() const
+{
+    return true;
+}
+
 // --------------------------- session_action_signatures ---------------------------
 
 session_action_signatures::session_action_signatures(beltpp::socket& sk,
@@ -176,6 +181,11 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::sessio
     return code;
 }
 
+bool session_action_signatures::permanent() const
+{
+    return true;
+}
+
 void session_action_signatures::erase(bool success, bool verified)
 {
     auto it = pnodeid_service->nodeids.find(nodeid);
@@ -240,6 +250,11 @@ bool session_action_broadcast_address_info::process(beltpp::packet&&, meshpp::se
     return false;
 }
 
+bool session_action_broadcast_address_info::permanent() const
+{
+    return false;
+}
+
 // --------------------------- session_action_storagefile ---------------------------
 
 session_action_storagefile::session_action_storagefile(detail::node_internals* _pimpl,
@@ -298,8 +313,6 @@ bool session_action_storagefile::process(beltpp::packet&& package, meshpp::sessi
                 }
                 else
                     pimpl->reconnect_slave();
-
-                errored = true; // for test only
             }
             else
             {
@@ -322,6 +335,11 @@ bool session_action_storagefile::process(beltpp::packet&& package, meshpp::sessi
     }
 
     return code;
+}
+
+bool session_action_storagefile::permanent() const
+{
+    return false;
 }
 
 }

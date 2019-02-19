@@ -20,6 +20,21 @@ namespace publiqpp
 namespace http
 {
 inline
+string response(beltpp::detail::session_special_data& ssd,
+                beltpp::packet const& pc)
+{
+    if (pc.type() == BlockchainMessage::InvalidPublicKey::rtt ||
+        pc.type() == BlockchainMessage::InvalidPrivateKey::rtt ||
+        pc.type() == BlockchainMessage::InvalidSignature::rtt ||
+        pc.type() == BlockchainMessage::InvalidAuthority::rtt ||
+        pc.type() == BlockchainMessage::NotEnoughBalance::rtt ||
+        pc.type() == BlockchainMessage::FileNotFound::rtt ||
+        pc.type() == BlockchainMessage::RemoteError::rtt)
+        return meshpp::http::http_not_found(ssd, pc.to_string());
+    else
+        return meshpp::http::http_response(ssd, pc);
+}
+inline
 string file_response(beltpp::detail::session_special_data& ssd,
                      beltpp::packet const& pc)
 {
@@ -132,7 +147,7 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (pss->type == meshpp::http::detail::scan_status::post)
         {
-            ssd.session_specal_handler = &meshpp::http::http_response;
+            ssd.session_specal_handler = &response;
             ssd.autoreply.clear();
         }
 
@@ -193,8 +208,36 @@ beltpp::detail::pmsg_all message_list_load(
                 return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
             }
         }
+        else if (pss->type == meshpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 3 &&
+                 pss->resource.path.front() == "key")
+        {
+            size_t pos;
+
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::KeyPairRequest>();
+            BlockchainMessage::KeyPairRequest& ref = *reinterpret_cast<BlockchainMessage::KeyPairRequest*>(p.get());
+
+            ref.master_key = pss->resource.path[1];
+            ref.index = beltpp::stoui64(pss->resource.path[2], pos);
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::KeyPairRequest::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::KeyPairRequest::pvoid_saver);
+        }
         else
-            return protocol_error();
+        {
+            ssd.session_specal_handler = nullptr;
+
+            ssd.autoreply = meshpp::http::http_not_found(ssd, "nooo!!!");
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+
+            iter_scan_begin = it_fallback;
+            return ::beltpp::detail::pmsg_all(size_t(-1),
+                                              ::beltpp::void_unique_nullptr(),
+                                              nullptr);
+        }
     }
 }
 }

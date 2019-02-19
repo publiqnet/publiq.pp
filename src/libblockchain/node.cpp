@@ -140,6 +140,8 @@ bool node::run()
             {
                 if (m_pimpl->m_sessions.process(peerid, std::move(received_packet)))
                     continue;
+                m_pimpl->m_sessions.erase_before(chrono::steady_clock::now() - chrono::minutes(1));
+
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
