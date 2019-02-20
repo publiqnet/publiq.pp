@@ -274,6 +274,78 @@ bool node::run()
 
                     break;
                 }
+                case File::rtt:
+                {
+                    if (broadcast_signed_transaction.items.empty())
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    File* p_file = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_file);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_file);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    File& file = *p_file;
+
+                    if (process_file(signed_tx, file, m_pimpl))
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          (it == interface_type::rpc),
+                                          //m_pimpl->plogger_node,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+
+                    if (it == interface_type::rpc)
+                        psk->send(peerid, Done());
+
+                    break;
+                }
+                case Content::rtt:
+                {
+                    if (broadcast_signed_transaction.items.empty())
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    Content* p_content = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_content);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_content);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    Content& content = *p_content;
+
+                    if (process_content(signed_tx, content, m_pimpl))
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          (it == interface_type::rpc),
+                                          //m_pimpl->plogger_node,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+
+                    if (it == interface_type::rpc)
+                        psk->send(peerid, Done());
+
+                    break;
+                }
                 case Contract::rtt:
                 {
                     if (it == interface_type::rpc)

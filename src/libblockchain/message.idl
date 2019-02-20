@@ -120,7 +120,7 @@ module BlockchainMessage
         String uri
     }
 
-    class Page
+    class Content
     {
         String channel
         Array String file_uris

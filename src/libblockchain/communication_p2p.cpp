@@ -44,6 +44,36 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
         m_pimpl->m_state.decrease_balance(transfer.from, transfer.amount + fee);
         m_pimpl->m_state.increase_balance(transfer.to, transfer.amount);
     }
+    else if (signed_transaction.transaction_details.action.type() == File::rtt)
+    {
+        File file;
+        signed_transaction.transaction_details.action.get(file);
+
+        if (!key.empty())
+        {
+            Coin balance = m_pimpl->m_state.get_balance(file.author);
+
+            if (coin(balance) < /*transfer.amount + */fee)
+                return false;
+        }
+
+        m_pimpl->m_state.decrease_balance(file.author, /*transfer.amount + */fee);
+    }
+    else if (signed_transaction.transaction_details.action.type() == Content::rtt)
+    {
+        Content content;
+        signed_transaction.transaction_details.action.get(content);
+
+        if (!key.empty())
+        {
+            Coin balance = m_pimpl->m_state.get_balance(content.channel);
+
+            if (coin(balance) < /*transfer.amount + */fee)
+                return false;
+        }
+
+        m_pimpl->m_state.decrease_balance(content.channel, /*transfer.amount + */fee);
+    }
     else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
     {
         Contract contract;
@@ -126,6 +156,22 @@ void revert_transaction(SignedTransaction const& signed_transaction,
             m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + fee);
         else
             m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
+    }
+    else if (signed_transaction.transaction_details.action.type() == File::rtt)
+    {
+        File file;
+        signed_transaction.transaction_details.action.get(file);
+
+        if (increase)
+            m_pimpl->m_state.increase_balance(file.author, /*transfer.amount + */fee);
+    }
+    else if (signed_transaction.transaction_details.action.type() == Content::rtt)
+    {
+        Content content;
+        signed_transaction.transaction_details.action.get(content);
+
+        if (increase)
+            m_pimpl->m_state.increase_balance(content.channel, /*transfer.amount + */fee);
     }
     else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
     {
@@ -861,6 +907,22 @@ void process_blockchain_response(BlockchainResponse&& response,
                 tr_it->transaction_details.action.get(transfer);
 
                 if (tr_it->authority != transfer.from)
+                    throw wrong_data_exception("blockchain response. transaction authority!");
+            }
+            else if (tr_it->transaction_details.action.type() == File::rtt)
+            {
+                File file;
+                tr_it->transaction_details.action.get(file);
+
+                if (tr_it->authority != file.author)
+                    throw wrong_data_exception("blockchain response. transaction authority!");
+            }
+            else if (tr_it->transaction_details.action.type() == Content::rtt)
+            {
+                Content content;
+                tr_it->transaction_details.action.get(content);
+
+                if (tr_it->authority != content.channel)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == Contract::rtt)
