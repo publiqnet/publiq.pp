@@ -1,16 +1,16 @@
-# generate message.gen.hpp from message.idl
+# generate commander_message.gen.hpp from commander_message.idl
 add_custom_command (
-  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
-  MAIN_DEPENDENCY message.idl
-  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
+  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.gen.hpp
+  MAIN_DEPENDENCY commander_message.idl
+  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.idl ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.gen.hpp
 )
 
 # define the executable
 add_executable(commander
+    commander_message.hpp
+    commander_message.gen.hpp
     main.cpp
     http.hpp
-    message.hpp
-    message.gen.hpp
     program_options.cpp
     program_options.hpp
     rpc.cpp

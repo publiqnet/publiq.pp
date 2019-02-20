@@ -1,6 +1,6 @@
 #pragma once
 
-#include "message.hpp"
+#include "commander_message.hpp"
 
 #include <belt.pp/global.hpp>
 #include <belt.pp/parser.hpp>
