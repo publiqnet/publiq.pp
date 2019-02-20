@@ -19,6 +19,7 @@ install(TARGETS publiq.pp
 set(SRC_FILES
     coin.hpp
     global.hpp
+    message.hpp
     node.hpp
     storage_node.hpp)
 
