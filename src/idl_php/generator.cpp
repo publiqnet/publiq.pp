@@ -76,7 +76,7 @@ string handleArrayForPrimitives( int count, string member_name )
     string arrayCase;
     string item = transformString( member_name ) + "Item";
     arrayCase +=
-            "          foreach ($data->" + transformString( member_name ) + " as $" + item + ") { \n";
+            "          foreach ($data->" + member_name + " as $" + item + ") { \n";
 
     for( int i = 1; i != count; i++)
     {
@@ -105,7 +105,7 @@ string handleArrayForObjects( int count, string member_name, string object_name 
 
     string arrayCase;
     arrayCase+=
-            "          foreach ($data->" + camelCaseMemberName + " as $" + item + ") { \n";
+            "          foreach ($data->" + member_name + " as $" + item + ") { \n";
 
     for ( int i = 1; i != count; i++ )
     {
@@ -169,7 +169,7 @@ void handleHashForPrimitives( string info[], string& setFunction, string& hashCa
             "    }\n";
 
     hashCase +=
-            "        foreach ($data->" + camelCaseMemberName + " as $key => $value) {\n"
+            "        foreach ($data->" + member_name + " as $key => $value) {\n"
             "            $this->set" + camelCaseMemberName + "Key($key);\n"
             "            $this->set" + camelCaseMemberName + "Value($value);\n"
             "        }\n";
@@ -197,17 +197,15 @@ void handleHashForObjects( string info[], string& setFunction, string& hashCase,
     if ( info[3] == "::beltpp::packet" )
     {
         hashCase +=
-                "        foreach ($data->" + camelCaseMemberName + " as $key => $value) {\n"
+                "        foreach ($data->" + member_name + " as $key => $value) {\n"
                 "            $this->set" + camelCaseMemberName + "Key($key);\n"
                 "            $this->" + camelCaseMemberName + " = Rtt::validate($data->" +  member_name + ");\n"
                 "         }\n";
-
     }
     else
     {
-
         hashCase +=
-                "        foreach ($data->" + camelCaseMemberName + " as $key => $value) {\n"
+                "        foreach ($data->" + member_name + " as $key => $value) {\n"
                 "            $this->set" + camelCaseMemberName + "Key($key);\n"
                 "            $hashItemObj = new " + info[3] + "();\n"
                 "            $hashItemObj->validate($value);\n"
@@ -684,7 +682,7 @@ void analyze_struct(    state_holder& state,
                         "    }\n";
 
                 enumTypes +=
-                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
+                        "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
         }
 
 
