@@ -284,7 +284,9 @@ void analyze_struct(    state_holder& state,
         construct_type_name(member_type, state, type_detail, info);
         string camelCaseMemberName = transformString( member_name.value );
         memberNamesMap += "            " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
-
+        string addToConstructor;
+        if (camelCaseMemberName != member_name.value)
+            addToConstructor = " === undefined ?  data." + camelCaseMemberName + ": data." + member_name.value;
 
         bool isEnum = false;
 
@@ -300,7 +302,7 @@ void analyze_struct(    state_holder& state,
             params +=
                  "    " + camelCaseMemberName + ": number;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + ");\n";
+                        "            this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + addToConstructor + ");\n";
 
         }
 
@@ -316,15 +318,25 @@ void analyze_struct(    state_holder& state,
                 }
                 params +=
                         "    " + camelCaseMemberName + ": Array<" + prefix + info[1] + ">;\n";
-                constructor +=
-                            "        this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
+
+                if (camelCaseMemberName == member_name.value)
+                    constructor +=
+                                "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
+                else
+                    constructor +=
+                                "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
             }
             else
             {
                 params +=
                         "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
-                constructor +=
-                            "        this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
+
+                if (camelCaseMemberName == member_name.value)
+                    constructor +=
+                                "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
+                else
+                    constructor +=
+                                "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
             }
 
         }
@@ -334,7 +346,7 @@ void analyze_struct(    state_holder& state,
             params +=
                     "    " + camelCaseMemberName + ": Array<Object>;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
         }      
         ////////////////////// array of primitive types /////////////////////
         else if ( info[0] == "array" && ( info[1] == "number" || info[1] == "String" || info[1] == "boolean" ) )
@@ -342,7 +354,7 @@ void analyze_struct(    state_holder& state,
             params +=
                     "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
         }
         ///////////////////////// non primitive type /////////////////////////
         else if ( info[0] != "number" && info[0] != "string" && info[0] != "boolean" && info[0] != "::beltpp::packet"  && !isEnum)
@@ -357,14 +369,14 @@ void analyze_struct(    state_holder& state,
                 params +=
                         "    " + camelCaseMemberName + ": " + prefix + info[0] + ";\n";
                 constructor +=
-                            "        this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + ");\n";
+                            "            this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
             }
             else
             {
                 params +=
                      "    " + camelCaseMemberName + ": " + info[0] + ";\n";
                 constructor +=
-                            "        this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + ");\n";
+                            "            this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
             }
 
         }
@@ -374,7 +386,7 @@ void analyze_struct(    state_holder& state,
             params +=
                     "    " + camelCaseMemberName + ": Object;\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + ");\n";
+                        "            this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + addToConstructor + ");\n";
 
         }
         /////////////////////////// primitive type ///////////////////////////
@@ -383,7 +395,7 @@ void analyze_struct(    state_holder& state,
             params +=
                     "    " + camelCaseMemberName + ": " + info[0] + ";\n";
             constructor +=
-                        "        this." + camelCaseMemberName + " = data." + member_name.value + ";\n";
+                        "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
         }
     }
 
@@ -398,9 +410,11 @@ void analyze_struct(    state_holder& state,
     model << "\nexport default class " + prefix +  type_name + " extends BaseModel {\n\n";
     model << params;
     model << "\n";
-    model << "    constructor(data) { \n";
+    model << "    constructor(data?: any) { \n";
     model << "        super();\n";
+    model << "        if (data !== undefined) {\n";
     model << constructor;
+    model << "        }\n";
     model << "    }\n\n";
     model << "    static get PropertyMap () {\n";
     model << "        return {\n";
