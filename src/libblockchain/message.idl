@@ -116,51 +116,51 @@ module BlockchainMessage
 
     class File
     {
-        String author
+        String author_address
         String uri
     }
 
     class Content
     {
-        String channel
+        String channel_address
         Array String file_uris
     }
 
     enum NodeType
     {
-        miner
+        blockchain
         channel
         storage
     }
 
-    class Contract
+    class Role
     {
-        String owner
-        NodeType role
+        String node_address
+        NodeType node_type
     }
 
     class AddressInfo
     {
-        String node_id
+        String node_address
         IPAddress ip_address
     }
 
     class ArticleInfo
     {
         String uri
-        String author
-        String channel
+        String author_address
+        String channel_address
     }
 
     class ContentInfo
     {
         String uri
-        String storage
+        String storage_address
     }
 
     class StatItem
     {
-        String node
+        String node_address
         //String content
         UInt64 passed
         UInt64 failed
@@ -295,13 +295,13 @@ module BlockchainMessage
     class StorageFileAddress
     {
         String uri
-        String node
+        String node_address
     }
 
     class GetStorageFile
     {
         String uri
-        String node
+        String node_address
     }
         
     //  ip address information
@@ -325,7 +325,7 @@ module BlockchainMessage
 
     class Pong
     {
-        String nodeid
+        String node_address
         TimePoint stamp
         String signature
     }

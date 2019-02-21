@@ -146,11 +146,11 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::sessio
             std::move(package).get(msg);
 
             auto diff = system_clock::from_time_t(msg.stamp.tm) - system_clock::now();
-            string message = msg.nodeid + ::beltpp::gm_time_t_to_gm_string(msg.stamp.tm);
+            string message = msg.node_address + ::beltpp::gm_time_t_to_gm_string(msg.stamp.tm);
 
             if ((chrono::seconds(-30) <= diff && diff < chrono::seconds(30)) &&
-                meshpp::verify_signature(msg.nodeid, message, msg.signature) &&
-                nodeid == msg.nodeid)
+                meshpp::verify_signature(msg.node_address, message, msg.signature) &&
+                nodeid == msg.node_address)
             {
                 std::cout << "action_signatures - ok verify" << std::endl;
 

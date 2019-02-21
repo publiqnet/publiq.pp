@@ -152,25 +152,25 @@ bool storage_node::run()
                 }
                 case GetStorageFile::rtt:
                 {
-                    GetStorageFile addr;
-                    std::move(ref_packet).get(addr);
+                    GetStorageFile file_info;
+                    std::move(ref_packet).get(file_info);
                     
                     StorageFile file;
-                    if (m_pimpl->m_storage.get(addr.uri, file))
+                    if (m_pimpl->m_storage.get(file_info.uri, file))
                     {
                         psk->send(peerid, std::move(file));
 
-                        if(!addr.node.empty())
-                            m_pimpl->m_stat_counter.update(addr.node, true);
+                        if (false == file_info.node_address.empty())
+                            m_pimpl->m_stat_counter.update(file_info.node_address, true);
                     }
                     else
                     {
                         FileNotFound error;
-                        error.uri = addr.uri;
+                        error.uri = file_info.uri;
                         psk->send(peerid, std::move(error));
 
-                        if (!addr.node.empty())
-                            m_pimpl->m_stat_counter.update(addr.node, false);
+                        if (false == file_info.node_address.empty())
+                            m_pimpl->m_stat_counter.update(file_info.node_address, false);
                     }
 
                     break;
@@ -201,9 +201,9 @@ bool storage_node::run()
                 case Ping::rtt:
                 {
                     Pong msg_pong;
-                    msg_pong.nodeid = m_pimpl->m_pv_key.get_public_key().to_string();
+                    msg_pong.node_address = m_pimpl->m_pv_key.get_public_key().to_string();
                     msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
-                    string message_pong = msg_pong.nodeid + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
+                    string message_pong = msg_pong.node_address + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
                     auto signed_message = m_pimpl->m_pv_key.sign(message_pong);
 
                     msg_pong.signature = std::move(signed_message.base58);

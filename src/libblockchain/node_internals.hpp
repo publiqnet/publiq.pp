@@ -110,6 +110,7 @@ class node_internals
 public:
     node_internals(
         string const& genesis_signed_block,
+        ip_address const & public_address,
         ip_address const& rpc_bind_to_address,
         ip_address const& p2p_bind_to_address,
         std::vector<ip_address> const& p2p_connect_to_addresses,
@@ -139,6 +140,7 @@ public:
         , m_sync_timer()
         , m_check_timer()
         , m_summary_report_timer()
+        , m_public_address(public_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
@@ -174,6 +176,10 @@ public:
             if (signed_block.to_string() != genesis_signed_block)
                 throw std::runtime_error("the stored genesis is different from the one built in");
         }
+
+        NodeType stored_node_type;
+        if (m_state.get_role(m_pb_key.to_string(), stored_node_type))
+            throw std::runtime_error("the stored node role is different");
 
         m_slave_taskid = 0;
 
@@ -260,7 +266,7 @@ public:
 
     void reconnect_slave()
     {
-        if (m_node_type != NodeType::miner && m_slave_peer.empty())
+        if (m_node_type != NodeType::blockchain && m_slave_peer.empty())
         {
             auto storage_bind_to_address = m_rpc_bind_to_address;
             storage_bind_to_address.local.port += 10;
@@ -425,7 +431,7 @@ public:
     void calc_balance()
     {
         m_balance = m_state.get_balance(m_pb_key.to_string());
-        m_miner = m_node_type == NodeType::miner &&
+        m_miner = m_node_type == NodeType::blockchain &&
                   coin(m_balance) >= MINE_AMOUNT_THRESHOLD;
     }
 
@@ -494,7 +500,6 @@ public:
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
-    unique_ptr<beltpp::ip_address> m_ptr_external_address;
 
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
@@ -503,6 +508,7 @@ public:
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
 
+    beltpp::ip_address m_public_address;
     beltpp::ip_address m_rpc_bind_to_address;
 
     publiqpp::blockchain m_blockchain;

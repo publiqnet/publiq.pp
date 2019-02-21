@@ -41,6 +41,7 @@ namespace publiqpp
  * node
  */
 node::node(string const& genesis_signed_block,
+           ip_address const & public_address,
            ip_address const& rpc_bind_to_address,
            ip_address const& p2p_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
@@ -54,6 +55,7 @@ node::node(string const& genesis_signed_block,
            NodeType& n_type,
            bool log_enabled)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
+                                         public_address,
                                          rpc_bind_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,
@@ -183,10 +185,6 @@ bool node::run()
                                 m_pimpl->m_rpc_bind_to_address.local.port;
 
                         guard.dismiss();
-
-                        if (nullptr == m_pimpl->m_ptr_external_address &&
-                            m_pimpl->m_rpc_bind_to_address.local.empty() == false)
-                            m_pimpl->m_ptr_external_address.reset(new beltpp::ip_address(external_address));
                     }
                     else
                     {
@@ -346,7 +344,7 @@ bool node::run()
 
                     break;
                 }
-                case Contract::rtt:
+                case Role::rtt:
                 {
                     if (it == interface_type::rpc)
                         throw wrong_data_exception("request restricted for rpc interface");
@@ -356,22 +354,21 @@ bool node::run()
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
-                    Contract* p_contract = nullptr;
+                    Role* p_role= nullptr;
 
                     broadcast_signed_transaction.items[0]->get(p_broadcast);
                     broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_contract);
+                    ref_packet.get(p_role);
 
                     assert(p_broadcast);
                     assert(p_signed_tx);
-                    assert(p_contract);
+                    assert(p_role);
 
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
-                    Contract& contract = *p_contract;
+                    Role& role = *p_role;
 
-                    if (m_pimpl->m_state.get_contract_type(contract.owner) == NodeType::miner &&
-                        process_contract(signed_tx, contract, m_pimpl))
+                    if (process_role(signed_tx, role, m_pimpl))
                     {
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
@@ -442,7 +439,7 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     ArticleInfo& article_info = *p_article_info;
 
-                    m_pimpl->writeln_node("ArticleInfo from " + detail::peer_short_names(article_info.channel));
+                    m_pimpl->writeln_node("ArticleInfo from " + detail::peer_short_names(article_info.channel_address));
 
                     if (process_article_info(signed_tx, article_info, m_pimpl))
                     {
@@ -456,7 +453,7 @@ bool node::run()
 
                         if (do_i_need_it(article_info, m_pimpl))
                         {
-                            auto it_nodeid = m_pimpl->m_nodeid_service.nodeids.find(article_info.channel);
+                            auto it_nodeid = m_pimpl->m_nodeid_service.nodeids.find(article_info.channel_address);
                             if (it_nodeid != m_pimpl->m_nodeid_service.nodeids.end())
                             {
                                 auto addresses = it_nodeid->second.get();
@@ -469,10 +466,10 @@ bool node::run()
                                                                                         ip_address));
                                     actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
                                                                                         m_pimpl->m_nodeid_service,
-                                                                                        article_info.channel,
+                                                                                        article_info.channel_address,
                                                                                         ip_address));
                                     actions.emplace_back(new session_action_storagefile(m_pimpl.get(), article_info.uri));
-                                    m_pimpl->m_sessions.add(article_info.channel, ip_address, std::move(actions));
+                                    m_pimpl->m_sessions.add(article_info.channel_address, ip_address, std::move(actions));
                                 }
                             }
                         }
@@ -501,7 +498,7 @@ bool node::run()
                     SignedTransaction& signed_tx = *p_signed_tx;
                     ContentInfo& content_info = *p_content_info;
 
-                    m_pimpl->writeln_node("ContentInfo from " + detail::peer_short_names(content_info.storage));
+                    m_pimpl->writeln_node("ContentInfo from " + detail::peer_short_names(content_info.storage_address));
 
                     if (process_content_info(signed_tx, content_info, m_pimpl))
                         broadcast_message(std::move(broadcast),
@@ -540,7 +537,7 @@ bool node::run()
                         beltpp::ip_address beltpp_ip_address;
                         beltpp::assign(beltpp_ip_address, address_info.ip_address);
 
-                        nodeid_address_info& nodeid_info = m_pimpl->m_nodeid_service.nodeids[address_info.node_id];
+                        nodeid_address_info& nodeid_info = m_pimpl->m_nodeid_service.nodeids[address_info.node_address];
 
                         nodeid_info.add(beltpp_ip_address,
                                         unique_ptr<session_action_broadcast_address_info>(
@@ -609,7 +606,7 @@ bool node::run()
                         {
                             StorageFileAddress file_address;
                             std::move(task_response.package).get(file_address);
-                            file_address.node = name();
+                            file_address.node_address = name();
                             
                             if (m_pimpl->m_node_type == NodeType::channel)
                                 broadcast_article_info(file_address, m_pimpl);

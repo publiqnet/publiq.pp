@@ -76,7 +76,7 @@ public:
         for (auto& item : ussage_map)
         {
             StatItem stat_item;
-            stat_item.node = item.first;
+            stat_item.node_address = item.first;
             stat_item.passed = item.second.first;
             stat_item.failed = item.second.second;
 

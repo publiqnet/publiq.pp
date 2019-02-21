@@ -585,9 +585,9 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         }
                                         else
                                         {
-                                            assert(false);
-                                            throw std::logic_error("unknown transaction log item - " +
-                                                                   std::to_string(action_type));
+//                                            assert(false);
+//                                            throw std::logic_error("unknown transaction log item - " +
+//                                                                   std::to_string(action_type));
                                         }
                                     }
 

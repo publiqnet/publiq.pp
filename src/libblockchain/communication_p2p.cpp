@@ -51,13 +51,13 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
         if (!key.empty())
         {
-            Coin balance = m_pimpl->m_state.get_balance(file.author);
+            Coin balance = m_pimpl->m_state.get_balance(file.author_address);
 
             if (coin(balance) < /*transfer.amount + */fee)
                 return false;
         }
 
-        m_pimpl->m_state.decrease_balance(file.author, /*transfer.amount + */fee);
+        m_pimpl->m_state.decrease_balance(file.author_address, /*transfer.amount + */fee);
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
@@ -66,21 +66,22 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
         if (!key.empty())
         {
-            Coin balance = m_pimpl->m_state.get_balance(content.channel);
+            Coin balance = m_pimpl->m_state.get_balance(content.channel_address);
 
             if (coin(balance) < /*transfer.amount + */fee)
                 return false;
         }
 
-        m_pimpl->m_state.decrease_balance(content.channel, /*transfer.amount + */fee);
+        m_pimpl->m_state.decrease_balance(content.channel_address, /*transfer.amount + */fee);
     }
-    else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
+    else if (signed_transaction.transaction_details.action.type() == Role::rtt)
     {
-        Contract contract;
-        signed_transaction.transaction_details.action.get(contract);
+        Role role;
+        signed_transaction.transaction_details.action.get(role);
 
-        if (m_pimpl->m_state.get_contract_type(contract.owner) != NodeType::miner)
-            return false; // technical solution to remove used contract
+        NodeType node_type;
+        if (m_pimpl->m_state.get_role(role.node_address, node_type))
+            return false;
 
         if (!key.empty())
         {
@@ -89,7 +90,7 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
             if (coin(balance) < fee)
                 return false;
 
-            m_pimpl->m_state.insert_contract(contract);
+            m_pimpl->m_state.insert_role(role);
             m_pimpl->m_state.decrease_balance(signed_transaction.authority, fee);
         }
     }
@@ -163,7 +164,7 @@ void revert_transaction(SignedTransaction const& signed_transaction,
         signed_transaction.transaction_details.action.get(file);
 
         if (increase)
-            m_pimpl->m_state.increase_balance(file.author, /*transfer.amount + */fee);
+            m_pimpl->m_state.increase_balance(file.author_address, /*transfer.amount + */fee);
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
@@ -171,18 +172,18 @@ void revert_transaction(SignedTransaction const& signed_transaction,
         signed_transaction.transaction_details.action.get(content);
 
         if (increase)
-            m_pimpl->m_state.increase_balance(content.channel, /*transfer.amount + */fee);
+            m_pimpl->m_state.increase_balance(content.channel_address, /*transfer.amount + */fee);
     }
-    else if (signed_transaction.transaction_details.action.type() == Contract::rtt)
+    else if (signed_transaction.transaction_details.action.type() == Role::rtt)
     {
         if (increase)
             m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
         else
         {
-            Contract contract;
-            signed_transaction.transaction_details.action.get(contract);
+            Role role;
+            signed_transaction.transaction_details.action.get(role);
 
-            m_pimpl->m_state.remove_contract(contract);
+            m_pimpl->m_state.remove_role(role.node_address);
         }
     }
     else if (signed_transaction.transaction_details.action.type() == ArticleInfo::rtt)
@@ -217,12 +218,12 @@ void validate_delations(map<string, StatInfo> const& right_delations,
         for (auto const& right_info_item : right_item_it.second.items)
         {
             bool compare_failed = true;
-            auto check_item_it = check_delations.find(right_info_item.node);
+            auto check_item_it = check_delations.find(right_info_item.node_address);
 
             if(check_item_it != check_delations.end())
                 for (auto const& check_info_item : check_item_it->second.items)
                 {
-                    if (check_info_item.node == right_item_it.first)
+                    if (check_info_item.node_address == right_item_it.first)
                     {
                         if (check_info_item.passed == right_info_item.passed)
                             compare_failed = false;
@@ -232,7 +233,7 @@ void validate_delations(map<string, StatInfo> const& right_delations,
                 }
 
             if (compare_failed)
-                ++penals[right_info_item.node];
+                ++penals[right_info_item.node_address];
         }
     }
 }
@@ -274,7 +275,7 @@ void filter_penals(map<string, uint64_t> const& penals, set<string>& result)
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions, 
                    vector<Reward>& rewards, 
-                   string const& authority, 
+                   string const& address,
                    uint64_t block_number,
                    std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
@@ -295,22 +296,24 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             StatInfo stat_info;
             it->transaction_details.action.get(stat_info);
 
-            NodeType authority_type = m_pimpl->m_state.get_contract_type(it->authority);
-
-            if (authority_type == NodeType::channel)
+            NodeType node_type;
+            if (m_pimpl->m_state.get_role(it->authority, node_type))
             {
-                for (auto const& item : stat_info.items)
+                if (node_type == NodeType::channel)
                 {
-                    storage_penals[item.node] = 0;
-                    channel_delations[item.node] = stat_info;
+                    for (auto const& item : stat_info.items)
+                    {
+                        storage_penals[item.node_address] = 0;
+                        channel_delations[item.node_address] = stat_info;
+                    }
                 }
-            }
-            else if (authority_type == NodeType::storage)
-            {
-                for (auto const& item : stat_info.items)
+                else if (node_type == NodeType::storage)
                 {
-                    channel_penals[item.node] = 0;
-                    storage_delations[item.node] = stat_info;
+                    for (auto const& item : stat_info.items)
+                    {
+                        channel_penals[item.node_address] = 0;
+                        storage_delations[item.node_address] = stat_info;
+                    }
                 }
             }
         }
@@ -378,7 +381,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     if (!miner_reward.empty())
     {
         Reward reward;
-        reward.to = authority;
+        reward.to = address;
         miner_reward.to_Coin(reward.amount);
         reward.reward_type = RewardType::miner;
 
@@ -426,8 +429,7 @@ bool check_rewards(Block const& block, string const& authority,
 
 void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {//TODO
-    vector<Contract> storages;
-    m_pimpl->m_state.get_contracts(storages, NodeType::storage);
+    vector<string> storages = m_pimpl->m_state.get_nodes_by_type(NodeType::storage);
 
     if (storages.empty()) return;
 
@@ -438,10 +440,10 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     StatInfo storage_info;
     storage_info.hash = meshpp::hash(signed_block.block_details.to_string());
 
-    for (auto& contract : storages)
+    for (auto& nodeid : storages)
     {
         StatItem stat_item;
-        stat_item.node = contract.owner;
+        stat_item.node_address = nodeid;
         //stat_item.content_hash = meshpp::hash("storage");
         stat_item.passed = 1;
         stat_item.failed = 0;
@@ -914,7 +916,7 @@ void process_blockchain_response(BlockchainResponse&& response,
                 File file;
                 tr_it->transaction_details.action.get(file);
 
-                if (tr_it->authority != file.author)
+                if (tr_it->authority != file.author_address)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == Content::rtt)
@@ -922,15 +924,15 @@ void process_blockchain_response(BlockchainResponse&& response,
                 Content content;
                 tr_it->transaction_details.action.get(content);
 
-                if (tr_it->authority != content.channel)
+                if (tr_it->authority != content.channel_address)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
-            else if (tr_it->transaction_details.action.type() == Contract::rtt)
+            else if (tr_it->transaction_details.action.type() == Role::rtt)
             {
-                Contract contract;
-                tr_it->transaction_details.action.get(contract);
+                Role role;
+                tr_it->transaction_details.action.get(role);
 
-                if (tr_it->authority != contract.owner)
+                if (tr_it->authority != role.node_address)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == ArticleInfo::rtt)
@@ -938,7 +940,7 @@ void process_blockchain_response(BlockchainResponse&& response,
                 ArticleInfo article_info;
                 tr_it->transaction_details.action.get(article_info);
 
-                if (tr_it->authority != article_info.channel)
+                if (tr_it->authority != article_info.channel_address)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == StatInfo::rtt)
@@ -1177,87 +1179,54 @@ void process_blockchain_response(BlockchainResponse&& response,
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    NodeType my_state_type = m_pimpl->m_state.get_contract_type(m_pimpl->m_pb_key.to_string());
+    NodeType my_state_type;
+    if (m_pimpl->m_state.get_role(m_pimpl->m_pb_key.to_string(), my_state_type))
+    {
+        assert(my_state_type == m_pimpl->m_node_type);
+        return; //  if already stored, do nothing
+    }
 
-    if (my_state_type == m_pimpl->m_node_type)
-        return;
 
-    if (my_state_type != NodeType::miner)
-        throw std::runtime_error("Type change is not allowed!");
+    Role role;
+    role.node_address = m_pimpl->m_pb_key.to_string();
+    role.node_type = m_pimpl->m_node_type;
 
-    bool contract_found = false;
+    Transaction transaction;
+    transaction.action = role;
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+
     SignedTransaction signed_transaction;
+    signed_transaction.transaction_details = transaction;
+    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
+    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
 
-    vector<string> pool_keys;
-    m_pimpl->m_transaction_pool.get_keys(pool_keys);
-
-    for (auto& key : pool_keys)
+    // store to own transaction pool
+    if (process_role(signed_transaction, role, m_pimpl))
     {
-        m_pimpl->m_transaction_pool.at(key, signed_transaction);
+        Broadcast broadcast;
+        broadcast.echoes = 2;
+        broadcast.package = signed_transaction;
 
-        if (signed_transaction.transaction_details.action.type() == Contract::rtt)
-        {
-            Contract contract;
-            signed_transaction.transaction_details.action.get(contract);
-
-            if (contract.owner == m_pimpl->m_pb_key.to_string())
-            {
-                contract_found = true;
-                break;
-            }
-        }
+        broadcast_message(std::move(broadcast),
+                          m_pimpl->m_ptr_p2p_socket->name(),
+                          m_pimpl->m_ptr_p2p_socket->name(),
+                          true, // broadcast to all peers
+                          nullptr, // log disabled
+                          m_pimpl->m_p2p_peers,
+                          m_pimpl->m_ptr_p2p_socket.get());
     }
-
-    if (!contract_found)
-    {
-        Contract contract;
-        contract.owner = m_pimpl->m_pb_key.to_string();
-        contract.role = m_pimpl->m_node_type;
-
-        Transaction transaction;
-        transaction.action = contract;
-        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-
-        signed_transaction.transaction_details = transaction;
-        signed_transaction.authority = m_pimpl->m_pb_key.to_string();
-        signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
-
-        // store to own transaction pool
-        process_contract(signed_transaction, contract, m_pimpl);
-    }
-
-    Broadcast broadcast;
-    broadcast.echoes = 2;
-    broadcast.package = signed_transaction;
-
-    broadcast_message(std::move(broadcast),
-                      m_pimpl->m_ptr_p2p_socket->name(),
-                      m_pimpl->m_ptr_p2p_socket->name(),
-                      true, // broadcast to all peers
-                      nullptr, // log disabled
-                      m_pimpl->m_p2p_peers,
-                      m_pimpl->m_ptr_p2p_socket.get());
 }
 
 void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    NodeType my_state_type = m_pimpl->m_state.get_contract_type(m_pimpl->m_pb_key.to_string());
-
-    if (my_state_type == NodeType::miner)
-        return;
-    if (nullptr == m_pimpl->m_ptr_external_address)
+    NodeType my_state_type;
+    if (false == m_pimpl->m_state.get_role(m_pimpl->m_pb_key.to_string(), my_state_type))
         return;
 
     AddressInfo address_info;
-    address_info.node_id = m_pimpl->m_pb_key.to_string();
-    beltpp::assign(address_info.ip_address, *m_pimpl->m_ptr_external_address);
-
-    // tmp solution
-    beltpp::ip_address pub_address;
-    beltpp::assign(pub_address, *m_pimpl->m_ptr_external_address);
-    pub_address.local.port += 10;
-    beltpp::assign(address_info.ip_address, std::move(pub_address));
+    address_info.node_address = m_pimpl->m_pb_key.to_string();
+    beltpp::assign(address_info.ip_address, m_pimpl->public_address);
 
     Transaction transaction;
     transaction.action = address_info;
@@ -1286,9 +1255,9 @@ void broadcast_article_info(StorageFileAddress file_address,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     ArticleInfo article_info;
-    article_info.author = "Nikol Pashinyan";
+    article_info.author_address = "Nikol Pashinyan";
     article_info.uri = file_address.uri;
-    article_info.channel = m_pimpl->m_pb_key.to_string();
+    article_info.channel_address = m_pimpl->m_pb_key.to_string();
 
     Transaction transaction;
     transaction.action = article_info;
@@ -1321,7 +1290,7 @@ void broadcast_content_info(StorageFileAddress file_address,
 {
     ContentInfo content_info;
     content_info.uri = file_address.uri;
-    content_info.storage = m_pimpl->m_pb_key.to_string();
+    content_info.storage_address = m_pimpl->m_pb_key.to_string();
 
     Transaction transaction;
     transaction.action = content_info;
@@ -1349,18 +1318,17 @@ void broadcast_content_info(StorageFileAddress file_address,
 void broadcast_storage_stat(StatInfo& stat_info, 
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    vector<Contract> channels;
     unordered_set<string> channels_set;
-    m_pimpl->m_state.get_contracts(channels, NodeType::channel);
+    vector<string> channels = m_pimpl->m_state.get_nodes_by_type(NodeType::channel);
 
     if (channels.empty()) return;
 
-    for (auto& contract : channels)
-        channels_set.insert(contract.owner);
+    for (auto& channel_node_address : channels)
+        channels_set.insert(channel_node_address);
 
     for (auto it = stat_info.items.begin(); it != stat_info.items.end();)
     {
-        if (channels_set.count(it->node))
+        if (channels_set.count(it->node_address))
             ++it;
         else
             it = stat_info.items.erase(it);
@@ -1397,42 +1365,46 @@ void broadcast_storage_stat(StatInfo& stat_info,
         m_pimpl->m_ptr_p2p_socket.get());
 }
 
-bool process_contract(BlockchainMessage::SignedTransaction const& signed_transaction,
-                      BlockchainMessage::Contract const& contract,
-                      std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+bool process_role(BlockchainMessage::SignedTransaction const& signed_transaction,
+                  BlockchainMessage::Role const& role,
+                  std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
     // Authority check
-    if (signed_transaction.authority != contract.owner)
-        throw authority_exception(signed_transaction.authority, contract.owner);
+    if (signed_transaction.authority != role.node_address)
+        throw authority_exception(signed_transaction.authority, role.node_address);
 
+    NodeType node_type;
+    if (pimpl->m_state.get_role(role.node_address, node_type))
+        return false;
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
-    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
+    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
 
     // Check pool
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
-        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+    if (pimpl->m_transaction_pool.contains(tr_hash) ||
+        pimpl->m_transaction_cache.find(tr_hash) != pimpl->m_transaction_cache.end())
         return false;
 
-    if (m_pimpl->m_state.get_contract_type(contract.owner) != NodeType::miner)
-        return false;
+    beltpp::on_failure guard([&pimpl] { pimpl->discard(); });
 
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
+    Coin balance = pimpl->m_state.get_balance(role.node_address);
+    if (coin(balance) < /*transfer.amount + */signed_transaction.transaction_details.fee)
+        throw not_enough_balance_exception(coin(balance), /*transfer.amount + */signed_transaction.transaction_details.fee);
 
     // Validate and add to state
-    m_pimpl->m_state.insert_contract(contract);
+    pimpl->m_state.insert_role(role);
 
     // Add to the pool
-    m_pimpl->m_transaction_pool.insert(signed_transaction);
+    pimpl->m_transaction_pool.insert(signed_transaction);
 
     // Add to action log
-    m_pimpl->m_action_log.log_transaction(signed_transaction);
+    pimpl->m_action_log.log_transaction(signed_transaction);
 
-    m_pimpl->save(guard);
+    pimpl->save(guard);
 
     return true;
 }
@@ -1449,20 +1421,18 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
         return false;
 
     // Check data and authority
-    NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
-    
-    if (authority_type == NodeType::miner)
+    NodeType node_type;
+    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
+        node_type == NodeType::blockchain)
         throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
 
     for (auto const& item : stat_info.items)
     {
-        NodeType item_node_type = m_pimpl->m_state.get_contract_type(item.node);
-
-        if (authority_type == item_node_type)
-            throw wrong_data_exception("wrong node type : " + item.node);
-
-        if (item_node_type == NodeType::miner)
-            throw wrong_data_exception("wrong node type : " + item.node);
+        NodeType item_node_type;
+        if (false == m_pimpl->m_state.get_role(item.node_address, item_node_type) ||
+            item_node_type == NodeType::blockchain ||
+            item_node_type == node_type)
+            throw wrong_data_exception("wrong node type : " + item.node_address);
     }
 
     // Don't need to store transaction if sync in process
@@ -1489,8 +1459,8 @@ bool process_article_info(BlockchainMessage::SignedTransaction const& signed_tra
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     // Check data and authority
-    if (signed_transaction.authority != article_info.channel)
-        throw authority_exception(signed_transaction.authority, article_info.channel);
+    if (signed_transaction.authority != article_info.channel_address)
+        throw authority_exception(signed_transaction.authority, article_info.channel_address);
 
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
@@ -1499,9 +1469,9 @@ bool process_article_info(BlockchainMessage::SignedTransaction const& signed_tra
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
-    NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
-
-    if (authority_type != NodeType::channel)
+    NodeType node_type;
+    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
+        node_type != NodeType::channel)
         throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
 
     // Don't need to store transaction if sync in process
@@ -1528,8 +1498,8 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     // Check data and authority
-    if (signed_transaction.authority != content_info.storage)
-        throw authority_exception(signed_transaction.authority, content_info.storage);
+    if (signed_transaction.authority != content_info.storage_address)
+        throw authority_exception(signed_transaction.authority, content_info.storage_address);
 
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
@@ -1538,9 +1508,9 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
         m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
-    NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
-
-    if (authority_type == NodeType::miner)
+    NodeType node_type;
+    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
+        node_type == NodeType::blockchain)
         throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
 
     m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
@@ -1558,8 +1528,8 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     // Check data and authority
-    if (signed_transaction.authority != address_info.node_id)
-        throw authority_exception(signed_transaction.authority, address_info.node_id);
+    if (signed_transaction.authority != address_info.node_address)
+        throw authority_exception(signed_transaction.authority, address_info.node_address);
 
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
@@ -1567,9 +1537,9 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     if (m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
-    NodeType authority_type = m_pimpl->m_state.get_contract_type(signed_transaction.authority);
-
-    if (authority_type == NodeType::miner)
+    NodeType node_type;
+    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
+        node_type == NodeType::blockchain)
         throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
 
     m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);

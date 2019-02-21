@@ -42,8 +42,9 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& p2p_bind_to_address,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
+                          beltpp::ip_address& slave_bind_to_address,
+                          beltpp::ip_address& public_address,
                           string& data_directory,
-                          string& admin_ip_address,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
                           bool& log_enabled);
@@ -153,20 +154,22 @@ int main(int argc, char** argv)
 
     beltpp::ip_address p2p_bind_to_address;
     beltpp::ip_address rpc_bind_to_address;
+    beltpp::ip_address slave_bind_to_address;
+    beltpp::ip_address public_address;
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
-    NodeType n_type = NodeType::miner;
-    bool log_enabled = false;
+    NodeType n_type;
+    bool log_enabled;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
-    string admin_ip_address;
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
                                       p2p_connect_to_addresses,
                                       rpc_bind_to_address,
+                                      slave_bind_to_address,
+                                      public_address,
                                       data_directory,
-                                      admin_ip_address,
                                       pv_key,
                                       n_type,
                                       log_enabled))
@@ -230,6 +233,7 @@ int main(int argc, char** argv)
         //__debugbreak();
         
         publiqpp::node node(genesis_signed_block(),
+                            public_address,
                             rpc_bind_to_address,
                             p2p_bind_to_address,
                             p2p_connect_to_addresses,
@@ -258,13 +262,11 @@ int main(int argc, char** argv)
 
             beltpp::finally join_node_thread([&node_thread](){ node_thread.join(); });
 
-            if (n_type != NodeType::miner)
+            if (n_type != NodeType::blockchain)
             {
                 auto fs_storage = meshpp::data_directory_path("storage");
-                auto storage_bind_to_address = rpc_bind_to_address;
-                storage_bind_to_address.local.port += 10;
 
-                publiqpp::storage_node storage_node(storage_bind_to_address,
+                publiqpp::storage_node storage_node(slave_bind_to_address,
                                                     fs_storage,
                                                     pv_key,
                                                     plogger_rpc.get());
@@ -340,14 +342,17 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& p2p_bind_to_address,
                           vector<beltpp::ip_address>& p2p_connect_to_addresses,
                           beltpp::ip_address& rpc_bind_to_address,
+                          beltpp::ip_address& slave_bind_to_address,
+                          beltpp::ip_address& public_address,
                           string& data_directory,
-                          string& admin_ip_address,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
                           bool& log_enabled)
 {
     string p2p_local_interface;
     string rpc_local_interface;
+    string slave_local_interface;
+    string str_public_address;
     string str_pv_key;
     string str_n_type;
     vector<string> hosts;
@@ -356,20 +361,23 @@ bool process_command_line(int argc, char** argv,
     {
         auto desc_init = options_description.add_options()
             ("help,h", "Print this help message and exit.")
+            ("action_log,g", "Keep track of blockchain actions.")
             ("p2p_local_interface,i", program_options::value<string>(&p2p_local_interface)->required(),
                             "(p2p) The local network interface and port to bind to")
             ("p2p_remote_host,p", program_options::value<vector<string>>(&hosts),
                             "Remote nodes addresss with port")
             ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface),
                             "(rpc) The local network interface and port to bind to")
+            ("slave_local_interface,s", program_options::value<string>(&slave_local_interface),
+                            "(rpc) The local network interface and port the slave will bind to")
+            ("public_address,a", program_options::value<string>(&str_public_address),
+                            "(rpc) The public IP address that will be broadcasted")
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
             ("node_private_key,k", program_options::value<string>(&str_pv_key),
                             "Node private key to start with")
             ("node_type,t", program_options::value<string>(&str_n_type)->required(),
-                            "Node start mode")
-            ("admin_ip_address,a", program_options::value<string>(&admin_ip_address),
-                            "The IP address allowed to make admin calls over rpc. Not set means everyone's allowed");
+                            "Node start mode");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -388,6 +396,10 @@ bool process_command_line(int argc, char** argv,
         p2p_bind_to_address.from_string(p2p_local_interface);
         if (false == rpc_local_interface.empty())
             rpc_bind_to_address.from_string(rpc_local_interface);
+        if (false == slave_local_interface.empty())
+            slave_bind_to_address.from_string(slave_local_interface);
+        if (false == str_public_address.empty())
+            public_address.from_string(str_public_address);
 
         for (auto const& item : hosts)
         {
@@ -405,10 +417,26 @@ bool process_command_line(int argc, char** argv,
 
         if (false == str_pv_key.empty())
             pv_key = meshpp::private_key(str_pv_key);
-        else
-            log_enabled = true;
 
-        BlockchainMessage::detail::from_string(str_n_type, n_type);
+        if (options.count("action_log"))
+            log_enabled = true;
+        else
+            log_enabled = false;
+
+        n_type = BlockchainMessage::NodeType::blockchain;
+        try { BlockchainMessage::detail::from_string(str_n_type, n_type); }
+        catch(...) {}
+
+        if (n_type == BlockchainMessage::NodeType::blockchain &&
+            false == str_public_address.empty() &&
+            rpc_local_interface.empty())
+            throw std::runtime_error("rpc_local_interface is not specified");
+        if (n_type != BlockchainMessage::NodeType::blockchain &&
+            str_public_address.empty())
+            throw std::runtime_error("public_interface is not specified");
+        if (n_type != BlockchainMessage::NodeType::blockchain &&
+            slave_local_interface.empty())
+            throw std::runtime_error("slave_local_interface is not specified");
     }
     catch (std::exception const& ex)
     {

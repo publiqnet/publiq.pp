@@ -5,6 +5,9 @@
 
 #include <boost/filesystem/path.hpp>
 
+#include <vector>
+#include <string>
+
 namespace publiqpp
 {
 namespace detail
@@ -27,10 +30,10 @@ public:
     void increase_balance(std::string const& key, coin const& amount);
     void decrease_balance(std::string const& key, coin const& amount);
 
-    void get_contracts(std::vector<BlockchainMessage::Contract>& contracts, BlockchainMessage::NodeType const& role) const;
-    BlockchainMessage::NodeType get_contract_type(std::string const& key) const;
-    void insert_contract(BlockchainMessage::Contract const& contract);
-    void remove_contract(BlockchainMessage::Contract const& contract);
+    std::vector<std::string> get_nodes_by_type(BlockchainMessage::NodeType const& node_type) const;
+    bool get_role(std::string const& nodeid, BlockchainMessage::NodeType& node_type) const;
+    void insert_role(BlockchainMessage::Role const& role);
+    void remove_role(std::string const& nodeid);
 
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;

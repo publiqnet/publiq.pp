@@ -198,46 +198,46 @@ bool process_transfer(BlockchainMessage::SignedTransaction const& signed_transac
 
 bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction,
                   BlockchainMessage::File const& file,
-                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+                  std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
     // Authority check
-    if (signed_transaction.authority != file.author)
-        throw authority_exception(signed_transaction.authority, file.author);
+    if (signed_transaction.authority != file.author_address)
+        throw authority_exception(signed_transaction.authority, file.author_address);
 
-    meshpp::public_key pb_key_to(file.author);
+    meshpp::public_key pb_key_to(file.author_address);
 
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
-    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
+    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
 
     // Check pool
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
-        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+    if (pimpl->m_transaction_pool.contains(tr_hash) ||
+        pimpl->m_transaction_cache.find(tr_hash) != pimpl->m_transaction_cache.end())
         return false;
 
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
+    beltpp::on_failure guard([&pimpl] { pimpl->discard(); });
 
     // Validate and add to state
     //m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
 
-    Coin balance = m_pimpl->m_state.get_balance(file.author);
+    Coin balance = pimpl->m_state.get_balance(file.author_address);
     if (coin(balance) < /*transfer.amount + */signed_transaction.transaction_details.fee)
         throw not_enough_balance_exception(coin(balance), /*transfer.amount + */signed_transaction.transaction_details.fee);
 
     // decrease "from" balance
-    //m_pimpl->m_state.decrease_balance(file.author, 0);
+    //m_pimpl->m_state.decrease_balance(file.author_address, 0);
 
     // Add to the pool
-    m_pimpl->m_transaction_pool.insert(signed_transaction);
+    pimpl->m_transaction_pool.insert(signed_transaction);
 
     // Add to action log
-    m_pimpl->m_action_log.log_transaction(signed_transaction);
+    pimpl->m_action_log.log_transaction(signed_transaction);
 
-    m_pimpl->save(guard);
+    pimpl->save(guard);
 
     return true;
 }
@@ -247,10 +247,10 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
                      std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     // Authority check
-    if (signed_transaction.authority != content.channel)
-        throw authority_exception(signed_transaction.authority, content.channel);
+    if (signed_transaction.authority != content.channel_address)
+        throw authority_exception(signed_transaction.authority, content.channel_address);
 
-    meshpp::public_key pb_key_to(content.channel);
+    meshpp::public_key pb_key_to(content.channel_address);
 
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
@@ -270,12 +270,12 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
     // Validate and add to state
     //m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
 
-    Coin balance = m_pimpl->m_state.get_balance(content.channel);
+    Coin balance = m_pimpl->m_state.get_balance(content.channel_address);
     if (coin(balance) < /*transfer.amount + */signed_transaction.transaction_details.fee)
         throw not_enough_balance_exception(coin(balance), /*transfer.amount + */signed_transaction.transaction_details.fee);
 
     // decrease "from" balance
-    //m_pimpl->m_state.decrease_balance(file.author, 0);
+    //m_pimpl->m_state.decrease_balance(file.author_address, 0);
 
     // Add to the pool
     m_pimpl->m_transaction_pool.insert(signed_transaction);

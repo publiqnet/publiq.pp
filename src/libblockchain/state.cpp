@@ -8,21 +8,23 @@ using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 using std::string;
+using std::vector;
 
 namespace publiqpp
 {
 namespace detail
 {
+
 class state_internals
 {
 public:
     state_internals(filesystem::path const& path)
         : m_accounts("account", path, 10000, detail::get_putl())
-        , m_contracts("contract", path, 10, detail::get_putl())
+        , m_roles("role", path, 10, detail::get_putl())
     {}
 
     meshpp::map_loader<Coin> m_accounts;
-    meshpp::map_loader<Contract> m_contracts;
+    meshpp::map_loader<Role> m_roles;
 };
 }
 
@@ -36,19 +38,19 @@ state::~state() = default;
 void state::save()
 {
     m_pimpl->m_accounts.save();
-    m_pimpl->m_contracts.save();
+    m_pimpl->m_roles.save();
 }
 
 void state::commit()
 {
     m_pimpl->m_accounts.commit();
-    m_pimpl->m_contracts.commit();
+    m_pimpl->m_roles.commit();
 }
 
 void state::discard()
 {
     m_pimpl->m_accounts.discard();
-    m_pimpl->m_contracts.discard();
+    m_pimpl->m_roles.discard();
 }
 
 Coin state::get_balance(string const& key) const
@@ -112,41 +114,43 @@ void state::decrease_balance(string const& key, coin const& amount)
         m_pimpl->m_accounts.erase(key);
 }
 
-void state::get_contracts(std::vector<Contract>& contracts, NodeType const& role) const
+std::vector<std::string> state::get_nodes_by_type(NodeType const& node_type) const
 {
-    contracts.clear();
+    std::vector<std::string> nodeids;
 
-    for (auto& key : m_pimpl->m_contracts.as_const().keys())
+    for (auto& key : m_pimpl->m_roles.as_const().keys())
     {
-        Contract contract = m_pimpl->m_contracts.as_const().at(key);
+        Role role = m_pimpl->m_roles.as_const().at(key);
         
-        if (role == contract.role)
-            contracts.push_back(contract);
+        if (node_type == role.node_type)
+            nodeids.push_back(role.node_address);
     }
+
+    return nodeids;
 }
 
-NodeType state::get_contract_type(string const& key) const
+bool state::get_role(string const& nodeid, NodeType& node_type) const
 {
-    if (m_pimpl->m_contracts.as_const().contains(key))
-        return m_pimpl->m_contracts.as_const().at(key).role;
+    if (m_pimpl->m_roles.as_const().contains(nodeid))
+    {
+        node_type = m_pimpl->m_roles.as_const().at(nodeid).node_type;
+        return true;
+    }
 
-    return NodeType::miner;
+    return false;
 }
 
-void state::insert_contract(Contract const& contract)
+void state::insert_role(Role const& role)
 {
-    if (contract.role == NodeType::miner)
-        throw std::runtime_error("TODO");
+    if (m_pimpl->m_roles.as_const().contains(role.node_address))
+        throw std::logic_error("role already exists");
 
-    if(get_contract_type(contract.owner) != NodeType::miner)
-        throw std::runtime_error("TODO");
-
-    m_pimpl->m_contracts.insert(contract.owner, contract);
+    m_pimpl->m_roles.insert(role.node_address, role);
 }
 
-void state::remove_contract(Contract const& contract)
+void state::remove_role(string const& nodeid)
 {
-    m_pimpl->m_contracts.erase(contract.owner);
+    m_pimpl->m_roles.erase(nodeid);
 }
 
 }

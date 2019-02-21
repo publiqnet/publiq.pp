@@ -111,7 +111,7 @@ void process_transactions(uint64_t head_block_index,
 
             result.log.push_back(std::move(item));
         }
-        else if (tf.from == address)
+        if (tf.from == address)
         {
             {
                 AccountHistoryItem item;
@@ -146,7 +146,9 @@ void process_transactions(uint64_t head_block_index,
                 result.log.push_back(std::move(item));
             }
         }
-        else if (transaction_log.fee != BlockchainMessage::Coin())
+        if (tf.to != address &&
+            tf.from != address &&
+            transaction_log.fee != BlockchainMessage::Coin())
         {   //  todo fix by checking against actual block authority
             AccountHistoryItem item;
             AccountHistoryReceivedFee details;
