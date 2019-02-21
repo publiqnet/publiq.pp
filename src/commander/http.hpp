@@ -28,7 +28,7 @@ string response(beltpp::detail::session_special_data& ssd,
     if (pc.type() == CommanderMessage::Failed::rtt)
         return meshpp::http::http_not_found(ssd, pc.to_string());
     else
-        return meshpp::http::http_response(ssd, pc);
+        return meshpp::http::http_response(ssd, pc.to_string());
 }
 
 template <beltpp::detail::pmsg_all (*fallback_message_list_load)(
