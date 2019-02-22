@@ -1226,7 +1226,7 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
 
     AddressInfo address_info;
     address_info.node_address = m_pimpl->m_pb_key.to_string();
-    beltpp::assign(address_info.ip_address, m_pimpl->public_address);
+    beltpp::assign(address_info.ip_address, m_pimpl->m_public_address);
 
     Transaction transaction;
     transaction.action = address_info;

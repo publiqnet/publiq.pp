@@ -537,7 +537,6 @@ public:
     task_table m_slave_tasks;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
-    ip_address public_address;
 
     SyncInfo own_sync_info;
     SyncInfo net_sync_info;
