@@ -126,7 +126,7 @@ module BlockchainMessage
         String channel_address
         UInt64 content_id
 
-        String content_unit_uri
+        String uri
         Array String file_uris
     }
 
