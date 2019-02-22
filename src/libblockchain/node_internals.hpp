@@ -178,7 +178,8 @@ public:
         }
 
         NodeType stored_node_type;
-        if (m_state.get_role(m_pb_key.to_string(), stored_node_type))
+        if (m_state.get_role(m_pb_key.to_string(), stored_node_type) &&
+            stored_node_type != m_node_type)
             throw std::runtime_error("the stored node role is different");
 
         m_slave_taskid = 0;

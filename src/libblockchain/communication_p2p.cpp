@@ -1424,7 +1424,7 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
     NodeType node_type;
     if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
         node_type == NodeType::blockchain)
-        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
+        throw wrong_data_exception("process_stat_info -> wrong authority type : " + signed_transaction.authority);
 
     for (auto const& item : stat_info.items)
     {
@@ -1472,7 +1472,7 @@ bool process_article_info(BlockchainMessage::SignedTransaction const& signed_tra
     NodeType node_type;
     if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
         node_type != NodeType::channel)
-        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
+        throw wrong_data_exception("process_article_info -> wrong authority type : " + signed_transaction.authority);
 
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
@@ -1509,9 +1509,9 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
         return false;
 
     NodeType node_type;
-    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
-        node_type == NodeType::blockchain)
-        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
+    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) || 
+        node_type != NodeType::storage)
+        throw wrong_data_exception("process_content_info -> wrong authority type : " + signed_transaction.authority);
 
     m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 
@@ -1536,11 +1536,6 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
 
     if (m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
-
-    NodeType node_type;
-    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
-        node_type == NodeType::blockchain)
-        throw wrong_data_exception("wrong authority type : " + signed_transaction.authority);
 
     m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 
