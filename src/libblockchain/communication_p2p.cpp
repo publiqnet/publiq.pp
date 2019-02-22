@@ -1254,6 +1254,9 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     NodeType my_state_type;
     if (false == m_pimpl->m_state.get_role(m_pimpl->m_pb_key.to_string(), my_state_type))
         return;
+    if (m_pimpl->m_public_address.local.empty() &&
+        m_pimpl->m_public_address.remote.empty())
+        return;
 
     AddressInfo address_info;
     address_info.node_address = m_pimpl->m_pb_key.to_string();
@@ -1558,6 +1561,11 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    beltpp::ip_address beltpp_ip_address;
+    beltpp::assign(beltpp_ip_address, address_info.ip_address);
+    if (beltpp_ip_address.remote.empty() &&
+        beltpp_ip_address.local.empty())
+        return false;
     // Check data and authority
     if (signed_transaction.authority != address_info.node_address)
         throw authority_exception(signed_transaction.authority, address_info.node_address);
