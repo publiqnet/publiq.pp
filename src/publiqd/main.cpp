@@ -376,7 +376,7 @@ bool process_command_line(int argc, char** argv,
                             "Data directory path")
             ("node_private_key,k", program_options::value<string>(&str_pv_key),
                             "Node private key to start with")
-            ("node_type,t", program_options::value<string>(&str_n_type)->required(),
+            ("node_type,t", program_options::value<string>(&str_n_type),
                             "Node start mode");
         (void)(desc_init);
 
@@ -424,8 +424,8 @@ bool process_command_line(int argc, char** argv,
             log_enabled = false;
 
         n_type = BlockchainMessage::NodeType::blockchain;
-        try { BlockchainMessage::detail::from_string(str_n_type, n_type); }
-        catch(...) {}
+        if (false == str_n_type.empty())
+            BlockchainMessage::detail::from_string(str_n_type, n_type);
 
         if (n_type == BlockchainMessage::NodeType::blockchain &&
             false == str_public_address.empty() &&
