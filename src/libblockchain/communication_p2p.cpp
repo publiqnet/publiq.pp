@@ -59,6 +59,21 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
         m_pimpl->m_state.decrease_balance(file.author_address, /*transfer.amount + */fee);
     }
+    else if (signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
+    {
+        ContentUnit content_unit;
+        signed_transaction.transaction_details.action.get(content_unit);
+
+        if (!key.empty())
+        {
+            Coin balance = m_pimpl->m_state.get_balance(content_unit.author_address);
+
+            if (coin(balance) < /*transfer.amount + */fee)
+                return false;
+        }
+
+        m_pimpl->m_state.decrease_balance(content_unit.author_address, /*transfer.amount + */fee);
+    }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
         Content content;
@@ -165,6 +180,14 @@ void revert_transaction(SignedTransaction const& signed_transaction,
 
         if (increase)
             m_pimpl->m_state.increase_balance(file.author_address, /*transfer.amount + */fee);
+    }
+    else if (signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
+    {
+        ContentUnit content_unit;
+        signed_transaction.transaction_details.action.get(content_unit);
+
+        if (increase)
+            m_pimpl->m_state.increase_balance(content_unit.author_address, /*transfer.amount + */fee);
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
@@ -917,6 +940,14 @@ void process_blockchain_response(BlockchainResponse&& response,
                 tr_it->transaction_details.action.get(file);
 
                 if (tr_it->authority != file.author_address)
+                    throw wrong_data_exception("blockchain response. transaction authority!");
+            }
+            else if (tr_it->transaction_details.action.type() == ContentUnit::rtt)
+            {
+                ContentUnit content_unit;
+                tr_it->transaction_details.action.get(content_unit);
+
+                if (tr_it->authority != content_unit.author_address)
                     throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == Content::rtt)

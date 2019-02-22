@@ -120,10 +120,21 @@ module BlockchainMessage
         String uri
     }
 
+    class ContentUnit
+    {
+        String author_address
+        String channel_address
+        UInt64 content_id
+
+        String content_unit_uri
+        Array String file_uris
+    }
+
     class Content
     {
         String channel_address
-        Array String file_uris
+        UInt64 content_id
+        Array String content_unit_uris
     }
 
     enum NodeType

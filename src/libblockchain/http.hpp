@@ -223,7 +223,7 @@ beltpp::detail::pmsg_all message_list_load(
         {
             ssd.session_specal_handler = nullptr;
 
-            ssd.autoreply = meshpp::http::http_not_found(ssd, "nooo!!!");
+            ssd.autoreply = meshpp::http::http_not_found(ssd, BlockchainMessage::detail::storage<>::json_schema);
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 

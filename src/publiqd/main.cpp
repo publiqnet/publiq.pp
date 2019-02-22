@@ -433,7 +433,7 @@ bool process_command_line(int argc, char** argv,
             throw std::runtime_error("rpc_local_interface is not specified");
         if (n_type != BlockchainMessage::NodeType::blockchain &&
             str_public_address.empty())
-            throw std::runtime_error("public_interface is not specified");
+            throw std::runtime_error("public_address is not specified");
         if (n_type != BlockchainMessage::NodeType::blockchain &&
             slave_local_interface.empty())
             throw std::runtime_error("slave_local_interface is not specified");
