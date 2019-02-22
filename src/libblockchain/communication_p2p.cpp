@@ -1217,6 +1217,8 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
         return; //  if already stored, do nothing
     }
 
+    if (m_pimpl->m_node_type == BlockchainMessage::NodeType::blockchain)
+        return; //  no need to explicitly broadcast in this case
 
     Role role;
     role.node_address = m_pimpl->m_pb_key.to_string();
