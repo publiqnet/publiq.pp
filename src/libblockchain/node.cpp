@@ -16,7 +16,6 @@
 #include <unordered_map>
 #include <utility>
 #include <exception>
-#include <thread>
 
 using namespace BlockchainMessage;
 
@@ -988,24 +987,23 @@ bool node::run()
 //    }
 
     // broadcast own transactions to all peers for the case
-    // if node could not do this when received it through rpc
+    // when node could not do this when received it through rpc
     if (m_pimpl->m_broadcast_timer.expired() && !m_pimpl->m_p2p_peers.empty())
     {
         m_pimpl->m_broadcast_timer.update();
 
-        vector<string> pool_keys;
-        m_pimpl->m_transaction_pool.get_keys(pool_keys);
-
-        if (!pool_keys.empty())
+        size_t pool_size = m_pimpl->m_transaction_pool.length();
+        if (pool_size > 0)
         {
-            m_pimpl->writeln_node("broadcasting " + std::to_string(pool_keys.size()) + " stored transactions to all peers");
+            m_pimpl->writeln_node("broadcasting " + std::to_string(pool_size) + " stored transactions to all peers");
 
             auto current_time = system_clock::now();
 
-            for (auto& key : pool_keys)
+            for (size_t pool_index = 0;
+                 pool_index != m_pimpl->m_transaction_pool.length();
+                 ++pool_index)
             {
-                SignedTransaction signed_transaction;
-                m_pimpl->m_transaction_pool.at(key, signed_transaction);
+                SignedTransaction const& signed_transaction = m_pimpl->m_transaction_pool.at(pool_index);
 
                 if (current_time < system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
                 {
@@ -1020,8 +1018,6 @@ bool node::run()
                                       nullptr, // no logger
                                       m_pimpl->m_p2p_peers,
                                       m_pimpl->m_ptr_p2p_socket.get());
-
-                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
                 }
             }
         }

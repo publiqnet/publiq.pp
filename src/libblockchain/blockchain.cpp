@@ -60,8 +60,7 @@ void blockchain::discard()
 
 void blockchain::update_state()
 {
-    SignedBlock signed_block;
-    at(length() - 1, signed_block);
+    SignedBlock const& signed_block = at(length() - 1);
 
     m_pimpl->m_last_header = signed_block.block_details.header;
     m_pimpl->m_last_hash = meshpp::hash(signed_block.block_details.to_string());
@@ -97,9 +96,9 @@ void blockchain::insert(SignedBlock const& signed_block)
     update_state();
 }
 
-void blockchain::at(uint64_t number, SignedBlock& signed_block) const
+BlockchainMessage::SignedBlock const& blockchain::at(uint64_t number) const
 {
-    signed_block = m_pimpl->m_blockchain.as_const().at(number);
+    return m_pimpl->m_blockchain.as_const().at(number);
 }
 
 void blockchain::header_at(uint64_t number, BlockHeader& block_header) const

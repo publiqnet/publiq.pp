@@ -29,11 +29,9 @@ public:
     void discard();
 
     size_t length() const;
-    bool contains(std::string const& key) const;
-    void insert(BlockchainMessage::SignedTransaction const& signed_transaction);
-    void at(std::string const& key, BlockchainMessage::SignedTransaction& signed_transaction) const;
-    void remove(std::string const& key);
-    void get_keys(std::vector<std::string> &keys) const;
+    void push_back(BlockchainMessage::SignedTransaction const& signed_transaction);
+    void pop_back();
+    BlockchainMessage::SignedTransaction const& at(size_t index) const;
 
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;

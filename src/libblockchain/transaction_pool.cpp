@@ -3,11 +3,14 @@
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
 
+#include <unordered_map>
+
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 using std::string;
 using std::vector;
+using std::unordered_map;
 
 namespace publiqpp
 {
@@ -18,11 +21,11 @@ class transaction_pool_internals
 {
 public:
     transaction_pool_internals(filesystem::path const& path)
-        :m_transactions("transactions", path, 100, detail::get_putl())
+        : m_transactions("transactions", path, 100, 10, detail::get_putl())
     {
     }
 
-    meshpp::map_loader<SignedTransaction> m_transactions;
+    meshpp::vector_loader<SignedTransaction> m_transactions;
 };
 }
 
@@ -49,39 +52,24 @@ void transaction_pool::discard()
     m_pimpl->m_transactions.discard();
 }
 
-void transaction_pool::insert(SignedTransaction const& signed_transaction)
+void transaction_pool::push_back(SignedTransaction const& signed_transaction)
 {
-    string key = meshpp::hash(signed_transaction.to_string());
-
-    m_pimpl->m_transactions.insert(key, signed_transaction);
+    m_pimpl->m_transactions.push_back(signed_transaction);
 }
 
-void transaction_pool::at(string const& key, SignedTransaction& signed_transaction) const
+void transaction_pool::pop_back()
 {
-    signed_transaction = m_pimpl->m_transactions.as_const().at(key);
+    m_pimpl->m_transactions.pop_back();
 }
 
-void transaction_pool::remove(string const& key)
+BlockchainMessage::SignedTransaction const& transaction_pool::at(size_t index) const
 {
-    m_pimpl->m_transactions.erase(key);
+    return m_pimpl->m_transactions.as_const().at(index);
 }
 
 size_t transaction_pool::length() const
 {
-    return m_pimpl->m_transactions.as_const().keys().size();
-}
-
-void transaction_pool::get_keys(vector<string> &keys) const
-{
-    keys.clear();
-
-    for (auto& key : m_pimpl->m_transactions.as_const().keys())
-        keys.push_back(key);
-}
-
-bool transaction_pool::contains(string const& key) const
-{
-    return m_pimpl->m_transactions.as_const().contains(key);
+    return m_pimpl->m_transactions.size();
 }
 
 }

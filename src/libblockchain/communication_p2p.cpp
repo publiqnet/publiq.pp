@@ -7,6 +7,8 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
+#include <unordered_map>
+#include <unordered_set>
 #include <map>
 #include <set>
 
@@ -14,6 +16,8 @@ using namespace BlockchainMessage;
 
 using std::map;
 using std::set;
+using std::unordered_map;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -150,7 +154,6 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
 void revert_transaction(SignedTransaction const& signed_transaction,
                         unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
-                        bool const increase,
                         string const& key = string())
 {
     coin fee;
@@ -159,8 +162,7 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     {
         fee = signed_transaction.transaction_details.fee;
 
-        if (!increase)
-            m_pimpl->m_state.decrease_balance(key, fee);
+        m_pimpl->m_state.decrease_balance(key, fee);
     }
 
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt)
@@ -168,62 +170,48 @@ void revert_transaction(SignedTransaction const& signed_transaction,
         Transfer transfer;
         signed_transaction.transaction_details.action.get(transfer);
 
-        if (increase)
-            m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + fee);
-        else
-            m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
+        m_pimpl->m_state.increase_balance(transfer.from, transfer.amount + fee);
+        m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
     }
     else if (signed_transaction.transaction_details.action.type() == File::rtt)
     {
         File file;
         signed_transaction.transaction_details.action.get(file);
 
-        if (increase)
-            m_pimpl->m_state.increase_balance(file.author_address, /*transfer.amount + */fee);
+        m_pimpl->m_state.increase_balance(file.author_address, /*transfer.amount + */fee);
     }
     else if (signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
     {
         ContentUnit content_unit;
         signed_transaction.transaction_details.action.get(content_unit);
 
-        if (increase)
-            m_pimpl->m_state.increase_balance(content_unit.author_address, /*transfer.amount + */fee);
+        m_pimpl->m_state.increase_balance(content_unit.author_address, /*transfer.amount + */fee);
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
         Content content;
         signed_transaction.transaction_details.action.get(content);
 
-        if (increase)
-            m_pimpl->m_state.increase_balance(content.channel_address, /*transfer.amount + */fee);
+        m_pimpl->m_state.increase_balance(content.channel_address, /*transfer.amount + */fee);
     }
     else if (signed_transaction.transaction_details.action.type() == Role::rtt)
     {
-        if (increase)
-            m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
-        else
-        {
-            Role role;
-            signed_transaction.transaction_details.action.get(role);
+        m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
 
-            m_pimpl->m_state.remove_role(role.node_address);
-        }
+        Role role;
+        signed_transaction.transaction_details.action.get(role);
+
+        m_pimpl->m_state.remove_role(role.node_address);
     }
     else if (signed_transaction.transaction_details.action.type() == ArticleInfo::rtt)
     {
         if (!fee.empty())
-        {
-            if (increase)
-                m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
-        }
+            m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
     }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
         if (!fee.empty())
-        {
-            if (increase)
-                m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
-        }
+            m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
     }
     else
         throw wrong_data_exception("unknown transaction action type!");
@@ -456,9 +444,8 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
 
     if (storages.empty()) return;
 
-    SignedBlock signed_block;
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
-    m_pimpl->m_blockchain.at(block_number, signed_block);
+    SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
 
     StatInfo storage_info;
     storage_info.hash = meshpp::hash(signed_block.block_details.to_string());
@@ -499,11 +486,40 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
 
 ///////////////////////////////////////////////////////////////////////////////////
 
+void revert_pool(unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
+                 vector<SignedTransaction>& pool_transactions)
+{
+    //  collect transactions to be reverted from pool
+    //
+    pool_transactions.clear();
+    size_t state_pool_size = m_pimpl->m_transaction_pool.length();
+    for (size_t index = 0; index != state_pool_size; ++index)
+    {
+        SignedTransaction const& signed_transaction =
+                m_pimpl->m_transaction_pool.at(index);
+
+        pool_transactions.push_back(signed_transaction);
+    }
+
+    //  revert transactions from pool
+    //
+    for (auto it_pool = pool_transactions.crbegin();
+         it_pool != pool_transactions.crend();
+         ++it_pool)
+    {
+        m_pimpl->m_transaction_pool.pop_back();
+        m_pimpl->m_action_log.revert();
+        m_pimpl->m_transaction_cache.erase(meshpp::hash(it_pool->to_string()));
+        revert_transaction(*it_pool, m_pimpl);
+    }
+
+    assert(m_pimpl->m_transaction_pool.length() == 0);
+}
+
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    SignedBlock prev_signed_block;
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
-    m_pimpl->m_blockchain.at(block_number, prev_signed_block);
+    SignedBlock const& prev_signed_block = m_pimpl->m_blockchain.at(block_number);
 
     BlockHeader prev_header;
     m_pimpl->m_blockchain.last_header(prev_header);
@@ -539,78 +555,59 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         if (step >= DELTA_STEP - 1)
             block_header.c_const = prev_header.c_const * 2;
     }
-    else
-        if (delta < DELTA_DOWN && block_header.c_const > 1)
+    else if (delta < DELTA_DOWN && block_header.c_const > 1)
+    {
+        size_t step = 0;
+        BlockHeader prev_header_local;
+        m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
+
+        while (prev_header_local.delta < DELTA_DOWN &&
+               step <= DELTA_STEP && prev_header_local.block_number > 0)
         {
-            size_t step = 0;
-            BlockHeader prev_header_local;
-            m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
-
-            while (prev_header_local.delta < DELTA_DOWN &&
-                step <= DELTA_STEP && prev_header_local.block_number > 0)
-            {
-                ++step;
-                m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
-            }
-
-            // -1 because current delta is not counted
-            if (step >= DELTA_STEP - 1)
-                block_header.c_const = prev_header.c_const / 2;
+            ++step;
+            m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
         }
+
+        // -1 because current delta is not counted
+        if (step >= DELTA_STEP - 1)
+            block_header.c_const = prev_header.c_const / 2;
+    }
 
     Block block;
     block.header = block_header;
 
-    beltpp::on_failure guard([&m_pimpl] 
+    auto transaction_cache_backup = m_pimpl->m_transaction_cache;
+    beltpp::on_failure guard([&m_pimpl, transaction_cache_backup]
     { 
         m_pimpl->discard();
         m_pimpl->calc_balance();
+        m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
     });
 
     std::multimap<BlockchainMessage::ctime, std::pair<string, SignedTransaction>> transaction_map;
 
-    // Revert action log and state, revert transaction pool records
-    vector<string> pool_keys;
     vector<SignedTransaction> pool_transactions;
-    m_pimpl->m_transaction_pool.get_keys(pool_keys);
-    for (auto& key : pool_keys)
-    {
-        SignedTransaction signed_transaction;
-        m_pimpl->m_transaction_pool.at(key, signed_transaction);
-
-        pool_transactions.push_back(signed_transaction);
-
-        m_pimpl->m_action_log.revert();
-        revert_transaction(signed_transaction, m_pimpl, true);
-
-        if (block_header.time_signed.tm > signed_transaction.transaction_details.expiry.tm)
-            m_pimpl->m_transaction_pool.remove(key); // already expired transaction
-        else
-            transaction_map.insert(std::pair<BlockchainMessage::ctime, std::pair<string, SignedTransaction>>(
-                                   signed_transaction.transaction_details.creation,
-                                   std::pair<string, SignedTransaction>(key, signed_transaction)));
-    }
-
-    // complete revert started above
-    for (auto& signed_transaction : pool_transactions)
-        revert_transaction(signed_transaction, m_pimpl, false);
+    //  collect transactions to be reverted from pool
+    //  revert transactions from pool
+    revert_pool(m_pimpl, pool_transactions);
 
     // check and copy transactions to block
     size_t tr_count = 0;
-    auto it = transaction_map.begin();
-    for (; it != transaction_map.end() && tr_count < BLOCK_MAX_TRANSACTIONS; ++it)
+    size_t index;
+    for (index = 0; index != pool_transactions.size(); ++index)
     {
-        // Check block transactions and calculate new state
-        if (apply_transaction(it->second.second, m_pimpl, own_key))
+        auto& signed_transaction = pool_transactions[index];
+        if (apply_transaction(signed_transaction, m_pimpl, own_key))
         {
-            if(it->second.second.transaction_details.action.type() != StatInfo::rtt)
+            //  why should we do such custom logic? [Tigran]
+            if(signed_transaction.transaction_details.action.type() != StatInfo::rtt)
                 ++tr_count;
 
-            block.signed_transactions.push_back(std::move(it->second.second));
-            m_pimpl->m_transaction_cache[it->second.first] = system_clock::from_time_t(it->first.tm);
+            string key = meshpp::hash(signed_transaction.to_string());
+            block.signed_transactions.push_back(std::move(signed_transaction));
+            m_pimpl->m_transaction_cache[key] =
+                    system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
         }
-
-        m_pimpl->m_transaction_pool.remove(it->second.first);
     }
 
     // grant rewards and move to block
@@ -635,11 +632,18 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->calc_balance();
 
     // apply back rest of the pool content to the state and action_log
-    for (; it != transaction_map.end(); ++it)
-        if (apply_transaction(it->second.second, m_pimpl))
-            m_pimpl->m_action_log.log_transaction(it->second.second);
-        else
-            m_pimpl->m_transaction_pool.remove(it->second.first);
+    for (; index != pool_transactions.size(); ++index)
+    {
+        auto& signed_transaction = pool_transactions[index];
+        if (apply_transaction(signed_transaction, m_pimpl))
+        {
+            string key = meshpp::hash(signed_transaction.to_string());
+            m_pimpl->m_action_log.log_transaction(signed_transaction);
+            m_pimpl->m_transaction_pool.push_back(signed_transaction);
+            m_pimpl->m_transaction_cache[key] =
+                    system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+        }
+    }
 
     m_pimpl->save(guard);
     m_pimpl->calc_sync_info(block);
@@ -716,8 +720,7 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
     if (check_headers_vector(header_response.block_headers))
         throw wrong_data_exception("blockheader response. wrong data in response!");
 
-    SignedBlock tmp_block;
-    m_pimpl->m_blockchain.at(tmp_header.block_number, tmp_block);
+    SignedBlock const& tmp_block = m_pimpl->m_blockchain.at(tmp_header.block_number);
     
     string tmp_hash = meshpp::hash(tmp_block.block_details.to_string());
 
@@ -861,8 +864,7 @@ void process_blockchain_request(BlockchainRequest const& blockchain_request,
     BlockchainResponse chain_response;
     for (auto i = from; i <= to; ++i)
     {
-        SignedBlock signed_block;
-        m_pimpl->m_blockchain.at(i, signed_block);
+        SignedBlock const& signed_block = m_pimpl->m_blockchain.at(i);
 
         chain_response.signed_blocks.push_back(std::move(signed_block));
     }
@@ -889,15 +891,15 @@ void process_blockchain_response(BlockchainResponse&& response,
     size_t length = m_pimpl->sync_blocks.size();
 
     // put prev_signed_block in correct place
-    SignedBlock prev_signed_block;
+    SignedBlock const* prev_signed_block;
     if (m_pimpl->sync_blocks.empty())
-        m_pimpl->m_blockchain.at(block_number - 1, prev_signed_block);
+        prev_signed_block = &m_pimpl->m_blockchain.at(block_number - 1);
     else
-        prev_signed_block = *m_pimpl->sync_blocks.rbegin();
+        prev_signed_block = &(*m_pimpl->sync_blocks.rbegin());
 
     auto header_it = m_pimpl->sync_headers.rbegin() + length;
 
-    if (header_it->prev_hash != meshpp::hash(prev_signed_block.block_details.to_string()))
+    if (header_it->prev_hash != meshpp::hash(prev_signed_block->block_details.to_string()))
         throw wrong_data_exception("blockchain response. previous hash!");
 
     ++header_it;
@@ -1022,72 +1024,66 @@ void process_blockchain_response(BlockchainResponse&& response,
         m_pimpl->discard();
         m_pimpl->calc_balance();
         m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
-        m_pimpl->m_transaction_cache = transaction_cache_backup;
+        m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
     });
 
-    vector<string> pool_keys;
-    vector<SignedTransaction> pool_transactions;
-    m_pimpl->m_transaction_pool.get_keys(pool_keys);
+    uint64_t lcb_number = m_pimpl->sync_headers.rbegin()->block_number - 1;
+    vector<SignedTransaction> reverted_transactions;
     bool clear_pool = m_pimpl->sync_blocks.size() < m_pimpl->sync_headers.size();
 
-    for (auto& key : pool_keys)
+    //  collect transactions to be reverted from blockchain
+    //
+    size_t blockchain_length = m_pimpl->m_blockchain.length();
+
+    for (size_t block_number = lcb_number + 1; block_number < blockchain_length; ++block_number)
     {
-        SignedTransaction signed_transaction;
-        m_pimpl->m_transaction_pool.at(key, signed_transaction);
+        SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
 
-        pool_transactions.push_back(signed_transaction);
-
-        m_pimpl->m_action_log.revert();
-        revert_transaction(signed_transaction, m_pimpl, true);
-
-        // This will make sync process faster
-        // Most probably removed transactions we will get with blocks
-        if (clear_pool)
-            m_pimpl->m_transaction_pool.remove(key);
+        reverted_transactions.insert(reverted_transactions.end(),
+                                     signed_block.block_details.signed_transactions.begin(),
+                                     signed_block.block_details.signed_transactions.end());
     }
 
-    // complete revert started above
-    for (auto& signed_transaction : pool_transactions)
-        revert_transaction(signed_transaction, m_pimpl, false);
+    vector<SignedTransaction> pool_transactions;
+    //  collect transactions to be reverted from pool
+    //  revert transactions from pool
+    revert_pool(m_pimpl, pool_transactions);
 
-    // calculate back to get state at LCB point
-    block_number = m_pimpl->m_blockchain.length() - 1;
-    uint64_t lcb_number = m_pimpl->sync_headers.rbegin()->block_number - 1;
-    while (block_number > lcb_number)
+    //  revert blocks
+    //  calculate back to get state at LCB point
+    for (size_t block_number = blockchain_length - 1;
+         block_number < blockchain_length && block_number > lcb_number;
+         --block_number)
     {
-        SignedBlock signed_block;
-        m_pimpl->m_blockchain.at(block_number, signed_block);
+        SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
         m_pimpl->m_blockchain.remove_last_block();
         m_pimpl->m_action_log.revert();
 
-        Block& block = signed_block.block_details;
+        Block const& block = signed_block.block_details;
 
         // decrease all reward amounts from balances and revert reward
-        for (auto it = block.rewards.rbegin(); it != block.rewards.rend(); ++it)
+        for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
             m_pimpl->m_state.decrease_balance(it->to, it->amount);
 
         // calculate back transactions
-        for (auto it = block.signed_transactions.rbegin(); it != block.signed_transactions.rend(); ++it)
+        for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
         {
-            revert_transaction(*it, m_pimpl, true, signed_block.authority);
-            revert_transaction(*it, m_pimpl, false, signed_block.authority);
+            revert_transaction(*it, m_pimpl, signed_block.authority);
 
-            string key = meshpp::hash((*it).to_string());
+            string key = meshpp::hash(it->to_string());
             m_pimpl->m_transaction_cache.erase(key);
-
-            if (now <= system_clock::from_time_t(it->transaction_details.expiry.tm))
-                m_pimpl->m_transaction_pool.insert(*it); // not yet expired transaction
         }
-
-        --block_number;
     }
+    //  update the variable, just in case it will be needed down the code
+    blockchain_length = m_pimpl->m_blockchain.length();
+
+    unordered_set<string> set_tr_hashes_to_remove;
 
     // verify new received blocks
     BlockHeader prev_header;
     m_pimpl->m_blockchain.header_at(lcb_number, prev_header);
     uint64_t c_const = prev_header.c_const;
 
-    //for (auto block_it = m_pimpl->sync_blocks.begin(); block_it != m_pimpl->sync_blocks.end(); ++block_it)
     for (auto const& signed_block : m_pimpl->sync_blocks)
     {
         Block const& block = signed_block.block_details;
@@ -1108,7 +1104,7 @@ void process_blockchain_response(BlockchainResponse&& response,
         {
             string key = meshpp::hash(tr_item.to_string());
 
-            m_pimpl->m_transaction_pool.remove(key);
+            set_tr_hashes_to_remove.insert(key);
 
             if (m_pimpl->m_transaction_cache.find(key) != m_pimpl->m_transaction_cache.end())
                 throw wrong_data_exception("blockchain response. transaction double use!");
@@ -1136,22 +1132,27 @@ void process_blockchain_response(BlockchainResponse&& response,
 
     m_pimpl->calc_balance();
 
-    // apply back rest of the pool
-    m_pimpl->m_transaction_pool.get_keys(pool_keys);
+    if (false == clear_pool)
+        reverted_transactions.insert(reverted_transactions.end(),
+                                     pool_transactions.begin(),
+                                     pool_transactions.end());
 
-    for (auto& key : pool_keys)
+    // apply back the rest of the transaction pool
+    //
+    for (auto const& signed_transaction : reverted_transactions)
     {
-        SignedTransaction signed_transaction;
-        m_pimpl->m_transaction_pool.at(key, signed_transaction);
-
-        if (now > system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
-            m_pimpl->m_transaction_pool.remove(key); // already expired transaction
-        else
+        string key = meshpp::hash(signed_transaction.to_string());
+        if (now - chrono::seconds(NODES_TIME_SHIFT) <=
+            system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm) &&
+            0 == set_tr_hashes_to_remove.count(key))
         {
             if (apply_transaction(signed_transaction, m_pimpl))
+            {
                 m_pimpl->m_action_log.log_transaction(signed_transaction);
-            else
-                m_pimpl->m_transaction_pool.remove(key);
+                m_pimpl->m_transaction_pool.push_back(signed_transaction);
+                m_pimpl->m_transaction_cache[key] =
+                        system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+            }
         }
     }
 
@@ -1191,7 +1192,7 @@ void process_blockchain_response(BlockchainResponse&& response,
             TaskRequest task_request;
             task_request.task_id = ++m_pimpl->m_slave_taskid;
             ::detail::assign_packet(task_request.package, stat_info);
-            task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
+            task_request.time_signed.tm = system_clock::to_time_t(now);
             meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) + 
                                                                   meshpp::hash(stat_info.to_string()) +
                                                                   std::to_string(task_request.time_signed.tm));
@@ -1372,9 +1373,8 @@ void broadcast_storage_stat(StatInfo& stat_info,
 
     if (stat_info.items.empty()) return;
 
-    SignedBlock signed_block;
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
-    m_pimpl->m_blockchain.at(block_number, signed_block);
+    SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
 
     stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
 
@@ -1421,11 +1421,16 @@ bool process_role(BlockchainMessage::SignedTransaction const& signed_transaction
     // Check pool
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (pimpl->m_transaction_pool.contains(tr_hash) ||
-        pimpl->m_transaction_cache.find(tr_hash) != pimpl->m_transaction_cache.end())
+    if (pimpl->m_transaction_cache.count(tr_hash))
         return false;
 
-    beltpp::on_failure guard([&pimpl] { pimpl->discard(); });
+    auto transaction_cache_backup = pimpl->m_transaction_cache;
+
+    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
+    {
+        pimpl->discard();
+        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
 
     Coin balance = pimpl->m_state.get_balance(role.node_address);
     if (coin(balance) < /*transfer.amount + */signed_transaction.transaction_details.fee)
@@ -1435,7 +1440,9 @@ bool process_role(BlockchainMessage::SignedTransaction const& signed_transaction
     pimpl->m_state.insert_role(role);
 
     // Add to the pool
-    pimpl->m_transaction_pool.insert(signed_transaction);
+    pimpl->m_transaction_pool.push_back(signed_transaction);
+    pimpl->m_transaction_cache[tr_hash] =
+            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 
     // Add to action log
     pimpl->m_action_log.log_transaction(signed_transaction);
@@ -1447,25 +1454,18 @@ bool process_role(BlockchainMessage::SignedTransaction const& signed_transaction
 
 bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                        BlockchainMessage::StatInfo const& stat_info,
-                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+                       std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
-    // Check pool and cache
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
-        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
-        return false;
-
     // Check data and authority
     NodeType node_type;
-    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
+    if (false == pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
         node_type == NodeType::blockchain)
         throw wrong_data_exception("process_stat_info -> wrong authority type : " + signed_transaction.authority);
 
     for (auto const& item : stat_info.items)
     {
         NodeType item_node_type;
-        if (false == m_pimpl->m_state.get_role(item.node_address, item_node_type) ||
+        if (false == pimpl->m_state.get_role(item.node_address, item_node_type) ||
             item_node_type == NodeType::blockchain ||
             item_node_type == node_type)
             throw wrong_data_exception("wrong node type : " + item.node_address);
@@ -1474,84 +1474,113 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
-    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
+    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
 
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
+
+    if (pimpl->m_transaction_cache.count(tr_hash))
+        return false;
+
+    auto transaction_cache_backup = pimpl->m_transaction_cache;
+
+    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
+    {
+        pimpl->discard();
+        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
 
     // Add to the pool
-    m_pimpl->m_transaction_pool.insert(signed_transaction);
+    pimpl->m_transaction_pool.push_back(signed_transaction);
+    pimpl->m_transaction_cache[tr_hash] =
+            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 
     // Add to action log
-    m_pimpl->m_action_log.log_transaction(signed_transaction);
+    pimpl->m_action_log.log_transaction(signed_transaction);
 
-    m_pimpl->save(guard);
+    pimpl->save(guard);
 
     return true;
 }
 
 bool process_article_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::ArticleInfo const& article_info,
-                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+                          std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
     // Check data and authority
     if (signed_transaction.authority != article_info.channel_address)
         throw authority_exception(signed_transaction.authority, article_info.channel_address);
 
-    // Check pool and cache
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
-        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
-        return false;
-
     NodeType node_type;
-    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
+    if (false == pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
         node_type != NodeType::channel)
         throw wrong_data_exception("process_article_info -> wrong authority type : " + signed_transaction.authority);
 
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
-    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
+    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
 
-    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
+    // Check pool and cache
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
+
+    if (pimpl->m_transaction_cache.count(tr_hash))
+        return false;
+
+    auto transaction_cache_backup = pimpl->m_transaction_cache;
+
+    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
+    {
+        pimpl->discard();
+        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
 
     // Add to the pool
-    m_pimpl->m_transaction_pool.insert(signed_transaction);
+    pimpl->m_transaction_pool.push_back(signed_transaction);
+    pimpl->m_transaction_cache[tr_hash] =
+            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 
     // Add to action log
-    m_pimpl->m_action_log.log_transaction(signed_transaction);
+    pimpl->m_action_log.log_transaction(signed_transaction);
 
-    m_pimpl->save(guard);
+    pimpl->save(guard);
 
     return true;
 }
 
 bool process_content_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::ContentInfo const& content_info,
-                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+                          std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
     // Check data and authority
     if (signed_transaction.authority != content_info.storage_address)
         throw authority_exception(signed_transaction.authority, content_info.storage_address);
 
+    NodeType node_type;
+    if (false == pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
+        node_type != NodeType::storage)
+        throw wrong_data_exception("process_content_info -> wrong authority type : " + signed_transaction.authority);
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_transaction_pool.contains(tr_hash) || // may be content_info will stored
-        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+    if (pimpl->m_transaction_cache.count(tr_hash))
         return false;
 
-    NodeType node_type;
-    if (false == m_pimpl->m_state.get_role(signed_transaction.authority, node_type) || 
-        node_type != NodeType::storage)
-        throw wrong_data_exception("process_content_info -> wrong authority type : " + signed_transaction.authority);
+    auto transaction_cache_backup = pimpl->m_transaction_cache;
 
-    m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
+    {
+        pimpl->discard();
+        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
 
-    if (m_pimpl->m_node_type == NodeType::channel)
+    //  why don't we add to pool? [Tigran]
+    //  pimpl->m_transaction_pool.push_back(signed_transaction);
+    pimpl->m_transaction_cache[tr_hash] =
+            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+
+    if (pimpl->m_node_type == NodeType::channel)
     {
         // TODO store content info if needed
     }
@@ -1561,7 +1590,7 @@ bool process_content_info(BlockchainMessage::SignedTransaction const& signed_tra
 
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::AddressInfo const& address_info,
-                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+                          std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
     beltpp::ip_address beltpp_ip_address;
     beltpp::assign(beltpp_ip_address, address_info.ip_address);
@@ -1575,10 +1604,21 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     // Check pool and cache
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
+    if (pimpl->m_transaction_cache.count(tr_hash))
         return false;
 
-    m_pimpl->m_transaction_cache[tr_hash] = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    auto transaction_cache_backup = pimpl->m_transaction_cache;
+
+    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
+    {
+        pimpl->discard();
+        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
+
+    //  why don't we add to pool? [Tigran]
+    //  pimpl->m_transaction_pool.push_back(signed_transaction);
+    pimpl->m_transaction_cache[tr_hash] =
+            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 
     return true;
 }

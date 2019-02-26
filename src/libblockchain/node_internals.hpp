@@ -170,8 +170,7 @@ public:
             insert_genesis(genesis_signed_block);
         else
         {
-            SignedBlock signed_block;
-            m_blockchain.at(0, signed_block);
+            SignedBlock const& signed_block = m_blockchain.at(0);
 
             if (signed_block.to_string() != genesis_signed_block)
                 throw std::runtime_error("the stored genesis is different from the one built in");
@@ -187,8 +186,7 @@ public:
         calc_balance();
         load_transaction_cache();
 
-        SignedBlock signed_block;
-        m_blockchain.at(m_blockchain.length() - 1, signed_block);
+        SignedBlock const& signed_block = m_blockchain.at(m_blockchain.length() - 1);
 
         calc_sync_info(signed_block.block_details);
     }
@@ -376,10 +374,9 @@ public:
              block_index < block_count;
              --block_index)
         {
-            SignedBlock signed_block;
-            m_blockchain.at(block_index, signed_block);
+            SignedBlock const& signed_block = m_blockchain.at(block_index);
 
-            Block& block = signed_block.block_details;
+            Block const& block = signed_block.block_details;
 
             std::chrono::system_clock::time_point time_signed =
                     std::chrono::system_clock::from_time_t(block.header.time_signed.tm);
@@ -395,6 +392,13 @@ public:
                 string key = meshpp::hash(item.to_string());
                 m_transaction_cache[key] = system_clock::from_time_t(item.transaction_details.creation.tm);
             }
+        }
+
+        for (size_t index = 0; index != m_transaction_pool.length(); ++index)
+        {
+            SignedTransaction const& item = m_transaction_pool.at(index);
+            string key = meshpp::hash(item.to_string());
+            m_transaction_cache[key] = system_clock::from_time_t(item.transaction_details.creation.tm);
         }
     }
 

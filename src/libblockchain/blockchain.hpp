@@ -34,7 +34,7 @@ public:
     void last_header(BlockchainMessage::BlockHeader& block_header) const;
 
     void insert(BlockchainMessage::SignedBlock const& signed_block);
-    void at(uint64_t number, BlockchainMessage::SignedBlock& signed_block) const;
+    BlockchainMessage::SignedBlock const& at(uint64_t number) const;
     void header_at(uint64_t number, BlockchainMessage::BlockHeader& block_header) const;
     void remove_last_block();
 private:
