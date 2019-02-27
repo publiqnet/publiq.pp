@@ -90,6 +90,10 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     else
         throw wrong_data_exception("unknown transaction action type!");
 
+    if (pimpl->m_transfer_only &&
+        signed_transaction.transaction_details.action.type() != Transfer::rtt)
+        throw std::runtime_error("this is coin only blockchain");
+
     if (!fee.empty())
     {
         pimpl->m_state.decrease_balance(signed_transaction.authority, fee);
@@ -155,6 +159,10 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     }
     else
         throw wrong_data_exception("unknown transaction action type!");
+
+    if (m_pimpl->m_transfer_only &&
+        signed_transaction.transaction_details.action.type() != Transfer::rtt)
+        throw std::runtime_error("this is coin only blockchain");
 }
 
 void validate_delations(map<string, StatInfo> const& right_delations,
@@ -466,7 +474,10 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     string own_key = m_pimpl->m_pb_key.to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
-    uint64_t delta = m_pimpl->calc_delta(own_key, m_pimpl->m_balance.whole, prev_hash, prev_header.c_const);
+    uint64_t delta = m_pimpl->calc_delta(own_key,
+                                         m_pimpl->get_balance().whole,
+                                         prev_hash,
+                                         prev_header.c_const);
 
     // fill new block header data
     BlockHeader block_header;
@@ -520,7 +531,6 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     beltpp::on_failure guard([&m_pimpl, transaction_cache_backup]
     { 
         m_pimpl->discard();
-        m_pimpl->calc_balance();
         m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
     });
 
@@ -567,9 +577,6 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     // insert to blockchain and action_log
     m_pimpl->m_blockchain.insert(signed_block);
     m_pimpl->m_action_log.log_block(signed_block);
-
-    // calculate miner balance
-    m_pimpl->calc_balance();
 
     // apply back rest of the pool content to the state and action_log
     for (; index != pool_transactions.size(); ++index)
@@ -915,6 +922,10 @@ void process_blockchain_response(BlockchainResponse&& response,
             else
                 throw wrong_data_exception("unknown transaction action type!");
 
+            if (m_pimpl->m_transfer_only &&
+                tr_it->transaction_details.action.type() != Transfer::rtt)
+                throw std::runtime_error("this is coin only blockchain");
+
             system_clock::time_point creation = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
             system_clock::time_point expiry = system_clock::from_time_t(tr_it->transaction_details.expiry.tm);
 
@@ -954,7 +965,6 @@ void process_blockchain_response(BlockchainResponse&& response,
     beltpp::on_failure guard([&m_pimpl, &transaction_cache_backup]
     {
         m_pimpl->discard();
-        m_pimpl->calc_balance();
         m_pimpl->clear_sync_state(m_pimpl->sync_peerid);
         m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
     });
@@ -1061,8 +1071,6 @@ void process_blockchain_response(BlockchainResponse&& response,
 
         c_const = block.header.c_const;
     }
-
-    m_pimpl->calc_balance();
 
     if (false == clear_pool)
         reverted_transactions.insert(reverted_transactions.end(),
@@ -1463,12 +1471,12 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
 
     beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
     {
-        pimpl->discard();
+        //pimpl->discard(); // not working with other state
         pimpl->m_transaction_cache = std::move(transaction_cache_backup);
     });
 
-    //  why don't we add to pool? [Tigran]
-    //  pimpl->m_transaction_pool.push_back(signed_transaction);
+    //  this is not added to pool, because we don't store it in blockchain
+        //  pimpl->m_transaction_pool.push_back(signed_transaction);
     pimpl->m_transaction_cache[tr_hash] =
             system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
 

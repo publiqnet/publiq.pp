@@ -31,7 +31,7 @@ public:
 }
 
 documents::documents(filesystem::path const& fs_state)
-    : m_pimpl(new detail::documents_internals(fs_state))
+    : m_pimpl(fs_state.empty() ? nullptr : new detail::documents_internals(fs_state))
 {
 }
 

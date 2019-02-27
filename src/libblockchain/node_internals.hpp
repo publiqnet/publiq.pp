@@ -124,7 +124,8 @@ public:
         beltpp::ilog* _plogger_node,
         meshpp::private_key const& pv_key,
         NodeType& n_type,
-        bool log_enabled)
+        bool log_enabled,
+        bool transfer_only)
         : plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
         , m_ptr_eh(new beltpp::event_handler())
@@ -152,6 +153,7 @@ public:
         , m_node_type(n_type)
         , m_pv_key(pv_key)
         , m_pb_key(pv_key.get_public_key())
+        , m_transfer_only(transfer_only)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -186,7 +188,6 @@ public:
 
         m_slave_taskid = 0;
 
-        calc_balance();
         load_transaction_cache();
 
         SignedBlock const& signed_block = m_blockchain.at(m_blockchain.length() - 1);
@@ -420,11 +421,17 @@ public:
         return delta;
     }
 
-    void calc_balance()
+    BlockchainMessage::Coin get_balance() const
     {
-        m_balance = m_state.get_balance(m_pb_key.to_string());
-        m_miner = m_node_type == NodeType::blockchain &&
-                  coin(m_balance) >= MINE_AMOUNT_THRESHOLD;
+        return m_state.get_balance(m_pb_key.to_string());
+    }
+
+    bool is_miner() const
+    {
+        bool result = (m_node_type == NodeType::blockchain) &&
+                      (coin(get_balance()) >= MINE_AMOUNT_THRESHOLD);
+
+        return result;
     }
 
     void calc_sync_info(Block const& block)
@@ -432,10 +439,13 @@ public:
         own_sync_info.number = m_blockchain.length();
 
         // calculate delta for next block for the case if I will mine it
-        if (m_miner)
+        if (is_miner())
         {
             string prev_hash = meshpp::hash(block.to_string());
-            uint64_t delta = calc_delta(m_pb_key.to_string(), m_balance.whole, prev_hash, block.header.c_const);
+            uint64_t delta = calc_delta(m_pb_key.to_string(),
+                                        get_balance().whole,
+                                        prev_hash,
+                                        block.header.c_const);
 
             own_sync_info.c_sum = block.header.c_sum + delta;
             net_sync_info.c_sum = 0;
@@ -469,7 +479,6 @@ public:
         m_action_log.log_block(signed_block);
 
         save(guard);
-        calc_balance();
         calc_sync_info(signed_block.block_details);
     }
 
@@ -522,13 +531,13 @@ public:
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
     unordered_map<string, system_clock::time_point> m_transaction_cache;
 
-    bool m_miner;
-    Coin m_balance;
     NodeType m_node_type;
     uint64_t m_slave_taskid;
     task_table m_slave_tasks;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
+
+    bool m_transfer_only;
 
     SyncInfo own_sync_info;
     SyncInfo net_sync_info;

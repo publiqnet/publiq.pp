@@ -247,7 +247,8 @@ int main(int argc, char** argv)
                             plogger_rpc.get(),
                             pv_key,
                             n_type,
-                            log_enabled);
+                            log_enabled,
+                            false);
 
         cout << endl;
         cout << "Node: " << node.name() << endl;

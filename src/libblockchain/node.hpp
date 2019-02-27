@@ -37,7 +37,8 @@ public:
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,
          BlockchainMessage::NodeType& n_type,
-         bool log_enabled);
+         bool log_enabled,
+         bool transfer_only);
     node(node&& other) noexcept;
     ~node();
 
