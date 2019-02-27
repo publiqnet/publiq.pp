@@ -9,11 +9,15 @@
 
 #include <map>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace BlockchainMessage;
 
 using std::map;
 using std::set;
+using std::unordered_map;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -530,7 +534,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     // check and copy transactions to block
     size_t tr_count = 0;
     size_t index;
-    for (index = 0; index != pool_transactions.size(); ++index)
+    for (index = 0; index != pool_transactions.size() && tr_count < BLOCK_MAX_TRANSACTIONS; ++index)
     {
         auto& signed_transaction = pool_transactions[index];
         if (apply_transaction(signed_transaction, m_pimpl, own_key))
@@ -983,7 +987,7 @@ void process_blockchain_response(BlockchainResponse&& response,
          index < blockchain_length && index > lcb_number;
          --index)
     {
-        SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
+        SignedBlock const& signed_block = m_pimpl->m_blockchain.at(index);
         m_pimpl->m_blockchain.remove_last_block();
         m_pimpl->m_action_log.revert();
 
