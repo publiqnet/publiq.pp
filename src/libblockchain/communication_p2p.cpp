@@ -7,8 +7,6 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
-#include <unordered_map>
-#include <unordered_set>
 #include <map>
 #include <set>
 
@@ -16,8 +14,6 @@ using namespace BlockchainMessage;
 
 using std::map;
 using std::set;
-using std::unordered_map;
-using std::unordered_set;
 
 namespace publiqpp
 {
@@ -118,8 +114,8 @@ void revert_transaction(SignedTransaction const& signed_transaction,
         Transfer transfer;
         signed_transaction.transaction_details.action.get(transfer);
 
-        m_pimpl->m_state.increase_balance(transfer.from, transfer.amount);
         m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
+        m_pimpl->m_state.increase_balance(transfer.from, transfer.amount);
     }
     else if (signed_transaction.transaction_details.action.type() == File::rtt)
     {
@@ -433,10 +429,10 @@ void revert_pool(unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
     //
     pool_transactions.clear();
     size_t state_pool_size = m_pimpl->m_transaction_pool.length();
+
     for (size_t index = 0; index != state_pool_size; ++index)
     {
-        SignedTransaction const& signed_transaction =
-                m_pimpl->m_transaction_pool.at(index);
+        SignedTransaction const& signed_transaction = m_pimpl->m_transaction_pool.at(index);
 
         pool_transactions.push_back(signed_transaction);
     }
@@ -967,9 +963,9 @@ void process_blockchain_response(BlockchainResponse&& response,
     //
     size_t blockchain_length = m_pimpl->m_blockchain.length();
 
-    for (size_t block_number = lcb_number + 1; block_number < blockchain_length; ++block_number)
+    for (size_t index = lcb_number + 1; index < blockchain_length; ++index)
     {
-        SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
+        SignedBlock const& signed_block = m_pimpl->m_blockchain.at(index);
 
         reverted_transactions.insert(reverted_transactions.end(),
                                      signed_block.block_details.signed_transactions.begin(),
@@ -983,9 +979,9 @@ void process_blockchain_response(BlockchainResponse&& response,
 
     //  revert blocks
     //  calculate back to get state at LCB point
-    for (size_t block_number = blockchain_length - 1;
-         block_number < blockchain_length && block_number > lcb_number;
-         --block_number)
+    for (size_t index = blockchain_length - 1;
+         index < blockchain_length && index > lcb_number;
+         --index)
     {
         SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
         m_pimpl->m_blockchain.remove_last_block();
