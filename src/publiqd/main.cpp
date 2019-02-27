@@ -214,6 +214,7 @@ int main(int argc, char** argv)
         auto fs_transaction_pool = meshpp::data_directory_path("transaction_pool");
         auto fs_state = meshpp::data_directory_path("state");
         auto fs_log = meshpp::data_directory_path("log");
+        auto fs_documents = meshpp::data_directory_path("documents");
 
         cout << "p2p local address: " << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
@@ -241,6 +242,7 @@ int main(int argc, char** argv)
                             fs_action_log,
                             fs_transaction_pool,
                             fs_state,
+                            fs_documents,
                             plogger_p2p.get(),
                             plogger_rpc.get(),
                             pv_key,

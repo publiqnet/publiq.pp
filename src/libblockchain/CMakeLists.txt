@@ -21,6 +21,8 @@ add_library(blockchain
     coin.cpp
     coin.hpp
     common.hpp
+    documents.cpp
+    documents.hpp
     exception.hpp
     exception.cpp
     http.hpp

@@ -32,6 +32,7 @@ public:
          boost::filesystem::path const& fs_action_log,
          boost::filesystem::path const& fs_transaction_pool,
          boost::filesystem::path const& fs_state,
+         boost::filesystem::path const& fs_documents,
          beltpp::ilog* plogger_p2p,
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,

@@ -59,6 +59,23 @@ wrong_request_exception& wrong_request_exception::operator=(wrong_request_except
 wrong_request_exception::~wrong_request_exception() noexcept
 {}
 
+wrong_document_exception::wrong_document_exception(std::string const& _message)
+    : runtime_error("wrong_document_exception - " + _message)
+    , message(_message)
+{}
+wrong_document_exception::wrong_document_exception(wrong_document_exception const& other) noexcept
+    : runtime_error(other)
+    , message(other.message)
+{}
+wrong_document_exception& wrong_document_exception::operator=(wrong_document_exception const& other) noexcept
+{
+    dynamic_cast<runtime_error*>(this)->operator =(other);
+    message = other.message;
+    return *this;
+}
+wrong_document_exception::~wrong_document_exception() noexcept
+{}
+
 not_enough_balance_exception::not_enough_balance_exception(coin const& balance, coin const& spending)
     : runtime_error("trying to spend more than available. "
                     "balance is " + balance.to_string() + ", "

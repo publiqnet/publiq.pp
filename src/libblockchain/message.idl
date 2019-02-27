@@ -116,24 +116,25 @@ module BlockchainMessage
 
     class File
     {
-        String author_address
         String uri
+        String author_address
     }
 
     class ContentUnit
     {
+        String uri
+        UInt64 content_id
         String author_address
         String channel_address
-        UInt64 content_id
 
-        String uri
         Array String file_uris
     }
 
     class Content
     {
-        String channel_address
         UInt64 content_id
+        String channel_address
+
         Array String content_unit_uris
     }
 
@@ -154,13 +155,6 @@ module BlockchainMessage
     {
         String node_address
         IPAddress ip_address
-    }
-
-    class ArticleInfo
-    {
-        String uri
-        String author_address
-        String channel_address
     }
 
     class ContentInfo

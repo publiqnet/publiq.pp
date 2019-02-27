@@ -4,6 +4,7 @@
 #include "http.hpp"
 
 #include "state.hpp"
+#include "documents.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
 #include "nodeid_service.hpp"
@@ -118,6 +119,7 @@ public:
         filesystem::path const& fs_action_log,
         filesystem::path const& fs_transaction_pool,
         filesystem::path const& fs_state,
+        filesystem::path const& fs_documents,
         beltpp::ilog* _plogger_p2p,
         beltpp::ilog* _plogger_node,
         meshpp::private_key const& pv_key,
@@ -146,6 +148,7 @@ public:
         , m_action_log(fs_action_log, log_enabled)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)
+        , m_documents(fs_documents)
         , m_node_type(n_type)
         , m_pv_key(pv_key)
         , m_pb_key(pv_key.get_public_key())
@@ -226,25 +229,6 @@ public:
         if (0 == m_p2p_peers.erase(peerid))
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
     }
-
-    //void set_public_peer(string nodeid, socket::peer_id const& peerid)
-    //{
-    //    m_public_map[nodeid] = peerid;
-    //}
-    //
-    //bool get_public_peer(string nodeid, socket::peer_id& peerid)
-    //{
-    //    auto map_it = m_public_map.find(nodeid);
-    //
-    //    if (map_it != m_public_map.end())
-    //    {
-    //        peerid = map_it->second;
-    //
-    //        return true;
-    //    }
-    //
-    //    return false;
-    //}
 
     bool find_stored_request(socket::peer_id const& peerid, beltpp::packet& packet)
     {
@@ -343,6 +327,7 @@ public:
     void save(beltpp::on_failure& guard)
     {
         m_state.save();
+        m_documents.save();
         m_blockchain.save();
         m_action_log.save();
         m_transaction_pool.save();
@@ -350,6 +335,7 @@ public:
         guard.dismiss();
 
         m_state.commit();
+        m_documents.commit();
         m_blockchain.commit();
         m_action_log.commit();
         m_transaction_pool.commit();
@@ -358,6 +344,7 @@ public:
     void discard()
     {
         m_state.discard();
+        m_documents.discard();
         m_blockchain.discard();
         m_action_log.discard();
         m_transaction_pool.discard();
@@ -520,6 +507,7 @@ public:
     publiqpp::action_log m_action_log;
     publiqpp::transaction_pool m_transaction_pool;
     publiqpp::state m_state;
+    publiqpp::documents m_documents;
 
     publiqpp::nodeid_service m_nodeid_service;
     meshpp::session_manager m_sessions;

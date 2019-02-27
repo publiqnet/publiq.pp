@@ -176,24 +176,17 @@ bool process_transfer(BlockchainMessage::SignedTransaction const& signed_transac
     // Check pool
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (m_pimpl->m_transaction_cache.count(tr_hash))
+    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
+        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
-    auto transaction_cache_backup = m_pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&m_pimpl, &transaction_cache_backup]
-    {
-        m_pimpl->discard();
-        m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
+    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
     // Validate and add to state
     m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
 
     // Add to the pool
-    m_pimpl->m_transaction_pool.push_back(signed_transaction);
-    m_pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    m_pimpl->m_transaction_pool.insert(signed_transaction);
 
     // Add to action log
     m_pimpl->m_action_log.log_transaction(signed_transaction);
@@ -211,6 +204,9 @@ bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction
     if (signed_transaction.authority != file.author_address)
         throw authority_exception(signed_transaction.authority, file.author_address);
 
+    if (pimpl->m_documents.exist_file(file.uri))
+        throw wrong_document_exception("File already exists!");
+
     meshpp::public_key pb_key_author(file.author_address);
 
     // Don't need to store transaction if sync in process
@@ -222,31 +218,21 @@ bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction
     // Check pool
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (pimpl->m_transaction_cache.count(tr_hash))
+    if (pimpl->m_transaction_pool.contains(tr_hash) ||
+        pimpl->m_transaction_cache.find(tr_hash) != pimpl->m_transaction_cache.end())
         return false;
 
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
-    {
-        pimpl->discard();
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
-
-    // Validate and add to state
-    //m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
-
     Coin balance = pimpl->m_state.get_balance(file.author_address);
-    if (coin(balance) < /*transfer.amount + */signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance), /*transfer.amount + */signed_transaction.transaction_details.fee);
+    if (coin(balance) < signed_transaction.transaction_details.fee)
+        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
 
-    // decrease "from" balance
-    //m_pimpl->m_state.decrease_balance(file.author_address, 0);
+    beltpp::on_failure guard([&pimpl] { pimpl->discard(); });
+
+    // Add to documents
+    pimpl->m_documents.insert_file(file);
 
     // Add to the pool
-    pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    pimpl->m_transaction_pool.insert(signed_transaction);
 
     // Add to action log
     pimpl->m_action_log.log_transaction(signed_transaction);
@@ -275,16 +261,11 @@ bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_tra
     // Check pool
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (pimpl->m_transaction_cache.count(tr_hash))
+    if (pimpl->m_transaction_pool.contains(tr_hash) ||
+        pimpl->m_transaction_cache.find(tr_hash) != pimpl->m_transaction_cache.end())
         return false;
 
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
-    {
-        pimpl->discard();
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
+    beltpp::on_failure guard([&pimpl] { pimpl->discard(); });
 
     // Validate and add to state
     //m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
@@ -297,9 +278,7 @@ bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_tra
     //m_pimpl->m_state.decrease_balance(file.author_address, 0);
 
     // Add to the pool
-    pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    pimpl->m_transaction_pool.insert(signed_transaction);
 
     // Add to action log
     pimpl->m_action_log.log_transaction(signed_transaction);
@@ -311,7 +290,7 @@ bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_tra
 
 bool process_content(BlockchainMessage::SignedTransaction const& signed_transaction,
                      BlockchainMessage::Content const& content,
-                     std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
+                     std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     // Authority check
     if (signed_transaction.authority != content.channel_address)
@@ -322,27 +301,22 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
-    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
+    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
 
     // Check pool
     string tr_hash = meshpp::hash(signed_transaction.to_string());
 
-    if (pimpl->m_transaction_cache.count(tr_hash))
+    if (m_pimpl->m_transaction_pool.contains(tr_hash) ||
+        m_pimpl->m_transaction_cache.find(tr_hash) != m_pimpl->m_transaction_cache.end())
         return false;
 
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
-    {
-        pimpl->discard();
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
+    beltpp::on_failure guard([&m_pimpl] { m_pimpl->discard(); });
 
     // Validate and add to state
     //m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
 
-    Coin balance = pimpl->m_state.get_balance(content.channel_address);
+    Coin balance = m_pimpl->m_state.get_balance(content.channel_address);
     if (coin(balance) < /*transfer.amount + */signed_transaction.transaction_details.fee)
         throw not_enough_balance_exception(coin(balance), /*transfer.amount + */signed_transaction.transaction_details.fee);
 
@@ -350,14 +324,12 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
     //m_pimpl->m_state.decrease_balance(file.author_address, 0);
 
     // Add to the pool
-    pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    m_pimpl->m_transaction_pool.insert(signed_transaction);
 
     // Add to action log
-    pimpl->m_action_log.log_transaction(signed_transaction);
+    m_pimpl->m_action_log.log_transaction(signed_transaction);
 
-    pimpl->save(guard);
+    m_pimpl->save(guard);
 
     return true;
 }
@@ -446,12 +418,12 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
     }
 }
 
-bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
-                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
-    //TODO
-    B_UNUSED(article_info);
-
-    return m_pimpl->m_node_type == NodeType::storage;
-}
+//bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
+//                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+//{
+//    //TODO
+//    B_UNUSED(article_info);
+//
+//    return m_pimpl->m_node_type == NodeType::storage;
+//}
 }// end of namespace publiqpp

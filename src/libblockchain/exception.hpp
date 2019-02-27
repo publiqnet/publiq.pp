@@ -49,6 +49,19 @@ public:
     std::string message;
 };
 
+class wrong_document_exception : public std::runtime_error
+{
+public:
+    explicit wrong_document_exception(std::string const& _message);
+
+    wrong_document_exception(wrong_document_exception const&) noexcept;
+    wrong_document_exception& operator=(wrong_document_exception const&) noexcept;
+
+    virtual ~wrong_document_exception() noexcept;
+
+    std::string message;
+};
+
 class not_enough_balance_exception : public std::runtime_error
 {
 public:

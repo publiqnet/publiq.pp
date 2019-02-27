@@ -53,6 +53,7 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
                        std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
                        beltpp::isocket* psk);
 
-bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
-                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+//bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
+//                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
 }// end of namespace publiqpp

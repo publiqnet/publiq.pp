@@ -48,6 +48,7 @@ node::node(string const& genesis_signed_block,
            boost::filesystem::path const& fs_action_log,
            boost::filesystem::path const& fs_transaction_pool,
            boost::filesystem::path const& fs_state,
+           boost::filesystem::path const& fs_documents,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
@@ -62,6 +63,7 @@ node::node(string const& genesis_signed_block,
                                          fs_action_log,
                                          fs_transaction_pool,
                                          fs_state,
+                                         fs_documents,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
@@ -297,7 +299,6 @@ bool node::run()
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
                                           (it == interface_type::rpc),
-                                          //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
@@ -453,65 +454,65 @@ bool node::run()
 
                     break;
                 }
-                case ArticleInfo::rtt:
-                {
-                    if (broadcast_signed_transaction.items.empty())
-                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
-
-                    Broadcast* p_broadcast = nullptr;
-                    SignedTransaction* p_signed_tx = nullptr;
-                    ArticleInfo* p_article_info = nullptr;
-
-                    broadcast_signed_transaction.items[0]->get(p_broadcast);
-                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_article_info);
-
-                    assert(p_broadcast);
-                    assert(p_signed_tx);
-                    assert(p_article_info);
-
-                    Broadcast& broadcast = *p_broadcast;
-                    SignedTransaction& signed_tx = *p_signed_tx;
-                    ArticleInfo& article_info = *p_article_info;
-
-                    m_pimpl->writeln_node("ArticleInfo from " + detail::peer_short_names(article_info.channel_address));
-
-                    if (process_article_info(signed_tx, article_info, m_pimpl))
-                    {
-                        broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          false,
-                                          nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
-
-                        if (do_i_need_it(article_info, m_pimpl))
-                        {
-                            auto it_nodeid = m_pimpl->m_nodeid_service.nodeids.find(article_info.channel_address);
-                            if (it_nodeid != m_pimpl->m_nodeid_service.nodeids.end())
-                            {
-                                auto addresses = it_nodeid->second.get();
-                                if (false == addresses.empty())
-                                {
-                                    beltpp::ip_address ip_address = addresses.front();
-
-                                    vector<unique_ptr<meshpp::session_action>> actions;
-                                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                                        ip_address));
-                                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                                        m_pimpl->m_nodeid_service,
-                                                                                        article_info.channel_address,
-                                                                                        ip_address));
-                                    actions.emplace_back(new session_action_storagefile(m_pimpl.get(), article_info.uri));
-                                    m_pimpl->m_sessions.add(article_info.channel_address, ip_address, std::move(actions));
-                                }
-                            }
-                        }
-                    }
-
-                    break;
-                }
+                //case ArticleInfo::rtt:
+                //{
+                //    if (broadcast_signed_transaction.items.empty())
+                //        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
+                //
+                //    Broadcast* p_broadcast = nullptr;
+                //    SignedTransaction* p_signed_tx = nullptr;
+                //    ArticleInfo* p_article_info = nullptr;
+                //
+                //    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                //    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                //    ref_packet.get(p_article_info);
+                //
+                //    assert(p_broadcast);
+                //    assert(p_signed_tx);
+                //    assert(p_article_info);
+                //
+                //    Broadcast& broadcast = *p_broadcast;
+                //    SignedTransaction& signed_tx = *p_signed_tx;
+                //    ArticleInfo& article_info = *p_article_info;
+                //
+                //    m_pimpl->writeln_node("ArticleInfo from " + detail::peer_short_names(article_info.channel_address));
+                //
+                //    if (process_article_info(signed_tx, article_info, m_pimpl))
+                //    {
+                //        broadcast_message(std::move(broadcast),
+                //                          m_pimpl->m_ptr_p2p_socket->name(),
+                //                          peerid,
+                //                          false,
+                //                          nullptr,
+                //                          m_pimpl->m_p2p_peers,
+                //                          m_pimpl->m_ptr_p2p_socket.get());
+                //
+                //        if (do_i_need_it(article_info, m_pimpl))
+                //        {
+                //            auto it_nodeid = m_pimpl->m_nodeid_service.nodeids.find(article_info.channel_address);
+                //            if (it_nodeid != m_pimpl->m_nodeid_service.nodeids.end())
+                //            {
+                //                auto addresses = it_nodeid->second.get();
+                //                if (false == addresses.empty())
+                //                {
+                //                    beltpp::ip_address ip_address = addresses.front();
+                //
+                //                    vector<unique_ptr<meshpp::session_action>> actions;
+                //                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(),
+                //                                                                        ip_address));
+                //                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
+                //                                                                        m_pimpl->m_nodeid_service,
+                //                                                                        article_info.channel_address,
+                //                                                                        ip_address));
+                //                    actions.emplace_back(new session_action_storagefile(m_pimpl.get(), article_info.uri));
+                //                    m_pimpl->m_sessions.add(article_info.channel_address, ip_address, std::move(actions));
+                //                }
+                //            }
+                //        }
+                //    }
+                //
+                //    break;
+                //}
                 case ContentInfo::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
@@ -644,7 +645,9 @@ bool node::run()
                             file_address.node_address = name();
                             
                             if (m_pimpl->m_node_type == NodeType::channel)
-                                broadcast_article_info(file_address, m_pimpl);
+                            {
+                                //broadcast_article_info(file_address, m_pimpl);
+                            }
                             else
                                 broadcast_content_info(file_address, m_pimpl);
                         }
