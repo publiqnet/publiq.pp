@@ -122,9 +122,9 @@ std::string peer_short_names(std::string const& peerid)
     if (peerid == "PBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
         return "$gagik(1)";
     if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
-        return "$north.publiq.network:12222";   //  node(0)
+        return "$node(0)";
     if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
-        return "$north.publiq.network:13333";   //  state(0)
+        return "$state(0)";
 
     // test channels
     if (peerid == "PBQ7MJwGCpZStXbTsukEbunryBKaBL6USPY6n2FyJA97uCiHkvasp")

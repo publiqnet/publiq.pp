@@ -308,7 +308,7 @@ module BlockchainMessage
         String uri
         String node_address
     }
-        
+
     //  ip address information
     class IPDestination
     {
