@@ -3,9 +3,13 @@
 ## highlights
 ### PUBLIQ blockchain node
 + portable executable
-+ separate lib, implementing p2p protocol, rpc server, distributed consensus algorithm
++ separate library, implementing p2p protocol, rpc server, distributed consensus algorithm
 + minimal, tiny http protocol implementation. rpc server provides the same JSON API both over TCP and HTTP (POST)
 + *action log*, interface that allows relational database maintainer to build the blockchain state in any desired DBMS
+### commander
++ separate RPC JSON and HTTP APIs
++ blockchain explorer
++ wallet functionality
 
 ## details on supported/unsupported features/technologies
 + *dependencies?* [boost](https://www.boost.org "boost"), [mesh.pp](https://github.com/publiqnet/mesh.pp "mesh.pp"), [belt.pp](https://github.com/publiqnet/belt.pp "belt.pp") and [a simple cmake utility](https://github.com/publiqnet/cmake_utility "the simple title for the simple cmake utility")
