@@ -63,10 +63,11 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
-        Content content;
-        signed_transaction.transaction_details.action.get(content);
-
-        // TODO insert to documents
+        // nothing to do
+    }
+    else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
+    {
+        // nothing to do
     }
     else if (signed_transaction.transaction_details.action.type() == Role::rtt)
     {
@@ -141,10 +142,11 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
-        Content content;
-        signed_transaction.transaction_details.action.get(content);
-
-        // TODO remove from documents
+        // nothing to do
+    }
+    else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
+    {
+        // nothing to do
     }
     else if (signed_transaction.transaction_details.action.type() == Role::rtt)
     {
@@ -155,7 +157,7 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
-        // still nothing to do
+        // nothing to do
     }
     else
         throw wrong_data_exception("unknown transaction action type!");
@@ -466,6 +468,20 @@ void revert_pool(unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
 
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    auto transaction_cache_backup = m_pimpl->m_transaction_cache;
+    beltpp::on_failure guard([&m_pimpl, transaction_cache_backup]
+    {
+        m_pimpl->discard();
+        m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
+
+    std::multimap<BlockchainMessage::ctime, std::pair<string, SignedTransaction>> transaction_map;
+
+    vector<SignedTransaction> pool_transactions;
+    //  collect transactions to be reverted from pool
+    //  revert transactions from pool
+    revert_pool(m_pimpl, pool_transactions);
+
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
     SignedBlock const& prev_signed_block = m_pimpl->m_blockchain.at(block_number);
 
@@ -526,20 +542,6 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     Block block;
     block.header = block_header;
-
-    auto transaction_cache_backup = m_pimpl->m_transaction_cache;
-    beltpp::on_failure guard([&m_pimpl, transaction_cache_backup]
-    { 
-        m_pimpl->discard();
-        m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
-
-    std::multimap<BlockchainMessage::ctime, std::pair<string, SignedTransaction>> transaction_map;
-
-    vector<SignedTransaction> pool_transactions;
-    //  collect transactions to be reverted from pool
-    //  revert transactions from pool
-    revert_pool(m_pimpl, pool_transactions);
 
     // check and copy transactions to block
     size_t tr_count = 0;
@@ -1228,36 +1230,6 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         m_pimpl->m_ptr_p2p_socket.get());
 }
 
-void broadcast_content_info(StorageFileAddress file_address,
-                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
-    ContentInfo content_info;
-    content_info.uri = file_address.uri;
-    content_info.storage_address = m_pimpl->m_pb_key.to_string();
-
-    Transaction transaction;
-    transaction.action = content_info;
-    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-
-    SignedTransaction signed_transaction;
-    signed_transaction.transaction_details = transaction;
-    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
-    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
-
-    Broadcast broadcast;
-    broadcast.echoes = 2;
-    broadcast.package = signed_transaction;
-
-    broadcast_message(std::move(broadcast),
-                      m_pimpl->m_ptr_p2p_socket->name(),
-                      m_pimpl->m_ptr_p2p_socket->name(),
-                      true, // broadcast to all peers
-                      nullptr, // log disabled
-                      m_pimpl->m_p2p_peers,
-                      m_pimpl->m_ptr_p2p_socket.get());
-}
-
 void broadcast_storage_stat(StatInfo& stat_info, 
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
@@ -1405,45 +1377,6 @@ bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transa
     pimpl->m_action_log.log_transaction(signed_transaction);
 
     pimpl->save(guard);
-
-    return true;
-}
-
-bool process_content_info(BlockchainMessage::SignedTransaction const& signed_transaction,
-                          BlockchainMessage::ContentInfo const& content_info,
-                          std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
-{
-    // Check data and authority
-    if (signed_transaction.authority != content_info.storage_address)
-        throw authority_exception(signed_transaction.authority, content_info.storage_address);
-
-    NodeType node_type;
-    if (false == pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
-        node_type != NodeType::storage)
-        throw wrong_data_exception("process_content_info -> wrong authority type : " + signed_transaction.authority);
-    // Check pool and cache
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (pimpl->m_transaction_cache.count(tr_hash))
-        return false;
-
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
-    {
-        pimpl->discard();
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
-
-    //  why don't we add to pool? [Tigran]
-    //  pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-
-    if (pimpl->m_node_type == NodeType::channel)
-    {
-        // TODO store content info if needed
-    }
 
     return true;
 }

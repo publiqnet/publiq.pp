@@ -32,10 +32,6 @@ public:
     bool insert_unit(BlockchainMessage::ContentUnit const& content_unit);
     void remove_unit(std::string const& uri);
 
-    //bool exist_content(std::string const& uri) const;
-    //bool insert_content(BlockchainMessage::Content const& content);
-    //void remove_content(std::string const& uri);
-
 private:
     std::unique_ptr<detail::documents_internals> m_pimpl;
 };

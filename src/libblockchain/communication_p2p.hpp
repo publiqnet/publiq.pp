@@ -30,9 +30,6 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
 
 void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
-void broadcast_content_info(StorageFileAddress file_address,
-                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-
 void broadcast_storage_stat(StatInfo& stat_info,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
@@ -43,10 +40,6 @@ bool process_role(BlockchainMessage::SignedTransaction const& signed_transaction
 bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                        BlockchainMessage::StatInfo const& stat_info,
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-
-bool process_content_info(BlockchainMessage::SignedTransaction const& signed_transaction,
-                          BlockchainMessage::ContentInfo const& content_info,
-                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::AddressInfo const& address_info,

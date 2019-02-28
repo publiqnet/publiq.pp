@@ -159,7 +159,9 @@ module BlockchainMessage
 
     class ContentInfo
     {
-        String uri
+        UInt64 status
+        UInt64 content_id
+        String channel_address
         String storage_address
     }
 

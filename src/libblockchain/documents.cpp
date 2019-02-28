@@ -98,25 +98,5 @@ void documents::remove_unit(string const& uri)
     m_pimpl->m_units.erase(uri);
 }
 
-//bool documents::exist_content(string const& uri) const
-//{
-//    return m_pimpl->m_contents.as_const().contains(uri);
-//}
-//
-//bool documents::insert_content(Content const& file)
-//{
-//    if (m_pimpl->m_files.as_const().contains(file.uri))
-//        return false;
-//
-//    m_pimpl->m_files.insert(file.uri, file);
-//
-//    return true;
-//}
-//
-//void documents::remove_file(string const& uri)
-//{
-//    m_pimpl->m_files.erase(uri);
-//}
-
 }
 

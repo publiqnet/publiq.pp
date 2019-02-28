@@ -605,12 +605,7 @@ bool node::run()
                             std::move(task_response.package).get(file_address);
                             file_address.node_address = name();
                             
-                            if (m_pimpl->m_node_type == NodeType::channel)
-                            {
-                                //broadcast_article_info(file_address, m_pimpl);
-                            }
-                            else
-                                broadcast_content_info(file_address, m_pimpl);
+                            //TODO
                         }
                     }
                     else if (task_response.package.type() == StatInfo::rtt)

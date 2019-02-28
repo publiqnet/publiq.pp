@@ -45,6 +45,10 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
                      BlockchainMessage::Content const& content,
                      std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+bool process_content_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                          BlockchainMessage::ContentInfo const& content_info,
+                          std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
 void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
                        beltpp::isocket::peer_id const& self,
                        beltpp::isocket::peer_id const& from,
@@ -52,8 +56,5 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
                        beltpp::ilog* plog,
                        std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
                        beltpp::isocket* psk);
-
-//bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
-//                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
 }// end of namespace publiqpp

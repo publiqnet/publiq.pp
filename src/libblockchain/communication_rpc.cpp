@@ -214,6 +214,10 @@ bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction
     if (pimpl->m_documents.exist_file(file.uri))
         throw wrong_document_exception("File already exists!");
 
+    Coin balance = pimpl->m_state.get_balance(file.author_address);
+    if (coin(balance) < signed_transaction.transaction_details.fee)
+        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
+
     meshpp::public_key pb_key_author(file.author_address);
 
     // Don't need to store transaction if sync in process
@@ -227,11 +231,6 @@ bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction
 
     if (pimpl->m_transaction_cache.count(tr_hash))
         return false;
-
-
-    Coin balance = pimpl->m_state.get_balance(file.author_address);
-    if (coin(balance) < signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
 
     auto transaction_cache_backup = pimpl->m_transaction_cache;
 
@@ -264,6 +263,10 @@ bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_tra
     if (signed_transaction.authority != content_unit.author_address)
         throw authority_exception(signed_transaction.authority, content_unit.author_address);
 
+    Coin balance = pimpl->m_state.get_balance(content_unit.author_address);
+    if (coin(balance) < signed_transaction.transaction_details.fee)
+        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
+
     meshpp::public_key pb_key_author(content_unit.author_address);
     meshpp::public_key pb_key_channel(content_unit.channel_address);
 
@@ -278,10 +281,6 @@ bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_tra
 
     if (pimpl->m_transaction_cache.count(tr_hash))
         return false;
-
-    Coin balance = pimpl->m_state.get_balance(content_unit.author_address);
-    if (coin(balance) < signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
 
     auto transaction_cache_backup = pimpl->m_transaction_cache;
 
@@ -315,6 +314,10 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
     if (signed_transaction.authority != content.channel_address)
         throw authority_exception(signed_transaction.authority, content.channel_address);
 
+    Coin balance = pimpl->m_state.get_balance(content.channel_address);
+    if (coin(balance) < signed_transaction.transaction_details.fee)
+        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
+
     meshpp::public_key pb_key_channel(content.channel_address);
 
     // Don't need to store transaction if sync in process
@@ -329,10 +332,6 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
     if (pimpl->m_transaction_cache.count(tr_hash))
         return false;
 
-    Coin balance = pimpl->m_state.get_balance(content.channel_address);
-    if (coin(balance) < signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
-
     auto transaction_cache_backup = pimpl->m_transaction_cache;
 
     beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
@@ -341,8 +340,44 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
         pimpl->m_transaction_cache = std::move(transaction_cache_backup);
     });
 
-    // Add to documents
-    // TODO
+    // Add to the pool
+    pimpl->m_transaction_pool.push_back(signed_transaction);
+    pimpl->m_transaction_cache[tr_hash] =
+        system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+
+    // Add to action log
+    pimpl->m_action_log.log_transaction(signed_transaction);
+
+    pimpl->save(guard);
+
+    return true;
+}
+
+bool process_content_info(BlockchainMessage::SignedTransaction const& signed_transaction,
+                          BlockchainMessage::ContentInfo const& content_info,
+                          std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
+{
+    // Check data and authority
+    if (signed_transaction.authority != content_info.storage_address)
+        throw authority_exception(signed_transaction.authority, content_info.storage_address);
+
+    NodeType node_type;
+    if (false == pimpl->m_state.get_role(signed_transaction.authority, node_type) || node_type != NodeType::storage)
+        throw wrong_data_exception("process_content_info -> wrong authority type : " + signed_transaction.authority);
+
+    // Check pool and cache
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
+
+    if (pimpl->m_transaction_cache.count(tr_hash))
+        return false;
+
+    auto transaction_cache_backup = pimpl->m_transaction_cache;
+
+    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
+    {
+        pimpl->discard();
+        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
 
     // Add to the pool
     pimpl->m_transaction_pool.push_back(signed_transaction);
@@ -441,12 +476,4 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
     }
 }
 
-//bool do_i_need_it(BlockchainMessage::ArticleInfo article_info,
-//                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-//{
-//    //TODO
-//    B_UNUSED(article_info);
-//
-//    return m_pimpl->m_node_type == NodeType::storage;
-//}
 }// end of namespace publiqpp
