@@ -211,6 +211,12 @@ bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction
     if (signed_transaction.authority != file.author_address)
         throw authority_exception(signed_transaction.authority, file.author_address);
 
+    // Check pool
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
+
+    if (pimpl->m_transaction_cache.count(tr_hash))
+        return false;
+
     if (pimpl->m_documents.exist_file(file.uri))
         throw wrong_document_exception("File already exists!");
 
@@ -225,12 +231,6 @@ bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction
     // Just will check the transaction and broadcast
     if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
-
-    // Check pool
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (pimpl->m_transaction_cache.count(tr_hash))
-        return false;
 
     auto transaction_cache_backup = pimpl->m_transaction_cache;
 
@@ -255,6 +255,7 @@ bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction
 
     return true;
 }
+
 bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::ContentUnit const& content_unit,
                           std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
@@ -263,9 +264,22 @@ bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_tra
     if (signed_transaction.authority != content_unit.author_address)
         throw authority_exception(signed_transaction.authority, content_unit.author_address);
 
+    // Check pool
+    string tr_hash = meshpp::hash(signed_transaction.to_string());
+
+    if (pimpl->m_transaction_cache.count(tr_hash))
+        return false;
+
+    if (pimpl->m_documents.exist_unit(content_unit.uri))
+        throw wrong_document_exception("File already exists!");
+
     Coin balance = pimpl->m_state.get_balance(content_unit.author_address);
     if (coin(balance) < signed_transaction.transaction_details.fee)
         throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
+
+    for(auto uri : content_unit.file_uris)
+        if(false == pimpl->m_documents.exist_file(uri))
+            throw wrong_document_exception("Missing file with uri : " + uri);
 
     meshpp::public_key pb_key_author(content_unit.author_address);
     meshpp::public_key pb_key_channel(content_unit.channel_address);
@@ -275,12 +289,6 @@ bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_tra
     // Just will check the transaction and broadcast
     if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
         return true;
-
-    // Check pool
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (pimpl->m_transaction_cache.count(tr_hash))
-        return false;
 
     auto transaction_cache_backup = pimpl->m_transaction_cache;
 

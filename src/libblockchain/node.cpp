@@ -861,6 +861,13 @@ bool node::run()
                 psk->send(peerid, remote_error);
                 throw;
             }
+            catch (wrong_document_exception const& e)
+            {
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, remote_error);
+                throw;
+            }
             catch (authority_exception const& e)
             {
                 InvalidAuthority msg;
