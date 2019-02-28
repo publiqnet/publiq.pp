@@ -348,8 +348,8 @@ AccountResponse AccountResponseFromRawAccount(size_t head_index,
     response.balance = account.balance;
 
     publiqpp::coin confirmed_balance(account.balance.whole, account.balance.fraction);
-    confirmed_balance -= unconfirmed_received;
     confirmed_balance += unconfirmed_sent;
+    confirmed_balance -= unconfirmed_received;
 
     confirmed_balance.to_Coin(response.confirmed_balance);
     unconfirmed_received.to_Coin(response.unconfirmed_received);
