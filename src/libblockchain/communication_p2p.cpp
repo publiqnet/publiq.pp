@@ -1153,6 +1153,10 @@ void process_blockchain_response(BlockchainResponse&& response,
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    // just a quick fix
+    if (m_pimpl->m_p2p_peers.empty())
+        return;
+
     NodeType my_state_type;
     if (m_pimpl->m_state.get_role(m_pimpl->m_pb_key.to_string(), my_state_type))
     {
@@ -1315,6 +1319,7 @@ bool process_role(BlockchainMessage::SignedTransaction const& signed_transaction
         throw not_enough_balance_exception(coin(balance), /*transfer.amount + */signed_transaction.transaction_details.fee);
 
     // Validate and add to state
+    //  what if insert_role succeeds, but later it is not included in the blockchain?
     pimpl->m_state.insert_role(role);
 
     // Add to the pool
