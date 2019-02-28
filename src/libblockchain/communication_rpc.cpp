@@ -326,6 +326,10 @@ bool process_content(BlockchainMessage::SignedTransaction const& signed_transact
     if (coin(balance) < signed_transaction.transaction_details.fee)
         throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
 
+    for (auto uri : content.content_unit_uris)
+        if (false == pimpl->m_documents.exist_unit(uri))
+            throw wrong_document_exception("Missing content_unit with uri : " + uri);
+
     meshpp::public_key pb_key_channel(content.channel_address);
 
     // Don't need to store transaction if sync in process
