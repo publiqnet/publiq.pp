@@ -39,6 +39,8 @@ documents::~documents() = default;
 
 void documents::save()
 {
+    if (nullptr == m_pimpl)
+        return;
     m_pimpl->m_files.save();
     m_pimpl->m_units.save();
     m_pimpl->m_contents.save();
@@ -46,6 +48,8 @@ void documents::save()
 
 void documents::commit()
 {
+    if (nullptr == m_pimpl)
+        return;
     m_pimpl->m_files.commit();
     m_pimpl->m_units.commit();
     m_pimpl->m_contents.commit();
@@ -53,6 +57,8 @@ void documents::commit()
 
 void documents::discard()
 {
+    if (nullptr == m_pimpl)
+        return;
     m_pimpl->m_files.discard();
     m_pimpl->m_units.discard();
     m_pimpl->m_contents.discard();
