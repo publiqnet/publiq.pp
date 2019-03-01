@@ -434,9 +434,8 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
                       m_pimpl->m_ptr_p2p_socket.get());
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-
-void revert_pool(unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
+void revert_pool(time_t expiry_time, 
+                 unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                  vector<SignedTransaction>& pool_transactions)
 {
     //  collect transactions to be reverted from pool
@@ -448,26 +447,31 @@ void revert_pool(unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
     {
         SignedTransaction const& signed_transaction = m_pimpl->m_transaction_pool.at(index);
 
-        pool_transactions.push_back(signed_transaction);
+        if (expiry_time <= signed_transaction.transaction_details.expiry.tm)
+            pool_transactions.push_back(signed_transaction);
     }
 
     //  revert transactions from pool
     //
-    for (auto it_pool = pool_transactions.crbegin();
-         it_pool != pool_transactions.crend();
-         ++it_pool)
+    for (size_t index = state_pool_size; index != 0; --index)
     {
+        SignedTransaction const& signed_transaction = m_pimpl->m_transaction_pool.at(index - 1);
+
         m_pimpl->m_transaction_pool.pop_back();
         m_pimpl->m_action_log.revert();
-        m_pimpl->m_transaction_cache.erase(meshpp::hash(it_pool->to_string()));
-        revert_transaction(*it_pool, m_pimpl);
+        m_pimpl->m_transaction_cache.erase(meshpp::hash(signed_transaction.to_string()));
+        revert_transaction(signed_transaction, m_pimpl);
     }
 
     assert(m_pimpl->m_transaction_pool.length() == 0);
 }
 
+///////////////////////////////////////////////////////////////////////////////////
+
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
+    auto now = system_clock::now();
+
     auto transaction_cache_backup = m_pimpl->m_transaction_cache;
     beltpp::on_failure guard([&m_pimpl, transaction_cache_backup]
     {
@@ -480,7 +484,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     vector<SignedTransaction> pool_transactions;
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    revert_pool(m_pimpl, pool_transactions);
+    revert_pool(system_clock::to_time_t(now), m_pimpl, pool_transactions);
 
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
     SignedBlock const& prev_signed_block = m_pimpl->m_blockchain.at(block_number);
@@ -502,7 +506,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     block_header.c_const = prev_header.c_const;
     block_header.c_sum = prev_header.c_sum + delta;
     block_header.prev_hash = prev_hash;
-    block_header.time_signed.tm = system_clock::to_time_t(system_clock::now());
+    block_header.time_signed.tm = system_clock::to_time_t(now);
 
     // update consensus_const if needed
     if (delta > DELTA_UP)
@@ -991,7 +995,7 @@ void process_blockchain_response(BlockchainResponse&& response,
     vector<SignedTransaction> pool_transactions;
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    revert_pool(m_pimpl, pool_transactions);
+    revert_pool(system_clock::to_time_t(now - chrono::seconds(NODES_TIME_SHIFT)), m_pimpl, pool_transactions);
 
     //  revert blocks
     //  calculate back to get state at LCB point

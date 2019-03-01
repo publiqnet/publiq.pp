@@ -342,7 +342,6 @@ bool node::run()
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
                                           (it == interface_type::rpc),
-                                          //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
@@ -381,7 +380,6 @@ bool node::run()
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
                                           (it == interface_type::rpc),
-                                          //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
@@ -597,16 +595,7 @@ bool node::run()
                     if (task_response.package.type() == StorageFileAddress::rtt)
                     {
                         packet task_packet;
-
-                        if (m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet) &&
-                            task_packet.type() == StorageFile::rtt)
-                        {
-                            StorageFileAddress file_address;
-                            std::move(task_response.package).get(file_address);
-                            file_address.node_address = name();
-                            
-                            //TODO
-                        }
+                        m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet);
                     }
                     else if (task_response.package.type() == StatInfo::rtt)
                     {

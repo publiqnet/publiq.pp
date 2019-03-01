@@ -302,13 +302,11 @@ module BlockchainMessage
     class StorageFileAddress
     {
         String uri
-        String node_address
     }
 
     class GetStorageFile
     {
         String uri
-        String node_address
     }
 
     //  ip address information

@@ -159,18 +159,12 @@ bool storage_node::run()
                     if (m_pimpl->m_storage.get(file_info.uri, file))
                     {
                         psk->send(peerid, std::move(file));
-
-                        if (false == file_info.node_address.empty())
-                            m_pimpl->m_stat_counter.update(file_info.node_address, true);
                     }
                     else
                     {
                         FileNotFound error;
                         error.uri = file_info.uri;
                         psk->send(peerid, std::move(error));
-
-                        if (false == file_info.node_address.empty())
-                            m_pimpl->m_stat_counter.update(file_info.node_address, false);
                     }
 
                     break;
