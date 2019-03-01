@@ -61,22 +61,6 @@ Coin state::get_balance(string const& key) const
     return Coin(); // all accounts not included have 0 balance
 }
 
-void state::apply_transfer(Transfer const& transfer, Coin const& fee)
-{
-    if (coin(transfer.amount).empty())
-        throw std::runtime_error("0 amount transfer is not allowed!");
-
-    Coin balance = get_balance(transfer.from);
-    if (coin(balance) < transfer.amount + fee)
-        throw not_enough_balance_exception(coin(balance), transfer.amount + fee);
-
-    // decrease "from" balance
-    decrease_balance(transfer.from, transfer.amount);
-    
-    // increase "to" balance
-    increase_balance(transfer.to, transfer.amount);
-}
-
 void state::increase_balance(string const& key, coin const& amount)
 {
     if (amount.empty())

@@ -153,56 +153,6 @@ void verify_signature(Signature const& msg,
     sk.send(peerid, Done());
 }
 
-bool process_transfer(BlockchainMessage::SignedTransaction const& signed_transaction,
-                      BlockchainMessage::Transfer const& transfer,
-                      std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
-    // Authority check
-    if (signed_transaction.authority != transfer.from)
-        throw authority_exception(signed_transaction.authority, transfer.from);
-
-    meshpp::public_key pb_key_to(transfer.to);
-    meshpp::public_key pb_key_from(transfer.from);
-
-    if (transfer.message.size() > 80)
-        throw too_long_string(transfer.message, 80);
-
-    // Don't need to store transaction if sync in process
-    // and seems is too far from current block.
-    // Just will check the transaction and broadcast
-    if (m_pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
-        return true;
-
-    // Check pool
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (m_pimpl->m_transaction_cache.count(tr_hash))
-        return false;
-
-    auto transaction_cache_backup = m_pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&m_pimpl, &transaction_cache_backup]
-    {
-        m_pimpl->discard();
-        m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
-
-    // Validate and add to state
-    m_pimpl->m_state.apply_transfer(transfer, signed_transaction.transaction_details.fee);
-
-    // Add to the pool
-    m_pimpl->m_transaction_pool.push_back(signed_transaction);
-    m_pimpl->m_transaction_cache[tr_hash] =
-        system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-
-    // Add to action log
-    m_pimpl->m_action_log.log_transaction(signed_transaction);
-
-    m_pimpl->save(guard);
-
-    return true;
-}
-
 bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction,
                   BlockchainMessage::File const& file,
                   std::unique_ptr<publiqpp::detail::node_internals>& pimpl)

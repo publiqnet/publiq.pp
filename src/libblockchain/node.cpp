@@ -4,6 +4,7 @@
 
 #include "communication_rpc.hpp"
 #include "communication_p2p.hpp"
+#include "transaction_handler.hpp"
 
 #include "open_container_packet.hpp"
 #include "sessions.hpp"
@@ -246,21 +247,17 @@ bool node::run()
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
-                    Transfer* p_transfer = nullptr;
 
                     broadcast_signed_transaction.items[0]->get(p_broadcast);
                     broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_transfer);
 
                     assert(p_broadcast);
                     assert(p_signed_tx);
-                    assert(p_transfer);
 
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
-                    Transfer& transfer = *p_transfer;
                 
-                    if(process_transfer(signed_tx, transfer, m_pimpl))
+                    if (action_process(signed_tx, m_pimpl))
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,

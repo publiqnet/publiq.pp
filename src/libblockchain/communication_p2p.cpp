@@ -1,5 +1,6 @@
 #include "communication_p2p.hpp"
 #include "communication_rpc.hpp"
+#include "transaction_handler.hpp"
 
 #include "coin.hpp"
 #include "common.hpp"
@@ -38,14 +39,13 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt)
     {
-        Transfer transfer;
-        signed_transaction.transaction_details.action.get(transfer);
-
-        if (coin(balance) < transfer.amount + fee)
+        if (false == action_can_apply(pimpl, signed_transaction.transaction_details.action))
             return false;
 
-        pimpl->m_state.decrease_balance(transfer.from, transfer.amount);
-        pimpl->m_state.increase_balance(transfer.to, transfer.amount);
+        action_apply(pimpl, signed_transaction.transaction_details.action);
+
+        if (false == fee_can_apply(pimpl, signed_transaction))
+            return false;
     }
     else if (signed_transaction.transaction_details.action.type() == File::rtt)
     {
@@ -95,11 +95,7 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
         signed_transaction.transaction_details.action.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
-    if (!fee.empty())
-    {
-        pimpl->m_state.decrease_balance(signed_transaction.authority, fee);
-        pimpl->m_state.increase_balance(key, fee);
-    }
+    fee_apply(pimpl, signed_transaction, key);
 
     return true;
 }
@@ -112,19 +108,12 @@ void revert_transaction(SignedTransaction const& signed_transaction,
 
     if (!key.empty())
     {
-        fee = signed_transaction.transaction_details.fee;
-
-        m_pimpl->m_state.decrease_balance(key, fee);
-        m_pimpl->m_state.increase_balance(signed_transaction.authority, fee);
+        fee_revert(m_pimpl, signed_transaction, key);
     }
 
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt)
     {
-        Transfer transfer;
-        signed_transaction.transaction_details.action.get(transfer);
-
-        m_pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
-        m_pimpl->m_state.increase_balance(transfer.from, transfer.amount);
+        action_revert(m_pimpl, signed_transaction.transaction_details.action);
     }
     else if (signed_transaction.transaction_details.action.type() == File::rtt)
     {
@@ -883,11 +872,7 @@ void process_blockchain_response(BlockchainResponse&& response,
 
             if (tr_it->transaction_details.action.type() == Transfer::rtt)
             {
-                Transfer transfer;
-                tr_it->transaction_details.action.get(transfer);
-
-                if (tr_it->authority != transfer.from)
-                    throw wrong_data_exception("blockchain response. transaction authority!");
+                action_validate(*tr_it);
             }
             else if (tr_it->transaction_details.action.type() == File::rtt)
             {

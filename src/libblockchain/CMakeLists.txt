@@ -43,8 +43,12 @@ add_library(blockchain
     storage_node.cpp
     storage_node.hpp
     storage_node_internals.hpp
+    transaction_handler.cpp
+    transaction_handler.hpp
     transaction_pool.cpp
-    transaction_pool.hpp)
+    transaction_pool.hpp
+    transaction_transfer.cpp
+    transaction_transfer.hpp)
 
 # libraries this module links to
 target_link_libraries(blockchain
