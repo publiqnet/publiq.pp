@@ -238,10 +238,22 @@ beltpp::detail::pmsg_all message_list_load(
         {
             ssd.session_specal_handler = nullptr;
 
+            string message("noo! \r\n");
+
+            for (auto const& dir : pss->resource.path)
+                message += "/" + dir;
+            message += "\r\n";
+            for (auto const& arg : pss->resource.arguments)
+                message += (arg.first + ": " + arg.second + "\r\n");
+            message += "\r\n";
+            message += "\r\n";
+            for (auto const& prop : pss->resource.properties)
+                message += (prop.first + ": " + prop.second + "\r\n");
+            message += "that's an error! \r\n";
+            message += "here's the protocol, by the way \r\n";
+
             ssd.autoreply = meshpp::http::http_not_found(ssd,
-                                                         string("noo! \r\n") +
-                                                         string("that's an error! \r\n") +
-                                                         string("here's the protocol, by the way \r\n") +
+                                                         message +
                                                          BlockchainMessage::detail::storage<>::json_schema);
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
