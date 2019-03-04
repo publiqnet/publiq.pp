@@ -1,6 +1,5 @@
 #include "global.hpp"
 #include "transaction_handler.hpp"
-#include "transaction_file.hpp"
 
 using namespace BlockchainMessage;
 
@@ -11,6 +10,11 @@ bool action_process(SignedTransaction const& signed_transaction,
 {
     bool code;
     auto const& package = signed_transaction.transaction_details.action;
+
+    if (pimpl->m_transfer_only &&
+        package.type() != Transfer::rtt)
+        throw std::runtime_error("this is coin only blockchain");
+
     switch (package.type())
     {
     case Transfer::rtt:
@@ -27,13 +31,16 @@ bool action_process(SignedTransaction const& signed_transaction,
         code = action_process(signed_transaction, *paction, pimpl);
         break;
     }
+    case ContentUnit::rtt:
+    {
+        ContentUnit const* paction;
+        package.get(paction);
+        code = action_process(signed_transaction, *paction, pimpl);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
-
-    if (pimpl->m_transfer_only &&
-        package.type() != Transfer::rtt)
-        throw std::runtime_error("this is coin only blockchain");
 
     return code;
 }
@@ -42,6 +49,11 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
                      BlockchainMessage::SignedTransaction const& signed_transaction)
 {
     auto const& package = signed_transaction.transaction_details.action;
+
+    if (pimpl->m_transfer_only &&
+        package.type() != Transfer::rtt)
+        throw std::runtime_error("this is coin only blockchain");
+
     switch (package.type())
     {
     case Transfer::rtt:
@@ -58,18 +70,25 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
         action_validate(signed_transaction, *paction);
         break;
     }
+    case ContentUnit::rtt:
+    {
+        ContentUnit const* paction;
+        package.get(paction);
+        action_validate(signed_transaction, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
-
-    if (pimpl->m_transfer_only &&
-        package.type() != Transfer::rtt)
-        throw std::runtime_error("this is coin only blockchain");
 }
 
 bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
                       beltpp::packet const& package)
 {
+    if (pimpl->m_transfer_only &&
+        package.type() != Transfer::rtt)
+        throw std::runtime_error("this is coin only blockchain");
+
     bool code;
     switch (package.type())
     {
@@ -87,13 +106,16 @@ bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& p
         code = action_can_apply(pimpl, *paction);
         break;
     }
+    case ContentUnit::rtt:
+    {
+        ContentUnit const* paction;
+        package.get(paction);
+        code = action_can_apply(pimpl, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
-
-    if (pimpl->m_transfer_only &&
-        package.type() != Transfer::rtt)
-        throw std::runtime_error("this is coin only blockchain");
 
     return code;
 }
@@ -101,6 +123,10 @@ bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& p
 void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
                   beltpp::packet const& package)
 {
+    if (pimpl->m_transfer_only &&
+        package.type() != Transfer::rtt)
+        throw std::runtime_error("this is coin only blockchain");
+
     switch (package.type())
     {
     case Transfer::rtt:
@@ -117,18 +143,25 @@ void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
         action_apply(pimpl, *paction);
         break;
     }
+    case ContentUnit::rtt:
+    {
+        File const* paction;
+        package.get(paction);
+        action_apply(pimpl, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
-
-    if (pimpl->m_transfer_only &&
-        package.type() != Transfer::rtt)
-        throw std::runtime_error("this is coin only blockchain");
 }
 
 void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
                    beltpp::packet const& package)
 {
+    if (pimpl->m_transfer_only &&
+        package.type() != Transfer::rtt)
+        throw std::runtime_error("this is coin only blockchain");
+
     switch (package.type())
     {
     case Transfer::rtt:
@@ -145,13 +178,16 @@ void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
         action_revert(pimpl, *paction);
         break;
     }
+    case ContentUnit::rtt:
+    {
+        ContentUnit const* paction;
+        package.get(paction);
+        action_revert(pimpl, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
-
-    if (pimpl->m_transfer_only &&
-        package.type() != Transfer::rtt)
-        throw std::runtime_error("this is coin only blockchain");
 }
 
 void fee_validate(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,

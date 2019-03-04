@@ -5,6 +5,7 @@
 
 #include "transaction_transfer.hpp"
 #include "transaction_file.hpp"
+#include "transaction_contentunit.hpp"
 
 #include "exception.hpp"
 
@@ -73,6 +74,7 @@ bool action_process(BlockchainMessage::SignedTransaction const& signed_transacti
     // Validate and add to state
     action_apply(pimpl, action);
 
+    //  only validate the fee, but don't apply it
     fee_validate(pimpl, signed_transaction);
 
     // Add to the pool

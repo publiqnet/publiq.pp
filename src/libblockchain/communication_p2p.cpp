@@ -38,7 +38,8 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
         fee = signed_transaction.transaction_details.fee;
 
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
-        signed_transaction.transaction_details.action.type() == File::rtt)
+        signed_transaction.transaction_details.action.type() == File::rtt ||
+        signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
     {
         if (false == action_can_apply(pimpl, signed_transaction.transaction_details.action))
             return false;
@@ -47,13 +48,6 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
         if (false == fee_can_apply(pimpl, signed_transaction))
             return false;
-    }
-    else if (signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
-    {
-        ContentUnit content_unit;
-        signed_transaction.transaction_details.action.get(content_unit);
-
-        pimpl->m_documents.insert_unit(content_unit);
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
@@ -106,16 +100,10 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     }
 
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
-        signed_transaction.transaction_details.action.type() == File::rtt)
+        signed_transaction.transaction_details.action.type() == File::rtt ||
+        signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
     {
         action_revert(m_pimpl, signed_transaction.transaction_details.action);
-    }
-    else if (signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
-    {
-        ContentUnit content_unit;
-        signed_transaction.transaction_details.action.get(content_unit);
-
-        m_pimpl->m_documents.remove_unit(content_unit.uri);
     }
     else if (signed_transaction.transaction_details.action.type() == Content::rtt)
     {
@@ -859,17 +847,10 @@ void process_blockchain_response(BlockchainResponse&& response,
                 throw wrong_data_exception("blockchain response. transaction signature!");
 
             if (tr_it->transaction_details.action.type() == Transfer::rtt ||
-                tr_it->transaction_details.action.type() == File::rtt)
+                tr_it->transaction_details.action.type() == File::rtt ||
+                tr_it->transaction_details.action.type() == ContentUnit::rtt)
             {
                 action_validate(m_pimpl, *tr_it);
-            }
-            else if (tr_it->transaction_details.action.type() == ContentUnit::rtt)
-            {
-                ContentUnit content_unit;
-                tr_it->transaction_details.action.get(content_unit);
-
-                if (tr_it->authority != content_unit.author_address)
-                    throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == Content::rtt)
             {

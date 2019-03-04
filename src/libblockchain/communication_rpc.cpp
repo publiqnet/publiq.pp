@@ -153,64 +153,6 @@ void verify_signature(Signature const& msg,
     sk.send(peerid, Done());
 }
 
-bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_transaction,
-                          BlockchainMessage::ContentUnit const& content_unit,
-                          std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
-{
-    // Authority check
-    if (signed_transaction.authority != content_unit.author_address)
-        throw authority_exception(signed_transaction.authority, content_unit.author_address);
-
-    // Check pool
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (pimpl->m_transaction_cache.count(tr_hash))
-        return false;
-
-    if (pimpl->m_documents.exist_unit(content_unit.uri))
-        throw wrong_document_exception("File already exists!");
-
-    Coin balance = pimpl->m_state.get_balance(content_unit.author_address);
-    if (coin(balance) < signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance), signed_transaction.transaction_details.fee);
-
-    for(auto uri : content_unit.file_uris)
-        if(false == pimpl->m_documents.exist_file(uri))
-            throw wrong_document_exception("Missing file with uri : " + uri);
-
-    meshpp::public_key pb_key_author(content_unit.author_address);
-    meshpp::public_key pb_key_channel(content_unit.channel_address);
-
-    // Don't need to store transaction if sync in process
-    // and seems is too far from current block.
-    // Just will check the transaction and broadcast
-    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
-        return true;
-
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
-    {
-        pimpl->discard();
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
-
-    // Add to documents
-    pimpl->m_documents.insert_unit(content_unit);
-
-    // Add to the pool
-    pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-        system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-
-    // Add to action log
-    pimpl->m_action_log.log_transaction(signed_transaction);
-
-    pimpl->save(guard);
-
-    return true;
-}
-
 bool process_content(BlockchainMessage::SignedTransaction const& signed_transaction,
                      BlockchainMessage::Content const& content,
                      std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
