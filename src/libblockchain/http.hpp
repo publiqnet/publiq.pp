@@ -219,11 +219,30 @@ beltpp::detail::pmsg_all message_list_load(
                                               std::move(p),
                                               &BlockchainMessage::KeyPairRequest::pvoid_saver);
         }
+        else if (pss->type == meshpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "protocol")
+        {
+            ssd.session_specal_handler = nullptr;
+
+            ssd.autoreply = meshpp::http::http_response(ssd, BlockchainMessage::detail::storage<>::json_schema);
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+
+            iter_scan_begin = it_fallback;
+            return ::beltpp::detail::pmsg_all(size_t(-1),
+                                              ::beltpp::void_unique_nullptr(),
+                                              nullptr);
+        }
         else
         {
             ssd.session_specal_handler = nullptr;
 
-            ssd.autoreply = meshpp::http::http_not_found(ssd, BlockchainMessage::detail::storage<>::json_schema);
+            ssd.autoreply = meshpp::http::http_not_found(ssd,
+                                                         string("noo! \r\n") +
+                                                         string("that's an error! \r\n") +
+                                                         string("here's the protocol, by the way \r\n") +
+                                                         BlockchainMessage::detail::storage<>::json_schema);
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
