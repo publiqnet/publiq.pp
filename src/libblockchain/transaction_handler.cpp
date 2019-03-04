@@ -9,6 +9,7 @@ namespace publiqpp
 bool action_process(SignedTransaction const& signed_transaction,
                     std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
+    bool code;
     auto const& package = signed_transaction.transaction_details.action;
     switch (package.type())
     {
@@ -16,13 +17,15 @@ bool action_process(SignedTransaction const& signed_transaction,
     {
         Transfer const* paction;
         package.get(paction);
-        return action_process(signed_transaction, *paction, pimpl);
+        code = action_process(signed_transaction, *paction, pimpl);
+        break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        return action_process(signed_transaction, *paction, pimpl);
+        code = action_process(signed_transaction, *paction, pimpl);
+        break;
     }
     default:
         throw wrong_data_exception("unknown transaction action type!");
@@ -31,6 +34,8 @@ bool action_process(SignedTransaction const& signed_transaction,
     if (pimpl->m_transfer_only &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
+
+    return code;
 }
 
 void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
@@ -43,13 +48,15 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     {
         Transfer const* paction;
         package.get(paction);
-        return action_validate(signed_transaction, *paction);
+        action_validate(signed_transaction, *paction);
+        break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        return action_validate(signed_transaction, *paction);
+        action_validate(signed_transaction, *paction);
+        break;
     }
     default:
         throw wrong_data_exception("unknown transaction action type!");
@@ -63,19 +70,22 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
 bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
                       beltpp::packet const& package)
 {
+    bool code;
     switch (package.type())
     {
     case Transfer::rtt:
     {
         Transfer const* paction;
         package.get(paction);
-        return action_can_apply(pimpl, *paction);
+        code = action_can_apply(pimpl, *paction);
+        break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        return action_can_apply(pimpl, *paction);
+        code = action_can_apply(pimpl, *paction);
+        break;
     }
     default:
         throw wrong_data_exception("unknown transaction action type!");
@@ -84,6 +94,8 @@ bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& p
     if (pimpl->m_transfer_only &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
+
+    return code;
 }
 
 void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
@@ -95,13 +107,15 @@ void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     {
         Transfer const* paction;
         package.get(paction);
-        return action_apply(pimpl, *paction);
+        action_apply(pimpl, *paction);
+        break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        return action_apply(pimpl, *paction);
+        action_apply(pimpl, *paction);
+        break;
     }
     default:
         throw wrong_data_exception("unknown transaction action type!");
@@ -121,13 +135,15 @@ void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     {
         Transfer const* paction;
         package.get(paction);
-        return action_revert(pimpl, *paction);
+        action_revert(pimpl, *paction);
+        break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        return action_revert(pimpl, *paction);
+        action_revert(pimpl, *paction);
+        break;
     }
     default:
         throw wrong_data_exception("unknown transaction action type!");
