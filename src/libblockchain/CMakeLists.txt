@@ -43,6 +43,8 @@ add_library(blockchain
     storage_node.cpp
     storage_node.hpp
     storage_node_internals.hpp
+    transaction_file.cpp
+    transaction_file.hpp
     transaction_handler.cpp
     transaction_handler.hpp
     transaction_pool.cpp

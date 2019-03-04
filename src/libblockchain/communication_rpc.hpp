@@ -29,10 +29,6 @@ void verify_signature(Signature const& msg,
                       beltpp::isocket& sk,
                       beltpp::isocket::peer_id const& peerid);
 
-bool process_file(BlockchainMessage::SignedTransaction const& signed_transaction,
-                  BlockchainMessage::File const& file,
-                  std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-
 bool process_content_unit(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::ContentUnit const& content_unit,
                           std::unique_ptr<publiqpp::detail::node_internals>& pimpl);

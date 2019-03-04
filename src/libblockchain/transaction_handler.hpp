@@ -4,6 +4,8 @@
 #include "node_internals.hpp"
 
 #include "transaction_transfer.hpp"
+#include "transaction_file.hpp"
+
 #include "exception.hpp"
 
 #include <belt.pp/packet.hpp>
@@ -15,7 +17,8 @@ namespace publiqpp
 bool action_process(BlockchainMessage::SignedTransaction const& signed_transaction,
                     std::unique_ptr<publiqpp::detail::node_internals>& pimpl);
 
-void action_validate(BlockchainMessage::SignedTransaction const& signed_transaction);
+void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+                     BlockchainMessage::SignedTransaction const& signed_transaction);
 
 bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
                       beltpp::packet const& package);
