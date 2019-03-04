@@ -38,6 +38,13 @@ bool action_process(SignedTransaction const& signed_transaction,
         code = action_process(signed_transaction, *paction, pimpl);
         break;
     }
+    case Content::rtt:
+    {
+        Content const* paction;
+        package.get(paction);
+        code = action_process(signed_transaction, *paction, pimpl);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -73,6 +80,13 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
+        package.get(paction);
+        action_validate(signed_transaction, *paction);
+        break;
+    }
+    case Content::rtt:
+    {
+        Content const* paction;
         package.get(paction);
         action_validate(signed_transaction, *paction);
         break;
@@ -113,6 +127,13 @@ bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& p
         code = action_can_apply(pimpl, *paction);
         break;
     }
+    case Content::rtt:
+    {
+        Content const* paction;
+        package.get(paction);
+        code = action_can_apply(pimpl, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -145,7 +166,14 @@ void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     }
     case ContentUnit::rtt:
     {
-        File const* paction;
+        ContentUnit const* paction;
+        package.get(paction);
+        action_apply(pimpl, *paction);
+        break;
+    }
+    case Content::rtt:
+    {
+        Content const* paction;
         package.get(paction);
         action_apply(pimpl, *paction);
         break;
@@ -181,6 +209,13 @@ void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
+        package.get(paction);
+        action_revert(pimpl, *paction);
+        break;
+    }
+    case Content::rtt:
+    {
+        Content const* paction;
         package.get(paction);
         action_revert(pimpl, *paction);
         break;

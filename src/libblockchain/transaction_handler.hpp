@@ -6,6 +6,7 @@
 #include "transaction_transfer.hpp"
 #include "transaction_file.hpp"
 #include "transaction_contentunit.hpp"
+#include "transaction_content.hpp"
 
 #include "exception.hpp"
 

@@ -18,17 +18,15 @@ void action_validate(SignedTransaction const& signed_transaction,
     meshpp::public_key pb_key_author(content_unit.author_address);
     meshpp::public_key pb_key_channel(content_unit.channel_address);
 
-    {
-        string unit_hash = meshpp::from_base58(content_unit.uri);
-        if (unit_hash.length() != 32)
-            throw std::runtime_error("invalid uri: " + content_unit.uri);
+    string unit_hash = meshpp::from_base58(content_unit.uri);
+    if (unit_hash.length() != 32)
+        throw std::runtime_error("invalid uri: " + content_unit.uri);
 
-        for (auto const& file_uri : content_unit.file_uris)
-        {
-            string file_hash = meshpp::from_base58(file_uri);
-            if (file_hash.length() != 32)
-                throw std::runtime_error("invalid uri: " + file_uri);
-        }
+    for (auto const& file_uri : content_unit.file_uris)
+    {
+        string file_hash = meshpp::from_base58(file_uri);
+        if (file_hash.length() != 32)
+            throw std::runtime_error("invalid uri: " + file_uri);
     }
 }
 
@@ -37,9 +35,10 @@ bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& p
 {
     if (pimpl->m_documents.exist_unit(content_unit.uri))
         return false;
-    for(auto const& uri : content_unit.file_uris)
+
+    for (auto const& uri : content_unit.file_uris)
     {
-        if(false == pimpl->m_documents.exist_file(uri))
+        if (false == pimpl->m_documents.exist_file(uri))
             return false;
     }
     return true;
@@ -50,9 +49,10 @@ void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
 {
     if (pimpl->m_documents.exist_unit(content_unit.uri))
         throw wrong_document_exception("ContentUnit already exists: " + content_unit.uri);
-    for(auto const& uri : content_unit.file_uris)
+
+    for (auto const& uri : content_unit.file_uris)
     {
-        if(false == pimpl->m_documents.exist_file(uri))
+        if (false == pimpl->m_documents.exist_file(uri))
             throw wrong_document_exception("Missing File: " + uri);
     }
 

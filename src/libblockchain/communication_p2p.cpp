@@ -39,7 +39,8 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
         signed_transaction.transaction_details.action.type() == File::rtt ||
-        signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
+        signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
+        signed_transaction.transaction_details.action.type() == Content::rtt)
     {
         if (false == action_can_apply(pimpl, signed_transaction.transaction_details.action))
             return false;
@@ -48,10 +49,6 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
         if (false == fee_can_apply(pimpl, signed_transaction))
             return false;
-    }
-    else if (signed_transaction.transaction_details.action.type() == Content::rtt)
-    {
-        // nothing to do
     }
     else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
     {
@@ -101,13 +98,10 @@ void revert_transaction(SignedTransaction const& signed_transaction,
 
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
         signed_transaction.transaction_details.action.type() == File::rtt ||
-        signed_transaction.transaction_details.action.type() == ContentUnit::rtt)
+        signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
+        signed_transaction.transaction_details.action.type() == Content::rtt)
     {
         action_revert(m_pimpl, signed_transaction.transaction_details.action);
-    }
-    else if (signed_transaction.transaction_details.action.type() == Content::rtt)
-    {
-        // nothing to do
     }
     else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
     {
@@ -848,17 +842,10 @@ void process_blockchain_response(BlockchainResponse&& response,
 
             if (tr_it->transaction_details.action.type() == Transfer::rtt ||
                 tr_it->transaction_details.action.type() == File::rtt ||
-                tr_it->transaction_details.action.type() == ContentUnit::rtt)
+                tr_it->transaction_details.action.type() == ContentUnit::rtt ||
+                tr_it->transaction_details.action.type() == Content::rtt)
             {
                 action_validate(m_pimpl, *tr_it);
-            }
-            else if (tr_it->transaction_details.action.type() == Content::rtt)
-            {
-                Content content;
-                tr_it->transaction_details.action.get(content);
-
-                if (tr_it->authority != content.channel_address)
-                    throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == Role::rtt)
             {
