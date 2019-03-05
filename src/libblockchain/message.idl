@@ -157,9 +157,11 @@ module BlockchainMessage
         IPAddress ip_address
     }
 
+    enum InfoType {store reject}
+
     class ContentInfo
     {
-        UInt64 status
+        InfoType status
         UInt64 content_id
         String channel_address
         String storage_address
