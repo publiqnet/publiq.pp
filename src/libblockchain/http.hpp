@@ -3,7 +3,7 @@
 #include "message.hpp"
 
 #include <belt.pp/parser.hpp>
-#include <mesh.pp/http.hpp>
+#include <belt.pp/http.hpp>
 
 #include <string>
 #include <vector>
@@ -30,9 +30,9 @@ string response(beltpp::detail::session_special_data& ssd,
         pc.type() == BlockchainMessage::NotEnoughBalance::rtt ||
         pc.type() == BlockchainMessage::FileNotFound::rtt ||
         pc.type() == BlockchainMessage::RemoteError::rtt)
-        return meshpp::http::http_not_found(ssd, pc.to_string());
+        return beltpp::http::http_not_found(ssd, pc.to_string());
     else
-        return meshpp::http::http_response(ssd, pc.to_string());
+        return beltpp::http::http_response(ssd, pc.to_string());
 }
 inline
 string file_response(beltpp::detail::session_special_data& ssd,
@@ -105,7 +105,7 @@ beltpp::detail::pmsg_all message_list_load(
                                           nullptr);
     };
 
-    auto code = meshpp::http::protocol(ssd,
+    auto code = beltpp::http::protocol(ssd,
                                        iter_scan_begin,
                                        iter_scan_end,
                                        it_fallback,
@@ -113,12 +113,12 @@ beltpp::detail::pmsg_all message_list_load(
                                        64 * 1024,
                                        10 * 1024 * 1024);
 
-    meshpp::http::detail::scan_status* pss =
-            dynamic_cast<meshpp::http::detail::scan_status*>(ssd.ptr_data.get());
+    beltpp::http::detail::scan_status* pss =
+            dynamic_cast<beltpp::http::detail::scan_status*>(ssd.ptr_data.get());
 
     if (code == beltpp::e_three_state_result::error &&
         (nullptr == pss ||
-         pss->status == meshpp::http::detail::scan_status::clean)
+         pss->status == beltpp::http::detail::scan_status::clean)
         )
     {
         if (pss)
@@ -143,7 +143,7 @@ beltpp::detail::pmsg_all message_list_load(
         ssd.session_specal_handler = &response;
         ssd.autoreply.clear();
 
-        if (pss->type == meshpp::http::detail::scan_status::get &&
+        if (pss->type == beltpp::http::detail::scan_status::get &&
             pss->resource.path.size() == 1 &&
             pss->resource.path.front() == "storage")
         {
@@ -157,7 +157,7 @@ beltpp::detail::pmsg_all message_list_load(
                                               std::move(p),
                                               &BlockchainMessage::GetStorageFile::pvoid_saver);
         }
-        else if (pss->type == meshpp::http::detail::scan_status::post &&
+        else if (pss->type == beltpp::http::detail::scan_status::post &&
                  pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "storage")
         {
@@ -185,7 +185,7 @@ beltpp::detail::pmsg_all message_list_load(
                                                   &BlockchainMessage::StorageFile::pvoid_saver);
             }
         }
-        else if (pss->type == meshpp::http::detail::scan_status::post &&
+        else if (pss->type == beltpp::http::detail::scan_status::post &&
                  pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "api")
         {
@@ -202,7 +202,7 @@ beltpp::detail::pmsg_all message_list_load(
                 return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
             }
         }
-        else if (pss->type == meshpp::http::detail::scan_status::get &&
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 3 &&
                  pss->resource.path.front() == "key")
         {
@@ -219,13 +219,13 @@ beltpp::detail::pmsg_all message_list_load(
                                               std::move(p),
                                               &BlockchainMessage::KeyPairRequest::pvoid_saver);
         }
-        else if (pss->type == meshpp::http::detail::scan_status::get &&
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "protocol")
         {
             ssd.session_specal_handler = nullptr;
 
-            ssd.autoreply = meshpp::http::http_response(ssd, BlockchainMessage::detail::storage<>::json_schema);
+            ssd.autoreply = beltpp::http::http_response(ssd, BlockchainMessage::detail::storage<>::json_schema);
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
@@ -252,7 +252,7 @@ beltpp::detail::pmsg_all message_list_load(
             message += "that's an error! \r\n";
             message += "here's the protocol, by the way \r\n";
 
-            ssd.autoreply = meshpp::http::http_not_found(ssd,
+            ssd.autoreply = beltpp::http::http_not_found(ssd,
                                                          message +
                                                          BlockchainMessage::detail::storage<>::json_schema);
 

@@ -247,6 +247,7 @@ bool node::run()
                 case ContentUnit::rtt:
                 case Content::rtt:
                 case Role::rtt:
+                case ContentInfo::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
@@ -319,43 +320,6 @@ bool node::run()
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
-
-                    break;
-                }
-                case ContentInfo::rtt:
-                {
-                    if (broadcast_signed_transaction.items.empty())
-                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
-
-                    if (m_pimpl->m_transfer_only)
-                        throw std::runtime_error("this is coin only blockchain");
-
-                    Broadcast* p_broadcast = nullptr;
-                    SignedTransaction* p_signed_tx = nullptr;
-                    ContentInfo* p_content_info = nullptr;
-
-                    broadcast_signed_transaction.items[0]->get(p_broadcast);
-                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_content_info);
-
-                    assert(p_broadcast);
-                    assert(p_signed_tx);
-                    assert(p_content_info);
-
-                    Broadcast& broadcast = *p_broadcast;
-                    SignedTransaction& signed_tx = *p_signed_tx;
-                    ContentInfo& content_info = *p_content_info;
-
-                    m_pimpl->writeln_node("ContentInfo from " + detail::peer_short_names(content_info.storage_address));
-
-                    if (process_content_info(signed_tx, content_info, m_pimpl))
-                        broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          false,
-                                          nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
 
                     break;
                 }

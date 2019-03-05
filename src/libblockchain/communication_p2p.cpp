@@ -41,7 +41,8 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
         signed_transaction.transaction_details.action.type() == File::rtt ||
         signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
         signed_transaction.transaction_details.action.type() == Content::rtt ||
-        signed_transaction.transaction_details.action.type() == Role::rtt)
+        signed_transaction.transaction_details.action.type() == Role::rtt ||
+        signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
     {
         if (false == action_can_apply(pimpl, signed_transaction.transaction_details.action))
             return false;
@@ -50,10 +51,6 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
 
         if (false == fee_can_apply(pimpl, signed_transaction))
             return false;
-    }
-    else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
-    {
-        // nothing to do
     }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
@@ -90,13 +87,10 @@ void revert_transaction(SignedTransaction const& signed_transaction,
         signed_transaction.transaction_details.action.type() == File::rtt ||
         signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
         signed_transaction.transaction_details.action.type() == Content::rtt ||
-        signed_transaction.transaction_details.action.type() == Role::rtt)
+        signed_transaction.transaction_details.action.type() == Role::rtt ||
+        signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
     {
         action_revert(m_pimpl, signed_transaction.transaction_details.action);
-    }
-    else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
-    {
-        // nothing to do
     }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
@@ -828,7 +822,8 @@ void process_blockchain_response(BlockchainResponse&& response,
                 tr_it->transaction_details.action.type() == File::rtt ||
                 tr_it->transaction_details.action.type() == ContentUnit::rtt ||
                 tr_it->transaction_details.action.type() == Content::rtt ||
-                tr_it->transaction_details.action.type() == Role::rtt)
+                tr_it->transaction_details.action.type() == Role::rtt ||
+                tr_it->transaction_details.action.type() == ContentInfo::rtt)
             {
                 action_validate(m_pimpl, *tr_it);
             }

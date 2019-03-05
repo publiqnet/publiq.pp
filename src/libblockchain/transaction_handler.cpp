@@ -6,6 +6,7 @@
 #include "transaction_contentunit.hpp"
 #include "transaction_content.hpp"
 #include "transaction_role.hpp"
+#include "transaction_contentinfo.hpp"
 
 using namespace BlockchainMessage;
 
@@ -63,6 +64,13 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
         code = action_process_on_chain_t(signed_transaction, *paction, pimpl);
         break;
     }
+    case ContentInfo::rtt:
+    {
+        ContentInfo const* paction;
+        package.get(paction);
+        code = action_process_on_chain_t(signed_transaction, *paction, pimpl);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -116,6 +124,13 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
         action_validate(signed_transaction, *paction);
         break;
     }
+    case ContentInfo::rtt:
+    {
+        ContentInfo const* paction;
+        package.get(paction);
+        action_validate(signed_transaction, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -162,6 +177,13 @@ bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& p
     case Role::rtt:
     {
         Role const* paction;
+        package.get(paction);
+        code = action_can_apply(pimpl, *paction);
+        break;
+    }
+    case ContentInfo::rtt:
+    {
+        ContentInfo const* paction;
         package.get(paction);
         code = action_can_apply(pimpl, *paction);
         break;
@@ -217,6 +239,13 @@ void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
         action_apply(pimpl, *paction);
         break;
     }
+    case ContentInfo::rtt:
+    {
+        ContentInfo const* paction;
+        package.get(paction);
+        action_apply(pimpl, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -262,6 +291,13 @@ void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     case Role::rtt:
     {
         Role const* paction;
+        package.get(paction);
+        action_revert(pimpl, *paction);
+        break;
+    }
+    case ContentInfo::rtt:
+    {
+        ContentInfo const* paction;
         package.get(paction);
         action_revert(pimpl, *paction);
         break;
