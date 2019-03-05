@@ -113,6 +113,7 @@ public:
         string const& genesis_signed_block,
         ip_address const & public_address,
         ip_address const& rpc_bind_to_address,
+        ip_address const& slave_connect_to_address,
         ip_address const& p2p_bind_to_address,
         std::vector<ip_address> const& p2p_connect_to_addresses,
         filesystem::path const& fs_blockchain,
@@ -145,6 +146,7 @@ public:
         , m_summary_report_timer()
         , m_public_address(public_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
+        , m_slave_connect_to_address(slave_connect_to_address)
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
         , m_transaction_pool(fs_transaction_pool)
@@ -252,10 +254,7 @@ public:
     {
         if (m_node_type != NodeType::blockchain && m_slave_peer.empty())
         {
-            auto storage_bind_to_address = m_rpc_bind_to_address;
-            storage_bind_to_address.local.port += 10;
-
-            auto peers_list = m_ptr_rpc_socket.get()->open(storage_bind_to_address);
+            auto peers_list = m_ptr_rpc_socket.get()->open(m_slave_connect_to_address);
             m_slave_peer_attempt = peers_list.front();
         }
     }
@@ -511,6 +510,7 @@ public:
 
     beltpp::ip_address m_public_address;
     beltpp::ip_address m_rpc_bind_to_address;
+    beltpp::ip_address m_slave_connect_to_address;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
