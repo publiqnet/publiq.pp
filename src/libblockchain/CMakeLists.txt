@@ -53,6 +53,8 @@ add_library(blockchain
     transaction_handler.hpp
     transaction_pool.cpp
     transaction_pool.hpp
+    transaction_role.cpp
+    transaction_role.hpp
     transaction_transfer.cpp
     transaction_transfer.hpp)
 

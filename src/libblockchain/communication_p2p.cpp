@@ -40,7 +40,8 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
         signed_transaction.transaction_details.action.type() == File::rtt ||
         signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
-        signed_transaction.transaction_details.action.type() == Content::rtt)
+        signed_transaction.transaction_details.action.type() == Content::rtt ||
+        signed_transaction.transaction_details.action.type() == Role::rtt)
     {
         if (false == action_can_apply(pimpl, signed_transaction.transaction_details.action))
             return false;
@@ -53,17 +54,6 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
     {
         // nothing to do
-    }
-    else if (signed_transaction.transaction_details.action.type() == Role::rtt)
-    {
-        Role role;
-        signed_transaction.transaction_details.action.get(role);
-
-        NodeType node_type;
-        if (pimpl->m_state.get_role(role.node_address, node_type))
-            return false;
-
-        pimpl->m_state.insert_role(role);
     }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
@@ -99,20 +89,14 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
         signed_transaction.transaction_details.action.type() == File::rtt ||
         signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
-        signed_transaction.transaction_details.action.type() == Content::rtt)
+        signed_transaction.transaction_details.action.type() == Content::rtt ||
+        signed_transaction.transaction_details.action.type() == Role::rtt)
     {
         action_revert(m_pimpl, signed_transaction.transaction_details.action);
     }
     else if (signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
     {
         // nothing to do
-    }
-    else if (signed_transaction.transaction_details.action.type() == Role::rtt)
-    {
-        Role role;
-        signed_transaction.transaction_details.action.get(role);
-
-        m_pimpl->m_state.remove_role(role.node_address);
     }
     else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
     {
@@ -843,17 +827,10 @@ void process_blockchain_response(BlockchainResponse&& response,
             if (tr_it->transaction_details.action.type() == Transfer::rtt ||
                 tr_it->transaction_details.action.type() == File::rtt ||
                 tr_it->transaction_details.action.type() == ContentUnit::rtt ||
-                tr_it->transaction_details.action.type() == Content::rtt)
+                tr_it->transaction_details.action.type() == Content::rtt ||
+                tr_it->transaction_details.action.type() == Role::rtt)
             {
                 action_validate(m_pimpl, *tr_it);
-            }
-            else if (tr_it->transaction_details.action.type() == Role::rtt)
-            {
-                Role role;
-                tr_it->transaction_details.action.get(role);
-
-                if (tr_it->authority != role.node_address)
-                    throw wrong_data_exception("blockchain response. transaction authority!");
             }
             else if (tr_it->transaction_details.action.type() == StatInfo::rtt)
             {
@@ -1091,7 +1068,7 @@ void process_blockchain_response(BlockchainResponse&& response,
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    // just a quick fix
+    //  don't do anything if there are no peers
     if (m_pimpl->m_p2p_peers.empty())
         return;
 
@@ -1110,17 +1087,16 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     role.node_type = m_pimpl->m_node_type;
 
     Transaction transaction;
-    transaction.action = role;
+    transaction.action = std::move(role);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
 
     SignedTransaction signed_transaction;
-    signed_transaction.transaction_details = transaction;
     signed_transaction.authority = m_pimpl->m_pb_key.to_string();
     signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+    signed_transaction.transaction_details = transaction;
 
-    // store to own transaction pool
-    if (process_role(signed_transaction, role, m_pimpl))
+    if (action_process_on_chain(signed_transaction, m_pimpl))
     {
         Broadcast broadcast;
         broadcast.echoes = 2;
@@ -1219,58 +1195,6 @@ void broadcast_storage_stat(StatInfo& stat_info,
         nullptr,
         m_pimpl->m_p2p_peers,
         m_pimpl->m_ptr_p2p_socket.get());
-}
-
-bool process_role(BlockchainMessage::SignedTransaction const& signed_transaction,
-                  BlockchainMessage::Role const& role,
-                  std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
-{
-    // Authority check
-    if (signed_transaction.authority != role.node_address)
-        throw authority_exception(signed_transaction.authority, role.node_address);
-
-    NodeType node_type;
-    if (pimpl->m_state.get_role(role.node_address, node_type))
-        return false;
-    // Don't need to store transaction if sync in process
-    // and seems is too far from current block.
-    // Just will check the transaction and broadcast
-    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
-        return true;
-
-    // Check pool
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (pimpl->m_transaction_cache.count(tr_hash))
-        return false;
-
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
-    {
-        pimpl->discard();
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
-
-    Coin balance = pimpl->m_state.get_balance(role.node_address);
-    if (coin(balance) < /*transfer.amount + */signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance), /*transfer.amount + */signed_transaction.transaction_details.fee);
-
-    // Validate and add to state
-    //  what if insert_role succeeds, but later it is not included in the blockchain?
-    pimpl->m_state.insert_role(role);
-
-    // Add to the pool
-    pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-
-    // Add to action log
-    pimpl->m_action_log.log_transaction(signed_transaction);
-
-    pimpl->save(guard);
-
-    return true;
 }
 
 bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transaction,

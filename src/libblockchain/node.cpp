@@ -244,6 +244,7 @@ bool node::run()
                 case File::rtt:
                 case ContentUnit::rtt:
                 case Content::rtt:
+                case Role::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
@@ -264,7 +265,7 @@ bool node::run()
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
                 
-                    if (action_process(signed_tx, m_pimpl))
+                    if (action_process_on_chain(signed_tx, m_pimpl))
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
@@ -276,46 +277,6 @@ bool node::run()
                 
                     if (it == interface_type::rpc)
                         psk->send(peerid, Done());
-
-                    break;
-                }
-                case Role::rtt:
-                {
-                    if (it == interface_type::rpc)
-                        throw wrong_data_exception("request restricted for rpc interface");
-
-                    if (broadcast_signed_transaction.items.empty())
-                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
-
-                    if (m_pimpl->m_transfer_only)
-                        throw std::runtime_error("this is coin only blockchain");
-
-                    Broadcast* p_broadcast = nullptr;
-                    SignedTransaction* p_signed_tx = nullptr;
-                    Role* p_role= nullptr;
-
-                    broadcast_signed_transaction.items[0]->get(p_broadcast);
-                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_role);
-
-                    assert(p_broadcast);
-                    assert(p_signed_tx);
-                    assert(p_role);
-
-                    Broadcast& broadcast = *p_broadcast;
-                    SignedTransaction& signed_tx = *p_signed_tx;
-                    Role& role = *p_role;
-
-                    if (process_role(signed_tx, role, m_pimpl))
-                    {
-                        broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          false,
-                                          nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
-                    }
 
                     break;
                 }
