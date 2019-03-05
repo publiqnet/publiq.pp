@@ -248,6 +248,7 @@ bool node::run()
                 case Content::rtt:
                 case Role::rtt:
                 case ContentInfo::rtt:
+                case StatInfo::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
@@ -280,46 +281,6 @@ bool node::run()
                 
                     if (it == interface_type::rpc)
                         psk->send(peerid, Done());
-
-                    break;
-                }
-                case StatInfo::rtt:
-                {
-                    if (it == interface_type::rpc)
-                        throw wrong_data_exception("request restricted for rpc interface");
-
-                    if (broadcast_signed_transaction.items.empty())
-                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
-
-                    if (m_pimpl->m_transfer_only)
-                        throw std::runtime_error("this is coin only blockchain");
-
-                    Broadcast* p_broadcast = nullptr;
-                    SignedTransaction* p_signed_tx = nullptr;
-                    StatInfo* p_stat_info = nullptr;
-
-                    broadcast_signed_transaction.items[0]->get(p_broadcast);
-                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_stat_info);
-
-                    assert(p_broadcast);
-                    assert(p_signed_tx);
-                    assert(p_stat_info);
-
-                    Broadcast& broadcast = *p_broadcast;
-                    SignedTransaction& signed_tx = *p_signed_tx;
-                    StatInfo& stat_info = *p_stat_info;
-
-                    if (process_stat_info(signed_tx, stat_info, m_pimpl))
-                    {
-                        broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          false,
-                                          nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
-                    }
 
                     break;
                 }

@@ -27,7 +27,7 @@
 #define PACKET_EXPIRY_STEPS 60
 
 // Block maximum transactions count
-#define BLOCK_MAX_TRANSACTIONS 1000
+#define BLOCK_MAX_TRANSACTIONS 1000ull
 
 // Action log max response count
 #define ACTION_LOG_MAX_RESPONSE 10000

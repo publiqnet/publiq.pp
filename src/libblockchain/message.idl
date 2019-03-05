@@ -175,6 +175,7 @@ module BlockchainMessage
 
     class StatInfo
     {
+        String reporter_address
         String hash
         Array StatItem items
     }

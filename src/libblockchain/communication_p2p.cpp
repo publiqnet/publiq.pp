@@ -8,6 +8,7 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <unordered_map>
@@ -28,44 +29,13 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
                        unique_ptr<publiqpp::detail::node_internals>& pimpl, 
                        string const& key = string())
 {
-    coin fee;
-    Coin balance = pimpl->m_state.get_balance(signed_transaction.authority);
-
-    if (coin(balance) < fee)
+    if (false == action_can_apply(pimpl, signed_transaction.transaction_details.action))
         return false;
 
-    if (!key.empty())
-        fee = signed_transaction.transaction_details.fee;
+    action_apply(pimpl, signed_transaction.transaction_details.action);
 
-    if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
-        signed_transaction.transaction_details.action.type() == File::rtt ||
-        signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
-        signed_transaction.transaction_details.action.type() == Content::rtt ||
-        signed_transaction.transaction_details.action.type() == Role::rtt ||
-        signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
-    {
-        if (false == action_can_apply(pimpl, signed_transaction.transaction_details.action))
-            return false;
-
-        action_apply(pimpl, signed_transaction.transaction_details.action);
-
-        if (false == fee_can_apply(pimpl, signed_transaction))
-            return false;
-    }
-    else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
-    {
-        StatInfo stat_info;
-        signed_transaction.transaction_details.action.get(stat_info);
-
-        if (stat_info.hash != pimpl->m_blockchain.last_hash())
-            return false;
-    }
-    else
-        throw wrong_data_exception("unknown transaction action type!");
-
-    if (pimpl->m_transfer_only &&
-        signed_transaction.transaction_details.action.type() != Transfer::rtt)
-        throw std::runtime_error("this is coin only blockchain");
+    if (false == fee_can_apply(pimpl, signed_transaction))
+        return false;
 
     fee_apply(pimpl, signed_transaction, key);
 
@@ -76,32 +46,9 @@ void revert_transaction(SignedTransaction const& signed_transaction,
                         unique_ptr<publiqpp::detail::node_internals>& m_pimpl,
                         string const& key = string())
 {
-    coin fee;
+    fee_revert(m_pimpl, signed_transaction, key);
 
-    if (!key.empty())
-    {
-        fee_revert(m_pimpl, signed_transaction, key);
-    }
-
-    if (signed_transaction.transaction_details.action.type() == Transfer::rtt ||
-        signed_transaction.transaction_details.action.type() == File::rtt ||
-        signed_transaction.transaction_details.action.type() == ContentUnit::rtt ||
-        signed_transaction.transaction_details.action.type() == Content::rtt ||
-        signed_transaction.transaction_details.action.type() == Role::rtt ||
-        signed_transaction.transaction_details.action.type() == ContentInfo::rtt)
-    {
-        action_revert(m_pimpl, signed_transaction.transaction_details.action);
-    }
-    else if (signed_transaction.transaction_details.action.type() == StatInfo::rtt)
-    {
-        // nothing to do
-    }
-    else
-        throw wrong_data_exception("unknown transaction action type!");
-
-    if (m_pimpl->m_transfer_only &&
-        signed_transaction.transaction_details.action.type() != Transfer::rtt)
-        throw std::runtime_error("this is coin only blockchain");
+    action_revert(m_pimpl, signed_transaction.transaction_details.action);
 }
 
 void validate_delations(map<string, StatInfo> const& right_delations,
@@ -485,17 +432,12 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     block.header = block_header;
 
     // check and copy transactions to block
-    size_t tr_count = 0;
     size_t index;
-    for (index = 0; index != pool_transactions.size() && tr_count < BLOCK_MAX_TRANSACTIONS; ++index)
+    for (index = 0; index != std::min(pool_transactions.size(), size_t(BLOCK_MAX_TRANSACTIONS)); ++index)
     {
         auto& signed_transaction = pool_transactions[index];
         if (apply_transaction(signed_transaction, m_pimpl, own_key))
         {
-            //  why should we do such custom logic? [Tigran]
-            if(signed_transaction.transaction_details.action.type() != StatInfo::rtt)
-                ++tr_count;
-
             string key = meshpp::hash(signed_transaction.to_string());
             block.signed_transactions.push_back(std::move(signed_transaction));
             m_pimpl->m_transaction_cache[key] =
@@ -818,25 +760,7 @@ void process_blockchain_response(BlockchainResponse&& response,
                                           tr_it->signature))
                 throw wrong_data_exception("blockchain response. transaction signature!");
 
-            if (tr_it->transaction_details.action.type() == Transfer::rtt ||
-                tr_it->transaction_details.action.type() == File::rtt ||
-                tr_it->transaction_details.action.type() == ContentUnit::rtt ||
-                tr_it->transaction_details.action.type() == Content::rtt ||
-                tr_it->transaction_details.action.type() == Role::rtt ||
-                tr_it->transaction_details.action.type() == ContentInfo::rtt)
-            {
-                action_validate(m_pimpl, *tr_it);
-            }
-            else if (tr_it->transaction_details.action.type() == StatInfo::rtt)
-            {
-                // nothing to check here
-            }
-            else
-                throw wrong_data_exception("unknown transaction action type!");
-
-            if (m_pimpl->m_transfer_only &&
-                tr_it->transaction_details.action.type() != Transfer::rtt)
-                throw std::runtime_error("this is coin only blockchain");
+            action_validate(m_pimpl, *tr_it);
 
             system_clock::time_point creation = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
             system_clock::time_point expiry = system_clock::from_time_t(tr_it->transaction_details.expiry.tm);
@@ -1190,57 +1114,6 @@ void broadcast_storage_stat(StatInfo& stat_info,
         nullptr,
         m_pimpl->m_p2p_peers,
         m_pimpl->m_ptr_p2p_socket.get());
-}
-
-bool process_stat_info(BlockchainMessage::SignedTransaction const& signed_transaction,
-                       BlockchainMessage::StatInfo const& stat_info,
-                       std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
-{
-    // Check data and authority
-    NodeType node_type;
-    if (false == pimpl->m_state.get_role(signed_transaction.authority, node_type) ||
-        node_type == NodeType::blockchain)
-        throw wrong_data_exception("process_stat_info -> wrong authority type : " + signed_transaction.authority);
-
-    for (auto const& item : stat_info.items)
-    {
-        NodeType item_node_type;
-        if (false == pimpl->m_state.get_role(item.node_address, item_node_type) ||
-            item_node_type == NodeType::blockchain ||
-            item_node_type == node_type)
-            throw wrong_data_exception("wrong node type : " + item.node_address);
-    }
-
-    // Don't need to store transaction if sync in process
-    // and seems is too far from current block.
-    // Just will check the transaction and broadcast
-    if (pimpl->sync_headers.size() > BLOCK_TR_LENGTH)
-        return true;
-
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (pimpl->m_transaction_cache.count(tr_hash))
-        return false;
-
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
-
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
-    {
-        pimpl->discard();
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
-    });
-
-    // Add to the pool
-    pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-
-    // Add to action log
-    pimpl->m_action_log.log_transaction(signed_transaction);
-
-    pimpl->save(guard);
-
-    return true;
 }
 
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,

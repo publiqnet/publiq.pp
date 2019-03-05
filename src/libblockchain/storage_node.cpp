@@ -181,6 +181,7 @@ bool storage_node::run()
                     StatInfo stat_info;
                     
                     m_pimpl->m_stat_counter.get_stat_info(stat_info);
+                    stat_info.reporter_address = m_pimpl->m_pv_key.get_public_key().to_string();
 
                     TaskResponse task_response;
                     task_response.package = stat_info;
