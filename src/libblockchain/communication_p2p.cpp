@@ -374,8 +374,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
     SignedBlock const& prev_signed_block = m_pimpl->m_blockchain.at(block_number);
 
-    BlockHeader prev_header;
-    m_pimpl->m_blockchain.last_header(prev_header);
+    BlockHeader const& prev_header = m_pimpl->m_blockchain.last_header();
 
     string own_key = m_pimpl->m_pb_key.to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
@@ -397,14 +396,14 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     if (delta > DELTA_UP)
     {
         size_t step = 0;
-        BlockHeader prev_header_local;
-        m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
+        BlockHeader const* prev_header_local =
+                &m_pimpl->m_blockchain.header_at(block_number);
 
-        while (prev_header_local.delta > DELTA_UP &&
-            step <= DELTA_STEP && prev_header_local.block_number > 0)
+        while (prev_header_local->delta > DELTA_UP &&
+            step <= DELTA_STEP && prev_header_local->block_number > 0)
         {
             ++step;
-            m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
+            prev_header_local = &m_pimpl->m_blockchain.header_at(prev_header_local->block_number - 1);
         }
 
         // -1 because current delta is not counted
@@ -414,14 +413,14 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     else if (delta < DELTA_DOWN && block_header.c_const > 1)
     {
         size_t step = 0;
-        BlockHeader prev_header_local;
-        m_pimpl->m_blockchain.header_at(block_number, prev_header_local);
+        BlockHeader const* prev_header_local =
+                &m_pimpl->m_blockchain.header_at(block_number);
 
-        while (prev_header_local.delta < DELTA_DOWN &&
-               step <= DELTA_STEP && prev_header_local.block_number > 0)
+        while (prev_header_local->delta < DELTA_DOWN &&
+               step <= DELTA_STEP && prev_header_local->block_number > 0)
         {
             ++step;
-            m_pimpl->m_blockchain.header_at(prev_header_local.block_number - 1, prev_header_local);
+            prev_header_local = &m_pimpl->m_blockchain.header_at(prev_header_local->block_number - 1);
         }
 
         // -1 because current delta is not counted
@@ -501,10 +500,9 @@ void process_blockheader_request(BlockHeaderRequest const& header_request,
     BlockHeaderResponse header_response;
     for (auto index = from + 1; index > to; --index)
     {
-        BlockHeader header;
-        m_pimpl->m_blockchain.header_at(index - 1, header);
+        BlockHeader const& header = m_pimpl->m_blockchain.header_at(index - 1);
 
-        header_response.block_headers.push_back(std::move(header));
+        header_response.block_headers.push_back(header);
     }
 
     sk.send(peerid, header_response);
@@ -516,25 +514,24 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
                                   beltpp::isocket::peer_id const& peerid)
 {
     // find needed header from own data
-    BlockHeader tmp_header;
-    m_pimpl->m_blockchain.last_header(tmp_header);
+    BlockHeader const* tmp_header = &m_pimpl->m_blockchain.last_header();
 
     // validate received headers
     if (header_response.block_headers.empty())
         throw wrong_data_exception("blockheader response. empty response received!");
 
     auto r_it = header_response.block_headers.begin();
-    if (r_it->block_number == tmp_header.block_number && m_pimpl->sync_headers.empty() &&
-        r_it->c_sum <= tmp_header.c_sum)
+    if (r_it->block_number == tmp_header->block_number && m_pimpl->sync_headers.empty() &&
+        r_it->c_sum <= tmp_header->c_sum)
         throw wrong_data_exception("blockheader response. wrong data received!");
 
     if (!m_pimpl->sync_headers.empty() && // we have something received before
-        tmp_header.block_number >= m_pimpl->sync_headers.rbegin()->block_number)
+        tmp_header->block_number >= m_pimpl->sync_headers.rbegin()->block_number)
     {
         // load next mot checked header
-        m_pimpl->m_blockchain.header_at(m_pimpl->sync_headers.rbegin()->block_number - 1, tmp_header);
+        tmp_header = &m_pimpl->m_blockchain.header_at(m_pimpl->sync_headers.rbegin()->block_number - 1);
 
-        if (tmp_header.block_number != r_it->block_number)
+        if (tmp_header->block_number != r_it->block_number)
             throw wrong_data_exception("blockheader response. unexpected data received!");
     }
 
@@ -553,7 +550,7 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
     if (check_headers_vector(header_response.block_headers))
         throw wrong_data_exception("blockheader response. wrong data in response!");
 
-    SignedBlock const& tmp_block = m_pimpl->m_blockchain.at(tmp_header.block_number);
+    SignedBlock const& tmp_block = m_pimpl->m_blockchain.at(tmp_header->block_number);
     
     string tmp_hash = meshpp::hash(tmp_block.block_details.to_string());
 
@@ -564,13 +561,13 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
     while (!found && r_it != header_response.block_headers.end())
     {
         if (r_it->prev_hash == tmp_hash &&
-            r_it->block_number == tmp_header.block_number + 1)
+            r_it->block_number == tmp_header->block_number + 1)
         {
             found = true;
             lcb_found = true;
             m_pimpl->sync_headers.push_back(std::move(*r_it));
         }
-        else if (r_it->block_number > tmp_header.block_number)
+        else if (r_it->block_number > tmp_header->block_number)
             m_pimpl->sync_headers.push_back(std::move(*r_it++));
         else
             found = true;
@@ -580,27 +577,27 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
     {
         while (!lcb_found &&
                r_it != header_response.block_headers.end() &&
-               r_it->c_sum > tmp_header.c_sum)
+               r_it->c_sum > tmp_header->c_sum)
         {
             m_pimpl->sync_headers.push_back(std::move(*r_it++));
-            m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);
+            tmp_header = &m_pimpl->m_blockchain.header_at(tmp_header->block_number - 1);
         }
 
         for (; !lcb_found && r_it != header_response.block_headers.end(); ++r_it)
         {
-            if (tmp_header.prev_hash == r_it->prev_hash)
+            if (tmp_header->prev_hash == r_it->prev_hash)
                 lcb_found = true;
 
-            if (tmp_header.block_number > 0)
+            if (tmp_header->block_number > 0)
             {
                 m_pimpl->sync_headers.push_back(std::move(*r_it));
-                m_pimpl->m_blockchain.header_at(tmp_header.block_number - 1, tmp_header);
+                tmp_header = &m_pimpl->m_blockchain.header_at(tmp_header->block_number - 1);
             }
         }
 
         if (lcb_found)
         {
-            if (check_headers(*m_pimpl->sync_headers.rbegin(), tmp_header) ||
+            if (check_headers(*m_pimpl->sync_headers.rbegin(), *tmp_header) ||
                 check_headers_vector(m_pimpl->sync_headers))
                 throw wrong_data_exception("blockheader response. header check failed!");
 
@@ -615,8 +612,7 @@ void process_blockheader_response(BlockHeaderResponse&& header_response,
         
             for (uint64_t i = 0; i < delta_step; ++i)
             {
-                BlockHeader _header;
-                m_pimpl->m_blockchain.header_at(number - i, _header);
+                BlockHeader const& _header = m_pimpl->m_blockchain.header_at(number - i);
         
                 delta_vector.push_back(pair<uint64_t, uint64_t>(_header.delta, _header.c_const));
             }
@@ -859,8 +855,7 @@ void process_blockchain_response(BlockchainResponse&& response,
     unordered_set<string> set_tr_hashes_to_remove;
 
     // verify new received blocks
-    BlockHeader prev_header;
-    m_pimpl->m_blockchain.header_at(lcb_number, prev_header);
+    BlockHeader const& prev_header = m_pimpl->m_blockchain.header_at(lcb_number);
     uint64_t c_const = prev_header.c_const;
 
     for (auto const& signed_block : m_pimpl->sync_blocks)

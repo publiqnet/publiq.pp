@@ -447,8 +447,7 @@ bool node::run()
                     if (it != interface_type::p2p)
                         throw wrong_request_exception("SyncRequest received through rpc!");
 
-                    BlockHeader header;
-                    m_pimpl->m_blockchain.last_header(header);
+                    BlockHeader const& header = m_pimpl->m_blockchain.last_header();
 
                     SyncResponse sync_response;
                     sync_response.number = header.block_number;
@@ -818,8 +817,7 @@ bool node::run()
         {
             bool sync_now = false;
 
-            BlockHeader header;
-            m_pimpl->m_blockchain.last_header(header);
+            BlockHeader const& header = m_pimpl->m_blockchain.last_header();
 
             system_clock::time_point current_time_point = system_clock::now();
             system_clock::time_point previous_time_point = system_clock::from_time_t(header.time_signed.tm);

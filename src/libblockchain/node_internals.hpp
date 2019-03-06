@@ -391,8 +391,7 @@ public:
 
     void clean_transaction_cache()
     {
-        BlockHeader current_header;
-        m_blockchain.last_header(current_header);
+        BlockHeader const& current_header = m_blockchain.last_header();
 
         system_clock::time_point cur_time_point = system_clock::from_time_t(current_header.time_signed.tm);
 

@@ -68,7 +68,7 @@ void blockchain::update_state()
 
 uint64_t blockchain::length() const
 {
-    return m_pimpl->m_blockchain.as_const().size();
+    return m_pimpl->m_blockchain.size();
 }
 
 std::string blockchain::last_hash() const
@@ -76,9 +76,9 @@ std::string blockchain::last_hash() const
     return m_pimpl->m_last_hash;
 }
 
-void blockchain::last_header(BlockHeader& block_header) const
+BlockHeader const& blockchain::last_header() const
 {
-    block_header = m_pimpl->m_last_header;
+    return m_pimpl->m_last_header;
 }
 
 void blockchain::insert(SignedBlock const& signed_block)
@@ -101,9 +101,9 @@ BlockchainMessage::SignedBlock const& blockchain::at(uint64_t number) const
     return m_pimpl->m_blockchain.as_const().at(number);
 }
 
-void blockchain::header_at(uint64_t number, BlockHeader& block_header) const
+BlockHeader const& blockchain::header_at(uint64_t number) const
 {
-    block_header = m_pimpl->m_header.as_const().at(number);
+    return m_pimpl->m_header.as_const().at(number);
 }
 
 void blockchain::remove_last_block()
