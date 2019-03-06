@@ -56,8 +56,9 @@ void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
             throw wrong_data_exception("wrong node type : " + item.node_address);
     }
 
-    if (stat_info.hash != pimpl->m_blockchain.last_hash())
-        throw std::runtime_error("stat_info.hash != pimpl->m_blockchain.last_hash()");
+    // TODO fix
+    //if (stat_info.hash != pimpl->m_blockchain.last_hash())
+    //    throw std::runtime_error("stat_info.hash != pimpl->m_blockchain.last_hash()");
 }
 
 void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& /*pimpl*/,

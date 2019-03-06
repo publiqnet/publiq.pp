@@ -7,6 +7,7 @@
 #include "transaction_content.hpp"
 #include "transaction_role.hpp"
 #include "transaction_contentinfo.hpp"
+#include "transaction_statinfo.hpp"
 
 using namespace BlockchainMessage;
 
@@ -23,8 +24,7 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
     bool code;
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (pimpl->m_transfer_only &&
-        package.type() != Transfer::rtt)
+    if (pimpl->m_transfer_only && package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -67,6 +67,13 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
     case ContentInfo::rtt:
     {
         ContentInfo const* paction;
+        package.get(paction);
+        code = action_process_on_chain_t(signed_transaction, *paction, pimpl);
+        break;
+    }
+    case StatInfo::rtt:
+    {
+        StatInfo const* paction;
         package.get(paction);
         code = action_process_on_chain_t(signed_transaction, *paction, pimpl);
         break;
@@ -83,8 +90,7 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
 {
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (pimpl->m_transfer_only &&
-        package.type() != Transfer::rtt)
+    if (pimpl->m_transfer_only && package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -127,6 +133,13 @@ void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     case ContentInfo::rtt:
     {
         ContentInfo const* paction;
+        package.get(paction);
+        action_validate(signed_transaction, *paction);
+        break;
+    }
+    case StatInfo::rtt:
+    {
+        StatInfo const* paction;
         package.get(paction);
         action_validate(signed_transaction, *paction);
         break;
@@ -184,6 +197,13 @@ bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& p
     case ContentInfo::rtt:
     {
         ContentInfo const* paction;
+        package.get(paction);
+        code = action_can_apply(pimpl, *paction);
+        break;
+    }
+    case StatInfo::rtt:
+    {
+        StatInfo const* paction;
         package.get(paction);
         code = action_can_apply(pimpl, *paction);
         break;
@@ -246,6 +266,13 @@ void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
         action_apply(pimpl, *paction);
         break;
     }
+    case StatInfo::rtt:
+    {
+        StatInfo const* paction;
+        package.get(paction);
+        action_apply(pimpl, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -298,6 +325,13 @@ void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
     case ContentInfo::rtt:
     {
         ContentInfo const* paction;
+        package.get(paction);
+        action_revert(pimpl, *paction);
+        break;
+    }
+    case StatInfo::rtt:
+    {
+        StatInfo const* paction;
         package.get(paction);
         action_revert(pimpl, *paction);
         break;

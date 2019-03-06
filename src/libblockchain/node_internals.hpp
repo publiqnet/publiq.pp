@@ -524,9 +524,6 @@ public:
     beltpp::isocket::peer_id m_slave_peer;
     beltpp::isocket::peer_id m_slave_peer_attempt;
 
-    //unordered_set<beltpp::isocket::peer_id> m_public_peers;
-    //unordered_map<string, beltpp::isocket::peer_id> m_public_map;
-
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
     unordered_map<string, system_clock::time_point> m_transaction_cache;

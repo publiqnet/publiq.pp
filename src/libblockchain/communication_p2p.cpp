@@ -281,8 +281,9 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
     SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
 
-    StatInfo storage_info;
-    storage_info.hash = meshpp::hash(signed_block.block_details.to_string());
+    StatInfo stat_info;
+    stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
+    stat_info.reporter_address = m_pimpl->m_pb_key.to_string();
 
     for (auto& nodeid : storages)
     {
@@ -292,11 +293,11 @@ void broadcast_storage_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         stat_item.passed = 1;
         stat_item.failed = 0;
 
-        storage_info.items.push_back(stat_item);
+        stat_info.items.push_back(stat_item);
     }
 
     Transaction transaction;
-    transaction.action = storage_info;
+    transaction.action = stat_info;
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
 
@@ -1092,6 +1093,7 @@ void broadcast_storage_stat(StatInfo& stat_info,
     SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
 
     stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
+    stat_info.reporter_address = m_pimpl->m_pb_key.to_string();
 
     Transaction transaction;
     transaction.action = stat_info;
