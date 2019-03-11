@@ -417,6 +417,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     {
         log_index.discard();
         rpc_server.accounts.discard();
+        rpc_server.blocks.discard();
         rpc_server.head_block_index.discard();
 
         for (auto& tr : transactions)
@@ -524,6 +525,17 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                     BlockLog block_log;
                                     std::move(action_info.action).get(block_log);
+
+                                    if (!new_import)
+                                    {
+                                        CommanderMessage::BlockInfo block_info;
+                                        block_info.authority = block_log.authority;
+                                        block_info.block_hash = block_log.block_hash;
+                                        block_info.block_number = block_log.block_number;
+                                        block_info.block_size = block_log.block_size;
+                                        block_info.time_signed.tm = block_log.time_signed.tm;
+                                        rpc_server.blocks.push_back(block_info);
+                                    }
 
                                     uint64_t block_index = head_block_index();
 
@@ -681,6 +693,11 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     BlockLog block_log;
                                     std::move(action_info.action).get(block_log);
 
+                                    if (!new_import)
+                                    {
+                                        rpc_server.blocks.pop_back();
+                                    }
+
                                     for (auto& transaction_log : block_log.transactions)
                                     {
                                         ++count;
@@ -763,6 +780,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        index_rewards,
                                                        LoggingType::revert);
                                     }
+
                                 }
                                 else if (action_type == TransactionLog::rtt)
                                 {
@@ -847,6 +865,7 @@ void daemon_rpc::sync(rpc& rpc_server,
 
     rpc_server.head_block_index.save();
     rpc_server.accounts.save();
+    rpc_server.blocks.save();
     log_index.save();
 
     for (auto& tr : transactions)
@@ -862,6 +881,7 @@ void daemon_rpc::sync(rpc& rpc_server,
 
     rpc_server.head_block_index.commit();
     rpc_server.accounts.commit();
+    rpc_server.blocks.commit();
     log_index.commit();
 
     for (auto& tr : transactions)

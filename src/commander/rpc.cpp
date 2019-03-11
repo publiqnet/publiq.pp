@@ -43,6 +43,7 @@ rpc::rpc(beltpp::ip_address const& rpc_address,
     , rpc_socket(beltpp::getsocket<sf>(eh))
     , head_block_index(meshpp::data_file_path("head_block_index.txt"))
     , accounts("accounts", meshpp::data_directory_path("accounts"), 100, get_putl())
+    , blocks("block", meshpp::data_directory_path("blocks"), 100, 1, get_putl())
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(10));
@@ -483,6 +484,21 @@ void rpc::run()
 
                 rpc_socket.send(peerid, AccountResponseFromRawAccount(head_block_index.as_const()->value,
                                                                       account_raw));
+                break;
+            }
+            case BlockInfoRequest::rtt:
+            {
+                BlockInfoRequest msg;
+                std::move(ref_packet).get(msg);
+                for (size_t i = 0; i < blocks.size(); i++)
+                {
+                    if (blocks.at(i).block_number == msg.block_number)
+                    {
+                        BlockInfo block_info = blocks.at(i);
+                        rpc_socket.send(peerid, block_info);
+                        break;
+                    }
+                }
                 break;
             }
             case Send::rtt:

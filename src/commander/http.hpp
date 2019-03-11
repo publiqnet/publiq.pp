@@ -164,6 +164,22 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 2 &&
+                 pss->resource.path.front() == "block")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::BlockInfoRequest>();
+            CommanderMessage::BlockInfoRequest& ref = *reinterpret_cast<CommanderMessage::BlockInfoRequest*>(p.get());
+
+            size_t pos;
+
+            ref.block_number = beltpp::stoui64(pss->resource.path.back(), pos);
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::BlockInfoRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::BlockInfoRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 2 &&
                  pss->resource.path.front() == "send")
         {
             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Send>();

@@ -122,6 +122,20 @@ module CommanderMessage
         String address
     }
 
+    class BlockInfoRequest
+    {
+        UInt64 block_number
+    }
+
+    class BlockInfo
+    {
+        String authority
+        String block_hash
+        UInt64 block_number
+        UInt64 block_size
+        TimePoint time_signed
+    }
+
     class Send
     {
         String private_key

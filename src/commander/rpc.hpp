@@ -1,7 +1,7 @@
 #pragma once
 
 #include "commander_message.hpp"
-
+#include "publiq.pp/message.hpp"
 #include <belt.pp/socket.hpp>
 #include <mesh.pp/fileutility.hpp>
 
@@ -17,6 +17,7 @@ public:
     beltpp::socket rpc_socket;
     meshpp::file_loader<CommanderMessage::NumberValue, &CommanderMessage::NumberValue::from_string, &CommanderMessage::NumberValue::to_string> head_block_index;
     meshpp::map_loader<CommanderMessage::Account> accounts;
+    meshpp::vector_loader<CommanderMessage::BlockInfo> blocks;
     beltpp::ip_address const& connect_to_address;
 };
 
