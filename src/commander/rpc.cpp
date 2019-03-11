@@ -490,15 +490,28 @@ void rpc::run()
             {
                 BlockInfoRequest msg;
                 std::move(ref_packet).get(msg);
+
+                bool finded = false;
+
                 for (size_t i = 0; i < blocks.size(); i++)
                 {
                     if (blocks.at(i).block_number == msg.block_number)
                     {
                         BlockInfo block_info = blocks.at(i);
+                        finded = true;
                         rpc_socket.send(peerid, block_info);
                         break;
                     }
                 }
+
+                if (!finded)
+                {
+                    NumberValue response;
+                    response.value = head_block_index.as_const()->value;
+
+                    rpc_socket.send(peerid, response);
+                }
+
                 break;
             }
             case Send::rtt:
