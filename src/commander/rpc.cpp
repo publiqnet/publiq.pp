@@ -491,24 +491,31 @@ void rpc::run()
                 BlockInfoRequest msg;
                 std::move(ref_packet).get(msg);
 
-                bool finded = false;
+                if ( head_block_index.as_const()->value < msg.block_number )
+                {
+                    NumberValue response;
+                    response.value = head_block_index.as_const()->value;
+
+                    rpc_socket.send(peerid, response);
+                }
+
+                bool found = false;
 
                 for (size_t i = 0; i < blocks.size(); i++)
                 {
                     if (blocks.at(i).block_number == msg.block_number)
                     {
+                        found = true;
                         BlockInfo block_info = blocks.at(i);
-                        finded = true;
                         rpc_socket.send(peerid, block_info);
                         break;
                     }
                 }
 
-                if (!finded)
+                if (!found)
                 {
-                    NumberValue response;
-                    response.value = head_block_index.as_const()->value;
-
+                    StringValue response;
+                    response.value = "block is not found!";
                     rpc_socket.send(peerid, response);
                 }
 
