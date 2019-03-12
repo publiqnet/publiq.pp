@@ -693,10 +693,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     BlockLog block_log;
                                     std::move(action_info.action).get(block_log);
 
-                                    if (!new_import)
-                                    {
-                                        rpc_server.blocks.pop_back();
-                                    }
+
 
                                     for (auto& transaction_log : block_log.transactions)
                                     {
@@ -838,6 +835,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     assert(false);
                                     throw std::logic_error("unknown log item - " +
                                                            std::to_string(action_type));
+                                }
+                                if (!new_import)
+                                {
+                                    rpc_server.blocks.pop_back();
                                 }
                             }
                             if (new_import && local_start_index == log_index.as_const()->value)

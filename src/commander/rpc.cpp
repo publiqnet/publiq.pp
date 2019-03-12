@@ -56,7 +56,8 @@ void process_rewards(uint64_t head_block_index,
                      uint64_t block_index,
                      daemon_rpc::LogIndexLoader& reward_index,
                      daemon_rpc::RewardLogLoader& reward_logs,
-                     AccountHistory& result)
+                     AccountHistory& result,
+                     rpc& rpc_server)
 {
     auto const& value = reward_index.as_const().at(std::to_string(block_index));
 
@@ -69,7 +70,16 @@ void process_rewards(uint64_t head_block_index,
         item.block_index = block_index;
         item.confirmations = head_block_index - block_index + 1;
         item.item_type = AccountHistoryItemType::rewarded;
-        item.timestamp.tm = 0;  //  todo
+
+        for (size_t i = 0; i < rpc_server.blocks.size(); i++)
+        {
+            if (rpc_server.blocks.at(i).block_number == block_index)
+            {
+                item.timestamp.tm = rpc_server.blocks.at(i).time_signed.tm;
+                break;
+            }
+        }
+
         publiqpp::coin(reward_log.amount).to_Coin(item.amount);
 
         item.details = AccountHistoryRewarded();
@@ -83,7 +93,8 @@ void process_transactions(uint64_t head_block_index,
                           string const& address,
                           daemon_rpc::LogIndexLoader& transaction_index,
                           daemon_rpc::TransactionLogLoader& transaction_logs,
-                          AccountHistory& result)
+                          AccountHistory& result,
+                          rpc& rpc_server)
 {
     auto const& value = transaction_index.as_const().at(std::to_string(block_index));
 
@@ -94,6 +105,16 @@ void process_transactions(uint64_t head_block_index,
         auto& transaction_log = transaction_logs.at(index);
         BlockchainMessage::Transfer tf;
         std::move(transaction_log.action).get(tf);
+
+        string authority;
+        for (size_t i = 0; i < rpc_server.blocks.size(); i++)
+        {
+            if (rpc_server.blocks.at(i).block_number == block_index)
+            {
+                authority = rpc_server.blocks.at(i).authority;
+                break;
+            }
+        }
 
         if (tf.to == address)
         {
@@ -139,18 +160,15 @@ void process_transactions(uint64_t head_block_index,
                 item.item_type = AccountHistoryItemType::sent_fee;
                 item.timestamp.tm = transaction_log.time_signed.tm;
                 publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
-
-                details.to = string(); //  todo
+                details.to = authority;
                 details.transaction_hash = transaction_log.transaction_hash;
                 item.details = std::move(details);
 
                 result.log.push_back(std::move(item));
             }
         }
-        if (tf.to != address &&
-            tf.from != address &&
-            transaction_log.fee != BlockchainMessage::Coin())
-        {   //  todo fix by checking against actual block authority
+        if (authority == address)
+        {
             AccountHistoryItem item;
             AccountHistoryReceivedFee details;
             item.block_index = block_index;
@@ -171,7 +189,8 @@ void process_transactions(uint64_t head_block_index,
 AccountHistory get_history(uint64_t head_block_index,
                            uint64_t block_start,
                            uint64_t block_count,
-                           string const& address)
+                           string const& address,
+                           rpc& rpc_server)
 {
     auto reward_index = daemon_rpc::get_reward_log_index(address);
     auto reward_logs = daemon_rpc::get_reward_log(address);
@@ -243,7 +262,8 @@ AccountHistory get_history(uint64_t head_block_index,
                                  address,
                                  transaction_index,
                                  transaction_logs,
-                                 result);
+                                 result,
+                                 rpc_server);
         }
     }
 
@@ -255,7 +275,8 @@ AccountHistory get_history(uint64_t head_block_index,
                             i,
                             reward_index,
                             reward_logs,
-                            result);
+                            result,
+                            rpc_server);
         }
     }
 
@@ -268,7 +289,8 @@ AccountHistory get_history(uint64_t head_block_index,
                                  address,
                                  transaction_index,
                                  transaction_logs,
-                                 result);
+                                 result,
+                                 rpc_server);
         }
 
         if (set_rw.find(i) != set_rw.end())
@@ -277,7 +299,8 @@ AccountHistory get_history(uint64_t head_block_index,
                             i,
                             reward_index,
                             reward_logs,
-                            result);
+                            result,
+                            rpc_server);
         }
     }
 
@@ -290,7 +313,8 @@ AccountHistory get_history(uint64_t head_block_index,
                                  address,
                                  transaction_index,
                                  transaction_logs,
-                                 result);
+                                 result,
+                                 rpc_server);
         }
     }
 
@@ -302,7 +326,8 @@ AccountHistory get_history(uint64_t head_block_index,
                             i,
                             reward_index,
                             reward_logs,
-                            result);
+                            result,
+                            rpc_server);
         }
     }
 
@@ -315,12 +340,14 @@ AccountHistory get_history(uint64_t head_block_index,
 }
 
 AccountResponse AccountResponseFromRawAccount(size_t head_index,
-                                              Account const& account)
+                                              Account const& account,
+                                              rpc& rpc_server)
 {
     auto history = get_history(head_index,
                                head_index,
                                2,
-                               account.address);
+                               account.address,
+                               rpc_server);
 
     publiqpp::coin unconfirmed_sent;
     publiqpp::coin unconfirmed_received;
@@ -430,7 +457,7 @@ void rpc::run()
                     auto account_raw = accounts.as_const().at(account);
 
                     msg.accounts.push_back(AccountResponseFromRawAccount(head_block_index.as_const()->value,
-                                                                         account_raw));
+                                                                         account_raw, *this));
                 }
 
                 rpc_socket.send(peerid, msg);
@@ -459,7 +486,8 @@ void rpc::run()
                     response = get_history(head_block_index.as_const()->value,
                                            msg.start_block_index,
                                            msg.max_block_count,
-                                           msg.address);
+                                           msg.address,
+                                           *this);
                 }
 
                 rpc_socket.send(peerid, response);
@@ -483,7 +511,7 @@ void rpc::run()
                 auto const& account_raw = accounts.as_const().at(msg.address);
 
                 rpc_socket.send(peerid, AccountResponseFromRawAccount(head_block_index.as_const()->value,
-                                                                      account_raw));
+                                                                      account_raw, *this));
                 break;
             }
             case BlockInfoRequest::rtt:
@@ -491,12 +519,14 @@ void rpc::run()
                 BlockInfoRequest msg;
                 std::move(ref_packet).get(msg);
 
-                if ( head_block_index.as_const()->value < msg.block_number )
-                {
-                    NumberValue response;
-                    response.value = head_block_index.as_const()->value;
+                BlockInfo response;
 
+                if (head_block_index.as_const()->value < msg.block_number &&
+                    head_block_index.as_const()->value < blocks.size())
+                {
+                    response = blocks.at(head_block_index.as_const()->value);
                     rpc_socket.send(peerid, response);
+                    break;
                 }
 
                 bool found = false;
@@ -506,8 +536,8 @@ void rpc::run()
                     if (blocks.at(i).block_number == msg.block_number)
                     {
                         found = true;
-                        BlockInfo block_info = blocks.at(i);
-                        rpc_socket.send(peerid, block_info);
+                        response = blocks.at(i);
+                        rpc_socket.send(peerid, response);
                         break;
                     }
                 }
