@@ -23,16 +23,7 @@ inline
 string response(beltpp::detail::session_special_data& ssd,
                 beltpp::packet const& pc)
 {
-    if (pc.type() == BlockchainMessage::InvalidPublicKey::rtt ||
-        pc.type() == BlockchainMessage::InvalidPrivateKey::rtt ||
-        pc.type() == BlockchainMessage::InvalidSignature::rtt ||
-        pc.type() == BlockchainMessage::InvalidAuthority::rtt ||
-        pc.type() == BlockchainMessage::NotEnoughBalance::rtt ||
-        pc.type() == BlockchainMessage::FileNotFound::rtt ||
-        pc.type() == BlockchainMessage::RemoteError::rtt)
-        return beltpp::http::http_not_found(ssd, pc.to_string());
-    else
-        return beltpp::http::http_response(ssd, pc.to_string());
+    return beltpp::http::http_response(ssd, pc.to_string());
 }
 inline
 string file_response(beltpp::detail::session_special_data& ssd,
