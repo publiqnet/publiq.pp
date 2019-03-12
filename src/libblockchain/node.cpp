@@ -462,6 +462,27 @@ bool node::run()
 
                     break;
                 }
+                case SyncRequest2::rtt:
+                {
+                    if (it != interface_type::p2p)
+                        throw wrong_request_exception("SyncRequest2 received through rpc!");
+
+                    BlockHeader const& header = m_pimpl->m_blockchain.last_header();
+
+                    SyncResponse2 sync_response;
+                    sync_response.number = header.block_number;
+                    sync_response.c_sum = header.c_sum;
+
+                    if (m_pimpl->all_sync_info.net_sync_info().c_sum >
+                        m_pimpl->all_sync_info.own_sync_info().c_sum)
+                        sync_response.sync_info = m_pimpl->all_sync_info.net_sync_info();
+                    else
+                        sync_response.sync_info = m_pimpl->all_sync_info.own_sync_info();
+
+                    psk->send(peerid, std::move(sync_response));
+
+                    break;
+                }
                 case SyncResponse::rtt:
                 {
                     if (it != interface_type::p2p)
@@ -791,17 +812,15 @@ bool node::run()
                         address.to_string());
 
                     vector<unique_ptr<meshpp::session_action>> actions;
-                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get(), address));
+                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
                     actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                        m_pimpl->m_nodeid_service,
-                                                                        nodeid_item.first,
-                                                                        address));
+                                                                        m_pimpl->m_nodeid_service));
 
                     actions.emplace_back(std::move(ptr_action));
 
                     m_pimpl->m_sessions.add(nodeid_item.first,
-                        address,
-                        std::move(actions));
+                                            address,
+                                            std::move(actions));
                 }
                 ++collected;
             }
@@ -812,6 +831,18 @@ bool node::run()
     if (m_pimpl->m_check_timer.expired())
     {
         m_pimpl->m_check_timer.update();
+
+        for (auto const& peerid : m_pimpl->m_p2p_peers)
+        {
+            vector<unique_ptr<meshpp::session_action>> actions;
+            actions.emplace_back(new session_action_p2pconnections(*m_pimpl->m_ptr_p2p_socket.get()));
+            actions.emplace_back(new session_action_sync_request(m_pimpl.get()));
+
+            m_pimpl->m_ptr_p2p_socket->external_address();
+            m_pimpl->m_sessions.add(peerid,
+                                    m_pimpl->m_ptr_p2p_socket->info_connection(peerid),
+                                    std::move(actions));
+        }
 
         if (m_pimpl->sync_peerid.empty())
         {
