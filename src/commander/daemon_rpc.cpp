@@ -526,18 +526,21 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     BlockLog block_log;
                                     std::move(action_info.action).get(block_log);
 
+                                    uint64_t block_index = head_block_index();
+
                                     if (!new_import)
                                     {
                                         CommanderMessage::BlockInfo block_info;
+
                                         block_info.authority = block_log.authority;
                                         block_info.block_hash = block_log.block_hash;
                                         block_info.block_number = block_log.block_number;
                                         block_info.block_size = block_log.block_size;
                                         block_info.time_signed.tm = block_log.time_signed.tm;
+
+                                        assert(block_log.block_number == block_index);
                                         rpc_server.blocks.push_back(block_info);
                                     }
-
-                                    uint64_t block_index = head_block_index();
 
                                     for (auto& transaction_log: block_log.transactions)
                                     {
@@ -693,8 +696,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     BlockLog block_log;
                                     std::move(action_info.action).get(block_log);
 
-
-
                                     for (auto& transaction_log : block_log.transactions)
                                     {
                                         ++count;
@@ -778,6 +779,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                        LoggingType::revert);
                                     }
 
+                                    if (!new_import)
+                                    {
+                                        rpc_server.blocks.pop_back();
+                                    }
                                 }
                                 else if (action_type == TransactionLog::rtt)
                                 {
@@ -835,10 +840,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     assert(false);
                                     throw std::logic_error("unknown log item - " +
                                                            std::to_string(action_type));
-                                }
-                                if (!new_import)
-                                {
-                                    rpc_server.blocks.pop_back();
                                 }
                             }
                             if (new_import && local_start_index == log_index.as_const()->value)
