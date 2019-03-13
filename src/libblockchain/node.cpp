@@ -148,7 +148,7 @@ bool node::run()
             {
                 if (m_pimpl->m_sessions.process(peerid, std::move(received_packet)))
                     continue;
-                m_pimpl->m_sessions.erase_before(chrono::steady_clock::now() - chrono::minutes(1));
+                m_pimpl->m_sessions.erase_all_pending();
 
                 vector<packet*> composition;
 
@@ -820,7 +820,8 @@ bool node::run()
 
                     m_pimpl->m_sessions.add(nodeid_item.first,
                                             address,
-                                            std::move(actions));
+                                            std::move(actions),
+                                            chrono::minutes(1));
                 }
                 ++collected;
             }
@@ -841,7 +842,8 @@ bool node::run()
             m_pimpl->m_ptr_p2p_socket->external_address();
             m_pimpl->m_sessions.add(peerid,
                                     m_pimpl->m_ptr_p2p_socket->info_connection(peerid),
-                                    std::move(actions));
+                                    std::move(actions),
+                                    chrono::seconds(15));
         }
 
         if (m_pimpl->sync_peerid.empty())
@@ -890,7 +892,7 @@ bool node::run()
                             sync_now = true; // got expected block
                         else if (diff_seconds.count() > BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY)
                             sync_now = true; // it is too late and network has better block than I can mine
-                    }                                            
+                    }
                 }
 
                 if (sync_now)

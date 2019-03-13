@@ -36,7 +36,7 @@ SyncInfo node_synchronization::own_sync_info() const
 {
     SyncInfo result;
     Block const& block = pimpl->m_blockchain.at(pimpl->m_blockchain.length() - 1).block_details;
-    result.number = pimpl->m_blockchain.length();
+    result.number = block.header.block_number;
     result.c_sum = block.header.c_sum;
 
     // calculate delta for next block for the case if I will mine it
@@ -49,6 +49,7 @@ SyncInfo node_synchronization::own_sync_info() const
                                            block.header.c_const);
 
         result.c_sum += delta;
+        ++result.number;
     }
 
     return result;
