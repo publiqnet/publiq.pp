@@ -8,6 +8,7 @@
 #include "action_log.hpp"
 #include "blockchain.hpp"
 #include "nodeid_service.hpp"
+#include "node_synchronization.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -156,6 +157,7 @@ public:
         , m_pv_key(pv_key)
         , m_pb_key(pv_key.get_public_key())
         , m_transfer_only(transfer_only)
+        , all_sync_info(*this)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -535,6 +537,7 @@ public:
 
     bool m_transfer_only;
 
+    node_synchronization all_sync_info; // this will replace below members
     SyncInfo own_sync_info;
     SyncInfo net_sync_info;
     BlockchainMessage::ctime sync_time;

@@ -270,6 +270,35 @@ module BlockchainMessage
         Array SignedBlock signed_blocks
     }
 
+    class SyncRequest2 {}
+
+    class SyncResponse2
+    {
+        UInt64 number
+        UInt64 c_sum
+        SyncInfo sync_info
+    }
+
+    class BlockHeaderRequest2
+    {
+        UInt64 blocks_from
+        UInt64 blocks_to
+    }
+    class BlockHeaderResponse2
+    {
+        Array BlockHeader block_headers
+    }
+
+    class BlockchainRequest2
+    {
+        UInt64 blocks_from
+        UInt64 blocks_to
+    }
+    class BlockchainResponse2
+    {
+        Array SignedBlock signed_blocks
+    }
+
     ///
     //  response codes
     ///
