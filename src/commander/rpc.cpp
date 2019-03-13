@@ -71,10 +71,9 @@ void process_rewards(uint64_t head_block_index,
         item.confirmations = head_block_index - block_index + 1;
         item.item_type = AccountHistoryItemType::rewarded;
 
-        if (rpc_server.blocks.size() > block_index)
-        {
-            item.timestamp.tm = rpc_server.blocks.as_const().at(block_index).time_signed.tm;
-        }
+        assert(rpc_server.blocks.size() > block_index);
+
+        item.timestamp.tm = rpc_server.blocks.as_const().at(block_index).time_signed.tm;
 
         publiqpp::coin(reward_log.amount).to_Coin(item.amount);
 
@@ -104,10 +103,8 @@ void process_transactions(uint64_t head_block_index,
 
         string authority;
 
-        if (rpc_server.blocks.size() > block_index )
-        {
+        if (rpc_server.blocks.size() > block_index)
            authority = rpc_server.blocks.as_const().at(block_index).authority;
-        }
 
         if (tf.to == address)
         {
@@ -451,7 +448,8 @@ void rpc::run()
                     auto account_raw = accounts.as_const().at(account);
 
                     msg.accounts.push_back(AccountResponseFromRawAccount(head_block_index.as_const()->value,
-                                                                         account_raw, *this));
+                                                                         account_raw,
+                                                                         *this));
                 }
 
                 rpc_socket.send(peerid, msg);
@@ -505,7 +503,8 @@ void rpc::run()
                 auto const& account_raw = accounts.as_const().at(msg.address);
 
                 rpc_socket.send(peerid, AccountResponseFromRawAccount(head_block_index.as_const()->value,
-                                                                      account_raw, *this));
+                                                                      account_raw,
+                                                                      *this));
                 break;
             }
             case BlockInfoRequest::rtt:
@@ -515,19 +514,13 @@ void rpc::run()
 
                 BlockInfo response;
 
-                if (head_block_index.as_const()->value < msg.block_number &&
-                    head_block_index.as_const()->value < blocks.size())
-                {
-                    response = blocks.as_const().at(head_block_index.as_const()->value);
-                    rpc_socket.send(peerid, response);
-                    break;
-                }
-
+                auto blocks_size = blocks.size();
                 if (msg.block_number < blocks.size())
-                {
                     response = blocks.as_const().at(msg.block_number);
-                    rpc_socket.send(peerid, response);
-                }
+                else
+                    response = blocks.as_const().at(blocks_size - 1);
+
+                rpc_socket.send(peerid, response);
 
                 break;
             }
