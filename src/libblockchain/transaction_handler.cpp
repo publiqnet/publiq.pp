@@ -403,8 +403,10 @@ bool action_process_on_chain_t(BlockchainMessage::SignedTransaction const& signe
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
-    if (impl.sync_headers.size() > BLOCK_TR_LENGTH)
-        return true;
+
+    //  need to define this condition otherwise
+    /*if (impl.sync_headers.size() > BLOCK_TR_LENGTH)
+        return true;*/
 
     // Check pool
     std::string tr_hash = meshpp::hash(signed_transaction.to_string());

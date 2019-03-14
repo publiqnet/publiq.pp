@@ -193,10 +193,6 @@ public:
         m_slave_taskid = 0;
 
         load_transaction_cache();
-
-        SignedBlock const& signed_block = m_blockchain.at(m_blockchain.length() - 1);
-
-        calc_sync_info(signed_block.block_details);
     }
 
     void writeln_p2p(string const& value)
@@ -228,28 +224,8 @@ public:
 
     void remove_peer(socket::peer_id peerid)
     {
-        clear_sync_state(peerid);
-        reset_stored_request(peerid);
-
         if (0 == m_p2p_peers.erase(peerid))
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
-    }
-
-    bool find_stored_request(socket::peer_id const& peerid, beltpp::packet& packet)
-    {
-        auto it = m_stored_requests.find(peerid);
-        if (it != m_stored_requests.end())
-        {
-            BlockchainMessage::detail::assign_packet(packet, it->second.packet);
-            return true;
-        }
-
-        return false;
-    }
-
-    void reset_stored_request(beltpp::isocket::peer_id const& peerid)
-    {
-        m_stored_requests.erase(peerid);
     }
 
     void reconnect_slave()
@@ -259,71 +235,6 @@ public:
             auto peers_list = m_ptr_rpc_socket->open(m_slave_connect_to_address);
             m_slave_peer_attempt = peers_list.front();
         }
-    }
-
-    void store_request(socket::peer_id const& peerid, beltpp::packet const& packet)
-    {
-        detail::packet_and_expiry pck;
-        BlockchainMessage::detail::assign_packet(pck.packet, packet);
-        pck.expiry = PACKET_EXPIRY_STEPS;
-        auto res = m_stored_requests.insert(std::make_pair(peerid, std::move(pck)));
-        if (false == res.second)
-            throw std::runtime_error("only one request is supported at a time");
-    }
-
-    bool sync_timeout()
-    {
-        system_clock::time_point current_time_point = system_clock::now();
-        system_clock::time_point previous_time_point = system_clock::from_time_t(sync_time.tm);
-
-        chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time_point - previous_time_point);
-
-        return diff_seconds.count() >= SYNC_FAILURE_TIMEOUT;
-    }
-
-    void update_sync_time()
-    {
-        sync_time.tm = system_clock::to_time_t(system_clock::now());
-    }
-
-    void clear_sync_state(beltpp::isocket::peer_id peerid)
-    {
-        if (peerid == sync_peerid)
-        {
-            sync_peerid.clear();
-            sync_blocks.clear();
-            sync_headers.clear();
-            sync_responses.clear();
-        }
-    }
-
-    void new_sync_request()
-    {
-        // shift next sync
-        m_sync_timer.update();
-
-        // clear state
-        clear_sync_state(sync_peerid);
-
-        // send new request to all peers
-        beltpp::isocket* psk = m_ptr_p2p_socket.get();
-
-        SyncRequest sync_request;
-
-        for (auto& peerid : m_p2p_peers)
-        {
-            packet stored_packet;
-            find_stored_request(peerid, stored_packet);
-
-            if (stored_packet.empty())
-            {
-                psk->send(peerid, sync_request);
-                reset_stored_request(peerid);
-                store_request(peerid, sync_request);
-            }
-        }
-
-        update_sync_time();
     }
 
     void save(beltpp::on_failure& guard)
@@ -435,31 +346,6 @@ public:
         return result;
     }
 
-    void calc_sync_info(Block const& block)
-    {
-        own_sync_info.number = m_blockchain.length();
-
-        // calculate delta for next block for the case if I will mine it
-        if (is_miner())
-        {
-            string prev_hash = meshpp::hash(block.to_string());
-            uint64_t delta = calc_delta(m_pb_key.to_string(),
-                                        get_balance().whole,
-                                        prev_hash,
-                                        block.header.c_const);
-
-            own_sync_info.c_sum = block.header.c_sum + delta;
-            net_sync_info.c_sum = 0;
-            net_sync_info.number = 0;
-        }
-        else
-        {
-            own_sync_info.c_sum = 0;
-            net_sync_info.c_sum = 0;
-            net_sync_info.number = 0;
-        }
-    }
-
     void insert_genesis(string const& genesis_signed_block)
     {
         if (m_blockchain.length() > 0)
@@ -480,21 +366,6 @@ public:
         m_action_log.log_block(signed_block);
 
         save(guard);
-        calc_sync_info(signed_block.block_details);
-    }
-
-    std::vector<beltpp::isocket::peer_id> do_step()
-    {
-        vector<beltpp::isocket::peer_id> result;
-
-        for (auto& key_value : m_stored_requests)
-        {
-            if (0 == key_value.second.expiry)
-                result.push_back(key_value.first);
-
-            --key_value.second.expiry;
-        }
-        return result;
     }
 
     beltpp::ilog* plogger_p2p;
@@ -527,7 +398,6 @@ public:
     beltpp::isocket::peer_id m_slave_peer_attempt;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
-    unordered_map<beltpp::isocket::peer_id, packet_and_expiry> m_stored_requests;
     unordered_map<string, system_clock::time_point> m_transaction_cache;
 
     NodeType m_node_type;
@@ -538,14 +408,7 @@ public:
 
     bool m_transfer_only;
 
-    node_synchronization all_sync_info; // this will replace below members
-    SyncInfo own_sync_info;
-    SyncInfo net_sync_info;
-    BlockchainMessage::ctime sync_time;
-    beltpp::isocket::peer_id sync_peerid;
-    vector<SignedBlock> sync_blocks;
-    vector<BlockHeader> sync_headers;
-    vector<std::pair<beltpp::isocket::peer_id, SyncResponse>> sync_responses;
+    node_synchronization all_sync_info;
 };
 
 }

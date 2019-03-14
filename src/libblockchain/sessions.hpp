@@ -125,11 +125,11 @@ public:
 
     static
     void process_request(beltpp::isocket::peer_id const& peerid,
-                         BlockchainMessage::BlockHeaderRequest2 const& header_request,
+                         BlockchainMessage::BlockHeaderRequest const& header_request,
                          publiqpp::detail::node_internals& impl);
 
     void process_response(meshpp::session_header& header,
-                          BlockchainMessage::BlockHeaderResponse2&& header_response);
+                          BlockchainMessage::BlockHeaderResponse&& header_response);
 
     void set_errored(std::string const& message, bool throw_for_debugging_only);
 
@@ -157,11 +157,11 @@ public:
 
     static
     void process_request(beltpp::isocket::peer_id const& peerid,
-                         BlockchainMessage::BlockchainRequest2 const& blockchain_request,
+                         BlockchainMessage::BlockchainRequest const& blockchain_request,
                          publiqpp::detail::node_internals& impl);
 
     void process_response(meshpp::session_header& header,
-                          BlockchainMessage::BlockchainResponse2&& blockchain_response);
+                          BlockchainMessage::BlockchainResponse&& blockchain_response);
 
     void set_errored(std::string const& message, bool throw_for_debugging_only);
 

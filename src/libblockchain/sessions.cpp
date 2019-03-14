@@ -405,8 +405,8 @@ session_action_sync_request::~session_action_sync_request()
 
 void session_action_sync_request::initiate(meshpp::session_header& header)
 {
-    pimpl->m_ptr_p2p_socket->send(header.peerid, BlockchainMessage::SyncRequest2());
-    expected_next_package_type = BlockchainMessage::SyncResponse2::rtt;
+    pimpl->m_ptr_p2p_socket->send(header.peerid, BlockchainMessage::SyncRequest());
+    expected_next_package_type = BlockchainMessage::SyncResponse::rtt;
 }
 
 bool session_action_sync_request::process(beltpp::packet&& package, meshpp::session_header& header)
@@ -418,9 +418,9 @@ bool session_action_sync_request::process(beltpp::packet&& package, meshpp::sess
     {
         switch (package.type())
         {
-        case SyncResponse2::rtt:
+        case SyncResponse::rtt:
         {
-            SyncResponse2 sync_response;
+            SyncResponse sync_response;
             std::move(package).get(sync_response);
 
             current_peerid = header.peerid;
@@ -473,12 +473,12 @@ void session_action_header::initiate(meshpp::session_header& header)
     assert(false == header.peerid.empty());
     //  this assert means that the current session must have session_action_p2pconnections
 
-    BlockHeaderRequest2 header_request;
+    BlockHeaderRequest header_request;
     header_request.blocks_from = block_index_from;
     header_request.blocks_to = block_index_to;
 
     pimpl->m_ptr_p2p_socket->send(header.peerid, header_request);
-    expected_next_package_type = BlockchainMessage::BlockHeaderResponse2::rtt;
+    expected_next_package_type = BlockchainMessage::BlockHeaderResponse::rtt;
 }
 
 bool session_action_header::process(beltpp::packet&& package, meshpp::session_header& header)
@@ -490,9 +490,9 @@ bool session_action_header::process(beltpp::packet&& package, meshpp::session_he
     {
         switch (package.type())
         {
-        case BlockHeaderResponse2::rtt:
+        case BlockHeaderResponse::rtt:
         {
-            BlockHeaderResponse2 header_response;
+            BlockHeaderResponse header_response;
             std::move(package).get(header_response);
 
             process_response(header,
@@ -519,7 +519,7 @@ bool session_action_header::permanent() const
 }
 
 void session_action_header::process_request(beltpp::isocket::peer_id const& peerid,
-                                            BlockchainMessage::BlockHeaderRequest2 const& header_request,
+                                            BlockchainMessage::BlockHeaderRequest const& header_request,
                                             publiqpp::detail::node_internals& impl)
 {
     // headers always requested in reverse order!
@@ -531,7 +531,7 @@ void session_action_header::process_request(beltpp::isocket::peer_id const& peer
     to = to > from ? from : to;
     to = from > HEADER_TR_LENGTH && to < from - HEADER_TR_LENGTH ? from - HEADER_TR_LENGTH : to;
 
-    BlockHeaderResponse2 header_response;
+    BlockHeaderResponse header_response;
     for (auto index = from + 1; index > to; --index)
     {
         BlockHeader const& header = impl.m_blockchain.header_at(index - 1);
@@ -545,7 +545,7 @@ void session_action_header::process_request(beltpp::isocket::peer_id const& peer
 }
 
 void session_action_header::process_response(meshpp::session_header& header,
-                                             BlockchainMessage::BlockHeaderResponse2&& header_response)
+                                             BlockchainMessage::BlockHeaderResponse&& header_response)
 {
     bool throw_for_debugging_only = false;
 
@@ -712,12 +712,12 @@ void session_action_block::initiate(meshpp::session_header& header)
     //  this assert means that the current session must have session_action_p2pconnections
 
     sync_headers = std::move(pimpl->all_sync_info.sync_headers[header.peerid]);
-    BlockchainRequest2 blockchain_request;
+    BlockchainRequest blockchain_request;
     blockchain_request.blocks_from = sync_headers.back().block_number;
     blockchain_request.blocks_to = sync_headers.front().block_number;
 
     pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);
-    expected_next_package_type = BlockchainMessage::BlockchainResponse2::rtt;
+    expected_next_package_type = BlockchainMessage::BlockchainResponse::rtt;
 }
 
 bool session_action_block::process(beltpp::packet&& package, meshpp::session_header& header)
@@ -729,9 +729,9 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::session_hea
     {
         switch (package.type())
         {
-        case BlockchainResponse2::rtt:
+        case BlockchainResponse::rtt:
         {
-            BlockchainResponse2 blockchain_response;
+            BlockchainResponse blockchain_response;
             std::move(package).get(blockchain_response);
 
             bool have_signed_blocks = (false == blockchain_response.signed_blocks.empty());
@@ -777,7 +777,7 @@ bool session_action_block::permanent() const
 }
 
 void session_action_block::process_request(beltpp::isocket::peer_id const& peerid,
-                                           BlockchainMessage::BlockchainRequest2 const& blockchain_request,
+                                           BlockchainMessage::BlockchainRequest const& blockchain_request,
                                            publiqpp::detail::node_internals& impl)
 {
     // blocks are always requested in regular order
@@ -790,7 +790,7 @@ void session_action_block::process_request(beltpp::isocket::peer_id const& peeri
     to = to > from + BLOCK_TR_LENGTH ? from + BLOCK_TR_LENGTH : to;
     to = to > number ? number : to;
 
-    BlockchainResponse2 chain_response;
+    BlockchainResponse chain_response;
     for (auto i = from; i <= to; ++i)
     {
         SignedBlock const& signed_block = impl.m_blockchain.at(i);
@@ -802,7 +802,7 @@ void session_action_block::process_request(beltpp::isocket::peer_id const& peeri
 }
 
 void session_action_block::process_response(meshpp::session_header& header,
-                                            BlockchainMessage::BlockchainResponse2&& blockchain_response)
+                                            BlockchainMessage::BlockchainResponse&& blockchain_response)
 {
     bool throw_for_debugging_only = false;
 
@@ -882,7 +882,7 @@ void session_action_block::process_response(meshpp::session_header& header,
     if (sync_blocks.size() < BLOCK_INSERT_LENGTH &&
         sync_blocks.size() < sync_headers.size())
     {
-        BlockchainRequest2 blockchain_request;
+        BlockchainRequest blockchain_request;
         blockchain_request.blocks_from = (header_it - 1)->block_number;
         blockchain_request.blocks_to = sync_headers.begin()->block_number;
 
@@ -1039,7 +1039,7 @@ void session_action_block::process_response(meshpp::session_header& header,
         for (size_t i = 0; i < length; ++i)
             sync_headers.pop_back();
 
-        BlockchainRequest2 blockchain_request;
+        BlockchainRequest blockchain_request;
         blockchain_request.blocks_from = sync_headers.back().block_number;
         blockchain_request.blocks_to = sync_headers.front().block_number;
 

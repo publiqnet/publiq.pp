@@ -24,13 +24,9 @@ class node_synchronization
 public:
     node_synchronization(detail::node_internals& impl);
     detail::node_internals* pimpl;
-    std::unordered_map<beltpp::isocket::peer_id, BlockchainMessage::SyncResponse2> sync_responses;
+    std::unordered_map<beltpp::isocket::peer_id, BlockchainMessage::SyncResponse> sync_responses;
     std::unordered_map<beltpp::isocket::peer_id, std::vector<BlockchainMessage::BlockHeader>> sync_headers;
     BlockchainMessage::SyncInfo net_sync_info() const;
     BlockchainMessage::SyncInfo own_sync_info() const;
-    //
-    BlockchainMessage::ctime sync_time;
-    beltpp::isocket::peer_id sync_peerid;
-    std::vector<BlockchainMessage::SignedBlock> sync_blocks;
 };
 }
