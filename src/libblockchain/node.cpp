@@ -148,7 +148,6 @@ bool node::run()
             {
                 if (m_pimpl->m_sessions.process(peerid, std::move(received_packet)))
                     continue;
-                m_pimpl->m_sessions.erase_all_pending();
 
                 vector<packet*> composition;
 
@@ -269,7 +268,7 @@ bool node::run()
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
                 
-                    if (action_process_on_chain(signed_tx, m_pimpl))
+                    if (action_process_on_chain(signed_tx, *m_pimpl.get()))
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
@@ -558,12 +557,26 @@ bool node::run()
                 case BlockchainRequest::rtt:
                 {
                     if (it != interface_type::p2p)
-                        throw wrong_request_exception("BlockChainRequest received through rpc!");
+                        throw wrong_request_exception("BlockchainRequest received through rpc!");
 
                     BlockchainRequest blockchain_request;
                     std::move(ref_packet).get(blockchain_request);
 
                     process_blockchain_request(blockchain_request, m_pimpl, *psk, peerid);
+
+                    break;
+                }
+                case BlockchainRequest2::rtt:
+                {
+                    if (it != interface_type::p2p)
+                        throw wrong_request_exception("BlockchainRequest received through rpc!");
+
+                    BlockchainRequest2 blockchain_request;
+                    std::move(ref_packet).get(blockchain_request);
+
+                    session_action_block::process_request(peerid,
+                                                          blockchain_request,
+                                                          *m_pimpl.get());
 
                     break;
                 }
@@ -728,6 +741,8 @@ bool node::run()
             m_pimpl->remove_peer(peerid_to_remove);
         }
     }
+
+    m_pimpl->m_sessions.erase_all_pending();
 
     // channels and storages connect to slave threads
     if (m_pimpl->m_reconnect_timer.expired())
@@ -945,6 +960,7 @@ bool node::run()
                 actions.emplace_back(new session_action_header(*m_pimpl.get(),
                                                                scan_block_number,
                                                                scan_consensus_sum));
+                actions.emplace_back(new session_action_block(*m_pimpl.get()));
 
                 m_pimpl->m_sessions.add(scan_peer,
                                         m_pimpl->m_ptr_p2p_socket->info_connection(scan_peer),
@@ -964,7 +980,7 @@ bool node::run()
             }
         }
 
-        if (m_pimpl->sync_peerid.empty())
+        if (false && m_pimpl->sync_peerid.empty())
         {
             bool sync_now = false;
 
@@ -1051,7 +1067,7 @@ bool node::run()
                     m_pimpl->new_sync_request();
             }
         }
-        else if (m_pimpl->sync_timeout()) // sync process step takes too long time
+        else if (false && m_pimpl->sync_timeout()) // sync process step takes too long time
         {
             beltpp::isocket* psk = m_pimpl->m_ptr_p2p_socket.get();
 

@@ -22,36 +22,36 @@ void action_validate(SignedTransaction const& signed_transaction,
         throw too_long_string(transfer.message, 80);
 }
 
-bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       Transfer const& transfer)
 {
-    Coin balance = pimpl->m_state.get_balance(transfer.from);
+    Coin balance = impl.m_state.get_balance(transfer.from);
     if (coin(balance) < transfer.amount)
         return false;
     return true;
 }
 
-void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_apply(publiqpp::detail::node_internals& impl,
                   Transfer const& transfer)
 {
-    Coin balance = pimpl->m_state.get_balance(transfer.from);
+    Coin balance = impl.m_state.get_balance(transfer.from);
     if (coin(balance) < transfer.amount)
         throw not_enough_balance_exception(coin(balance),
                                            transfer.amount);
 
-    pimpl->m_state.increase_balance(transfer.to, transfer.amount);
-    pimpl->m_state.decrease_balance(transfer.from, transfer.amount);
+    impl.m_state.increase_balance(transfer.to, transfer.amount);
+    impl.m_state.decrease_balance(transfer.from, transfer.amount);
 }
 
-void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_revert(publiqpp::detail::node_internals& impl,
                    Transfer const& transfer)
 {
-    Coin balance = pimpl->m_state.get_balance(transfer.to);
+    Coin balance = impl.m_state.get_balance(transfer.to);
     if (coin(balance) < transfer.amount)
         throw not_enough_balance_exception(coin(balance),
                                            transfer.amount);
 
-    pimpl->m_state.increase_balance(transfer.from, transfer.amount);
-    pimpl->m_state.decrease_balance(transfer.to, transfer.amount);
+    impl.m_state.increase_balance(transfer.from, transfer.amount);
+    impl.m_state.decrease_balance(transfer.to, transfer.amount);
 }
 }

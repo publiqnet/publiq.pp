@@ -22,25 +22,25 @@ void action_validate(SignedTransaction const& signed_transaction,
         throw std::runtime_error("invalid uri: " + file.uri);
 }
 
-bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       File const& file)
 {
-    if (pimpl->m_documents.exist_file(file.uri))
+    if (impl.m_documents.exist_file(file.uri))
         return false;
     return true;
 }
 
-void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_apply(publiqpp::detail::node_internals& impl,
                   File const& file)
 {
-    if (pimpl->m_documents.exist_file(file.uri))
+    if (impl.m_documents.exist_file(file.uri))
         throw wrong_document_exception("File already exists!");
-    pimpl->m_documents.insert_file(file);
+    impl.m_documents.insert_file(file);
 }
 
-void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_revert(publiqpp::detail::node_internals& impl,
                    File const& file)
 {
-    pimpl->m_documents.remove_file(file.uri);
+    impl.m_documents.remove_file(file.uri);
 }
 }

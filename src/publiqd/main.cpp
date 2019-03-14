@@ -325,6 +325,15 @@ void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_ha
             termination_handler(0);
             break;
         }
+        catch (std::logic_error const& ex)
+        {
+            if (plogger_exceptions)
+                plogger_exceptions->message(ex.what());
+            cout << "logic error cought: " << ex.what() << endl;
+            cout << "will exit now" << endl;
+            termination_handler(0);
+            break;
+        }
         catch (std::exception const& ex)
         {
             if (plogger_exceptions)

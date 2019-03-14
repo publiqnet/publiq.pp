@@ -410,6 +410,7 @@ public:
         }
     }
 
+    static
     uint64_t calc_delta(string const& key, uint64_t const& amount, string const& prev_hash, uint64_t const& cons_const)
     {
         uint64_t dist = meshpp::distance(meshpp::hash(key), prev_hash);

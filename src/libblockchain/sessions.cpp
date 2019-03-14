@@ -5,6 +5,7 @@
 #include "communication_p2p.hpp"
 #include "node_internals.hpp"
 #include "exception.hpp"
+#include "transaction_handler.hpp"
 
 #include <mesh.pp/cryptoutility.hpp>
 #include <belt.pp/utility.hpp>
@@ -463,6 +464,8 @@ session_action_header::session_action_header(detail::node_internals& impl,
 
 session_action_header::~session_action_header()
 {
+    if (false == current_peerid.empty())
+        pimpl->all_sync_info.sync_headers.erase(current_peerid);
 }
 
 void session_action_header::initiate(meshpp::session_header& header)
@@ -603,6 +606,8 @@ void session_action_header::process_response(meshpp::session_header& header,
         if (r_it != sync_headers.end())
             sync_headers.erase(r_it, sync_headers.end());
 
+        assert(sync_headers.back().block_number != 0);
+
         if (check_headers(sync_headers.back(), pimpl->m_blockchain.header_at(lcb_index)))
             return set_errored("blockheader response. header check failed!", throw_for_debugging_only);
 
@@ -656,12 +661,8 @@ void session_action_header::process_response(meshpp::session_header& header,
             }
         }
 
-        /*BlockchainRequest2 blockchain_request;
-        blockchain_request.blocks_from = sync_headers.back().block_number;
-        blockchain_request.blocks_to = sync_headers.front().block_number;
-
-        pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);*/
-
+        current_peerid = header.peerid;
+        pimpl->all_sync_info.sync_headers[current_peerid] = std::move(sync_headers);
         completed = true;
         expected_next_package_type = size_t(-1);
         return;
@@ -692,6 +693,394 @@ bool session_action_header::check_headers_vector(std::vector<BlockchainMessage::
         t = check_headers(*(it - 1), *it);
 
     return t;
+}
+
+// --------------------------- session_action_block ---------------------------
+
+session_action_block::session_action_block(detail::node_internals& impl)
+    : session_action()
+    , pimpl(&impl)
+{}
+
+session_action_block::~session_action_block()
+{
+}
+
+void session_action_block::initiate(meshpp::session_header& header)
+{
+    assert(false == header.peerid.empty());
+    //  this assert means that the current session must have session_action_p2pconnections
+
+    sync_headers = std::move(pimpl->all_sync_info.sync_headers[header.peerid]);
+    BlockchainRequest2 blockchain_request;
+    blockchain_request.blocks_from = sync_headers.back().block_number;
+    blockchain_request.blocks_to = sync_headers.front().block_number;
+
+    pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);
+    expected_next_package_type = BlockchainMessage::BlockchainResponse2::rtt;
+}
+
+bool session_action_block::process(beltpp::packet&& package, meshpp::session_header& header)
+{
+    bool code = true;
+
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
+    {
+        switch (package.type())
+        {
+        case BlockchainResponse2::rtt:
+        {
+            BlockchainResponse2 blockchain_response;
+            std::move(package).get(blockchain_response);
+
+            bool have_signed_blocks = (false == blockchain_response.signed_blocks.empty());
+            if (have_signed_blocks)
+            {
+                uint64_t temp_from = 0;
+                uint64_t temp_to = 0;
+
+                auto const& front = blockchain_response.signed_blocks.front().block_details;
+                auto const& back = blockchain_response.signed_blocks.back().block_details;
+
+                temp_from = front.header.block_number;
+                temp_to = back.header.block_number;
+
+                if(temp_from == temp_to)
+                    //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
+                    pimpl->writeln_node("processing block " + std::to_string(temp_from));
+                else
+                    pimpl->writeln_node("proc. blocks [" + std::to_string(temp_from) +
+                                        "," + std::to_string(temp_to) + "] from " + detail::peer_short_names(header.peerid));
+            }
+
+            process_response(header,
+                             std::move(blockchain_response));
+            break;
+        }
+        default:
+            assert(false);
+            break;
+        }
+    }
+    else
+    {
+        code = false;
+    }
+
+    return code;
+}
+
+bool session_action_block::permanent() const
+{
+    return true;
+}
+
+void session_action_block::process_request(beltpp::isocket::peer_id const& peerid,
+                                           BlockchainMessage::BlockchainRequest2 const& blockchain_request,
+                                           publiqpp::detail::node_internals& impl)
+{
+    // blocks are always requested in regular order
+
+    uint64_t number = impl.m_blockchain.length() - 1;
+    uint64_t from = number < blockchain_request.blocks_from ? number : blockchain_request.blocks_from;
+
+    uint64_t to = blockchain_request.blocks_to;
+    to = to < from ? from : to;
+    to = to > from + BLOCK_TR_LENGTH ? from + BLOCK_TR_LENGTH : to;
+    to = to > number ? number : to;
+
+    BlockchainResponse2 chain_response;
+    for (auto i = from; i <= to; ++i)
+    {
+        SignedBlock const& signed_block = impl.m_blockchain.at(i);
+
+        chain_response.signed_blocks.push_back(std::move(signed_block));
+    }
+
+    impl.m_ptr_p2p_socket->send(peerid, chain_response);
+}
+
+void session_action_block::process_response(meshpp::session_header& header,
+                                            BlockchainMessage::BlockchainResponse2&& blockchain_response)
+{
+    bool throw_for_debugging_only = false;
+
+    //1. check received blockchain validity
+
+    if (blockchain_response.signed_blocks.empty())
+        return set_errored("blockchain response. empty response received!", throw_for_debugging_only);
+
+    // find last common block
+    uint64_t block_number = sync_headers.back().block_number;
+
+    assert(block_number > 0);
+    if (block_number == 0)
+        throw std::logic_error("sync headers action must take care of this, the program will stop because of this");
+
+    //2. check and add received blockchain to sync_blocks_vector for future process
+    size_t length = sync_blocks.size();
+
+    // put prev_signed_block in correct place
+    SignedBlock const* prev_signed_block;
+    if (sync_blocks.empty())
+        prev_signed_block = &pimpl->m_blockchain.at(block_number - 1);
+    else
+        prev_signed_block = &(sync_blocks.back());
+
+    auto header_it = sync_headers.rbegin() + length;
+
+    if (header_it->prev_hash != meshpp::hash(prev_signed_block->block_details.to_string()))
+        return set_errored("blockchain response. previous hash!", throw_for_debugging_only);
+
+    ++header_it;
+    for (auto& block_item : blockchain_response.signed_blocks)
+    {
+        Block& block = block_item.block_details;
+        string str = block.to_string();
+
+        // verify block signature
+        if (!meshpp::verify_signature(meshpp::public_key(block_item.authority), str, block_item.signature))
+            return set_errored("blockchain response. block signature!", throw_for_debugging_only);
+
+        if (header_it != sync_headers.rend())
+        {
+            if (*(header_it - 1) != block.header || header_it->prev_hash != meshpp::hash(str))
+                return set_errored("blockchain response. block header!", throw_for_debugging_only);
+
+            ++header_it;
+        }
+
+        // verify block transactions
+        for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
+        {
+            if (!meshpp::verify_signature(meshpp::public_key(tr_it->authority),
+                                          tr_it->transaction_details.to_string(),
+                                          tr_it->signature))
+                return set_errored("blockchain response. transaction signature!", throw_for_debugging_only);
+
+            action_validate(*pimpl, *tr_it);
+
+            system_clock::time_point creation = system_clock::from_time_t(tr_it->transaction_details.creation.tm);
+            system_clock::time_point expiry = system_clock::from_time_t(tr_it->transaction_details.expiry.tm);
+
+            if (expiry - creation > chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS))
+                return set_errored("blockchain response. too long lifetime for transaction", throw_for_debugging_only);
+
+            if (creation - chrono::seconds(NODES_TIME_SHIFT) > system_clock::from_time_t(block.header.time_signed.tm))
+                return set_errored("blockchain response. transaction from the future!", throw_for_debugging_only);
+
+            if (expiry < system_clock::from_time_t(block.header.time_signed.tm))
+                return set_errored("blockchain response. expired transaction!", throw_for_debugging_only);
+        }
+
+        // store blocks for future use
+        sync_blocks.push_back(std::move(block_item));
+    }
+
+    // request new chain if needed
+    if (sync_blocks.size() < BLOCK_INSERT_LENGTH &&
+        sync_blocks.size() < sync_headers.size())
+    {
+        BlockchainRequest2 blockchain_request;
+        blockchain_request.blocks_from = (header_it - 1)->block_number;
+        blockchain_request.blocks_to = sync_headers.begin()->block_number;
+
+        pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);
+
+        return; // will wait new chain
+    }
+
+    //3. all needed blocks received, start to check
+    unordered_map<string, system_clock::time_point> transaction_cache_backup = pimpl->m_transaction_cache;
+
+    auto now = system_clock::now();
+    beltpp::on_failure guard([this, &transaction_cache_backup]
+    {
+        pimpl->discard();
+        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+    });
+
+    uint64_t lcb_number = sync_headers.rbegin()->block_number - 1;
+    vector<SignedTransaction> reverted_transactions;
+    bool clear_pool = sync_blocks.size() < sync_headers.size();
+
+    //  collect transactions to be reverted from blockchain
+    //
+    size_t blockchain_length = pimpl->m_blockchain.length();
+
+    for (size_t index = lcb_number + 1; index < blockchain_length; ++index)
+    {
+        SignedBlock const& signed_block = pimpl->m_blockchain.at(index);
+
+        reverted_transactions.insert(reverted_transactions.end(),
+                                     signed_block.block_details.signed_transactions.begin(),
+                                     signed_block.block_details.signed_transactions.end());
+    }
+
+    vector<SignedTransaction> pool_transactions;
+    //  collect transactions to be reverted from pool
+    //  revert transactions from pool
+    revert_pool(system_clock::to_time_t(now - chrono::seconds(NODES_TIME_SHIFT)), *pimpl, pool_transactions);
+
+    //  revert blocks
+    //  calculate back to get state at LCB point
+    for (size_t index = blockchain_length - 1;
+         index < blockchain_length && index > lcb_number;
+         --index)
+    {
+        SignedBlock const& signed_block = pimpl->m_blockchain.at(index);
+        pimpl->m_blockchain.remove_last_block();
+        pimpl->m_action_log.revert();
+
+        Block const& block = signed_block.block_details;
+
+        // decrease all reward amounts from balances and revert reward
+        for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
+            pimpl->m_state.decrease_balance(it->to, it->amount);
+
+        // calculate back transactions
+        for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
+        {
+            revert_transaction(*it, *pimpl, signed_block.authority);
+
+            string key = meshpp::hash(it->to_string());
+            pimpl->m_transaction_cache.erase(key);
+        }
+    }
+    //  update the variable, just in case it will be needed down the code
+    blockchain_length = pimpl->m_blockchain.length();
+
+    unordered_set<string> set_tr_hashes_to_remove;
+
+    // verify new received blocks
+    BlockHeader const& prev_header = pimpl->m_blockchain.header_at(lcb_number);
+    uint64_t c_const = prev_header.c_const;
+
+    for (auto const& signed_block : sync_blocks)
+    {
+        Block const& block = signed_block.block_details;
+
+        // verify consensus_delta
+        Coin amount = pimpl->m_state.get_balance(signed_block.authority);
+        uint64_t delta = pimpl->calc_delta(signed_block.authority, amount.whole, block.header.prev_hash, c_const);
+
+        if (delta != block.header.delta)
+            return set_errored("blockchain response. consensus delta!", throw_for_debugging_only);
+
+        // verify miner balance at mining time
+        if (coin(amount) < MINE_AMOUNT_THRESHOLD)
+            return set_errored("blockchain response. miner balance!", throw_for_debugging_only);
+
+        // verify block transactions
+        for (auto const& tr_item : block.signed_transactions)
+        {
+            string key = meshpp::hash(tr_item.to_string());
+
+            set_tr_hashes_to_remove.insert(key);
+
+            if (pimpl->m_transaction_cache.find(key) != pimpl->m_transaction_cache.end())
+                return set_errored("blockchain response. transaction double use!", throw_for_debugging_only);
+
+            pimpl->m_transaction_cache[key] = system_clock::from_time_t(tr_item.transaction_details.creation.tm);
+
+            if (!apply_transaction(tr_item, *pimpl, signed_block.authority))
+                return set_errored("blockchain response. sender balance!", throw_for_debugging_only);
+        }
+
+        // verify block rewards
+        if (check_rewards(block, signed_block.authority, *pimpl))
+            return set_errored("blockchain response. block rewards!", throw_for_debugging_only);
+
+        // increase all reward amounts to balances
+        for (auto const& reward_item : block.rewards)
+            pimpl->m_state.increase_balance(reward_item.to, reward_item.amount);
+
+        // Insert to blockchain
+        pimpl->m_blockchain.insert(signed_block);
+        pimpl->m_action_log.log_block(signed_block);
+
+        c_const = block.header.c_const;
+    }
+
+    if (false == clear_pool)
+        reverted_transactions.insert(reverted_transactions.end(),
+                                     pool_transactions.begin(),
+                                     pool_transactions.end());
+
+    // apply back the rest of the transaction pool
+    //
+    for (auto const& signed_transaction : reverted_transactions)
+    {
+        string key = meshpp::hash(signed_transaction.to_string());
+        if (now - chrono::seconds(NODES_TIME_SHIFT) <=
+            system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm) &&
+            0 == set_tr_hashes_to_remove.count(key))
+        {
+            if (apply_transaction(signed_transaction, *pimpl))
+            {
+                pimpl->m_action_log.log_transaction(signed_transaction);
+                pimpl->m_transaction_pool.push_back(signed_transaction);
+                pimpl->m_transaction_cache[key] =
+                        system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+            }
+        }
+    }
+
+    pimpl->save(guard);
+
+    // request new chain if the process was stopped
+    // by BLOCK_INSERT_LENGTH restriction
+    length = sync_blocks.size();
+    if (length < sync_headers.size())
+    {
+        // clear already inserted blocks and headers
+        sync_blocks.clear();
+        for (size_t i = 0; i < length; ++i)
+            sync_headers.pop_back();
+
+        BlockchainRequest2 blockchain_request;
+        blockchain_request.blocks_from = sync_headers.back().block_number;
+        blockchain_request.blocks_to = sync_headers.front().block_number;
+
+        pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);
+    }
+    else
+    {
+        completed = true;
+        expected_next_package_type = size_t(-1);
+
+        if (pimpl->m_node_type == NodeType::channel)
+            broadcast_storage_info(*pimpl);
+
+        if (pimpl->m_node_type == NodeType::storage && !pimpl->m_slave_peer.empty())
+        {
+            StatInfo stat_info;
+            TaskRequest task_request;
+            task_request.task_id = ++pimpl->m_slave_taskid;
+            ::detail::assign_packet(task_request.package, stat_info);
+            task_request.time_signed.tm = system_clock::to_time_t(now);
+            meshpp::signature signed_msg = pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
+                                                                meshpp::hash(stat_info.to_string()) +
+                                                                std::to_string(task_request.time_signed.tm));
+            task_request.signature = signed_msg.base58;
+
+            // send task to slave
+            pimpl->m_ptr_rpc_socket->send(pimpl->m_slave_peer, task_request);
+
+            beltpp::packet task_packet;
+            task_packet.set(stat_info);
+
+            pimpl->m_slave_tasks.add(task_request.task_id, task_packet);
+        }
+    }
+}
+
+void session_action_block::set_errored(string const& message, bool throw_for_debugging_only)
+{
+    if (throw_for_debugging_only)
+        throw wrong_data_exception(message);
+    errored = true;
 }
 }
 

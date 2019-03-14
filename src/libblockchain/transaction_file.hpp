@@ -11,12 +11,12 @@ namespace publiqpp
 void action_validate(BlockchainMessage::SignedTransaction const& signed_transaction,
                      BlockchainMessage::File const& file);
 
-bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       BlockchainMessage::File const& file);
 
-void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_apply(publiqpp::detail::node_internals& impl,
                   BlockchainMessage::File const& file);
 
-void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_revert(publiqpp::detail::node_internals& impl,
                    BlockchainMessage::File const& file);
 }

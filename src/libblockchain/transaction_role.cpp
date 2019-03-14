@@ -19,39 +19,39 @@ void action_validate(SignedTransaction const& signed_transaction,
         throw std::runtime_error("there is no need to broadcast role::blockchain");
 }
 
-bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       Role const& role)
 {
     NodeType node_type;
-    if (pimpl->m_state.get_role(role.node_address, node_type))
+    if (impl.m_state.get_role(role.node_address, node_type))
         return false;
-    if (pimpl->m_pb_key.to_string() == role.node_address &&
-        pimpl->m_node_type != role.node_type)
+    if (impl.m_pb_key.to_string() == role.node_address &&
+        impl.m_node_type != role.node_type)
         return false;
     return true;
 }
 
-void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_apply(publiqpp::detail::node_internals& impl,
                   Role const& role)
 {
     NodeType node_type;
-    if (pimpl->m_state.get_role(role.node_address, node_type))
+    if (impl.m_state.get_role(role.node_address, node_type))
         throw std::runtime_error("role: " +
                                  BlockchainMessage::detail::saver(role.node_type) +
                                  " is already stored for: " +
                                  role.node_address);
-    if (pimpl->m_pb_key.to_string() == role.node_address &&
-        pimpl->m_node_type != role.node_type)
+    if (impl.m_pb_key.to_string() == role.node_address &&
+        impl.m_node_type != role.node_type)
         throw std::runtime_error("the node: " +
                                  role.node_address +
                                  " can have only the following role: " +
-                                 BlockchainMessage::detail::saver(pimpl->m_node_type));
-    pimpl->m_state.insert_role(role);
+                                 BlockchainMessage::detail::saver(impl.m_node_type));
+    impl.m_state.insert_role(role);
 }
 
-void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_revert(publiqpp::detail::node_internals& impl,
                    Role const& role)
 {
-    pimpl->m_state.remove_role(role.node_address);
+    impl.m_state.remove_role(role.node_address);
 }
 }

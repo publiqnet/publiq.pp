@@ -97,7 +97,7 @@ public:
     std::string file_uri;
 };
 
-class session_action_sync_request: public meshpp::session_action
+class session_action_sync_request : public meshpp::session_action
 {
 public:
     session_action_sync_request(detail::node_internals& impl);
@@ -141,6 +141,32 @@ public:
     uint64_t block_index_to;
     uint64_t const promised_block_number;
     uint64_t const promised_consensus_sum;
+    std::string current_peerid;
+    std::vector<BlockchainMessage::BlockHeader> sync_headers;
+};
+
+class session_action_block : public meshpp::session_action
+{
+public:
+    session_action_block(detail::node_internals& impl);
+    ~session_action_block() override;
+
+    void initiate(meshpp::session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    bool permanent() const override;
+
+    static
+    void process_request(beltpp::isocket::peer_id const& peerid,
+                         BlockchainMessage::BlockchainRequest2 const& blockchain_request,
+                         publiqpp::detail::node_internals& impl);
+
+    void process_response(meshpp::session_header& header,
+                          BlockchainMessage::BlockchainResponse2&& blockchain_response);
+
+    void set_errored(std::string const& message, bool throw_for_debugging_only);
+
+    detail::node_internals* pimpl;
+    std::vector<BlockchainMessage::SignedBlock> sync_blocks;
     std::vector<BlockchainMessage::BlockHeader> sync_headers;
 };
 

@@ -12,31 +12,31 @@
 namespace publiqpp
 {
 bool action_process_on_chain(BlockchainMessage::SignedTransaction const& signed_transaction,
-                             std::unique_ptr<publiqpp::detail::node_internals>& pimpl);
+                             publiqpp::detail::node_internals& impl);
 
-void action_validate(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_validate(publiqpp::detail::node_internals& impl,
                      BlockchainMessage::SignedTransaction const& signed_transaction);
 
-bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       beltpp::packet const& package);
 
-void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_apply(publiqpp::detail::node_internals& impl,
                   beltpp::packet const& package);
 
-void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_revert(publiqpp::detail::node_internals& impl,
                    beltpp::packet const& package);
 
-void fee_validate(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+void fee_validate(publiqpp::detail::node_internals const& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction);
 
-bool fee_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool fee_can_apply(publiqpp::detail::node_internals const& impl,
                    BlockchainMessage::SignedTransaction const& signed_transaction);
 
-void fee_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void fee_apply(publiqpp::detail::node_internals& impl,
                BlockchainMessage::SignedTransaction const& signed_transaction,
                std::string const& fee_receiver);
 
-void fee_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void fee_revert(publiqpp::detail::node_internals& impl,
                 BlockchainMessage::SignedTransaction const& signed_transaction,
                 std::string const& fee_receiver);
 }

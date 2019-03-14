@@ -30,38 +30,38 @@ void action_validate(SignedTransaction const& signed_transaction,
     }
 }
 
-bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       ContentUnit const& content_unit)
 {
-    if (pimpl->m_documents.exist_unit(content_unit.uri))
+    if (impl.m_documents.exist_unit(content_unit.uri))
         return false;
 
     for (auto const& uri : content_unit.file_uris)
     {
-        if (false == pimpl->m_documents.exist_file(uri))
+        if (false == impl.m_documents.exist_file(uri))
             return false;
     }
     return true;
 }
 
-void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_apply(publiqpp::detail::node_internals& impl,
                   ContentUnit const& content_unit)
 {
-    if (pimpl->m_documents.exist_unit(content_unit.uri))
+    if (impl.m_documents.exist_unit(content_unit.uri))
         throw wrong_document_exception("ContentUnit already exists: " + content_unit.uri);
 
     for (auto const& uri : content_unit.file_uris)
     {
-        if (false == pimpl->m_documents.exist_file(uri))
+        if (false == impl.m_documents.exist_file(uri))
             throw wrong_document_exception("Missing File: " + uri);
     }
 
-    pimpl->m_documents.insert_unit(content_unit);
+    impl.m_documents.insert_unit(content_unit);
 }
 
-void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_revert(publiqpp::detail::node_internals& impl,
                    ContentUnit const& content_unit)
 {
-    pimpl->m_documents.remove_unit(content_unit.uri);
+    impl.m_documents.remove_unit(content_unit.uri);
 }
 }

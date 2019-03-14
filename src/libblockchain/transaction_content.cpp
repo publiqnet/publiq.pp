@@ -25,28 +25,28 @@ void action_validate(SignedTransaction const& signed_transaction,
     }
 }
 
-bool action_can_apply(std::unique_ptr<publiqpp::detail::node_internals> const& pimpl,
+bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       Content const& content)
 {
     for (auto const& uri : content.content_unit_uris)
     {
-        if (false == pimpl->m_documents.exist_unit(uri))
+        if (false == impl.m_documents.exist_unit(uri))
             return false;
     }
     return true;
 }
 
-void action_apply(std::unique_ptr<publiqpp::detail::node_internals>& pimpl,
+void action_apply(publiqpp::detail::node_internals& impl,
                   Content const& content)
 {
     for (auto const& uri : content.content_unit_uris)
     {
-        if (false == pimpl->m_documents.exist_unit(uri))
+        if (false == impl.m_documents.exist_unit(uri))
             throw wrong_document_exception("Missing content_unit with uri: " + uri);
     }
 }
 
-void action_revert(std::unique_ptr<publiqpp::detail::node_internals>& /*pimpl*/,
+void action_revert(publiqpp::detail::node_internals& /*impl*/,
                    Content const& /*content*/)
 {
 }
