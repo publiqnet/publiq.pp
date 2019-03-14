@@ -860,7 +860,7 @@ bool node::run()
                                     chrono::seconds(SYNC_TIMER));
         }
 
-        if (false == m_pimpl->all_sync_info.sync_responses.empty())
+        //  work through process of block header sync or mining
         {
             // process collected SyncResponse data
             BlockHeader const& head_block_header = m_pimpl->m_blockchain.last_header();
@@ -869,7 +869,7 @@ bool node::run()
             uint64_t scan_consensus_sum = head_block_header.c_sum;
             beltpp::isocket::peer_id scan_peer;
 
-            //  duration passed according to my system time since the head block
+            //  the duration passed according to my system time since the head block
             //  was signed
             chrono::system_clock::duration since_head_block =
                     system_clock::now() -
@@ -897,7 +897,10 @@ bool node::run()
             bool just_same = (head_block_header.block_number == scan_block_number);
 
             if (far_behind)
+            {
                 sync_now = true;
+                assert(false == just_same);
+            }
             else
             {
                 //  just one block behind or just same
@@ -921,13 +924,16 @@ bool node::run()
                 else if (m_pimpl->all_sync_info.own_sync_info().c_sum < scan_consensus_sum &&
                          since_head_block > chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY))
                 {
-                     // it is too late and network has better block than I can mine
+                    //  it is too late and network has better block than I can mine
                     sync_now = true;
                     assert(false == just_same);
                 }
-                /*else if (m_pimpl->own_sync_info.c_sum >= scan_consensus_sum)
+                /*else if (m_pimpl->all_sync_info.own_sync_info().c_sum >= scan_consensus_sum)
                 {
                     // I can mine better block and don't need received data
+                    //  I can wait until it is
+                    //  either past BLOCK_MINE_DELAY and I can mine better than scan_consensus_sum
+                    //  or it is past BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY and I can mine better than net_sync_info()
                 }*/
             }
 
@@ -944,6 +950,17 @@ bool node::run()
                                         m_pimpl->m_ptr_p2p_socket->info_connection(scan_peer),
                                         std::move(actions),
                                         chrono::seconds(SYNC_TIMER));
+            }
+            else if (m_pimpl->is_miner())
+            {
+                assert(m_pimpl->all_sync_info.own_sync_info().c_sum >= scan_consensus_sum);
+                if (since_head_block >= chrono::seconds(BLOCK_MINE_DELAY) &&
+                    (
+                        m_pimpl->all_sync_info.own_sync_info().c_sum >= m_pimpl->all_sync_info.net_sync_info().c_sum ||
+                        since_head_block > chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY)
+                    )
+                   )
+                    mine_block(m_pimpl);
             }
         }
 
@@ -1021,14 +1038,14 @@ bool node::run()
             
             if (!sync_now && m_pimpl->sync_responses.empty())
             {
-                if (m_pimpl->is_miner() &&
-                    diff_seconds.count() >= BLOCK_MINE_DELAY &&
+                /*if (m_pimpl->is_miner() &&
+                    diff_seconds.count() > BLOCK_MINE_DELAY &&
                     (
                         m_pimpl->own_sync_info.c_sum >= m_pimpl->net_sync_info.c_sum ||
-                        diff_seconds.count() > BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY
+                        diff_seconds.count() >= BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY
                     )
                    )
-                    mine_block(m_pimpl);
+                    mine_block(m_pimpl);*/
 
                 if (m_pimpl->m_sync_timer.expired())
                     m_pimpl->new_sync_request();
