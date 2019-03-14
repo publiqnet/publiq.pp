@@ -317,7 +317,7 @@ bool node::run()
 
                         nodeid_info.add(beltpp_ip_address,
                                         unique_ptr<session_action_broadcast_address_info>(
-                                            new session_action_broadcast_address_info(m_pimpl.get(),
+                                            new session_action_broadcast_address_info(*m_pimpl.get(),
                                                                                       peerid,
                                                                                       std::move(broadcast))));
                     }
@@ -521,6 +521,20 @@ bool node::run()
                     std::move(ref_packet).get(header_request);
 
                     process_blockheader_request(header_request, m_pimpl, *psk, peerid);
+
+                    break;
+                }
+                case BlockHeaderRequest2::rtt:
+                {
+                    if (it != interface_type::p2p)
+                        throw wrong_request_exception("BlockHeaderRequest received through rpc!");
+
+                    BlockHeaderRequest2 header_request;
+                    std::move(ref_packet).get(header_request);
+
+                    session_action_header::process_request(peerid,
+                                                           header_request,
+                                                           *m_pimpl.get());
 
                     break;
                 }
@@ -836,14 +850,101 @@ bool node::run()
         for (auto const& peerid : m_pimpl->m_p2p_peers)
         {
             vector<unique_ptr<meshpp::session_action>> actions;
-            actions.emplace_back(new session_action_p2pconnections(*m_pimpl->m_ptr_p2p_socket.get()));
-            actions.emplace_back(new session_action_sync_request(m_pimpl.get()));
+            actions.emplace_back(new session_action_p2pconnections(*m_pimpl->m_ptr_p2p_socket.get(),
+                                                                   *m_pimpl.get()));
+            actions.emplace_back(new session_action_sync_request(*m_pimpl.get()));
 
-            m_pimpl->m_ptr_p2p_socket->external_address();
             m_pimpl->m_sessions.add(peerid,
                                     m_pimpl->m_ptr_p2p_socket->info_connection(peerid),
                                     std::move(actions),
-                                    chrono::seconds(15));
+                                    chrono::seconds(SYNC_TIMER));
+        }
+
+        if (false == m_pimpl->all_sync_info.sync_responses.empty())
+        {
+            // process collected SyncResponse data
+            BlockHeader const& head_block_header = m_pimpl->m_blockchain.last_header();
+
+            uint64_t scan_block_number = head_block_header.block_number;
+            uint64_t scan_consensus_sum = head_block_header.c_sum;
+            beltpp::isocket::peer_id scan_peer;
+
+            //  duration passed according to my system time since the head block
+            //  was signed
+            chrono::system_clock::duration since_head_block =
+                    system_clock::now() -
+                    system_clock::from_time_t(head_block_header.time_signed.tm);
+
+            for (auto& it : m_pimpl->all_sync_info.sync_responses)
+            {
+                if (m_pimpl->m_p2p_peers.find(it.first) == m_pimpl->m_p2p_peers.end())
+                {
+                    assert(false); // because the session must handle this
+                    continue; // for the case if peer is droped before sync started
+                }
+
+                if (scan_consensus_sum < it.second.c_sum &&
+                    scan_block_number <= it.second.number)
+                {
+                    scan_block_number = it.second.number;
+                    scan_consensus_sum = it.second.c_sum;
+                    scan_peer = it.first;
+                }
+            }
+
+            bool sync_now = false;
+            bool far_behind = (head_block_header.block_number + 1 < scan_block_number);
+            bool just_same = (head_block_header.block_number == scan_block_number);
+
+            if (far_behind)
+                sync_now = true;
+            else
+            {
+                //  just one block behind or just same
+                //
+                if (scan_consensus_sum > std::max(m_pimpl->all_sync_info.own_sync_info().c_sum,
+                                                  m_pimpl->all_sync_info.net_sync_info().c_sum))
+                {
+                    //  suddenly got something better than expected
+                    //  direct peer has ready excellent chain to offer
+                    sync_now = true;
+                    assert(false == just_same);
+                }
+                else if (m_pimpl->all_sync_info.own_sync_info().c_sum < scan_consensus_sum &&
+                         m_pimpl->all_sync_info.net_sync_info().c_sum == scan_consensus_sum)
+                {
+                    //  got expected block
+                    //  direct peer finally got the excellent chain that was promised before
+                    sync_now = true;
+                    assert(false == just_same);
+                }
+                else if (m_pimpl->all_sync_info.own_sync_info().c_sum < scan_consensus_sum &&
+                         since_head_block > chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY))
+                {
+                     // it is too late and network has better block than I can mine
+                    sync_now = true;
+                    assert(false == just_same);
+                }
+                /*else if (m_pimpl->own_sync_info.c_sum >= scan_consensus_sum)
+                {
+                    // I can mine better block and don't need received data
+                }*/
+            }
+
+            if (sync_now)
+            {
+                assert(false == just_same);
+                assert(false == scan_peer.empty());
+                vector<unique_ptr<meshpp::session_action>> actions;
+                actions.emplace_back(new session_action_header(*m_pimpl.get(),
+                                                               scan_block_number,
+                                                               scan_consensus_sum));
+
+                m_pimpl->m_sessions.add(scan_peer,
+                                        m_pimpl->m_ptr_p2p_socket->info_connection(scan_peer),
+                                        std::move(actions),
+                                        chrono::seconds(SYNC_TIMER));
+            }
         }
 
         if (m_pimpl->sync_peerid.empty())

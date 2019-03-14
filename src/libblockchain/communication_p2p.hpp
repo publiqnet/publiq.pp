@@ -36,4 +36,7 @@ void broadcast_storage_stat(StatInfo& stat_info,
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
+//  this has opposite bool logic - true means error :)
+bool check_headers(BlockchainMessage::BlockHeader const& next_header, BlockchainMessage::BlockHeader const& header);
 }// end of namespace publiqpp

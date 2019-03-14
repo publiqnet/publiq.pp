@@ -12,14 +12,14 @@
 #define HEADER_TR_LENGTH 49
 
 // Maximum buffer length of blocks
-// which can be cillected for sync
+// that can be collected per sync
 #define BLOCK_INSERT_LENGTH 50
 
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 600
 #define BLOCK_WAIT_DELAY 180
 
-// Sync process request/response maximum dely
+// Sync process request/response maximum delay
 #define SYNC_FAILURE_TIMEOUT 30
 
 // Sent packet will considered as not answered

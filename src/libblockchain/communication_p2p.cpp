@@ -234,6 +234,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     }
 }
 
+//  this has opposite bool logic - true means error :)
 bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
 {
     bool t = next_header.block_number != header.block_number + 1;
@@ -971,7 +972,7 @@ void process_blockchain_response(BlockchainResponse&& response,
             task_request.signature = signed_msg.base58;
 
             // send task to slave
-            m_pimpl->m_ptr_rpc_socket.get()->send(m_pimpl->m_slave_peer, task_request);
+            m_pimpl->m_ptr_rpc_socket->send(m_pimpl->m_slave_peer, task_request);
 
             beltpp::packet task_packet;
             task_packet.set(stat_info);

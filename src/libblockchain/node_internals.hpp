@@ -256,7 +256,7 @@ public:
     {
         if (m_node_type != NodeType::blockchain && m_slave_peer.empty())
         {
-            auto peers_list = m_ptr_rpc_socket.get()->open(m_slave_connect_to_address);
+            auto peers_list = m_ptr_rpc_socket->open(m_slave_connect_to_address);
             m_slave_peer_attempt = peers_list.front();
         }
     }
