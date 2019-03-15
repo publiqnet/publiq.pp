@@ -100,7 +100,7 @@ bool session_action_connections::permanent() const
     return true;
 }
 
-// --------------------------- session_action_connections ---------------------------
+// --------------------------- session_action_p2pconnections ---------------------------
 
 session_action_p2pconnections::session_action_p2pconnections(meshpp::p2psocket& sk,
                                                              detail::node_internals& impl)
@@ -500,8 +500,7 @@ bool session_action_header::process(beltpp::packet&& package, meshpp::session_he
             BlockHeaderResponse header_response;
             std::move(package).get(header_response);
 
-            process_response(header,
-                             std::move(header_response));
+            process_response(header, std::move(header_response));
 
             break;
         }
@@ -577,30 +576,25 @@ void session_action_header::process_response(meshpp::session_header& header,
     bool lcb_found = false;
     //  sync_headers.begin() has the highest index
     auto r_it = sync_headers.begin();
-    for (;
-         r_it != sync_headers.end() &&
-         false == lcb_found;
-         ++r_it)
+    for (; r_it != sync_headers.end() && false == lcb_found; ++r_it)
     {
         string prev_hash;
         if (r_it->block_number == pimpl->m_blockchain.length())
             prev_hash = pimpl->m_blockchain.last_hash();
         else if (r_it->block_number < pimpl->m_blockchain.length())
         {
-            BlockHeader const& header = pimpl->m_blockchain.header_at(r_it->block_number);
-            prev_hash = header.prev_hash;
+            BlockHeader const& _header = pimpl->m_blockchain.header_at(r_it->block_number);
+            prev_hash = _header.prev_hash;
         }
 
-        if (false == prev_hash.empty() &&
-            prev_hash == r_it->prev_hash)
+        if (false == prev_hash.empty() && prev_hash == r_it->prev_hash)
         {
             lcb_index = r_it->block_number - 1;
             lcb_found = true;
         }
     }
 
-    if (lcb_found &&
-        lcb_index == uint64_t(-1))
+    if (lcb_found && lcb_index == uint64_t(-1))
     {
         //  this guy is from a different blockchain network
         return set_errored("this guy is from a different blockchain network", throw_for_debugging_only);
