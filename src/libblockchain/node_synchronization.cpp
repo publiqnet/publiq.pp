@@ -8,6 +8,7 @@ namespace publiqpp
 {
 node_synchronization::node_synchronization(detail::node_internals& impl)
     : pimpl(&impl)
+    , blockchain_sync_in_progress(false)
 {
 
 }

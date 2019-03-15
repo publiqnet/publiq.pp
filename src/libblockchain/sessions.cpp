@@ -460,12 +460,17 @@ session_action_header::session_action_header(detail::node_internals& impl,
     , block_index_to(pimpl->m_blockchain.last_header().block_number)
     , promised_block_number(_promised_block_number)
     , promised_consensus_sum(_promised_consensus_sum)
-{}
+{
+    assert(false == pimpl->all_sync_info.blockchain_sync_in_progress);
+    pimpl->all_sync_info.blockchain_sync_in_progress = true;
+}
 
 session_action_header::~session_action_header()
 {
     if (false == current_peerid.empty())
         pimpl->all_sync_info.sync_headers.erase(current_peerid);
+
+    pimpl->all_sync_info.blockchain_sync_in_progress = false;
 }
 
 void session_action_header::initiate(meshpp::session_header& header)

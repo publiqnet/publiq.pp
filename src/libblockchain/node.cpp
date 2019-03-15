@@ -132,7 +132,10 @@ bool node::run()
             auto remove_peer = [&]()
             {
                 if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                {
                     m_pimpl->remove_peer(peerid);
+                    m_pimpl->m_sessions.remove(peerid);
+                }
                 else if (peerid == m_pimpl->m_slave_peer)
                 {
                     m_pimpl->m_slave_peer.clear();
@@ -440,7 +443,7 @@ bool node::run()
                 case SyncRequest::rtt:
                 {
                     if (it != interface_type::p2p)
-                        throw wrong_request_exception("SyncRequest2 received through rpc!");
+                        throw wrong_request_exception("SyncRequest received through rpc!");
 
                     BlockHeader const& header = m_pimpl->m_blockchain.last_header();
 
@@ -454,6 +457,7 @@ bool node::run()
                     else
                         sync_response.sync_info = m_pimpl->all_sync_info.own_sync_info();
 
+                    //m_pimpl->writeln_node("sync response - " + peerid);
                     psk->send(peerid, std::move(sync_response));
 
                     break;
@@ -466,6 +470,7 @@ bool node::run()
                     BlockHeaderRequest header_request;
                     std::move(ref_packet).get(header_request);
 
+                    //m_pimpl->writeln_node("header response - " + peerid);
                     session_action_header::process_request(peerid,
                                                            header_request,
                                                            *m_pimpl.get());
@@ -480,6 +485,7 @@ bool node::run()
                     BlockchainRequest blockchain_request;
                     std::move(ref_packet).get(blockchain_request);
 
+                    //m_pimpl->writeln_node("chain response - " + peerid);
                     session_action_block::process_request(peerid,
                                                           blockchain_request,
                                                           *m_pimpl.get());
@@ -772,12 +778,13 @@ bool node::run()
             bool far_behind = (head_block_header.block_number + 1 < scan_block_number);
             bool just_same = (head_block_header.block_number == scan_block_number);
 
-            if (far_behind)
+            if (far_behind &&
+                false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
             {
                 sync_now = true;
                 assert(false == just_same);
             }
-            else
+            else if (false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
             {
                 //  just one block behind or just same
                 //
