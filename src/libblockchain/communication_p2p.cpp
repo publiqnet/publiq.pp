@@ -18,13 +18,12 @@ using namespace BlockchainMessage;
 
 using std::map;
 using std::set;
+using std::multimap;
 using std::unordered_map;
 using std::unordered_set;
 
 namespace publiqpp
 {
-///////////////////////////////////////////////////////////////////////////////////
-//                            Internal Functions
 bool apply_transaction(SignedTransaction const& signed_transaction,
                        publiqpp::detail::node_internals& impl,
                        string const& key/* = string()*/)
@@ -322,7 +321,7 @@ void broadcast_storage_info(publiqpp::detail::node_internals& impl)
 
 void revert_pool(time_t expiry_time, 
                  publiqpp::detail::node_internals& impl,
-                 vector<SignedTransaction>& pool_transactions)
+                 multimap<BlockchainMessage::ctime, SignedTransaction>& pool_transactions)
 {
     //  collect transactions to be reverted from pool
     //
@@ -334,7 +333,8 @@ void revert_pool(time_t expiry_time,
         SignedTransaction const& signed_transaction = impl.m_transaction_pool.at(index);
 
         if (expiry_time <= signed_transaction.transaction_details.expiry.tm)
-            pool_transactions.push_back(signed_transaction);
+            pool_transactions.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>
+            (signed_transaction.transaction_details.creation, signed_transaction));
     }
 
     //  revert transactions from pool
@@ -352,8 +352,6 @@ void revert_pool(time_t expiry_time,
     assert(impl.m_transaction_pool.length() == 0);
 }
 
-///////////////////////////////////////////////////////////////////////////////////
-
 void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     auto now = system_clock::now();
@@ -365,9 +363,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
     });
 
-    std::multimap<BlockchainMessage::ctime, std::pair<string, SignedTransaction>> transaction_map;
-
-    vector<SignedTransaction> pool_transactions;
+    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
     revert_pool(system_clock::to_time_t(now), *m_pimpl.get(), pool_transactions);
@@ -391,7 +387,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     block_header.c_const = prev_header.c_const;
     block_header.c_sum = prev_header.c_sum + delta;
     block_header.prev_hash = prev_hash;
-    block_header.time_signed.tm = system_clock::to_time_t(now);
+    block_header.time_signed.tm = prev_header.time_signed.tm + BLOCK_MINE_DELAY;
 
     // update consensus_const if needed
     if (delta > DELTA_UP)
@@ -433,16 +429,33 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     block.header = block_header;
 
     // check and copy transactions to block
-    size_t index;
-    for (index = 0; index != std::min(pool_transactions.size(), size_t(BLOCK_MAX_TRANSACTIONS)); ++index)
+    size_t transactions_count = 0;
+    auto it = pool_transactions.begin();
+    while (it != pool_transactions.end() && transactions_count < size_t(BLOCK_MAX_TRANSACTIONS))
     {
-        auto& signed_transaction = pool_transactions[index];
-        if (apply_transaction(signed_transaction, *m_pimpl.get(), own_key))
+        if (it->second.transaction_details.creation < block_header.time_signed)
         {
-            string key = meshpp::hash(signed_transaction.to_string());
-            block.signed_transactions.push_back(std::move(signed_transaction));
-            m_pimpl->m_transaction_cache[key] =
-                    system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+            if (apply_transaction(it->second, *m_pimpl.get(), own_key))
+            {
+                string key = meshpp::hash(it->second.to_string());
+                block.signed_transactions.push_back(std::move(it->second));
+                m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(it->second.transaction_details.creation.tm);
+
+                ++transactions_count;
+                it = pool_transactions.erase(it);
+            }
+            else
+            {
+                // some transactions can be skiped now 
+                // and applied to the next block or clined during next iterations
+                ++it;
+            }
+        }
+        else
+        {
+            // this transactions can be applied to the next block
+            // for this block it will look like transaction from future
+            ++it;
         }
     }
 
@@ -465,16 +478,14 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->m_action_log.log_block(signed_block);
 
     // apply back rest of the pool content to the state and action_log
-    for (; index != pool_transactions.size(); ++index)
+    for (auto const& item : pool_transactions)
     {
-        auto& signed_transaction = pool_transactions[index];
-        if (apply_transaction(signed_transaction, *m_pimpl.get()))
+        if (apply_transaction(item.second, *m_pimpl.get()))
         {
-            string key = meshpp::hash(signed_transaction.to_string());
-            m_pimpl->m_action_log.log_transaction(signed_transaction);
-            m_pimpl->m_transaction_pool.push_back(signed_transaction);
-            m_pimpl->m_transaction_cache[key] =
-                    system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+            string key = meshpp::hash(item.second.to_string());
+            m_pimpl->m_action_log.log_transaction(item.second);
+            m_pimpl->m_transaction_pool.push_back(item.second);
+            m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(item.second.transaction_details.creation.tm);
         }
     }
 

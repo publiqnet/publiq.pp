@@ -12,11 +12,13 @@
 
 #include <iostream>
 #include <algorithm>
+#include <map>
 
 namespace chrono = std::chrono;
 using chrono::system_clock;
 using chrono::steady_clock;
 using std::string;
+using std::multimap;
 
 namespace publiqpp
 {
@@ -917,10 +919,10 @@ void session_action_block::process_response(meshpp::session_header& header,
                                      signed_block.block_details.signed_transactions.end());
     }
 
-    vector<SignedTransaction> pool_transactions;
+    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    revert_pool(system_clock::to_time_t(now - chrono::seconds(NODES_TIME_SHIFT)), *pimpl, pool_transactions);
+    revert_pool(system_clock::to_time_t(now), *pimpl, pool_transactions);
 
     //  revert blocks
     //  calculate back to get state at LCB point
@@ -1003,9 +1005,8 @@ void session_action_block::process_response(meshpp::session_header& header,
     }
 
     if (false == clear_pool)
-        reverted_transactions.insert(reverted_transactions.end(),
-                                     pool_transactions.begin(),
-                                     pool_transactions.end());
+        for(auto item : pool_transactions)
+            reverted_transactions.push_back(std::move(item.second));
 
     // apply back the rest of the transaction pool
     //

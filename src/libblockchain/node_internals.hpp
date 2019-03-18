@@ -391,6 +391,8 @@ public:
     publiqpp::state m_state;
     publiqpp::documents m_documents;
 
+    node_synchronization all_sync_info;
+
     publiqpp::nodeid_service m_nodeid_service;
     meshpp::session_manager m_sessions;
 
@@ -407,8 +409,6 @@ public:
     meshpp::public_key m_pb_key;
 
     bool m_transfer_only;
-
-    node_synchronization all_sync_info;
 };
 
 }
