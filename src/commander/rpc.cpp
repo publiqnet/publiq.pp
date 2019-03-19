@@ -407,7 +407,7 @@ void import_account_if_needed(string const& address,
     }
 }
 
-string send(Send const& send,
+beltpp::packet send(Send const& send,
             rpc& rpc_server,
             beltpp::ip_address const& connect_to_address)
 {
@@ -535,26 +535,35 @@ void rpc::run()
                                          *this,
                                          connect_to_address);
 
-                StringValue response;
-                response.value = send(msg, *this, connect_to_address);
-                rpc_socket.send(peerid, response);
+                rpc_socket.send(peerid, send(msg, *this, connect_to_address));
 
                 break;
             }
             }
         }
+        catch (meshpp::exception_private_key const& ex)
+        {
+            BlockchainMessage::InvalidPrivateKey reason;
+            reason.private_key = ex.priv_key;
+
+            Failed msg;
+            msg.reason = std::move(reason);
+            msg.message = ex.what();
+            rpc_socket.send(peerid, std::move(msg));
+            throw;
+        }
         catch(std::exception const& ex)
         {
             Failed msg;
             msg.message = ex.what();
-            rpc_socket.send(peerid, msg);
+            rpc_socket.send(peerid, std::move(msg));
             throw;
         }
         catch(...)
         {
             Failed msg;
             msg.message = "unknown error";
-            rpc_socket.send(peerid, msg);
+            rpc_socket.send(peerid, std::move(msg));
             throw;
         }
         }

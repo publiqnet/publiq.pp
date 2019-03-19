@@ -319,7 +319,7 @@ void process_reward(uint64_t block_index,
     }
 }
 
-string daemon_rpc::send(CommanderMessage::Send const& send,
+beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
                         rpc& rpc_server)
 {
     B_UNUSED(rpc_server);
@@ -327,16 +327,17 @@ string daemon_rpc::send(CommanderMessage::Send const& send,
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to work");
 
+    beltpp::packet result;
     string transaction_hash;
 
     meshpp::private_key pv(send.private_key);
-    meshpp::public_key pb(send.to);
+    //meshpp::public_key pb(send.to);
 
     BlockchainMessage::Transfer tf;
     publiqpp::coin(send.amount).to_Coin(tf.amount);
     tf.from = pv.get_public_key().to_string();
     tf.message = send.message;
-    tf.to = pb.to_string();
+    tf.to = send.to;
 
     BlockchainMessage::Transaction tx;
     tx.action = std::move(tf);
@@ -378,21 +379,37 @@ string daemon_rpc::send(CommanderMessage::Send const& send,
                 {
                 case BlockchainMessage::Done::rtt:
                 {
+                    CommanderMessage::StringValue response;
+                    response.value = transaction_hash;
+                    result = response;
                     peerid = _peerid;
                     keep_trying = false;
                     break;
                 }
-                default:
-                    throw std::runtime_error("broadcast error");
+                case beltpp::isocket_drop::rtt:
+                {
+                    CommanderMessage::Failed response;
+                    response.message = "server disconnected";
+                    response.reason = std::move(ref_packet);
+                    result = std::move(response);
+                    keep_trying = false;
+                    break;
                 }
-
+                default:
+                {
+                    CommanderMessage::Failed response;
+                    response.message = "error";
+                    response.reason = std::move(ref_packet);
+                    result = std::move(response);
+                    keep_trying = false;
+                }
                 if (false == keep_trying)
                     break;
+                }
             }
         }
     }
-
-    return transaction_hash;
+    return result;
 }
 
 void daemon_rpc::sync(rpc& rpc_server,
@@ -504,7 +521,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                         LoggedTransactions msg;
                         std::move(ref_packet).get(msg);
 
-                        for (auto& action_info : msg.actions)
+                         for (auto& action_info : msg.actions)
                         {
                             ++count;
 

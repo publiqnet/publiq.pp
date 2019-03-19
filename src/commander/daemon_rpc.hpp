@@ -26,7 +26,7 @@ public:
     void open(beltpp::ip_address const& connect_to_address);
     void close();
 
-    std::string send(CommanderMessage::Send const& send,
+    beltpp::packet send(CommanderMessage::Send const& send,
                      rpc& rpc_server);
     void sync(rpc& rpc_server,
               std::unordered_set<std::string> const& set_accounts,

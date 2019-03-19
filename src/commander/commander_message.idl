@@ -43,6 +43,7 @@ module CommanderMessage
     class Failed
     {
         String message
+        Extension reason
     }
 
     class HeadBlockRequest
