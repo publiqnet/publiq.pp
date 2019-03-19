@@ -247,7 +247,7 @@ bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
     system_clock::time_point time_point2 = system_clock::from_time_t(next_header.time_signed.tm);
     chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(time_point2 - time_point1);
 
-    return t || time_point1 > time_point2 || diff_seconds.count() < BLOCK_MINE_DELAY;
+    return t || time_point1 > time_point2 || diff_seconds.count() != BLOCK_MINE_DELAY;
 }
 
 bool check_rewards(Block const& block, string const& authority,

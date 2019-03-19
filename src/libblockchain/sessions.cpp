@@ -570,6 +570,9 @@ void session_action_header::process_response(meshpp::session_header& header,
         sync_headers.front().block_number < sync_headers.back().block_number)
         return set_errored("blockheader response. wrong data received!", throw_for_debugging_only);
 
+    if(system_clock::from_time_t(sync_headers.front().time_signed.tm) > system_clock::now() + chrono::seconds(NODES_TIME_SHIFT))
+        return set_errored("blockheader response. block from future received!", throw_for_debugging_only);
+
     if (check_headers_vector(sync_headers))
         return set_errored("blockheader response. wrong data in response!", throw_for_debugging_only);
 
