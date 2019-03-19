@@ -69,7 +69,7 @@ public:
     void add(uint64_t task_id, packet& task_packet) 
     {
         task_map[task_id] = pair<system_clock::time_point, packet>(system_clock::now(), std::move(task_packet));
-    };
+    }
 
     bool remove(uint64_t task_id, packet& task_packet)
     {
@@ -153,11 +153,11 @@ public:
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state)
         , m_documents(fs_documents)
+        , all_sync_info(*this)
         , m_node_type(n_type)
         , m_pv_key(pv_key)
         , m_pb_key(pv_key.get_public_key())
         , m_transfer_only(transfer_only)
-        , all_sync_info(*this)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
