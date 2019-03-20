@@ -652,7 +652,7 @@ bool node::run()
             auto current_time = system_clock::now();
 
             for (size_t pool_index = 0;
-                 pool_index != m_pimpl->m_transaction_pool.length();
+                 pool_index != pool_size;
                  ++pool_index)
             {
                 SignedTransaction const& signed_transaction = m_pimpl->m_transaction_pool.at(pool_index);

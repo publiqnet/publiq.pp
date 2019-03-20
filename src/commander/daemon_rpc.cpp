@@ -381,7 +381,7 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
                 {
                     CommanderMessage::StringValue response;
                     response.value = transaction_hash;
-                    result = response;
+                    result = std::move(response);
                     peerid = _peerid;
                     keep_trying = false;
                     break;
