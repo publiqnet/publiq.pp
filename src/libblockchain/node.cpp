@@ -336,7 +336,6 @@ bool node::run()
 
                         psk->send(peerid, file_address);
 
-
                         TaskRequest task_request;
                         task_request.task_id = ++m_pimpl->m_slave_taskid;
                         ::detail::assign_packet(task_request.package, ref_packet);
@@ -603,7 +602,7 @@ bool node::run()
             }   // for (auto& received_packet : received_packets)
         }   // for (auto& pevent_item : wait_sockets)
     }
-    else if (beltpp::event_handler::timer_out == wait_result)
+    else if (wait_result == beltpp::event_handler::timer_out)
     {
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
