@@ -320,7 +320,7 @@ void process_reward(uint64_t block_index,
 }
 
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
-                        rpc& rpc_server)
+                                rpc& rpc_server)
 {
     B_UNUSED(rpc_server);
 
@@ -526,7 +526,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                         LoggedTransactions msg;
                         std::move(ref_packet).get(msg);
 
-                         for (auto& action_info : msg.actions)
+                        for (auto& action_info : msg.actions)
                         {
                             ++count;
 
