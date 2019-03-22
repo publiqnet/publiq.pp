@@ -105,6 +105,25 @@ BlockHeader const& blockchain::header_at(uint64_t number) const
 {
     return m_pimpl->m_header.as_const().at(number);
 }
+BlockHeaderExtended blockchain::header_ex_at(uint64_t number) const
+{
+    auto const& header = header_at(number);
+    BlockHeaderExtended result;
+
+    result.block_number = header.block_number;
+    result.c_const = header.c_const;
+    result.c_sum = header.c_sum;
+    result.delta = header.delta;
+    result.prev_hash = header.prev_hash;
+    result.time_signed = header.time_signed;
+
+    if (number == m_pimpl->m_blockchain.size() - 1)
+        result.block_hash = last_hash();
+    else
+        result.block_hash = m_pimpl->m_header.as_const().at(number + 1).prev_hash;
+
+    return result;
+}
 
 void blockchain::remove_last_block()
 {

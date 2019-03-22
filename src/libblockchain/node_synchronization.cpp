@@ -2,7 +2,13 @@
 #include "common.hpp"
 #include "node_internals.hpp"
 
+#include <belt.pp/meta.hpp>
+
+#include <chrono>
+
 using namespace BlockchainMessage;
+namespace chrono = std::chrono;
+using system_clock = chrono::system_clock;
 
 namespace publiqpp
 {
@@ -12,18 +18,18 @@ node_synchronization::node_synchronization(detail::node_internals& impl)
 {
 
 }
-SyncInfo node_synchronization::net_sync_info() const
+BlockHeaderExtended node_synchronization::net_sync_info() const
 {
-    SyncInfo result;
+    BlockHeaderExtended result;
 
     result.c_sum = 0;
-    result.number = 0;
+    result.block_number = 0;
 
     for (auto const& item : sync_responses)
     {
-        SyncInfo const& sync_info = item.second.sync_info;
+        BlockHeaderExtended const& sync_info = item.second.promised_header;
 
-        if (sync_info.number == own_sync_info().number &&
+        if (sync_info.block_number == own_sync_info().block_number &&
             sync_info.c_sum > result.c_sum)
         {
             result = sync_info;
@@ -33,24 +39,28 @@ SyncInfo node_synchronization::net_sync_info() const
     return result;
 }
 
-SyncInfo node_synchronization::own_sync_info() const
+BlockHeaderExtended node_synchronization::own_sync_info() const
 {
-    SyncInfo result;
-    Block const& block = pimpl->m_blockchain.at(pimpl->m_blockchain.length() - 1).block_details;
-    result.number = block.header.block_number;
-    result.c_sum = block.header.c_sum;
+    BlockHeaderExtended result = pimpl->m_blockchain.header_ex_at(pimpl->m_blockchain.length() - 1);
 
     // calculate delta for next block for the case if I will mine it
     if (pimpl->is_miner())
     {
-        string prev_hash = meshpp::hash(block.to_string());
         uint64_t delta = pimpl->calc_delta(pimpl->m_pb_key.to_string(),
                                            pimpl->get_balance().whole,
-                                           prev_hash,
-                                           block.header.c_const);
+                                           result.block_hash,
+                                           result.c_const);
 
+        result.prev_hash = result.block_hash;
+        result.block_hash.clear();
+        result.delta = delta;
         result.c_sum += delta;
-        ++result.number;
+        auto time_signed = system_clock::from_time_t(result.time_signed.tm) +
+                                chrono::minutes(10);
+        result.time_signed.tm = system_clock::to_time_t(time_signed);
+        ++result.block_number;
+        //
+        //  c_const and block_hash are incomplete at this moment
     }
 
     return result;

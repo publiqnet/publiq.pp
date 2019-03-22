@@ -25,11 +25,15 @@ module BlockchainMessage
         Object action  //  Transfer, File or Page
     }
 
+    class Authority
+    {
+        String address
+        String signature
+    }
     class SignedTransaction
     {
         Transaction transaction_details
-        String authority
-        String signature
+        Array Authority authorizations
     }
 
     class BlockHeader
@@ -39,6 +43,17 @@ module BlockchainMessage
         UInt64 c_sum
         UInt64 c_const
         String prev_hash
+        TimePoint time_signed
+    }
+
+    class BlockHeaderExtended
+    {
+        UInt64 block_number
+        UInt64 delta
+        UInt64 c_sum
+        UInt64 c_const
+        String prev_hash
+        String block_hash
         TimePoint time_signed
     }
 
@@ -52,8 +67,7 @@ module BlockchainMessage
     class SignedBlock
     {
         Block block_details
-        String authority
-        String signature
+        Authority authorization
     }
 
     ///
@@ -114,17 +128,23 @@ module BlockchainMessage
         String message
     }
 
+    class TransactionReserve1 {}
+    class TransactionReserve2 {}
+    class TransactionReserve3 {}
+    class TransactionReserve4 {}
+    class TransactionReserve5 {}
+
     class File
     {
         String uri
-        String author_address
+        Array String author_addresses
     }
 
     class ContentUnit
     {
         String uri
         UInt64 content_id
-        String author_address
+        Array String author_addresses
         String channel_address
 
         Array String file_uris
@@ -157,30 +177,37 @@ module BlockchainMessage
         IPAddress ip_address
     }
 
-    enum InfoType {store reject}
-
-    class ContentInfo
+    class StorageUpdate
     {
-        InfoType status
-        UInt64 content_id
-        String channel_address
+        UpdateType status
+        String uri
         String storage_address
     }
+    enum UpdateType {store remove}
 
-    class StatItem
+    class ServiceStatistics
     {
-        String node_address
-        //String content
-        UInt64 passed
-        UInt64 failed
+        String server_address
+        String file_uri
+
+        Array ServiceStatisticsItem stat_items
+    }
+    class ServiceStatisticsItem
+    {
+        String peer_address
+        UInt64 count
     }
 
-    class StatInfo
-    {
-        String reporter_address
-        String hash
-        Array StatItem items
-    }
+    class TransactionReserve6 {}
+    class TransactionReserve7 {}
+    class TransactionReserve8 {}
+    class TransactionReserve9 {}
+    class TransactionReserve10 {}
+    class TransactionReserve11 {}
+    class TransactionReserve12 {}
+    class TransactionReserve13 {}
+    class TransactionReserve14 {}
+    class TransactionReserve15 {}
 
     //  request/response
     class DigestRequest { Object package }
@@ -191,7 +218,7 @@ module BlockchainMessage
     }
 
     class LoggedTransactionsRequest
-    { 
+    {
         UInt64 start_index
         UInt64 max_count
     }
@@ -235,19 +262,40 @@ module BlockchainMessage
         Object package
     }
 
-    class SyncInfo
+    class TransactionBroadcastRequest
     {
-        UInt64 number
-        UInt64 c_sum
+        Transaction transaction_details
+        String private_key
+    }
+    class SignedTransactionBroadcastRequest
+    {
+        Transaction transaction_details
+        String private_key
+    }
+    class TransactionDone
+    {
+        String transaction_hash
+    }
+
+    class IncompleteTransactionsRequest
+    {
+        String address
+    }
+    class IncompleteTransactions
+    {
+        Array IncompleteTransactionItem incomplete_signed_transactions
+    }
+    class IncompleteTransactionItem
+    {
+        SignedTransaction signed_transaction
     }
 
     class SyncRequest {}
 
     class SyncResponse
     {
-        UInt64 number
-        UInt64 c_sum
-        SyncInfo sync_info
+        BlockHeaderExtended own_header
+        BlockHeaderExtended promised_header
     }
 
     class BlockHeaderRequest
@@ -257,7 +305,7 @@ module BlockchainMessage
     }
     class BlockHeaderResponse
     {
-        Array BlockHeader block_headers
+        Array BlockHeaderExtended block_headers
     }
 
     class BlockchainRequest
@@ -269,6 +317,17 @@ module BlockchainMessage
     {
         Array SignedBlock signed_blocks
     }
+
+    class ApiReserve1 {}
+    class ApiReserve2 {}
+    class ApiReserve3 {}
+    class ApiReserve4 {}
+    class ApiReserve5 {}
+    class ApiReserve6 {}
+    class ApiReserve7 {}
+    class ApiReserve8 {}
+    class ApiReserve9 {}
+    class ApiReserve10 {}
 
     ///
     //  response codes
@@ -293,6 +352,18 @@ module BlockchainMessage
         UInt64 max_length
     }
     class FileNotFound{ String uri }
+
+    class ResponseCodeReserve1 {}
+    class ResponseCodeReserve2 {}
+    class ResponseCodeReserve3 {}
+    class ResponseCodeReserve4 {}
+    class ResponseCodeReserve5 {}
+    class ResponseCodeReserve6 {}
+    class ResponseCodeReserve7 {}
+    class ResponseCodeReserve8 {}
+    class ResponseCodeReserve9 {}
+    class ResponseCodeReserve10 {}
+
     class RemoteError { String message }
 
     //  distributed storage related
@@ -302,15 +373,32 @@ module BlockchainMessage
         String data
     }
 
+    class StorageFileDelete
+    {
+        String uri
+    }
+
     class StorageFileAddress
     {
         String uri
     }
 
-    class GetStorageFile
+    class StorageFileRequest
     {
         String uri
+        String channel_address
     }
+
+    class GenericModelReserve1 {}
+    class GenericModelReserve2 {}
+    class GenericModelReserve3 {}
+    class GenericModelReserve4 {}
+    class GenericModelReserve5 {}
+    class GenericModelReserve6 {}
+    class GenericModelReserve7 {}
+    class GenericModelReserve8 {}
+    class GenericModelReserve9 {}
+    class GenericModelReserve10 {}
 
     //  ip address information
     class IPDestination
@@ -347,10 +435,10 @@ module BlockchainMessage
         TimePoint time_signed
     }
 
-    class TaskResponse 
+    class TaskResponse
     {
         Object package
         UInt64 task_id
     }
 }
-////1
+////2

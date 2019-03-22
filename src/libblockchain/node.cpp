@@ -245,8 +245,8 @@ bool node::run()
                 case ContentUnit::rtt:
                 case Content::rtt:
                 case Role::rtt:
-                case ContentInfo::rtt:
-                case StatInfo::rtt:
+                case StorageUpdate::rtt:
+                case ServiceStatistics::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
@@ -267,15 +267,21 @@ bool node::run()
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
                 
-                    if (action_process_on_chain(signed_tx, *m_pimpl.get()))
+                    broadcast_type process_result;
+                    process_result = action_process_on_chain(signed_tx, *m_pimpl.get());
+
+                    if (process_result != broadcast_type::none)
+                    {
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
-                                          (it == interface_type::rpc),
+                                          (it == interface_type::rpc ||
+                                           process_result == broadcast_type::full_broadcast),
                                           //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
+                    }
                 
                     if (it == interface_type::rpc)
                         psk->send(peerid, Done());
@@ -375,16 +381,16 @@ bool node::run()
                         packet task_packet;
                         m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet);
                     }
-                    else if (task_response.package.type() == StatInfo::rtt)
+                    else if (task_response.package.type() == ServiceStatistics::rtt)
                     {
                         if (m_pimpl->m_node_type == NodeType::storage)
                         {
                             packet task_packet;
 
                             if (m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet) &&
-                                task_packet.type() == StatInfo::rtt)
+                                task_packet.type() == ServiceStatistics::rtt)
                             {
-                                StatInfo stat_info;
+                                ServiceStatistics stat_info;
                                 std::move(task_response.package).get(stat_info);
 
                                 broadcast_storage_stat(stat_info, m_pimpl);
@@ -444,17 +450,16 @@ bool node::run()
                     if (it != interface_type::p2p)
                         throw wrong_request_exception("SyncRequest received through rpc!");
 
-                    BlockHeader const& header = m_pimpl->m_blockchain.last_header();
+                    BlockHeaderExtended const& header = m_pimpl->m_blockchain.header_ex_at(m_pimpl->m_blockchain.length() - 1);
 
                     SyncResponse sync_response;
-                    sync_response.number = header.block_number;
-                    sync_response.c_sum = header.c_sum;
+                    sync_response.own_header = header;
 
                     if (m_pimpl->all_sync_info.net_sync_info().c_sum >
                         m_pimpl->all_sync_info.own_sync_info().c_sum)
-                        sync_response.sync_info = m_pimpl->all_sync_info.net_sync_info();
+                        sync_response.promised_header = m_pimpl->all_sync_info.net_sync_info();
                     else
-                        sync_response.sync_info = m_pimpl->all_sync_info.own_sync_info();
+                        sync_response.promised_header = m_pimpl->all_sync_info.own_sync_info();
 
                     //m_pimpl->writeln_node("sync response - " + peerid);
                     psk->send(peerid, std::move(sync_response));
@@ -764,11 +769,11 @@ bool node::run()
                     continue; // for the case if peer is droped before sync started
                 }
 
-                if (scan_consensus_sum < it.second.c_sum &&
-                    scan_block_number <= it.second.number)
+                if (scan_consensus_sum < it.second.own_header.c_sum &&
+                    scan_block_number <= it.second.own_header.block_number)
                 {
-                    scan_block_number = it.second.number;
-                    scan_consensus_sum = it.second.c_sum;
+                    scan_block_number = it.second.own_header.block_number;
+                    scan_consensus_sum = it.second.own_header.c_sum;
                     scan_peer = it.first;
                 }
             }
@@ -776,6 +781,7 @@ bool node::run()
             bool sync_now = false;
             bool far_behind = (head_block_header.block_number + 1 < scan_block_number);
             bool just_same = (head_block_header.block_number == scan_block_number);
+            B_UNUSED(just_same);
 
             if (far_behind &&
                 false == m_pimpl->all_sync_info.blockchain_sync_in_progress)

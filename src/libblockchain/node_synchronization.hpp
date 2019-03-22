@@ -27,7 +27,7 @@ public:
     bool blockchain_sync_in_progress;
     std::unordered_map<beltpp::isocket::peer_id, BlockchainMessage::SyncResponse> sync_responses;
     std::unordered_map<beltpp::isocket::peer_id, std::vector<BlockchainMessage::BlockHeader>> sync_headers;
-    BlockchainMessage::SyncInfo net_sync_info() const;
-    BlockchainMessage::SyncInfo own_sync_info() const;
+    BlockchainMessage::BlockHeaderExtended net_sync_info() const;
+    BlockchainMessage::BlockHeaderExtended own_sync_info() const;
 };
 }

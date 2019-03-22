@@ -10,33 +10,48 @@ using namespace BlockchainMessage;
 namespace publiqpp
 {
 void action_validate(SignedTransaction const& signed_transaction,
-                     ContentInfo const& content_info)
+                     StorageUpdate const& storage_update,
+                     bool/* check_complete*/)
 {
-    if (signed_transaction.authority != content_info.channel_address)
-        throw authority_exception(signed_transaction.authority, content_info.channel_address);
+    if (signed_transaction.authorizations.size() != 1)
+        throw wrong_data_exception("transaction authorizations error");
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (signed_authority != storage_update.storage_address)
+        throw authority_exception(signed_authority, storage_update.storage_address);
+}
+
+authorization_process_result action_authorization_process(SignedTransaction&/* signed_transaction*/,
+                                                          StorageUpdate const&/* storage_update*/)
+{
+    authorization_process_result code;
+    code.complete = true;
+    code.modified = false;
+
+    return code;
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      ContentInfo const& content_info)
+                      StorageUpdate const& storage_update)
 {
     NodeType node_type;
-    if (false == impl.m_state.get_role(content_info.channel_address, node_type) ||
+    if (false == impl.m_state.get_role(storage_update.storage_address, node_type) ||
         node_type != NodeType::storage)
         return false;
     return true;
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  ContentInfo const& content_info)
+                  StorageUpdate const& storage_update)
 {
     NodeType node_type;
-    if (false == impl.m_state.get_role(content_info.channel_address, node_type) ||
+    if (false == impl.m_state.get_role(storage_update.storage_address, node_type) ||
         node_type != NodeType::storage)
-        throw wrong_data_exception("process_content_info -> wrong authority type : " + content_info.channel_address);
+        throw wrong_data_exception("action_apply(StorageUpdate) -> wrong authority type : " + storage_update.storage_address);
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,
-                   ContentInfo const& /*content_info*/)
+                   StorageUpdate const& /*storage_update*/)
 {
 }
 }

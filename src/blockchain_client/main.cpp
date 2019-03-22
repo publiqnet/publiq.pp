@@ -119,9 +119,12 @@ int main(int argc, char** argv)
         Signature signature;
         receive_package.get(signature);
 
+        Authority authorization;
+        authorization.address = armen_key.public_key;
+        authorization.signature = signature.signature;
+
         SignedTransaction signed_transaction;
-        signed_transaction.authority = armen_key.public_key;
-        signed_transaction.signature = signature.signature;
+        signed_transaction.authorizations.push_back(authorization);
         signed_transaction.transaction_details = transaction;
 
         Broadcast broadcast;

@@ -3,6 +3,7 @@
 #include "message.hpp"
 #include "common.hpp"
 #include "exception.hpp"
+#include "transaction_handler.hpp"
 
 #include <belt.pp/packet.hpp>
 
@@ -46,30 +47,7 @@ inline packet& contained_member(Broadcast& pck)
 
 inline packet& contained_member(SignedTransaction& signed_tx)
 {
-    meshpp::public_key pb_key(signed_tx.authority);
-    meshpp::signature signature_check(pb_key,
-                                      signed_tx.transaction_details.to_string(),
-                                      signed_tx.signature);
-
-    namespace chrono = std::chrono;
-    using chrono::system_clock;
-    using time_point = system_clock::time_point;
-    time_point creation =
-            system_clock::from_time_t(signed_tx.transaction_details.creation.tm);
-    time_point expiry =
-            system_clock::from_time_t(signed_tx.transaction_details.expiry.tm);
-
-    // Expiry date check
-    auto now = system_clock::now();
-
-    if (now < creation - chrono::seconds(NODES_TIME_SHIFT))
-        throw wrong_data_exception("Transaction from the future!");
-
-    if (now > expiry)
-        throw wrong_data_exception("Expired transaction!");
-
-    if (expiry - creation > std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS))
-        throw wrong_data_exception("Too long lifetime for transaction");
+    signed_transaction_validate(signed_tx, std::chrono::system_clock::now() + std::chrono::seconds(NODES_TIME_SHIFT));
 
     return signed_tx.transaction_details.action;
 }

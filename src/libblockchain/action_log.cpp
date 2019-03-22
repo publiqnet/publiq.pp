@@ -69,7 +69,7 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
     block_log.block_hash = block_hash;
     block_log.block_number = block.header.block_number;
     block_log.time_signed = block.header.time_signed;
-    block_log.authority = signed_block.authority;
+    block_log.authority = signed_block.authorization.address;
     block_log.block_size = block_serialized.size();
 
     for (auto const& item : block.signed_transactions)

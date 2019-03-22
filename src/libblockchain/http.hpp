@@ -140,13 +140,14 @@ beltpp::detail::pmsg_all message_list_load(
         {
             ssd.session_specal_handler = &file_response;
 
-            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::GetStorageFile>();
-            BlockchainMessage::GetStorageFile& ref = *reinterpret_cast<BlockchainMessage::GetStorageFile*>(p.get());
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFileRequest>();
+            BlockchainMessage::StorageFileRequest& ref = *reinterpret_cast<BlockchainMessage::StorageFileRequest*>(p.get());
             ref.uri = pss->resource.arguments["file"];
+            ref.channel_address = pss->resource.arguments["channel_address"];
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-            return ::beltpp::detail::pmsg_all(BlockchainMessage::GetStorageFile::rtt,
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFileRequest::rtt,
                                               std::move(p),
-                                              &BlockchainMessage::GetStorageFile::pvoid_saver);
+                                              &BlockchainMessage::StorageFileRequest::pvoid_saver);
         }
         else if (pss->type == beltpp::http::detail::scan_status::post &&
                  pss->resource.path.size() == 1 &&

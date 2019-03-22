@@ -36,6 +36,7 @@ public:
     void insert(BlockchainMessage::SignedBlock const& signed_block);
     BlockchainMessage::SignedBlock const& at(uint64_t number) const;
     BlockchainMessage::BlockHeader const& header_at(uint64_t number) const;
+    BlockchainMessage::BlockHeaderExtended header_ex_at(uint64_t number) const;
     void remove_last_block();
 private:
     std::unique_ptr<detail::blockchain_internals> m_pimpl;

@@ -97,8 +97,8 @@ int main(int /*argc*/, char** /*argv*/)
         meshpp::private_key pv_key = rs.get_private_key(0);
         meshpp::signature sgn = pv_key.sign(block.to_string());
 
-        signed_block.signature = sgn.base58;
-        signed_block.authority = sgn.pb_key.to_string();
+        signed_block.authorization.address = sgn.base58;
+        signed_block.authorization.signature = sgn.pb_key.to_string();
 
         cout << signed_block.to_string() << endl;
     }

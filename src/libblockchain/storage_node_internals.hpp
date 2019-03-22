@@ -55,7 +55,7 @@ namespace detail
 
 class stat_counter
 {
-public:
+/*public:
     void init()
     {
         ussage_map.clear();
@@ -85,7 +85,7 @@ public:
     }
 
 private:
-    map<string, pair<uint64_t, uint64_t>> ussage_map;
+    map<string, pair<uint64_t, uint64_t>> ussage_map;*/
 };
 
 class storage_node_internals

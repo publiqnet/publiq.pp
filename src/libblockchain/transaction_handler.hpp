@@ -8,14 +8,22 @@
 #include <belt.pp/packet.hpp>
 
 #include <string>
+#include <chrono>
 
 namespace publiqpp
 {
-bool action_process_on_chain(BlockchainMessage::SignedTransaction const& signed_transaction,
-                             publiqpp::detail::node_internals& impl);
+void signed_transaction_validate(SignedTransaction& signed_transaction,
+                                 std::chrono::system_clock::time_point const& now);
+
+broadcast_type action_process_on_chain(BlockchainMessage::SignedTransaction& signed_transaction,
+                                       publiqpp::detail::node_internals& impl);
 
 void action_validate(publiqpp::detail::node_internals& impl,
-                     BlockchainMessage::SignedTransaction const& signed_transaction);
+                     BlockchainMessage::SignedTransaction const& signed_transaction,
+                     bool check_complete);
+
+authorization_process_result action_authorization_process(publiqpp::detail::node_internals& impl,
+                                                          BlockchainMessage::SignedTransaction& signed_transaction);
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       beltpp::packet const& package);

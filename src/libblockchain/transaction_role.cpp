@@ -10,13 +10,28 @@ using namespace BlockchainMessage;
 namespace publiqpp
 {
 void action_validate(SignedTransaction const& signed_transaction,
-                     Role const& role)
+                     Role const& role,
+                     bool/* check_complete*/)
 {
-    if (signed_transaction.authority != role.node_address)
-        throw authority_exception(signed_transaction.authority, role.node_address);
+    if (signed_transaction.authorizations.size() != 1)
+        throw wrong_data_exception("transaction authorizations error");
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (signed_authority != role.node_address)
+        throw authority_exception(signed_authority, role.node_address);
 
     if (role.node_type == NodeType::blockchain)
         throw std::runtime_error("there is no need to broadcast role::blockchain");
+}
+
+authorization_process_result action_authorization_process(SignedTransaction&/* signed_transaction*/,
+                                                          Role const&/* role*/)
+{
+    authorization_process_result code;
+    code.complete = true;
+    code.modified = false;
+
+    return code;
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,

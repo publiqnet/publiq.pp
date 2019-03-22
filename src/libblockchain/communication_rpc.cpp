@@ -156,7 +156,7 @@ void verify_signature(Signature const& msg,
 void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
                        beltpp::isocket::peer_id const& self,
                        beltpp::isocket::peer_id const& from,
-                       bool from_rpc,
+                       bool full_broadcast,
                        beltpp::ilog* plog,
                        std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
                        beltpp::isocket* psk)
@@ -172,7 +172,7 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
     };
 
     int direction = 0;
-    if (false == from_rpc)
+    if (false == full_broadcast)
     {
         direction = str_compare(self, from);
         if (plog)
@@ -184,7 +184,7 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
 
     bool chance_to_reflect = beltpp::chance_one_of(10);
 
-    if (from_rpc)
+    if (full_broadcast)
     {
         if (plog)
             plog->message("will broadcast to all");
@@ -208,7 +208,7 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
     for (auto const& peer : all_peers)
     {
         auto direction2 = str_compare(self, peer);
-        if (false == from_rpc &&
+        if (false == full_broadcast &&
             direction == direction2)
             filtered_peers.erase(peer);
     }

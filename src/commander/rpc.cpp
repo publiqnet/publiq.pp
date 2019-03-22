@@ -75,7 +75,8 @@ void process_rewards(uint64_t head_block_index,
 
         item.timestamp.tm = rpc_server.blocks.as_const().at(block_index).time_signed.tm;
 
-        publiqpp::coin(reward_log.amount).to_Coin(item.amount);
+        item.amount = reward_log.amount;
+        //publiqpp::coin(reward_log.amount).to_Coin(item.amount);
 
         item.details = AccountHistoryRewarded();
 
@@ -104,7 +105,7 @@ void process_transactions(uint64_t head_block_index,
         string authority;
 
         if (rpc_server.blocks.size() > block_index)
-           authority = rpc_server.blocks.as_const().at(block_index).authority;
+            authority = rpc_server.blocks.as_const().at(block_index).authority;
 
         if (tf.to == address)
         {
@@ -114,7 +115,8 @@ void process_transactions(uint64_t head_block_index,
             item.confirmations = head_block_index - block_index + 1;
             item.item_type = AccountHistoryItemType::received;
             item.timestamp.tm = transaction_log.time_signed.tm;
-            publiqpp::coin(tf.amount).to_Coin(item.amount);
+            item.amount = tf.amount;
+            //publiqpp::coin(tf.amount).to_Coin(item.amount);
 
             details.from = tf.from;
             details.message = tf.message;
@@ -132,7 +134,8 @@ void process_transactions(uint64_t head_block_index,
                 item.confirmations = head_block_index - block_index + 1;
                 item.item_type = AccountHistoryItemType::sent;
                 item.timestamp.tm = transaction_log.time_signed.tm;
-                publiqpp::coin(tf.amount).to_Coin(item.amount);
+                item.amount = tf.amount;
+                //publiqpp::coin(tf.amount).to_Coin(item.amount);
 
                 details.to = tf.to;
                 details.message = tf.message;
@@ -149,7 +152,8 @@ void process_transactions(uint64_t head_block_index,
                 item.confirmations = head_block_index - block_index + 1;
                 item.item_type = AccountHistoryItemType::sent_fee;
                 item.timestamp.tm = transaction_log.time_signed.tm;
-                publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
+                item.amount = transaction_log.fee;
+                //publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
 
                 details.to = authority;
                 details.transaction_hash = transaction_log.transaction_hash;
@@ -166,7 +170,8 @@ void process_transactions(uint64_t head_block_index,
             item.confirmations = head_block_index - block_index + 1;
             item.item_type = AccountHistoryItemType::received_fee;
             item.timestamp.tm = transaction_log.time_signed.tm;
-            publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
+            item.amount = transaction_log.fee;
+            //publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
 
             details.from = tf.from;
             details.transaction_hash = transaction_log.transaction_hash;

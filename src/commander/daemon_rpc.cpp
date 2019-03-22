@@ -170,7 +170,7 @@ void update_balance(string const& str_account,
 
         auto& account = accounts.at(str_account);
 
-        publiqpp::coin balance(account.balance.whole, account.balance.fraction);
+        publiqpp::coin balance(account.balance);
         publiqpp::coin change(update_by);
 
         if (type == update_balance_type::decrease)
@@ -334,21 +334,26 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
     //meshpp::public_key pb(send.to);
 
     BlockchainMessage::Transfer tf;
-    publiqpp::coin(send.amount).to_Coin(tf.amount);
+    tf.amount = send.amount;
+    //publiqpp::coin(send.amount).to_Coin(tf.amount);
     tf.from = pv.get_public_key().to_string();
     tf.message = send.message;
     tf.to = send.to;
 
     BlockchainMessage::Transaction tx;
     tx.action = std::move(tf);
-    publiqpp::coin(send.fee).to_Coin(tx.fee);
+    tx.fee = send.fee;
+    //publiqpp::coin(send.fee).to_Coin(tx.fee);
     tx.creation.tm = chrono::system_clock::to_time_t(chrono::system_clock::now());
     tx.expiry.tm =  chrono::system_clock::to_time_t(chrono::system_clock::now() + chrono::seconds(send.seconds_to_expire));
 
+    Authority authorization;
+    authorization.address = pv.get_public_key().to_string();
+    authorization.signature = pv.sign(tx.to_string()).base58;
+
     BlockchainMessage::SignedTransaction stx;
-    stx.authority = pv.get_public_key().to_string();
-    stx.signature = pv.sign(tx.to_string()).base58;
     stx.transaction_details = std::move(tx);
+    stx.authorizations.push_back(authorization);
 
     transaction_hash = meshpp::hash(stx.to_string());
 

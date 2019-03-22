@@ -107,6 +107,124 @@ private:
     map<uint64_t, pair<system_clock::time_point, packet>> task_map;
 };
 
+class transaction_cache
+{
+public:
+    bool add_chain(SignedTransaction const& signed_transaction)
+    {
+        string key = meshpp::hash(signed_transaction.to_string());
+
+        auto insert_result = data.insert({key, {true, system_clock::from_time_t(signed_transaction.transaction_details.creation.tm)}});
+        if (false == insert_result.second)
+            return false;
+
+        if (signed_transaction.authorizations.size() > 1)
+        {
+            SignedTransaction st = signed_transaction;
+            while (st.authorizations.size() > 1)
+            {
+                st.authorizations.resize(st.authorizations.size() - 1);
+                string key_sub = meshpp::hash(st.to_string());
+                insert_result = data.insert({key_sub, {true, system_clock::from_time_t(signed_transaction.transaction_details.creation.tm)}});
+                if (false == insert_result.second)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+    void erase_chain(SignedTransaction const& signed_transaction)
+    {
+        string key = meshpp::hash(signed_transaction.to_string());
+        auto count = data.erase(key);
+        B_UNUSED(count);
+        /*if (0 == count)
+            throw std::logic_error("inconsistent transaction cache");*/
+
+        if (signed_transaction.authorizations.size() > 1)
+        {
+            SignedTransaction st = signed_transaction;
+            while (st.authorizations.size() > 1)
+            {
+                st.authorizations.resize(st.authorizations.size() - 1);
+                string key_sub = meshpp::hash(st.to_string());
+                count = data.erase(key_sub);
+                /*if (0 == count)
+                    throw std::logic_error("inconsistent transaction cache");*/
+            }
+        }
+    }
+
+    bool add_pool(SignedTransaction const& signed_transaction,
+                  bool complete)
+    {
+        string key = meshpp::hash(signed_transaction.to_string());
+
+        auto insert_result = data.insert({key, {complete, system_clock::from_time_t(signed_transaction.transaction_details.creation.tm)}});
+        if (false == insert_result.second)
+            return false;
+
+        return true;
+    }
+
+    bool erase_pool(SignedTransaction const& signed_transaction)
+    {
+        bool complete = false;
+        string key = meshpp::hash(signed_transaction.to_string());
+        auto it = data.find(key);
+        /*if (it == data.end())
+            throw std::logic_error("inconsistent transaction cache");*/
+        if (it != data.end())
+        {
+            if (it->second.complete)
+                complete = true;
+
+            data.erase(it);
+        }
+
+        return complete;
+    }
+
+    void clean(system_clock::time_point const& tp)
+    {
+        auto it = data.begin();
+        while (it != data.end())
+        {
+            if (tp - it->second.tp >
+                std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS) +
+                std::chrono::seconds(NODES_TIME_SHIFT))
+                //  we don't need to keep in hash the transactions that are definitely expired
+                it = data.erase(it);
+            else
+                ++it;
+        }
+    }
+
+    bool contains(SignedTransaction const& signed_transaction) const
+    {
+        string key = meshpp::hash(signed_transaction.to_string());
+        return data.count(key) > 0;
+    }
+
+    void backup()
+    {
+        data_backup = data;
+    }
+    void restore() noexcept
+    {
+        data = std::move(data_backup);
+    }
+protected:
+    class data_type
+    {
+    public:
+        bool complete;
+        system_clock::time_point tp;
+    };
+    unordered_map<string, data_type> data;
+    unordered_map<string, data_type> data_backup;
+};
+
 class node_internals
 {
 public:
@@ -192,7 +310,7 @@ public:
 
         m_slave_taskid = 0;
 
-        load_transaction_cache();
+        load_transaction_cache(*this);
     }
 
     void writeln_p2p(string const& value)
@@ -263,62 +381,13 @@ public:
         m_transaction_pool.discard();
     }
 
-    void load_transaction_cache()
-    {
-        writeln_node("Loading recent blocks to cache");
-
-        std::chrono::system_clock::time_point time_signed_head;
-
-        uint64_t block_count = m_blockchain.length();
-        for (uint64_t block_index = block_count - 1;
-             block_index < block_count;
-             --block_index)
-        {
-            SignedBlock const& signed_block = m_blockchain.at(block_index);
-
-            Block const& block = signed_block.block_details;
-
-            std::chrono::system_clock::time_point time_signed =
-                    std::chrono::system_clock::from_time_t(block.header.time_signed.tm);
-            if (block_index == block_count - 1)
-                time_signed_head = time_signed;
-            else if (time_signed_head - time_signed >
-                     std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS) +
-                     std::chrono::seconds(NODES_TIME_SHIFT))
-                break; //   because all transactions in this block must be expired
-
-            for (auto& item : block.signed_transactions)
-            {
-                string key = meshpp::hash(item.to_string());
-                m_transaction_cache[key] = system_clock::from_time_t(item.transaction_details.creation.tm);
-            }
-        }
-
-        for (size_t index = 0; index != m_transaction_pool.length(); ++index)
-        {
-            SignedTransaction const& item = m_transaction_pool.at(index);
-            string key = meshpp::hash(item.to_string());
-            m_transaction_cache[key] = system_clock::from_time_t(item.transaction_details.creation.tm);
-        }
-    }
-
     void clean_transaction_cache()
     {
         BlockHeader const& current_header = m_blockchain.last_header();
 
         system_clock::time_point cur_time_point = system_clock::from_time_t(current_header.time_signed.tm);
 
-        auto it = m_transaction_cache.begin();
-        while (it != m_transaction_cache.end())
-        {
-            if (cur_time_point - it->second >
-                std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS) +
-                std::chrono::seconds(NODES_TIME_SHIFT))
-                //  we don't need to keep in hash the transactions that are definitely expired
-                it = m_transaction_cache.erase(it);
-            else
-                ++it;
-        }
+        m_transaction_cache.clean(cur_time_point);
     }
 
     static
@@ -400,7 +469,7 @@ public:
     beltpp::isocket::peer_id m_slave_peer_attempt;
 
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
-    unordered_map<string, system_clock::time_point> m_transaction_cache;
+    transaction_cache m_transaction_cache;
 
     NodeType m_node_type;
     uint64_t m_slave_taskid;

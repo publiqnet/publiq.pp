@@ -32,7 +32,7 @@ void verify_signature(Signature const& msg,
 void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
                        beltpp::isocket::peer_id const& self,
                        beltpp::isocket::peer_id const& from,
-                       bool from_rpc,
+                       bool full_broadcast,
                        beltpp::ilog* plog,
                        std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
                        beltpp::isocket* psk);

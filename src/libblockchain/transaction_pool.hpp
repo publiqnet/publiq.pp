@@ -16,6 +16,7 @@ namespace publiqpp
 namespace detail
 {
 class transaction_pool_internals;
+class node_internals;
 }
 
 class transaction_pool
@@ -32,9 +33,12 @@ public:
     void push_back(BlockchainMessage::SignedTransaction const& signed_transaction);
     void pop_back();
     BlockchainMessage::SignedTransaction const& at(size_t index) const;
+    BlockchainMessage::SignedTransaction& ref_at(size_t index) const;
 
 private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };
+
+void load_transaction_cache(publiqpp::detail::node_internals& impl);
 
 }

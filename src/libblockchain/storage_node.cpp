@@ -150,9 +150,9 @@ bool storage_node::run()
 
                     break;
                 }
-                case GetStorageFile::rtt:
+                case StorageFileRequest::rtt:
                 {
-                    GetStorageFile file_info;
+                    StorageFileRequest file_info;
                     std::move(ref_packet).get(file_info);
                     
                     StorageFile file;
@@ -169,7 +169,7 @@ bool storage_node::run()
 
                     break;
                 }
-                case StatInfo::rtt:
+                /*case StatInfo::rtt:
                 {
                     TaskRequest* p_task_request = nullptr;
                     any_task.items[0]->get(p_task_request);
@@ -192,7 +192,7 @@ bool storage_node::run()
                     m_pimpl->m_stat_counter.init();
                     
                     break;
-                }
+                }*/
                 case Ping::rtt:
                 {
                     Pong msg_pong;

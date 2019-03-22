@@ -34,7 +34,10 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     action_apply(impl, signed_transaction.transaction_details.action);
 
     if (false == fee_can_apply(impl, signed_transaction))
+    {
+        action_revert(impl, signed_transaction.transaction_details.action);
         return false;
+    }
 
     fee_apply(impl, signed_transaction, key);
 
@@ -50,8 +53,8 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     action_revert(impl, signed_transaction.transaction_details.action);
 }
 
-void validate_delations(map<string, StatInfo> const& right_delations,
-                        map<string, StatInfo> const& check_delations,
+void validate_delations(map<string, ServiceStatistics> const& right_delations,
+                        map<string, ServiceStatistics> const& check_delations,
                         map<string, uint64_t>& penals)
 {
     penals.clear();
@@ -59,17 +62,18 @@ void validate_delations(map<string, StatInfo> const& right_delations,
 
     for (auto const& right_item_it : right_delations)
     {
-        for (auto const& right_info_item : right_item_it.second.items)
+        for (auto const& right_info_item : right_item_it.second.stat_items)
         {
             bool compare_failed = true;
-            auto check_item_it = check_delations.find(right_info_item.node_address);
+            auto check_item_it = check_delations.find(right_info_item.peer_address);
 
             if(check_item_it != check_delations.end())
-                for (auto const& check_info_item : check_item_it->second.items)
+                for (auto const& check_info_item : check_item_it->second.stat_items)
                 {
-                    if (check_info_item.node_address == right_item_it.first)
+                    if (check_info_item.peer_address == right_item_it.first)
                     {
-                        if (check_info_item.passed == right_info_item.passed)
+                        //  need to check for equality or inequality?
+                        if (check_info_item.count == right_info_item.count)
                             compare_failed = false;
 
                         break;
@@ -77,7 +81,7 @@ void validate_delations(map<string, StatInfo> const& right_delations,
                 }
 
             if (compare_failed)
-                ++penals[right_info_item.node_address];
+                ++penals[right_info_item.peer_address];
         }
     }
 }
@@ -117,7 +121,7 @@ void filter_penals(map<string, uint64_t> const& penals, set<string>& result)
             result.insert(it.first);
 }
 
-void grant_rewards(vector<SignedTransaction> const& signed_transactions, 
+void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    vector<Reward>& rewards, 
                    string const& address,
                    uint64_t block_number,
@@ -128,35 +132,35 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     coin fee = coin(0, 0);
     map<string, uint64_t> channel_penals;
     map<string, uint64_t> storage_penals;
-    map<string, StatInfo> channel_delations;
-    map<string, StatInfo> storage_delations;
+    map<string, ServiceStatistics> channel_delations;
+    map<string, ServiceStatistics> storage_delations;
 
     for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
     {
         fee += it->transaction_details.fee;
 
-        if (it->transaction_details.action.type() == StatInfo::rtt)
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
         {
-            StatInfo stat_info;
+            ServiceStatistics stat_info;
             it->transaction_details.action.get(stat_info);
 
             NodeType node_type;
-            if (impl.m_state.get_role(it->authority, node_type))
+            if (impl.m_state.get_role(stat_info.server_address, node_type))
             {
                 if (node_type == NodeType::channel)
                 {
-                    for (auto const& item : stat_info.items)
+                    for (auto const& item : stat_info.stat_items)
                     {
-                        storage_penals[item.node_address] = 0;
-                        channel_delations[item.node_address] = stat_info;
+                        storage_penals[item.peer_address] = 0;
+                        channel_delations[item.peer_address] = stat_info;
                     }
                 }
                 else if (node_type == NodeType::storage)
                 {
-                    for (auto const& item : stat_info.items)
+                    for (auto const& item : stat_info.stat_items)
                     {
-                        channel_penals[item.node_address] = 0;
-                        storage_delations[item.node_address] = stat_info;
+                        channel_penals[item.peer_address] = 0;
+                        storage_delations[item.peer_address] = stat_info;
                     }
                 }
             }
@@ -278,22 +282,23 @@ void broadcast_storage_info(publiqpp::detail::node_internals& impl)
 
     if (storages.empty()) return;
 
-    uint64_t block_number = impl.m_blockchain.length() - 1;
-    SignedBlock const& signed_block = impl.m_blockchain.at(block_number);
+    //uint64_t block_number = impl.m_blockchain.length() - 1;
+    //SignedBlock const& signed_block = impl.m_blockchain.at(block_number);
 
-    StatInfo stat_info;
-    stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
-    stat_info.reporter_address = impl.m_pb_key.to_string();
+    ServiceStatistics stat_info;
+    //  use block number instead, or something similar
+    //stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
+    stat_info.server_address = impl.m_pb_key.to_string();
 
     for (auto& nodeid : storages)
     {
-        StatItem stat_item;
-        stat_item.node_address = nodeid;
+        ServiceStatisticsItem stat_item;
+        stat_item.peer_address = nodeid;
         //stat_item.content_hash = meshpp::hash("storage");
-        stat_item.passed = 1;
-        stat_item.failed = 0;
+        stat_item.count = 1;
+        //stat_item.failed = 0;
 
-        stat_info.items.push_back(stat_item);
+        stat_info.stat_items.push_back(stat_item);
     }
 
     Transaction transaction;
@@ -301,10 +306,13 @@ void broadcast_storage_info(publiqpp::detail::node_internals& impl)
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
 
+    Authority authorization;
+    authorization.address = impl.m_pb_key.to_string();
+    authorization.signature = impl.m_pv_key.sign(transaction.to_string()).base58;
+
     SignedTransaction signed_transaction;
-    signed_transaction.authority = impl.m_pb_key.to_string();
+    signed_transaction.authorizations.push_back(authorization);
     signed_transaction.transaction_details = transaction;
-    signed_transaction.signature = impl.m_pv_key.sign(transaction.to_string()).base58;
 
     Broadcast broadcast;
     broadcast.echoes = 2;
@@ -333,8 +341,10 @@ void revert_pool(time_t expiry_time,
         SignedTransaction const& signed_transaction = impl.m_transaction_pool.at(index);
 
         if (expiry_time <= signed_transaction.transaction_details.expiry.tm)
-            pool_transactions.insert(std::pair<BlockchainMessage::ctime, SignedTransaction>
-            (signed_transaction.transaction_details.creation, signed_transaction));
+        {
+            pool_transactions.insert(
+                        std::make_pair(signed_transaction.transaction_details.creation, signed_transaction));
+        }
     }
 
     //  revert transactions from pool
@@ -344,9 +354,13 @@ void revert_pool(time_t expiry_time,
         SignedTransaction const& signed_transaction = impl.m_transaction_pool.at(index - 1);
 
         impl.m_transaction_pool.pop_back();
-        impl.m_action_log.revert();
-        impl.m_transaction_cache.erase(meshpp::hash(signed_transaction.to_string()));
-        revert_transaction(signed_transaction, impl);
+        bool complete = impl.m_transaction_cache.erase_pool(signed_transaction);
+
+        if (complete)
+        {
+            impl.m_action_log.revert();
+            revert_transaction(signed_transaction, impl);
+        }
     }
 
     assert(impl.m_transaction_pool.length() == 0);
@@ -356,11 +370,11 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     auto now = system_clock::now();
 
-    auto transaction_cache_backup = m_pimpl->m_transaction_cache;
-    beltpp::on_failure guard([&m_pimpl, transaction_cache_backup]
+    m_pimpl->m_transaction_cache.backup();
+    beltpp::on_failure guard([&m_pimpl]
     {
         m_pimpl->discard();
-        m_pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+        m_pimpl->m_transaction_cache.restore();
     });
 
     multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
@@ -433,28 +447,24 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     auto it = pool_transactions.begin();
     while (it != pool_transactions.end() && transactions_count < size_t(BLOCK_MAX_TRANSACTIONS))
     {
-        if (it->second.transaction_details.creation < block_header.time_signed)
-        {
-            if (apply_transaction(it->second, *m_pimpl.get(), own_key))
-            {
-                string key = meshpp::hash(it->second.to_string());
-                block.signed_transactions.push_back(std::move(it->second));
-                m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(it->second.transaction_details.creation.tm);
+        auto& signed_transaction = it->second;
+        auto code = action_authorization_process(*m_pimpl.get(), signed_transaction);
 
-                ++transactions_count;
-                it = pool_transactions.erase(it);
-            }
-            else
-            {
-                // some transactions can be skiped now 
-                // and applied to the next block or clined during next iterations
-                ++it;
-            }
+        if (code.complete &&
+            signed_transaction.transaction_details.creation < block_header.time_signed &&
+            apply_transaction(signed_transaction, *m_pimpl.get(), own_key))
+        {
+            m_pimpl->m_transaction_cache.add_chain(signed_transaction);
+            block.signed_transactions.push_back(std::move(signed_transaction));
+
+            ++transactions_count;
+            it = pool_transactions.erase(it);
         }
         else
         {
-            // this transactions can be applied to the next block
-            // for this block it will look like transaction from future
+            //  either transaction time corresponds to a future block
+            //  or it couldn't be applied because of the order
+            //  or it will not even be possible to apply at all
             ++it;
         }
     }
@@ -465,8 +475,8 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     meshpp::signature sgn = m_pimpl->m_pv_key.sign(block.to_string());
 
     SignedBlock signed_block;
-    signed_block.signature = sgn.base58;
-    signed_block.authority = sgn.pb_key.to_string();
+    signed_block.authorization.address = sgn.base58;
+    signed_block.authorization.signature = sgn.pb_key.to_string();
     signed_block.block_details = block;
 
     // apply rewards to state and action_log
@@ -478,14 +488,25 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     m_pimpl->m_action_log.log_block(signed_block);
 
     // apply back rest of the pool content to the state and action_log
-    for (auto const& item : pool_transactions)
+    for (auto& item : pool_transactions)
     {
-        if (apply_transaction(item.second, *m_pimpl.get()))
+        auto& signed_transaction = item.second;
+        auto code = action_authorization_process(*m_pimpl.get(), signed_transaction);
+        bool complete = code.complete;
+
+        bool ok_logic = true;
+        if (complete ||
+            false == action_can_apply(*m_pimpl.get(), signed_transaction.transaction_details.action))
         {
-            string key = meshpp::hash(item.second.to_string());
-            m_pimpl->m_action_log.log_transaction(item.second);
-            m_pimpl->m_transaction_pool.push_back(item.second);
-            m_pimpl->m_transaction_cache[key] = system_clock::from_time_t(item.second.transaction_details.creation.tm);
+            ok_logic = apply_transaction(signed_transaction, *m_pimpl.get());
+            if (ok_logic)
+                m_pimpl->m_action_log.log_transaction(signed_transaction);
+        }
+
+        if (ok_logic)
+        {
+            m_pimpl->m_transaction_pool.push_back(signed_transaction);
+            m_pimpl->m_transaction_cache.add_pool(signed_transaction, complete);
         }
     }
 
@@ -519,12 +540,15 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
 
+    Authority authorization;
+    authorization.address = m_pimpl->m_pb_key.to_string();
+    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
     SignedTransaction signed_transaction;
-    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
-    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+    signed_transaction.authorizations.push_back(authorization);
     signed_transaction.transaction_details = transaction;
 
-    if (action_process_on_chain(signed_transaction, *m_pimpl.get()))
+    if (broadcast_type::none != action_process_on_chain(signed_transaction, *m_pimpl.get()))
     {
         Broadcast broadcast;
         broadcast.echoes = 2;
@@ -558,10 +582,13 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
 
+    Authority authorization;
+    authorization.address = m_pimpl->m_pb_key.to_string();
+    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
     SignedTransaction signed_transaction;
     signed_transaction.transaction_details = transaction;
-    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
-    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+    signed_transaction.authorizations.push_back(authorization);
 
     Broadcast broadcast;
     broadcast.echoes = 2;
@@ -576,7 +603,7 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         m_pimpl->m_ptr_p2p_socket.get());
 }
 
-void broadcast_storage_stat(StatInfo& stat_info, 
+void broadcast_storage_stat(ServiceStatistics& service_statistics,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
     unordered_set<string> channels_set;
@@ -587,31 +614,36 @@ void broadcast_storage_stat(StatInfo& stat_info,
     for (auto& channel_node_address : channels)
         channels_set.insert(channel_node_address);
 
-    for (auto it = stat_info.items.begin(); it != stat_info.items.end();)
+    auto it = service_statistics.stat_items.begin();
+    while (it != service_statistics.stat_items.end())
     {
-        if (channels_set.count(it->node_address))
+        if (channels_set.count(it->peer_address))
             ++it;
         else
-            it = stat_info.items.erase(it);
+            it = service_statistics.stat_items.erase(it);
     }
 
-    if (stat_info.items.empty()) return;
+    if (service_statistics.stat_items.empty()) return;
 
-    uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
-    SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
+    //uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
+    //SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
 
-    stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
-    stat_info.reporter_address = m_pimpl->m_pb_key.to_string();
+    //  use something else instead of hash, block number maybe
+    //service_statistics.hash = meshpp::hash(signed_block.block_details.to_string());
+    service_statistics.server_address = m_pimpl->m_pb_key.to_string();
 
     Transaction transaction;
-    transaction.action = stat_info;
+    transaction.action = service_statistics;
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
 
+    Authority authorization;
+    authorization.address = m_pimpl->m_pb_key.to_string();
+    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
     SignedTransaction signed_transaction;
-    signed_transaction.authority = m_pimpl->m_pb_key.to_string();
     signed_transaction.transaction_details = transaction;
-    signed_transaction.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+    signed_transaction.authorizations.push_back(authorization);
 
     Broadcast broadcast;
     broadcast.echoes = 2;
@@ -636,27 +668,28 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
         beltpp_ip_address.local.empty())
         return false;
     // Check data and authority
-    if (signed_transaction.authority != address_info.node_address)
-        throw authority_exception(signed_transaction.authority, address_info.node_address);
+    if (signed_transaction.authorizations.size() != 1)
+        throw wrong_data_exception("transaction authorizations error");
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (signed_authority != address_info.node_address)
+        throw authority_exception(signed_authority, address_info.node_address);
 
     // Check pool and cache
-    string tr_hash = meshpp::hash(signed_transaction.to_string());
-
-    if (pimpl->m_transaction_cache.count(tr_hash))
+    if (pimpl->m_transaction_cache.contains(signed_transaction))
         return false;
 
-    auto transaction_cache_backup = pimpl->m_transaction_cache;
+    pimpl->m_transaction_cache.backup();
 
-    beltpp::on_failure guard([&pimpl, &transaction_cache_backup]
+    beltpp::on_failure guard([&pimpl]
     {
         //pimpl->discard(); // not working with other state
-        pimpl->m_transaction_cache = std::move(transaction_cache_backup);
+        pimpl->m_transaction_cache.restore();
     });
 
     //  this is not added to pool, because we don't store it in blockchain
         //  pimpl->m_transaction_pool.push_back(signed_transaction);
-    pimpl->m_transaction_cache[tr_hash] =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    pimpl->m_transaction_cache.add_pool(signed_transaction, true);
 
     return true;
 }
