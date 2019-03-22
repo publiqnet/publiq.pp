@@ -13,6 +13,8 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <chrono>
+
 
 using namespace BlockchainMessage;
 
@@ -21,6 +23,8 @@ using std::set;
 using std::multimap;
 using std::unordered_map;
 using std::unordered_set;
+namespace chrono = std::chrono;
+using chrono::system_clock;
 
 namespace publiqpp
 {
@@ -475,8 +479,8 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     meshpp::signature sgn = m_pimpl->m_pv_key.sign(block.to_string());
 
     SignedBlock signed_block;
-    signed_block.authorization.address = sgn.base58;
-    signed_block.authorization.signature = sgn.pb_key.to_string();
+    signed_block.authorization.address = sgn.pb_key.to_string();
+    signed_block.authorization.signature = sgn.base58;
     signed_block.block_details = block;
 
     // apply rewards to state and action_log
