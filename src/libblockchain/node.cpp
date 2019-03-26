@@ -499,9 +499,12 @@ bool node::run()
                     signed_transaction.transaction_details = transaction_broadcast_request.transaction_details;
                     signed_transaction.authorizations.push_back(authorization);
 
+                    TransactionDone transaction_done;
+                    transaction_done.transaction_hash = meshpp::hash(signed_transaction.to_string());
+
                     BlockchainMessage::Broadcast broadcast;
                     broadcast.echoes = 2;
-                    broadcast.package = std::move(transaction_broadcast_request);
+                    broadcast.package = std::move(signed_transaction);
 
                     broadcast_message(std::move(broadcast),
                                       m_pimpl->m_ptr_p2p_socket->name(),
@@ -510,9 +513,6 @@ bool node::run()
                                       nullptr,
                                       m_pimpl->m_p2p_peers,
                                       m_pimpl->m_ptr_p2p_socket.get());
-
-                    TransactionDone transaction_done;
-                    transaction_done.transaction_hash = meshpp::hash(transaction_broadcast_request.to_string());
 
                     psk->send(peerid, std::move(transaction_done));
 
