@@ -241,8 +241,10 @@ bool storage_node::run()
         auto& messages = m_pimpl->m_messages;
         for (auto& item : messages)
         {
-            auto& request = item.first;
-            auto& response = item.second;
+        auto& request = item.first;
+        auto& response = item.second;
+        try
+        {
             if (response.empty())
             {
                 switch (request.type())
@@ -260,6 +262,23 @@ bool storage_node::run()
                 }
                 }
             }
+        }
+        catch (std::exception const& e)
+        {
+            RemoteError msg;
+            msg.message = e.what();
+            response.set(std::move(msg));
+            m_pimpl->m_master_node->wake();
+            throw;
+        }
+        catch (...)
+        {
+            RemoteError msg;
+            msg.message = "unknown error";
+            response.set(std::move(msg));
+            m_pimpl->m_master_node->wake();
+            throw;
+        }
         }
     }
 

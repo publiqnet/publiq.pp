@@ -258,6 +258,18 @@ int main(int argc, char** argv)
 
         g_pnode = &node;
 
+        unique_ptr<publiqpp::storage_node> ptr_storage_node;
+        if (n_type != NodeType::blockchain)
+        {
+            auto fs_storage = meshpp::data_directory_path("storage");
+            ptr_storage_node.reset(new publiqpp::storage_node(node,
+                                                              slave_bind_to_address,
+                                                              fs_storage,
+                                                              pv_key,
+                                                              plogger_rpc.get()));
+            g_pstorage_node = ptr_storage_node.get();
+        }
+
         {
             thread node_thread([&node, &plogger_exceptions]
             {
@@ -268,15 +280,7 @@ int main(int argc, char** argv)
 
             if (n_type != NodeType::blockchain)
             {
-                auto fs_storage = meshpp::data_directory_path("storage");
-
-                publiqpp::storage_node storage_node(node,
-                                                    slave_bind_to_address,
-                                                    fs_storage,
-                                                    pv_key,
-                                                    plogger_rpc.get());
-                g_pstorage_node = &storage_node;
-
+                auto& storage_node = *g_pstorage_node;
                 std::thread storage_node_thread([&storage_node, &plogger_storage_exceptions]
                 {
                     loop(storage_node, plogger_storage_exceptions, g_termination_handled);
