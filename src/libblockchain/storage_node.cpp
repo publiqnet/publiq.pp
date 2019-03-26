@@ -169,8 +169,8 @@ bool storage_node::run()
 
                     break;
                 }
-                /*case StatInfo::rtt:
-                {
+                case ServiceStatistics::rtt:
+                {/*
                     TaskRequest* p_task_request = nullptr;
                     any_task.items[0]->get(p_task_request);
                    
@@ -178,7 +178,7 @@ bool storage_node::run()
                     
                     TaskRequest& task_request = *p_task_request;
                     
-                    StatInfo stat_info;
+                    ServiceStatistics stat_info;
                     
                     m_pimpl->m_stat_counter.get_stat_info(stat_info);
                     stat_info.reporter_address = m_pimpl->m_pv_key.get_public_key().to_string();
@@ -190,9 +190,9 @@ bool storage_node::run()
                     psk->send(peerid, task_response);
 
                     m_pimpl->m_stat_counter.init();
-                    
+                   */ 
                     break;
-                }*/
+                }
                 case Ping::rtt:
                 {
                     Pong msg_pong;

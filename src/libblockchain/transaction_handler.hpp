@@ -13,7 +13,8 @@
 namespace publiqpp
 {
 void signed_transaction_validate(SignedTransaction& signed_transaction,
-                                 std::chrono::system_clock::time_point const& now);
+                                 std::chrono::system_clock::time_point const& now,
+                                 std::chrono::seconds const& time_shift);
 
 broadcast_type action_process_on_chain(BlockchainMessage::SignedTransaction& signed_transaction,
                                        publiqpp::detail::node_internals& impl);

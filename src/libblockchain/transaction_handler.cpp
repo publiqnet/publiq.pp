@@ -14,7 +14,8 @@ using namespace BlockchainMessage;
 namespace publiqpp
 {
 void signed_transaction_validate(SignedTransaction& signed_transaction,
-                                 std::chrono::system_clock::time_point const& now)
+                                 std::chrono::system_clock::time_point const& now,
+                                 std::chrono::seconds const& time_shift)
 {
     if (signed_transaction.authorizations.empty())
         throw wrong_data_exception("transaction with no authorizations");
@@ -29,9 +30,7 @@ void signed_transaction_validate(SignedTransaction& signed_transaction,
         else
             signed_message = prev_signature;
 
-        meshpp::signature signature_check(pb_key,
-                                          signed_message,
-                                          authority.signature);
+        meshpp::signature signature_check(pb_key, signed_message, authority.signature);
 
         prev_signature = authority.signature;
     }
@@ -39,15 +38,13 @@ void signed_transaction_validate(SignedTransaction& signed_transaction,
     namespace chrono = std::chrono;
     using chrono::system_clock;
     using time_point = system_clock::time_point;
-    time_point creation =
-            system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
-    time_point expiry =
-            system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm);
+    time_point creation = system_clock::from_time_t(signed_transaction.transaction_details.creation.tm);
+    time_point expiry = system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm);
 
-    if (now < creation/* - chrono::seconds(NODES_TIME_SHIFT)*/)
+    if (now + time_shift < creation)
         throw wrong_data_exception("Transaction from the future!");
 
-    if (now > expiry)
+    if (now - time_shift > expiry)
         throw wrong_data_exception("Expired transaction!");
 
     if (expiry - creation > std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS))

@@ -47,7 +47,7 @@ inline packet& contained_member(Broadcast& pck)
 
 inline packet& contained_member(SignedTransaction& signed_tx)
 {
-    signed_transaction_validate(signed_tx, std::chrono::system_clock::now() + std::chrono::seconds(NODES_TIME_SHIFT));
+    signed_transaction_validate(signed_tx, std::chrono::system_clock::now(), std::chrono::seconds(NODES_TIME_SHIFT));
 
     return signed_tx.transaction_details.action;
 }

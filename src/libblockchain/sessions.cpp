@@ -858,8 +858,7 @@ void session_action_block::process_response(meshpp::session_header& header,
         // verify block transactions
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
-            signed_transaction_validate(*tr_it,
-                                        system_clock::from_time_t(block.header.time_signed.tm) + chrono::seconds(NODES_TIME_SHIFT));
+            signed_transaction_validate(*tr_it, system_clock::from_time_t(block.header.time_signed.tm), std::chrono::seconds(0));
 
             action_validate(*pimpl, *tr_it, true);
         }
