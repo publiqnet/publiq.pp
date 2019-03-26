@@ -15,6 +15,7 @@
 
 namespace publiqpp
 {
+class storage_node;
 namespace detail
 {
     class node_internals;
@@ -43,9 +44,10 @@ public:
     node(node&& other) noexcept;
     ~node();
 
-    void terminate();
+    void wake();
     std::string name() const;
     bool run();
+    void set_slave_node(storage_node& slave_node);
 
 private:
     std::unique_ptr<detail::node_internals> m_pimpl;

@@ -35,23 +35,27 @@ namespace publiqpp
 /*
  * storage_node
  */
-storage_node::storage_node(ip_address const& rpc_bind_to_address,
+storage_node::storage_node(node& master_node,
+                           ip_address const& rpc_bind_to_address,
                            boost::filesystem::path const& fs_storage,
                            meshpp::private_key const& pv_key,
                            beltpp::ilog* plogger_storage_node)
-    : m_pimpl(new detail::storage_node_internals(rpc_bind_to_address,
+    : m_pimpl(new detail::storage_node_internals(master_node,
+                                                 rpc_bind_to_address,
                                                  fs_storage,
                                                  pv_key,
                                                  plogger_storage_node))
-{}
+{
+    master_node.set_slave_node(*this);
+}
 
 storage_node::storage_node(storage_node&&) noexcept = default;
 
 storage_node::~storage_node() = default;
 
-void storage_node::terminate()
+void storage_node::wake()
 {
-    m_pimpl->m_ptr_eh->terminate();
+    m_pimpl->m_ptr_eh->wake();
 }
 
 bool storage_node::run()
@@ -232,7 +236,55 @@ bool storage_node::run()
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
 
+    {
+        std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
+        auto& messages = m_pimpl->m_messages;
+        for (auto& item : messages)
+        {
+            auto& request = item.first;
+            auto& response = item.second;
+            if (response.empty())
+            {
+                switch (request.type())
+                {
+                case StorageFile::rtt:
+                {
+                    StorageFile storage_file;
+                    std::move(request).get(storage_file);
+                    StorageFileAddress file_address;
+                    file_address.uri = m_pimpl->m_storage.put(std::move(storage_file));
+
+                    response.set(std::move(file_address));
+                    m_pimpl->m_master_node->wake();
+                    break;
+                }
+                }
+            }
+        }
+    }
+
     return code;
+}
+
+beltpp::isocket::packets storage_node::receive()
+{
+    std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
+    beltpp::isocket::packets result;
+
+    auto& messages = m_pimpl->m_messages;
+    while (false == messages.empty() &&
+           false == messages.front().second.empty())
+    {
+        result.push_back(std::move(messages.front().second));
+        messages.pop_front();
+    }
+
+    return result;
+}
+void storage_node::send(beltpp::packet&& pack)
+{
+    std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
+    m_pimpl->m_messages.push_back(std::make_pair(std::move(pack), beltpp::packet()));
 }
 
 }

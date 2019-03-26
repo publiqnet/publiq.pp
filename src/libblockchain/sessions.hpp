@@ -17,44 +17,44 @@ class node_internals;
 }
 class nodeid_service;
 
-class session_action_connections : public meshpp::session_action
+class session_action_connections : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_connections(beltpp::socket& sk);
     ~session_action_connections() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     beltpp::socket* psk;
     std::string peerid_to_drop;
 };
 
-class session_action_p2pconnections : public meshpp::session_action
+class session_action_p2pconnections : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_p2pconnections(meshpp::p2psocket& sk,
                                   detail::node_internals& impl);
     ~session_action_p2pconnections() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     meshpp::p2psocket* psk;
     detail::node_internals* pimpl;
 };
 
-class session_action_signatures : public meshpp::session_action
+class session_action_signatures : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_signatures(beltpp::socket& sk,
                               nodeid_service& service);
     ~session_action_signatures() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     void erase(bool success, bool verified);
@@ -65,7 +65,7 @@ public:
     beltpp::ip_address address;
 };
 
-class session_action_broadcast_address_info : public meshpp::session_action
+class session_action_broadcast_address_info : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_broadcast_address_info(detail::node_internals& impl,
@@ -73,8 +73,8 @@ public:
                                           BlockchainMessage::Broadcast&& msg);
     ~session_action_broadcast_address_info() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     detail::node_internals* pimpl;
@@ -82,36 +82,36 @@ public:
     BlockchainMessage::Broadcast msg;
 };
 
-class session_action_storagefile : public meshpp::session_action
+class session_action_storagefile : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_storagefile(detail::node_internals& impl,
                                std::string const& _file_uri);
     ~session_action_storagefile() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     detail::node_internals* pimpl;
     std::string file_uri;
 };
 
-class session_action_sync_request : public meshpp::session_action
+class session_action_sync_request : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_sync_request(detail::node_internals& impl);
     ~session_action_sync_request() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     detail::node_internals* pimpl;
     std::string current_peerid;
 };
 
-class session_action_header: public meshpp::session_action
+class session_action_header: public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_header(detail::node_internals& impl,
@@ -119,8 +119,8 @@ public:
                           uint64_t promised_consensus_sum);
     ~session_action_header() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     static
@@ -128,7 +128,7 @@ public:
                          BlockchainMessage::BlockHeaderRequest const& header_request,
                          publiqpp::detail::node_internals& impl);
 
-    void process_response(meshpp::session_header& header,
+    void process_response(meshpp::nodeid_session_header& header,
                           BlockchainMessage::BlockHeaderResponse&& header_response);
 
     void set_errored(std::string const& message, bool throw_for_debugging_only);
@@ -145,14 +145,14 @@ public:
     std::vector<BlockchainMessage::BlockHeader> sync_headers;
 };
 
-class session_action_block : public meshpp::session_action
+class session_action_block : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_block(detail::node_internals& impl);
     ~session_action_block() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     static
@@ -160,7 +160,7 @@ public:
                          BlockchainMessage::BlockchainRequest const& blockchain_request,
                          publiqpp::detail::node_internals& impl);
 
-    void process_response(meshpp::session_header& header,
+    void process_response(meshpp::nodeid_session_header& header,
                           BlockchainMessage::BlockchainResponse&& blockchain_response);
 
     void set_errored(std::string const& message, bool throw_for_debugging_only);
@@ -168,6 +168,25 @@ public:
     detail::node_internals* pimpl;
     std::vector<BlockchainMessage::SignedBlock> sync_blocks;
     std::vector<BlockchainMessage::BlockHeader> sync_headers;
+};
+
+class session_action_save_file : public meshpp::session_action<meshpp::session_header>
+{
+public:
+    session_action_save_file(detail::node_internals& impl,
+                             BlockchainMessage::StorageFile&& file,
+                             beltpp::isocket& sk,
+                             beltpp::isocket::peer_id const& peerid);
+    ~session_action_save_file() override;
+
+    void initiate(meshpp::session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    bool permanent() const override;
+
+    detail::node_internals* pimpl;
+    BlockchainMessage::StorageFile file;
+    beltpp::isocket* psk;
+    beltpp::isocket::peer_id peerid;
 };
 
 }

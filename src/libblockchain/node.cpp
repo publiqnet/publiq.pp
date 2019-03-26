@@ -80,9 +80,9 @@ node::node(node&&) noexcept = default;
 
 node::~node() = default;
 
-void node::terminate()
+void node::wake()
 {
-    m_pimpl->m_ptr_eh->terminate();
+    m_pimpl->m_ptr_eh->wake();
 }
 
 string node::name() const
@@ -124,6 +124,9 @@ bool node::run()
             else if (pevent_item == m_pimpl->m_ptr_rpc_socket.get())
                 psk = m_pimpl->m_ptr_rpc_socket.get();
 
+            if (nullptr == psk)
+                throw std::logic_error("event handler behavior");
+
             beltpp::socket::packets received_packets;
             if (psk != nullptr)
                 received_packets = psk->receive(peerid);
@@ -134,7 +137,7 @@ bool node::run()
                 if (psk == m_pimpl->m_ptr_p2p_socket.get())
                 {
                     m_pimpl->remove_peer(peerid);
-                    m_pimpl->m_sessions.remove(peerid);
+                    m_pimpl->m_nodeid_sessions.remove(peerid);
                 }
                 else if (peerid == m_pimpl->m_slave_peer)
                 {
@@ -149,7 +152,7 @@ bool node::run()
             {
             try
             {
-                if (m_pimpl->m_sessions.process(peerid, std::move(received_packet)))
+                if (m_pimpl->m_nodeid_sessions.process(peerid, std::move(received_packet)))
                     continue;
 
                 vector<packet*> composition;
@@ -330,40 +333,26 @@ bool node::run()
                 }
                 case StorageFile::rtt:
                 {
-                    if (m_pimpl->m_node_type != NodeType::channel)
+                    if (NodeType::blockchain == m_pimpl->m_node_type||
+                        nullptr == m_pimpl->m_slave_node)
                         throw wrong_request_exception("Do not distrub!");
 
-                    if (!m_pimpl->m_slave_peer.empty())
+                    if (m_pimpl->m_slave_node)
                     {
                         StorageFile storage_file;
-                        ref_packet.get(storage_file);
-                        StorageFileAddress file_address;
-                        file_address.uri = meshpp::hash(storage_file.data);
+                        std::move(ref_packet).get(storage_file);
 
-                        psk->send(peerid, file_address);
+                        vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                        actions.emplace_back(new session_action_save_file(*m_pimpl.get(),
+                                                                          std::move(storage_file),
+                                                                          *psk,
+                                                                          peerid));
 
-                        TaskRequest task_request;
-                        task_request.task_id = ++m_pimpl->m_slave_taskid;
-                        ::detail::assign_packet(task_request.package, ref_packet);
-                        task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
-                        meshpp::signature signed_msg = m_pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
-                                                                              meshpp::hash(ref_packet.to_string()) +
-                                                                              std::to_string(task_request.time_signed.tm));
-                        task_request.signature = signed_msg.base58;
-
-                        // send task to slave
-                        psk->send(m_pimpl->m_slave_peer, task_request);
-
-                        m_pimpl->m_slave_tasks.add(task_request.task_id, ref_packet);
-                    }
-                    else
-                    {
-                        m_pimpl->reconnect_slave();
-
-                        RemoteError error;
-                        error.message = "Please try later!";
-
-                        psk->send(peerid, error);
+                        meshpp::session_header header;
+                        header.peerid = "slave";
+                        m_pimpl->m_sessions.add(header,
+                                                std::move(actions),
+                                                chrono::minutes(1));
                     }
                     
                     break;
@@ -646,6 +635,18 @@ bool node::run()
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
 
+    {
+        if (m_pimpl->m_slave_node)
+        {
+            beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
+            for (auto& ref_packet : received_packets)
+            {
+                m_pimpl->m_sessions.process("slave", std::move(ref_packet));
+            }
+        }
+    }
+
+    m_pimpl->m_nodeid_sessions.erase_all_pending();
     m_pimpl->m_sessions.erase_all_pending();
 
     // channels and storages connect to slave threads
@@ -744,17 +745,19 @@ bool node::run()
                         " - " + nodeid_item.first + ": " +
                         address.to_string());
 
-                    vector<unique_ptr<meshpp::session_action>> actions;
+                    vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
                     actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
                     actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
                                                                         m_pimpl->m_nodeid_service));
 
                     actions.emplace_back(std::move(ptr_action));
 
-                    m_pimpl->m_sessions.add(nodeid_item.first,
-                                            address,
-                                            std::move(actions),
-                                            chrono::minutes(1));
+                    meshpp::nodeid_session_header header;
+                    header.nodeid = nodeid_item.first;
+                    header.address = address;
+                    m_pimpl->m_nodeid_sessions.add(header,
+                                                   std::move(actions),
+                                                   chrono::minutes(1));
                 }
                 ++collected;
             }
@@ -768,15 +771,17 @@ bool node::run()
 
         for (auto const& peerid : m_pimpl->m_p2p_peers)
         {
-            vector<unique_ptr<meshpp::session_action>> actions;
+            vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
             actions.emplace_back(new session_action_p2pconnections(*m_pimpl->m_ptr_p2p_socket.get(),
                                                                    *m_pimpl.get()));
             actions.emplace_back(new session_action_sync_request(*m_pimpl.get()));
 
-            m_pimpl->m_sessions.add(peerid,
-                                    m_pimpl->m_ptr_p2p_socket->info_connection(peerid),
-                                    std::move(actions),
-                                    chrono::seconds(SYNC_TIMER));
+            meshpp::nodeid_session_header header;
+            header.nodeid = peerid;
+            header.address = m_pimpl->m_ptr_p2p_socket->info_connection(peerid);
+            m_pimpl->m_nodeid_sessions.add(header,
+                                           std::move(actions),
+                                           chrono::seconds(SYNC_TIMER));
         }
 
         //  work through process of block header sync or mining
@@ -862,16 +867,18 @@ bool node::run()
             {
                 assert(false == just_same);
                 assert(false == scan_peer.empty());
-                vector<unique_ptr<meshpp::session_action>> actions;
+                vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
                 actions.emplace_back(new session_action_header(*m_pimpl.get(),
                                                                scan_block_number,
                                                                scan_consensus_sum));
                 actions.emplace_back(new session_action_block(*m_pimpl.get()));
 
-                m_pimpl->m_sessions.add(scan_peer,
-                                        m_pimpl->m_ptr_p2p_socket->info_connection(scan_peer),
-                                        std::move(actions),
-                                        chrono::seconds(SYNC_TIMER));
+                meshpp::nodeid_session_header header;
+                header.nodeid = scan_peer;
+                header.address = m_pimpl->m_ptr_p2p_socket->info_connection(scan_peer);
+                m_pimpl->m_nodeid_sessions.add(header,
+                                               std::move(actions),
+                                               chrono::seconds(SYNC_TIMER));
             }
             else if (m_pimpl->is_miner())
             {
@@ -888,6 +895,11 @@ bool node::run()
     }
 
     return code;
+}
+
+void node::set_slave_node(storage_node& slave_node)
+{
+    m_pimpl->m_slave_node = &slave_node;
 }
 
 }

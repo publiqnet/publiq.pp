@@ -13,6 +13,7 @@
 
 namespace publiqpp
 {
+class node;
 namespace detail
 {
     class storage_node_internals;
@@ -21,15 +22,19 @@ namespace detail
 class BLOCKCHAINSHARED_EXPORT storage_node
 {
 public:
-    storage_node(beltpp::ip_address const& rpc_bind_to_address,
+    storage_node(node& master_node,
+                 beltpp::ip_address const& rpc_bind_to_address,
                  boost::filesystem::path const& fs_storage,
                  meshpp::private_key const& pv_key,
                  beltpp::ilog* plogger_storage_node);
     storage_node(storage_node&& other) noexcept;
     ~storage_node();
 
-    void terminate();
+    void wake();
     bool run();
+
+    beltpp::isocket::packets receive();
+    void send(beltpp::packet&& pack);
 
 private:
     std::unique_ptr<detail::storage_node_internals> m_pimpl;

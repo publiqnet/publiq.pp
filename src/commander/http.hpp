@@ -58,13 +58,15 @@ beltpp::detail::pmsg_all message_list_load(
                                           nullptr);
     };
 
+    string posted;
     auto code = beltpp::http::protocol(ssd,
                                        iter_scan_begin,
                                        iter_scan_end,
                                        it_fallback,
                                        1000,
                                        64 * 1024,
-                                       10 * 1024 * 1024);
+                                       10 * 1024 * 1024,
+                                       posted);
 
     beltpp::http::detail::scan_status* pss =
             dynamic_cast<beltpp::http::detail::scan_status*>(ssd.ptr_data.get());
@@ -211,7 +213,6 @@ beltpp::detail::pmsg_all message_list_load(
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
-            iter_scan_begin = it_fallback;
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
                                               nullptr);
@@ -240,7 +241,6 @@ beltpp::detail::pmsg_all message_list_load(
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
-            iter_scan_begin = it_fallback;
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
                                               nullptr);

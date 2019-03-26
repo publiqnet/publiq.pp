@@ -7,8 +7,10 @@
 #include "exception.hpp"
 #include "transaction_handler.hpp"
 
-#include <mesh.pp/cryptoutility.hpp>
 #include <belt.pp/utility.hpp>
+#include <belt.pp/scope_helper.hpp>
+
+#include <mesh.pp/cryptoutility.hpp>
 
 #include <iostream>
 #include <algorithm>
@@ -24,7 +26,7 @@ namespace publiqpp
 {
 // --------------------------- session_action_connections ---------------------------
 session_action_connections::session_action_connections(beltpp::socket& sk)
-    : meshpp::session_action()
+    : meshpp::session_action<meshpp::nodeid_session_header>()
     , psk(&sk)
     , peerid_to_drop()
 {}
@@ -35,7 +37,7 @@ session_action_connections::~session_action_connections()
         psk->send(peerid_to_drop, beltpp::isocket_drop());
 }
 
-void session_action_connections::initiate(meshpp::session_header& header)
+void session_action_connections::initiate(meshpp::nodeid_session_header& header)
 {
     auto peerids = psk->open(header.address);
     if (peerids.size() != 1)
@@ -45,7 +47,7 @@ void session_action_connections::initiate(meshpp::session_header& header)
     expected_next_package_type = beltpp::isocket_join::rtt;
 }
 
-bool session_action_connections::process(beltpp::packet&& package, meshpp::session_header& header)
+bool session_action_connections::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
 
@@ -106,7 +108,7 @@ bool session_action_connections::permanent() const
 
 session_action_p2pconnections::session_action_p2pconnections(meshpp::p2psocket& sk,
                                                              detail::node_internals& impl)
-    : meshpp::session_action()
+    : meshpp::session_action<meshpp::nodeid_session_header>()
     , psk(&sk)
     , pimpl(&impl)
 {}
@@ -115,14 +117,14 @@ session_action_p2pconnections::~session_action_p2pconnections()
 {
 }
 
-void session_action_p2pconnections::initiate(meshpp::session_header& header)
+void session_action_p2pconnections::initiate(meshpp::nodeid_session_header& header)
 {
     header.peerid = header.nodeid;
     expected_next_package_type = size_t(-1);
     completed = true;
 }
 
-bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::session_header& header)
+bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
 
@@ -156,7 +158,7 @@ bool session_action_p2pconnections::permanent() const
 
 session_action_signatures::session_action_signatures(beltpp::socket& sk,
                                                      nodeid_service& service)
-    : session_action()
+    : session_action<meshpp::nodeid_session_header>()
     , psk(&sk)
     , pnodeid_service(&service)
     , address()
@@ -171,7 +173,7 @@ session_action_signatures::~session_action_signatures()
         erase(false, false);
 }
 
-void session_action_signatures::initiate(meshpp::session_header& header)
+void session_action_signatures::initiate(meshpp::nodeid_session_header& header)
 {
     psk->send(header.peerid, BlockchainMessage::Ping());
     expected_next_package_type = BlockchainMessage::Pong::rtt;
@@ -180,9 +182,11 @@ void session_action_signatures::initiate(meshpp::session_header& header)
     address = header.address;
 }
 
-bool session_action_signatures::process(beltpp::packet&& package, meshpp::session_header& header)
+bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
+
+    beltpp::on_failure guard([this]{ errored = true; });
 
     if (expected_next_package_type == package.type() &&
         expected_next_package_type != size_t(-1))
@@ -228,6 +232,8 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::sessio
         code = false;
     }
 
+    guard.dismiss();
+
     return code;
 }
 
@@ -242,7 +248,7 @@ void session_action_signatures::erase(bool success, bool verified)
     if (it == pnodeid_service->nodeids.end())
     {
         assert(false);
-        throw std::logic_error("session_action_signatures::process "
+        throw std::logic_error("session_action_signatures::erase "
             "cannot find the expected entry");
     }
     else
@@ -271,7 +277,7 @@ void session_action_signatures::erase(bool success, bool verified)
 session_action_broadcast_address_info::session_action_broadcast_address_info(detail::node_internals& impl,
                                                                              meshpp::p2psocket::peer_id const& _source_peer,
                                                                              BlockchainMessage::Broadcast&& _msg)
-    : session_action()
+    : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
     , source_peer(_source_peer)
     , msg(std::move(_msg))
@@ -280,7 +286,7 @@ session_action_broadcast_address_info::session_action_broadcast_address_info(det
 session_action_broadcast_address_info::~session_action_broadcast_address_info()
 {}
 
-void session_action_broadcast_address_info::initiate(meshpp::session_header&)
+void session_action_broadcast_address_info::initiate(meshpp::nodeid_session_header&)
 {
     std::cout << "action_broadcast - broadcasting" << std::endl;
     broadcast_message(std::move(msg),
@@ -295,7 +301,7 @@ void session_action_broadcast_address_info::initiate(meshpp::session_header&)
     completed = true;
 }
 
-bool session_action_broadcast_address_info::process(beltpp::packet&&, meshpp::session_header&)
+bool session_action_broadcast_address_info::process(beltpp::packet&&, meshpp::nodeid_session_header&)
 {
     return false;
 }
@@ -309,7 +315,7 @@ bool session_action_broadcast_address_info::permanent() const
 
 session_action_storagefile::session_action_storagefile(detail::node_internals& impl,
                                                        string const& _file_uri)
-    : session_action()
+    : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
     , file_uri(_file_uri)
 {}
@@ -317,7 +323,7 @@ session_action_storagefile::session_action_storagefile(detail::node_internals& i
 session_action_storagefile::~session_action_storagefile()
 {}
 
-void session_action_storagefile::initiate(meshpp::session_header& header)
+void session_action_storagefile::initiate(meshpp::nodeid_session_header& header)
 {
     BlockchainMessage::StorageFileRequest get_storagefile;
     get_storagefile.uri = file_uri;
@@ -326,7 +332,7 @@ void session_action_storagefile::initiate(meshpp::session_header& header)
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
 }
 
-bool session_action_storagefile::process(beltpp::packet&& package, meshpp::session_header&)
+bool session_action_storagefile::process(beltpp::packet&& package, meshpp::nodeid_session_header&)
 {
     bool code = true;
 
@@ -395,25 +401,28 @@ bool session_action_storagefile::permanent() const
 // --------------------------- session_action_sync_request ---------------------------
 
 session_action_sync_request::session_action_sync_request(detail::node_internals& impl)
-    : session_action()
+    : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
 {}
 
 session_action_sync_request::~session_action_sync_request()
 {
-    if (false == current_peerid.empty())
+    if (false == current_peerid.empty() &&
+        false == errored)
         pimpl->all_sync_info.sync_responses.erase(current_peerid);
 }
 
-void session_action_sync_request::initiate(meshpp::session_header& header)
+void session_action_sync_request::initiate(meshpp::nodeid_session_header& header)
 {
     pimpl->m_ptr_p2p_socket->send(header.peerid, BlockchainMessage::SyncRequest());
     expected_next_package_type = BlockchainMessage::SyncResponse::rtt;
 }
 
-bool session_action_sync_request::process(beltpp::packet&& package, meshpp::session_header& header)
+bool session_action_sync_request::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
+
+    beltpp::on_failure guard([this]{ errored = true; });
 
     if (expected_next_package_type == package.type() &&
         expected_next_package_type != size_t(-1))
@@ -443,6 +452,8 @@ bool session_action_sync_request::process(beltpp::packet&& package, meshpp::sess
         code = false;
     }
 
+    guard.dismiss();
+
     return code;
 }
 
@@ -456,7 +467,7 @@ bool session_action_sync_request::permanent() const
 session_action_header::session_action_header(detail::node_internals& impl,
                                              uint64_t _promised_block_number,
                                              uint64_t _promised_consensus_sum)
-    : session_action()
+    : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
     , block_index_from(_promised_block_number)
     , block_index_to(pimpl->m_blockchain.last_header().block_number)
@@ -469,13 +480,14 @@ session_action_header::session_action_header(detail::node_internals& impl,
 
 session_action_header::~session_action_header()
 {
-    if (false == current_peerid.empty())
+    if (false == current_peerid.empty() &&
+        false == errored)
         pimpl->all_sync_info.sync_headers.erase(current_peerid);
 
     pimpl->all_sync_info.blockchain_sync_in_progress = false;
 }
 
-void session_action_header::initiate(meshpp::session_header& header)
+void session_action_header::initiate(meshpp::nodeid_session_header& header)
 {
     assert(false == header.peerid.empty());
     //  this assert means that the current session must have session_action_p2pconnections
@@ -488,9 +500,11 @@ void session_action_header::initiate(meshpp::session_header& header)
     expected_next_package_type = BlockchainMessage::BlockHeaderResponse::rtt;
 }
 
-bool session_action_header::process(beltpp::packet&& package, meshpp::session_header& header)
+bool session_action_header::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
+
+    beltpp::on_failure guard([this]{ errored = true; });
 
     if (expected_next_package_type == package.type() &&
         expected_next_package_type != size_t(-1))
@@ -515,6 +529,8 @@ bool session_action_header::process(beltpp::packet&& package, meshpp::session_he
     {
         code = false;
     }
+
+    guard.dismiss();
 
     return code;
 }
@@ -550,7 +566,7 @@ void session_action_header::process_request(beltpp::isocket::peer_id const& peer
     impl.m_ptr_p2p_socket->send(peerid, header_response);
 }
 
-void session_action_header::process_response(meshpp::session_header& header,
+void session_action_header::process_response(meshpp::nodeid_session_header& header,
                                              BlockchainMessage::BlockHeaderResponse&& header_response)
 {
     bool throw_for_debugging_only = false;
@@ -702,7 +718,7 @@ bool session_action_header::check_headers_vector(std::vector<BlockchainMessage::
 // --------------------------- session_action_block ---------------------------
 
 session_action_block::session_action_block(detail::node_internals& impl)
-    : session_action()
+    : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
 {}
 
@@ -710,7 +726,7 @@ session_action_block::~session_action_block()
 {
 }
 
-void session_action_block::initiate(meshpp::session_header& header)
+void session_action_block::initiate(meshpp::nodeid_session_header& header)
 {
     assert(false == header.peerid.empty());
     //  this assert means that the current session must have session_action_p2pconnections
@@ -724,7 +740,7 @@ void session_action_block::initiate(meshpp::session_header& header)
     expected_next_package_type = BlockchainMessage::BlockchainResponse::rtt;
 }
 
-bool session_action_block::process(beltpp::packet&& package, meshpp::session_header& header)
+bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
 
@@ -805,7 +821,7 @@ void session_action_block::process_request(beltpp::isocket::peer_id const& peeri
     impl.m_ptr_p2p_socket->send(peerid, chain_response);
 }
 
-void session_action_block::process_response(meshpp::session_header& header,
+void session_action_block::process_response(meshpp::nodeid_session_header& header,
                                             BlockchainMessage::BlockchainResponse&& blockchain_response)
 {
     bool throw_for_debugging_only = false;
@@ -1081,5 +1097,107 @@ void session_action_block::set_errored(string const& message, bool throw_for_deb
         throw wrong_data_exception(message);
     errored = true;
 }
+
+// --------------------------- session_action_save_file ---------------------------
+
+session_action_save_file::session_action_save_file(detail::node_internals& impl,
+                                                   StorageFile&& _file,
+                                                   beltpp::isocket& sk,
+                                                   beltpp::isocket::peer_id const& _peerid)
+    : meshpp::session_action<meshpp::session_header>()
+    , pimpl(&impl)
+    , file(_file)
+    , psk(&sk)
+    , peerid(_peerid)
+{}
+
+session_action_save_file::~session_action_save_file()
+{
+    if (size_t(-1) != expected_next_package_type &&
+        false == errored)
+    {
+        BlockchainMessage::RemoteError msg;
+        msg.message = "unknown error uploading the file";
+        psk->send(peerid, std::move(msg));
+    }
+}
+
+void session_action_save_file::initiate(meshpp::session_header&/* header*/)
+{
+    pimpl->m_slave_node->send(std::move(file));
+    pimpl->m_slave_node->wake();
+    expected_next_package_type = BlockchainMessage::StorageFileAddress::rtt;
+}
+
+bool session_action_save_file::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
+{
+    bool code = true;
+
+    beltpp::on_failure guard([this]{ errored = true; });
+
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
+    {
+        switch (package.type())
+        {
+        case BlockchainMessage::StorageFileAddress::rtt:
+        {
+            BlockchainMessage::StorageFileAddress msg;
+            std::move(package).get(msg);
+
+            psk->send(peerid, std::move(msg));
+
+            completed = true;
+            expected_next_package_type = size_t(-1);
+
+            break;
+        }
+        default:
+            assert(false);
+            break;
+        }
+    }
+    else
+    {
+        psk->send(peerid, std::move(package));
+        completed = true;
+        expected_next_package_type = size_t(-1);
+        /*switch (package.type())
+        {
+        case beltpp::isocket_drop::rtt:
+            errored = true;
+            peerid_to_drop.clear();
+            std::cout << "action_connections - drop" << std::endl;
+            break;
+        case beltpp::isocket_protocol_error::rtt:
+            errored = true;
+            std::cout << "action_connections - protocol error" << std::endl;
+            psk->send(header.peerid, beltpp::isocket_drop());
+            peerid_to_drop.clear();
+            break;
+        case beltpp::isocket_open_error::rtt:
+            std::cout << "action_connections - open error" << std::endl;
+            errored = true;
+            break;
+        case beltpp::isocket_open_refused::rtt:
+            std::cout << "action_connections - open refused" << std::endl;
+            errored = true;
+            break;
+        default:
+            code = false;
+            break;
+        }*/
+    }
+
+    guard.dismiss();
+
+    return code;
+}
+
+bool session_action_save_file::permanent() const
+{
+    return false;
+}
+
 }
 

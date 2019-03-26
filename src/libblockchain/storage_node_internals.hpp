@@ -7,6 +7,7 @@
 #include "storage.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
+#include "node.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -24,6 +25,9 @@
 #include <map>
 #include <chrono>
 #include <memory>
+#include <list>
+#include <utility>
+#include <mutex>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -37,7 +41,7 @@ using peer_id = socket::peer_id;
 using std::map;
 using std::pair;
 using std::string;
-using std::vector;
+using std::list;
 using std::unique_ptr;
 using std::unordered_set;
 using std::unordered_map;
@@ -92,11 +96,13 @@ class storage_node_internals
 {
 public:
     storage_node_internals(
+        node& master_node,
         ip_address const& rpc_bind_to_address,
         filesystem::path const& fs_storage,
         meshpp::private_key const& pv_key,
         beltpp::ilog* _plogger_storage_node)
-        : plogger_storage_node(_plogger_storage_node)
+        : m_master_node(&master_node)
+        , plogger_storage_node(_plogger_storage_node)
         , m_ptr_eh(new beltpp::event_handler())
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_storage_sf>(*m_ptr_eh)
@@ -127,6 +133,7 @@ public:
             plogger_storage_node->warning(value);
     }
 
+    node* m_master_node;
     beltpp::ilog* plogger_storage_node;
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
@@ -136,6 +143,9 @@ public:
     meshpp::private_key m_pv_key;
 
     stat_counter m_stat_counter;
+
+    std::mutex m_messages_mutex;
+    list<pair<beltpp::packet, beltpp::packet>> m_messages;
 };
 
 }

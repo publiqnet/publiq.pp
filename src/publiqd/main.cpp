@@ -58,9 +58,9 @@ void termination_handler(int /*signum*/)
 {
     g_termination_handled = true;
     if (g_pnode)
-        g_pnode->terminate();
+        g_pnode->wake();
     if (g_pstorage_node)
-        g_pstorage_node->terminate();
+        g_pstorage_node->wake();
 }
 
 class port2pid_helper
@@ -270,7 +270,8 @@ int main(int argc, char** argv)
             {
                 auto fs_storage = meshpp::data_directory_path("storage");
 
-                publiqpp::storage_node storage_node(slave_bind_to_address,
+                publiqpp::storage_node storage_node(node,
+                                                    slave_bind_to_address,
                                                     fs_storage,
                                                     pv_key,
                                                     plogger_rpc.get());

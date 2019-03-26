@@ -98,13 +98,15 @@ beltpp::detail::pmsg_all message_list_load(
                                           nullptr);
     };
 
+    string posted;
     auto code = beltpp::http::protocol(ssd,
                                        iter_scan_begin,
                                        iter_scan_end,
                                        it_fallback,
                                        1000,
                                        64 * 1024,
-                                       10 * 1024 * 1024);
+                                       10 * 1024 * 1024,
+                                       posted);
 
     beltpp::http::detail::scan_status* pss =
             dynamic_cast<beltpp::http::detail::scan_status*>(ssd.ptr_data.get());
@@ -155,29 +157,17 @@ beltpp::detail::pmsg_all message_list_load(
                  pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "storage")
         {
-            string cl = pss->resource.properties["Content-Length"];
-            size_t pos;
-            uint64_t content_length = beltpp::stoui64(cl, pos);
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFile>();
+            BlockchainMessage::StorageFile& ref = *reinterpret_cast<BlockchainMessage::StorageFile*>(p.get());
+            ref.mime_type = pss->resource.properties["Content-Type"];
 
-            {
-                auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFile>();
-                BlockchainMessage::StorageFile& ref = *reinterpret_cast<BlockchainMessage::StorageFile*>(p.get());
-                ref.mime_type = pss->resource.properties["Content-Type"];
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
-                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            ref.data = std::move(posted);
 
-                for (size_t index = 0; index < content_length; ++index)
-                {
-                    assert(iter_scan_begin != iter_scan_end);
-                    ++iter_scan_begin;
-                }
-
-                ref.data.assign(it_fallback, iter_scan_begin);
-
-                return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFile::rtt,
-                                                  std::move(p),
-                                                  &BlockchainMessage::StorageFile::pvoid_saver);
-            }
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFile::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::StorageFile::pvoid_saver);
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 2 &&
@@ -212,18 +202,13 @@ beltpp::detail::pmsg_all message_list_load(
                  pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "api")
         {
-            string cl = pss->resource.properties["Content-Length"];
-            size_t pos;
-            uint64_t content_length = beltpp::stoui64(cl, pos);
+            std::string::const_iterator iter_scan_begin_temp = posted.cbegin();
+            std::string::const_iterator const iter_scan_end_temp = posted.cend();
 
-            B_UNUSED(content_length);
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            ssd.parser_unrecognized_limit = 0;
 
-            {
-                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-                ssd.parser_unrecognized_limit = 0;
-
-                return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
-            }
+            return fallback_message_list_load(iter_scan_begin_temp, iter_scan_end_temp, ssd, putl);
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 3 &&
@@ -252,7 +237,6 @@ beltpp::detail::pmsg_all message_list_load(
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
-            iter_scan_begin = it_fallback;
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
                                               nullptr);
@@ -281,7 +265,6 @@ beltpp::detail::pmsg_all message_list_load(
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
-            iter_scan_begin = it_fallback;
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
                                               nullptr);

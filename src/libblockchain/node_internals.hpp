@@ -9,6 +9,7 @@
 #include "blockchain.hpp"
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
+#include "storage_node.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -228,25 +229,25 @@ protected:
 class node_internals
 {
 public:
-    node_internals(
-        string const& genesis_signed_block,
-        ip_address const & public_address,
-        ip_address const& rpc_bind_to_address,
-        ip_address const& slave_connect_to_address,
-        ip_address const& p2p_bind_to_address,
-        std::vector<ip_address> const& p2p_connect_to_addresses,
-        filesystem::path const& fs_blockchain,
-        filesystem::path const& fs_action_log,
-        filesystem::path const& fs_transaction_pool,
-        filesystem::path const& fs_state,
-        filesystem::path const& fs_documents,
-        beltpp::ilog* _plogger_p2p,
-        beltpp::ilog* _plogger_node,
-        meshpp::private_key const& pv_key,
-        NodeType& n_type,
-        bool log_enabled,
-        bool transfer_only)
-        : plogger_p2p(_plogger_p2p)
+    node_internals(string const& genesis_signed_block,
+                   ip_address const & public_address,
+                   ip_address const& rpc_bind_to_address,
+                   ip_address const& slave_connect_to_address,
+                   ip_address const& p2p_bind_to_address,
+                   std::vector<ip_address> const& p2p_connect_to_addresses,
+                   filesystem::path const& fs_blockchain,
+                   filesystem::path const& fs_action_log,
+                   filesystem::path const& fs_transaction_pool,
+                   filesystem::path const& fs_state,
+                   filesystem::path const& fs_documents,
+                   beltpp::ilog* _plogger_p2p,
+                   beltpp::ilog* _plogger_node,
+                   meshpp::private_key const& pv_key,
+                   NodeType& n_type,
+                   bool log_enabled,
+                   bool transfer_only)
+        : m_slave_node(nullptr)
+        , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
         , m_ptr_eh(new beltpp::event_handler())
         , m_ptr_p2p_socket(new meshpp::p2psocket(
@@ -437,6 +438,7 @@ public:
         save(guard);
     }
 
+    storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;
     unique_ptr<beltpp::event_handler> m_ptr_eh;
@@ -463,7 +465,8 @@ public:
     node_synchronization all_sync_info;
 
     publiqpp::nodeid_service m_nodeid_service;
-    meshpp::session_manager m_sessions;
+    meshpp::session_manager<meshpp::nodeid_session_header> m_nodeid_sessions;
+    meshpp::session_manager<meshpp::session_header> m_sessions;
 
     beltpp::isocket::peer_id m_slave_peer;
     beltpp::isocket::peer_id m_slave_peer_attempt;
