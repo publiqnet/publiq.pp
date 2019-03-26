@@ -269,7 +269,7 @@ module BlockchainMessage
     }
     class SignedTransactionBroadcastRequest
     {
-        Transaction transaction_details
+        SignedTransaction signed_transaction
         String private_key
     }
     class TransactionDone

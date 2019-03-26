@@ -496,6 +496,39 @@ bool node::run()
 
                     break;
                 }
+                case TransactionBroadcastRequest::rtt:
+                {
+                    TransactionBroadcastRequest transaction_broadcast_request;
+                    std::move(ref_packet).get(transaction_broadcast_request);
+
+                    Authority authorization;
+                    meshpp::private_key pv(transaction_broadcast_request.private_key);
+                    authorization.address = pv.get_public_key().to_string();
+                    authorization.signature = pv.sign(transaction_broadcast_request.to_string()).base58;
+
+                    BlockchainMessage::SignedTransaction signed_transaction;
+                    signed_transaction.transaction_details = transaction_broadcast_request.transaction_details;
+                    signed_transaction.authorizations.push_back(authorization);
+
+                    BlockchainMessage::Broadcast broadcast;
+                    broadcast.echoes = 2;
+                    broadcast.package = std::move(transaction_broadcast_request);
+
+                    broadcast_message(std::move(broadcast),
+                                      m_pimpl->m_ptr_p2p_socket->name(),
+                                      peerid,
+                                      true,
+                                      nullptr,
+                                      m_pimpl->m_p2p_peers,
+                                      m_pimpl->m_ptr_p2p_socket.get());
+
+                    TransactionDone transaction_done;
+                    transaction_done.transaction_hash = meshpp::hash(transaction_broadcast_request.to_string());
+
+                    psk->send(peerid, std::move(transaction_done));
+
+                    break;
+                }
                 case FileNotFound::rtt:
                 {
                     FileNotFound error;
