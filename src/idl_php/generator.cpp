@@ -642,7 +642,6 @@ void analyze_struct(    state_holder& state,
     string memberNamesMap = "";
     for ( auto member_pair : members )
     {
-
         auto const& member_name = member_pair.first->lexem;
         auto const& member_type = member_pair.second;
 
@@ -660,7 +659,6 @@ void analyze_struct(    state_holder& state,
 
         if ( std::find( enum_names.begin(), enum_names.end(), info[0]) != enum_names.end() )
         {
-
                 isEnum = true;
 
                 usings += "use " + PackageName +  "\\Base\\" + info [0] +";\n";
@@ -685,20 +683,14 @@ void analyze_struct(    state_holder& state,
                         "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
         }
 
-
         memberNamesMap += "        '" + member_name.value + "'" + " => ['name' => '" + camelCaseMemberName + "', 'convertToDate' => ";
         if ( info[0] == "integer")
-        {
             memberNamesMap += "true],\n";
-        }
         else
-        {
             memberNamesMap += "false],\n";
-        }
 
         if ( info[0] == "::beltpp::packet" )
         {
-
             params +=
                     "    /**\n"
                     "    * @var mixed \n"
@@ -716,64 +708,48 @@ void analyze_struct(    state_holder& state,
 
             mixedTypes +=
                     "        $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(Rtt::validate($data->" +  member_name.value + ")); \n";
-
         }
         else
         if ( info[0] == "hash" || info[0] == "array" )
-        {
             params +=
                     "    /**\n"
                     "    * @var array\n"
                     "    */ \n"
                     "    private $" + camelCaseMemberName + " = [];\n";
-        }
         else if (!isEnum)
-        {
             params +=
                     "    /**\n"
                     "    * @var "+ transformString( info[0] ) + "\n" +
                     "    */ \n" +
                     "    private $" + camelCaseMemberName + ";\n";
-        }
-        if (     info[0] == "array" &&
-                ( info[1] != "int" &&
-                  info[1] != "string" &&
-                  info[1] != "bool" &&
-                  info[1] != "float" &&
-                  info[1] != "double" &&
-                  info[1] != "integer"
-                  )
-                )
+
+        if (info[0] == "array")
         {
-            arrayCase += handleArrayForObjects( std::stoi( info[2] ), member_name.value, info[1] );
-
-        }
-        else if (
-                 (              info[0] == "array" &&
-                                (  info[1] == "int" ||
-                                   info[1] == "string" ||
-                                   info[1] == "bool" ||
-                                   info[1] == "float" ||
-                                   info[1] == "double" ||
-                                   info[1] == "integer"
-                                   )
-                                )
-                 )
-        {
-
-            string item = camelCaseMemberName + "Item";
-            addFunction +=
-                    "    /**\n"
-                    "    * @param " + transformString( info[1] ) + " $" + item +"\n"
-                    "    */\n"
-                    "    public function add" + (static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) )  +  "(" + info[1] + " $" + item + ")\n"
-                    "    {\n"
-                    "        $this->" + camelCaseMemberName + "[] = $" + item + ";\n"
-                                                                                                                                                                                                                                                                                                                                 "    }\n";
-
-
-            arrayCase += handleArrayForPrimitives( std::stoi( info[2] ), member_name.value );
-
+        string item = camelCaseMemberName + "Item";
+        addFunction +=
+                "    /**\n"
+                "    * @param " + transformString( info[1] ) + " $" + item +"\n"
+                "    */\n"
+                "    public function add" + (static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) )  +  "(" + info[1] + " $" + item + ")\n"
+                "    {\n"
+                "        $this->" + camelCaseMemberName + "[] = $" + item + ";\n"
+                "    }\n";
+            if (info[1] != "int" &&
+                info[1] != "string" &&
+                info[1] != "bool" &&
+                info[1] != "float" &&
+                info[1] != "double" &&
+                info[1] != "integer"
+               )
+                arrayCase += handleArrayForObjects( std::stoi( info[2] ), member_name.value, info[1] );
+            else if (info[1] == "int" ||
+                     info[1] == "string" ||
+                     info[1] == "bool" ||
+                     info[1] == "float" ||
+                     info[1] == "double" ||
+                     info[1] == "integer"
+                    )
+                arrayCase += handleArrayForPrimitives( std::stoi( info[2] ), member_name.value );
         }
         if (     info[0] == "hash" &&
                 ( info[3] != "int" &&
@@ -784,11 +760,7 @@ void analyze_struct(    state_holder& state,
                   info[3] != "integer"
                   )
                 )
-        {
-
             handleHashForObjects( info, setFunction, hashCase, member_name.value );
-
-        }
         else if (
                  (              info[0] == "hash" &&
                                 (  info[3] == "int" ||
@@ -800,11 +772,7 @@ void analyze_struct(    state_holder& state,
                                    )
                                 )
                  )
-        {
             handleHashForPrimitives( info, setFunction, hashCase, member_name.value  );
-
-        }
-
         else if (
                  info[0] == "int" ||
                  info[0] == "string" ||
@@ -814,13 +782,11 @@ void analyze_struct(    state_holder& state,
                  info[0] == "integer"
                  )
         {
-
             string type;
             if (info[0] == "integer")
             {
                 trivialTypes +=
                         "        $this->set" +   ( static_cast<char>( member_name.value.at( 0 ) - 32 ) +  transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "(strtotime($data->" + member_name.value  + ")); \n";
-
                 type = "int";
             }
             else
@@ -836,11 +802,8 @@ void analyze_struct(    state_holder& state,
                     "    }\n";
 
             if (info[0] != "integer")
-            {
                 trivialTypes +=
                         "        $this->set" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "($data->" + member_name.value  + "); \n";
-            }
-
         }
         else
         if ( !( info[0] == "::beltpp::packet" )  && !( info[0] == "hash" ) && !(info[0] == "array")  && !isEnum )
@@ -857,13 +820,11 @@ void analyze_struct(    state_holder& state,
                     "        $this->" + camelCaseMemberName + " = new "+ info[0] + "();\n"
                     "        $this->" + camelCaseMemberName + "->validate($data->"+ member_name.value  + ");\n";
         }
-
         getFunction +=
                 "    public function get" + ( static_cast<char>( member_name.value.at( 0 ) - 32 ) + transformString( member_name.value.substr( 1, member_name.value.length() - 1 ) ) ) + "() \n"
                 "    {\n"
                 "        return $this->" + camelCaseMemberName + ";\n"
                 "    }\n";
-
     }
 
     string  validation =

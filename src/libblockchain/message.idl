@@ -22,7 +22,7 @@ module BlockchainMessage
         TimePoint creation
         TimePoint expiry
         Coin fee
-        Object action  //  Transfer, File or Page
+        Object action  //  Transfer, File
     }
 
     class Authority
