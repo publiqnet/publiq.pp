@@ -19,9 +19,6 @@
 #define BLOCK_MINE_DELAY 600
 #define BLOCK_WAIT_DELAY 180
 
-// Sync process request/response maximum delay
-#define SYNC_FAILURE_TIMEOUT 30
-
 // Sent packet will considered as not answered
 // after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds
 #define PACKET_EXPIRY_STEPS 60
