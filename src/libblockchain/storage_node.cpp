@@ -66,7 +66,7 @@ bool storage_node::run()
 
     auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
 
-    if (wait_result == beltpp::event_handler::event)
+    if (wait_result & beltpp::event_handler::event)
     {
         for (auto& pevent_item : wait_sockets)
         {
@@ -231,11 +231,13 @@ bool storage_node::run()
             }   // for (auto& received_packet : received_packets)
         }   // for (auto& pevent_item : wait_sockets)
     }
-    else if (beltpp::event_handler::timer_out == wait_result)
+
+    if (wait_result & beltpp::event_handler::timer_out)
     {
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
 
+    if (wait_result & beltpp::event_handler::on_demand)
     {
         std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
         auto& messages = m_pimpl->m_messages;

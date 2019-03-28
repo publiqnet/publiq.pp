@@ -429,7 +429,7 @@ void rpc::run()
     auto wait_result = eh.wait(wait_sockets);
     B_UNUSED(wait_sockets);
 
-    if (wait_result == beltpp::event_handler::event)
+    if (wait_result & beltpp::event_handler::event)
     {
         beltpp::isocket::peer_id peerid;
         beltpp::socket::packets received_packets;
@@ -573,7 +573,8 @@ void rpc::run()
         }
         }
     }
-    else
+
+    if (wait_result & beltpp::event_handler::timer_out)
     {
         daemon_rpc dm;
         dm.open(connect_to_address);

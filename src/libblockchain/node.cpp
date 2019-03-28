@@ -100,7 +100,7 @@ bool node::run()
 
     enum class interface_type {p2p, rpc};
 
-    if (wait_result == beltpp::event_handler::event)
+    if (wait_result & beltpp::event_handler::event)
     {
         for (auto& pevent_item : wait_sockets)
         {
@@ -629,20 +629,20 @@ bool node::run()
             }   // for (auto& received_packet : received_packets)
         }   // for (auto& pevent_item : wait_sockets)
     }
-    else if (wait_result == beltpp::event_handler::timer_out)
+
+    if (wait_result & beltpp::event_handler::timer_out)
     {
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
 
+    if (m_pimpl->m_slave_node &&
+        wait_result & beltpp::event_handler::on_demand)
     {
-        if (m_pimpl->m_slave_node)
+        beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
+        for (auto& ref_packet : received_packets)
         {
-            beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
-            for (auto& ref_packet : received_packets)
-            {
-                m_pimpl->m_sessions.process("slave", std::move(ref_packet));
-            }
+            m_pimpl->m_sessions.process("slave", std::move(ref_packet));
         }
     }
 

@@ -129,7 +129,7 @@ void Send(beltpp::packet&& send_package,
        beltpp::isocket::packets packets;
        std::unordered_set<beltpp::ievent_item const*> set_items;
 
-       if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
+       if (beltpp::ievent_handler::wait_result::event & eh.wait(set_items))
            packets = sk.receive(peerid);
 
        if (peerid.empty())

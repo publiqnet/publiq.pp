@@ -109,7 +109,7 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
         auto wait_result = eh.wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
-        if (wait_result == beltpp::event_handler::event)
+        if (wait_result & beltpp::event_handler::event)
         {
             peer_id _peerid;
 
@@ -370,7 +370,7 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
         auto wait_result = eh.wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
-        if (wait_result == beltpp::event_handler::event)
+        if (wait_result & beltpp::event_handler::event)
         {
             peer_id _peerid;
 
@@ -509,7 +509,7 @@ void daemon_rpc::sync(rpc& rpc_server,
             auto wait_result = eh.wait(wait_sockets);
             B_UNUSED(wait_sockets);
 
-            if (wait_result == beltpp::event_handler::event)
+            if (wait_result & beltpp::event_handler::event)
             {
                 peer_id _peerid;
 
