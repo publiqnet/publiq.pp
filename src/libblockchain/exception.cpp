@@ -98,25 +98,45 @@ not_enough_balance_exception& not_enough_balance_exception::operator=(not_enough
 not_enough_balance_exception::~not_enough_balance_exception() noexcept
 {}
 
-too_long_string::too_long_string(string const& used_string, size_t max_length)
+too_long_string_exception::too_long_string_exception(string const& used_string, size_t max_length)
     : runtime_error(used_string + " - is longer than allowed. " +
                     std::to_string(used_string.size()) + " vs " +
                     std::to_string(max_length))
     , used_string(used_string)
     , max_length(max_length)
 {}
-too_long_string::too_long_string(too_long_string const& other) noexcept
+too_long_string_exception::too_long_string_exception(too_long_string_exception const& other) noexcept
     : runtime_error(other)
     , used_string(other.used_string)
     , max_length(other.max_length)
 {}
-too_long_string& too_long_string::operator=(too_long_string const& other) noexcept
+too_long_string_exception& too_long_string_exception::operator=(too_long_string_exception const& other) noexcept
 {
     dynamic_cast<runtime_error*>(this)->operator =(other);
     used_string = other.used_string;
     max_length = other.max_length;
     return *this;
 }
-too_long_string::~too_long_string() noexcept
+too_long_string_exception::~too_long_string_exception() noexcept
+{}
+
+uri_exception::uri_exception(string const& _uri, uri_exception::Type _uri_problem_type)
+    : runtime_error("duplicate uri " + _uri)
+    , uri(_uri)
+    , uri_problem_type(_uri_problem_type)
+{}
+uri_exception::uri_exception(uri_exception const& other) noexcept
+    : runtime_error(other)
+    , uri(other.uri)
+    , uri_problem_type(other.uri_problem_type)
+{}
+uri_exception& uri_exception::operator=(uri_exception const& other) noexcept
+{
+    dynamic_cast<runtime_error*>(this)->operator =(other);
+    uri = other.uri;
+    uri_problem_type = other.uri_problem_type;
+    return *this;
+}
+uri_exception::~uri_exception() noexcept
 {}
 }// end of namespace publiqpp

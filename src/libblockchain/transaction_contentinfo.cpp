@@ -13,8 +13,11 @@ void action_validate(SignedTransaction const& signed_transaction,
                      StorageUpdate const& storage_update,
                      bool/* check_complete*/)
 {
+    //  this is checked in signed_transaction_validate
+    assert(false == signed_transaction.authorizations.empty());
+
     if (signed_transaction.authorizations.size() != 1)
-        throw wrong_data_exception("transaction authorizations error");
+        throw authority_exception(signed_transaction.authorizations.back().address, string());
 
     auto signed_authority = signed_transaction.authorizations.front().address;
     if (signed_authority != storage_update.storage_address)

@@ -13,8 +13,11 @@ void action_validate(SignedTransaction const& signed_transaction,
                      Transfer const& transfer,
                      bool/* check_complete*/)
 {
+    //  this is checked in signed_transaction_validate
+    assert(false == signed_transaction.authorizations.empty());
+
     if (signed_transaction.authorizations.size() != 1)
-        throw wrong_data_exception("transaction authorizations error");
+        throw authority_exception(signed_transaction.authorizations.back().address, string());
 
     auto signed_authority = signed_transaction.authorizations.front().address;
     if (signed_authority != transfer.from)
@@ -24,7 +27,7 @@ void action_validate(SignedTransaction const& signed_transaction,
     meshpp::public_key pb_key_from(transfer.from);
 
     if (transfer.message.size() > 80)
-        throw too_long_string(transfer.message, 80);
+        throw too_long_string_exception(transfer.message, 80);
 }
 
 authorization_process_result action_authorization_process(SignedTransaction&/* signed_transaction*/,

@@ -351,7 +351,14 @@ module BlockchainMessage
         String used_string
         UInt64 max_length
     }
-    class FileNotFound{ String uri }
+    class FileNotFound { String uri }
+
+    enum UriProblemType { missing duplicate invalid }
+    class UriError
+    {
+        String uri
+        UriProblemType uri_problem_type
+    }
 
     class ResponseCodeReserve1 {}
     class ResponseCodeReserve2 {}

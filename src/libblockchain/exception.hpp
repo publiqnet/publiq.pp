@@ -76,17 +76,32 @@ public:
     coin spending;
 };
 
-class too_long_string : public std::runtime_error
+class too_long_string_exception : public std::runtime_error
 {
 public:
-    explicit too_long_string(std::string const& used_string, size_t max_length);
+    explicit too_long_string_exception(std::string const& used_string, size_t max_length);
 
-    too_long_string(too_long_string const&) noexcept;
-    too_long_string& operator=(too_long_string const&) noexcept;
+    too_long_string_exception(too_long_string_exception const&) noexcept;
+    too_long_string_exception& operator=(too_long_string_exception const&) noexcept;
 
-    virtual ~too_long_string() noexcept;
+    virtual ~too_long_string_exception() noexcept;
 
     std::string used_string;
     size_t max_length;
+};
+
+class uri_exception : public std::runtime_error
+{
+public:
+    enum Type { missing, duplicate, invalid };
+    explicit uri_exception(std::string const& uri, Type _uri_problem_type);
+
+    uri_exception(uri_exception const&) noexcept;
+    uri_exception& operator=(uri_exception const&) noexcept;
+
+    virtual ~uri_exception() noexcept;
+
+    std::string uri;
+    Type uri_problem_type;
 };
 }// end of namespace publiqpp

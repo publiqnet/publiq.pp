@@ -13,12 +13,18 @@ void action_validate(SignedTransaction const& signed_transaction,
                      File const& file,
                      bool check_complete)
 {
+    //  this is checked in signed_transaction_validate
+    assert(false == signed_transaction.authorizations.empty());
+
     if (file.author_addresses.empty())
         throw wrong_data_exception("a file has to have at least one author");
+
     if (check_complete)
     {
-        if (signed_transaction.authorizations.size() != file.author_addresses.size())
-            throw wrong_data_exception("transaction authorizations error");
+        if (signed_transaction.authorizations.size() > file.author_addresses.size())
+            throw authority_exception(signed_transaction.authorizations.back().address, string());
+        else if (signed_transaction.authorizations.size() < file.author_addresses.size())
+            throw authority_exception(string(), file.author_addresses.back());
 
         for (size_t index = 0; index != signed_transaction.authorizations.size(); ++index)
         {
@@ -33,9 +39,6 @@ void action_validate(SignedTransaction const& signed_transaction,
     }
     else
     {
-        if (signed_transaction.authorizations.empty())
-            throw wrong_data_exception("transaction authorizations error");
-
         for (size_t index = 0;
              index != signed_transaction.authorizations.size() &&
              index != file.author_addresses.size();
@@ -53,7 +56,7 @@ void action_validate(SignedTransaction const& signed_transaction,
 
     string file_hash = meshpp::from_base58(file.uri);
     if (file_hash.length() != 32)
-        throw std::runtime_error("invalid uri: " + file.uri);
+        throw uri_exception(file.uri, uri_exception::invalid);
 }
 
 authorization_process_result action_authorization_process(SignedTransaction& signed_transaction,
@@ -78,7 +81,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   File const& file)
 {
     if (impl.m_documents.exist_file(file.uri))
-        throw wrong_document_exception("File already exists!");
+        throw uri_exception(file.uri, uri_exception::duplicate);
     impl.m_documents.insert_file(file);
 }
 

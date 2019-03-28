@@ -542,71 +542,159 @@ bool node::run()
             }
             catch (meshpp::exception_public_key const& e)
             {
-                InvalidPublicKey msg;
-                msg.public_key = e.pub_key;
-                psk->send(peerid, msg);
+                if (it == interface_type::rpc)
+                {
+                    InvalidPublicKey msg;
+                    msg.public_key = e.pub_key;
+                    psk->send(peerid, msg);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
             catch (meshpp::exception_private_key const& e)
             {
-                InvalidPrivateKey msg;
-                msg.private_key = e.priv_key;
-                psk->send(peerid, msg);
+                if (it == interface_type::rpc)
+                {
+                    InvalidPrivateKey msg;
+                    msg.private_key = e.priv_key;
+                    psk->send(peerid, msg);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
             catch (meshpp::exception_signature const& e)
             {
-                InvalidSignature msg;
-                msg.details.public_key = e.sgn.pb_key.to_string();
-                msg.details.signature = e.sgn.base58;
-                BlockchainMessage::detail::loader(msg.details.package,
-                                                  std::string(e.sgn.message.begin(), e.sgn.message.end()),
-                                                  nullptr);
+                if (it == interface_type::rpc)
+                {
+                    InvalidSignature msg;
+                    msg.details.public_key = e.sgn.pb_key.to_string();
+                    msg.details.signature = e.sgn.base58;
+                    BlockchainMessage::detail::loader(msg.details.package,
+                                                      std::string(e.sgn.message.begin(), e.sgn.message.end()),
+                                                      nullptr);
 
-                psk->send(peerid, msg);
+                    psk->send(peerid, msg);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
-            catch (wrong_data_exception const&)
+            catch (wrong_data_exception const& e)
             {
-                psk->send(peerid, beltpp::isocket_drop());
-                remove_peer();
+                if (it == interface_type::rpc)
+                {
+                    RemoteError remote_error;
+                    remote_error.message = e.message;
+                    psk->send(peerid, remote_error);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
             catch (wrong_request_exception const& e)
             {
-                RemoteError remote_error;
-                remote_error.message = e.message;
-                psk->send(peerid, remote_error);
+                if (it == interface_type::rpc)
+                {
+                    RemoteError remote_error;
+                    remote_error.message = e.message;
+                    psk->send(peerid, remote_error);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
             catch (wrong_document_exception const& e)
             {
-                RemoteError remote_error;
-                remote_error.message = e.message;
-                psk->send(peerid, remote_error);
+                if (it == interface_type::rpc)
+                {
+                    RemoteError remote_error;
+                    remote_error.message = e.message;
+                    psk->send(peerid, remote_error);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
             catch (authority_exception const& e)
             {
-                InvalidAuthority msg;
-                msg.authority_provided = e.authority_provided;
-                msg.authority_required = e.authority_required;
-                psk->send(peerid, msg);
+                if (it == interface_type::rpc)
+                {
+                    InvalidAuthority msg;
+                    msg.authority_provided = e.authority_provided;
+                    msg.authority_required = e.authority_required;
+                    psk->send(peerid, msg);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
             catch (not_enough_balance_exception const& e)
             {
-                NotEnoughBalance msg;
-                e.balance.to_Coin(msg.balance);
-                e.spending.to_Coin(msg.spending);
-                psk->send(peerid, msg);
+                if (it == interface_type::rpc)
+                {
+                    NotEnoughBalance msg;
+                    e.balance.to_Coin(msg.balance);
+                    e.spending.to_Coin(msg.spending);
+                    psk->send(peerid, msg);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
-            catch (too_long_string const& e)
+            catch (too_long_string_exception const& e)
             {
-                TooLongString msg;
-                beltpp::assign(msg, e);
-                psk->send(peerid, msg);
+                if (it == interface_type::rpc)
+                {
+                    TooLongString msg;
+                    beltpp::assign(msg, e);
+                    psk->send(peerid, msg);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
+                throw;
+            }
+            catch (uri_exception const& e)
+            {
+                if (it == interface_type::rpc)
+                {
+                    UriError msg;
+                    beltpp::assign(msg, e);
+                    psk->send(peerid, msg);
+                }
+                else
+                {
+                    psk->send(peerid, beltpp::isocket_drop());
+                    remove_peer();
+                }
                 throw;
             }
             catch (std::exception const& e)
@@ -621,9 +709,12 @@ bool node::run()
             }
             catch (...)
             {
-                RemoteError msg;
-                msg.message = "unknown exception";
-                psk->send(peerid, msg);
+                if (it == interface_type::rpc)
+                {
+                    RemoteError msg;
+                    msg.message = "unknown exception";
+                    psk->send(peerid, msg);
+                }
                 throw;
             }
             }   // for (auto& received_packet : received_packets)
