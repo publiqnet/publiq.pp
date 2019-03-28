@@ -685,17 +685,16 @@ bool node::run()
         size_t pool_size = m_pimpl->m_transaction_pool.length();
         if (pool_size > 0)
         {
-            m_pimpl->writeln_node("broadcasting " + std::to_string(pool_size) + " stored transactions to all peers");
+            m_pimpl->writeln_node("broadcasting old stored transactions to all peers");
 
             auto current_time = system_clock::now();
 
-            for (size_t pool_index = 0;
-                 pool_index != pool_size;
-                 ++pool_index)
+            for (size_t pool_index = 0; pool_index != pool_size; ++pool_index)
             {
                 SignedTransaction const& signed_transaction = m_pimpl->m_transaction_pool.at(pool_index);
 
-                if (current_time < system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm))
+                if (current_time < system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm) &&
+                    current_time > system_clock::from_time_t(signed_transaction.transaction_details.creation.tm) + chrono::seconds(BLOCK_MINE_DELAY))
                 {
                     Broadcast broadcast;
                     broadcast.echoes = 2;
