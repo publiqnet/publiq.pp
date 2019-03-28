@@ -120,7 +120,7 @@ beltpp::detail::pmsg_all message_list_load(
         if (pss)
         {
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-            ssd.parser_unrecognized_limit = 1024 * 1024;
+            ssd.parser_unrecognized_limit = 1024;
         }
 
         return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
