@@ -517,9 +517,9 @@ broadcast_type action_process_on_chain_t(BlockchainMessage::SignedTransaction& s
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
 
-    //  need to define this condition otherwise
-    /*if (impl.sync_headers.size() > BLOCK_TR_LENGTH)
-        return on_success;*/
+    if (system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm) < 
+        system_clock::now() - chrono::seconds(BLOCK_TR_LENGTH * BLOCK_MINE_DELAY))
+        return on_success;
 
     // Check pool
     if (impl.m_transaction_cache.contains(signed_transaction))
