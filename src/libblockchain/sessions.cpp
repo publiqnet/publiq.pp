@@ -841,16 +841,16 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     //2. check and add received blockchain to sync_blocks_vector for future process
     size_t length = sync_blocks.size();
 
-    // put prev_signed_block in correct place
-    SignedBlock const* prev_signed_block;
+    string prev_block_hash;
+
     if (sync_blocks.empty())
-        prev_signed_block = &pimpl->m_blockchain.at(block_number - 1);
+        prev_block_hash = pimpl->m_blockchain.last_hash();
     else
-        prev_signed_block = &(sync_blocks.back());
+        prev_block_hash = meshpp::hash(sync_blocks.back().block_details.to_string());
 
     auto header_it = sync_headers.rbegin() + length;
 
-    if (header_it->prev_hash != meshpp::hash(prev_signed_block->block_details.to_string()))
+    if (header_it->prev_hash != prev_block_hash)
         return set_errored("blockchain response. previous hash!", throw_for_debugging_only);
 
     ++header_it;
