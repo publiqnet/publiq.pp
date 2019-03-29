@@ -19,10 +19,11 @@ using std::string;
 
 namespace publiqpp
 {
+/*
 inline packet& contained_member(TaskRequest& task_request, meshpp::public_key const& pb_key)
 {
     meshpp::signature signature_check(pb_key,
-                                      std::to_string(task_request.task_id) + 
+                                      std::to_string(task_request.task_id) +
                                       meshpp::hash(task_request.package.to_string()) +
                                       std::to_string(task_request.time_signed.tm),
                                       task_request.signature);
@@ -39,6 +40,7 @@ inline packet& contained_member(TaskRequest& task_request, meshpp::public_key co
 
     return task_request.package;
 }
+*/
 
 inline packet& contained_member(Broadcast& pck)
 {

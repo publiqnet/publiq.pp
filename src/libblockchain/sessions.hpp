@@ -82,21 +82,6 @@ public:
     BlockchainMessage::Broadcast msg;
 };
 
-class session_action_storagefile : public meshpp::session_action<meshpp::nodeid_session_header>
-{
-public:
-    session_action_storagefile(detail::node_internals& impl,
-                               std::string const& _file_uri);
-    ~session_action_storagefile() override;
-
-    void initiate(meshpp::nodeid_session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
-    bool permanent() const override;
-
-    detail::node_internals* pimpl;
-    std::string file_uri;
-};
-
 class session_action_sync_request : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
@@ -187,6 +172,25 @@ public:
     BlockchainMessage::StorageFile file;
     beltpp::isocket* psk;
     beltpp::isocket::peer_id peerid;
+};
+
+class session_action_delete_file : public meshpp::session_action<meshpp::session_header>
+{
+public:
+    session_action_delete_file(detail::node_internals& impl,
+                               std::string const& uri,
+                               beltpp::isocket& sk,
+                               beltpp::isocket::peer_id const& peerid);
+    ~session_action_delete_file() override;
+
+    void initiate(meshpp::session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    bool permanent() const override;
+
+    detail::node_internals* pimpl;
+    beltpp::isocket* psk;
+    beltpp::isocket::peer_id peerid;
+    std::string uri;
 };
 
 }

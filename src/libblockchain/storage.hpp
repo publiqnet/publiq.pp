@@ -23,8 +23,9 @@ public:
     storage(boost::filesystem::path const& fs_storage);
     ~storage();
 
-    std::string put(BlockchainMessage::StorageFile&& file);
+    bool put(BlockchainMessage::StorageFile&& file, std::string& uri);
     bool get(std::string const& uri, BlockchainMessage::StorageFile& file);
+    bool remove(std::string const& uri);
 private:
     std::unique_ptr<detail::storage_internals> m_pimpl;
 };

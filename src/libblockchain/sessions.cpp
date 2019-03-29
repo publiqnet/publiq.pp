@@ -311,93 +311,6 @@ bool session_action_broadcast_address_info::permanent() const
     return false;
 }
 
-// --------------------------- session_action_storagefile ---------------------------
-
-session_action_storagefile::session_action_storagefile(detail::node_internals& impl,
-                                                       string const& _file_uri)
-    : session_action<meshpp::nodeid_session_header>()
-    , pimpl(&impl)
-    , file_uri(_file_uri)
-{}
-
-session_action_storagefile::~session_action_storagefile()
-{}
-
-void session_action_storagefile::initiate(meshpp::nodeid_session_header& header)
-{
-    BlockchainMessage::StorageFileRequest get_storagefile;
-    get_storagefile.uri = file_uri;
-
-    pimpl->m_ptr_rpc_socket->send(header.peerid, get_storagefile);
-    expected_next_package_type = BlockchainMessage::StorageFile::rtt;
-}
-
-bool session_action_storagefile::process(beltpp::packet&& package, meshpp::nodeid_session_header&)
-{
-    bool code = true;
-
-    if (expected_next_package_type == package.type() &&
-        expected_next_package_type != size_t(-1))
-    {
-        switch (package.type())
-        {
-        case BlockchainMessage::StorageFile::rtt:
-        {
-            std::cout << "action_storagefile -> File received" << std::endl;
-            BlockchainMessage::StorageFile storage_file;
-            package.get(storage_file);
-
-            if (file_uri == meshpp::hash(storage_file.data))
-            {
-                std::cout << "action_storagefile -> File verified" << std::endl;
-
-                if (!pimpl->m_slave_peer.empty())
-                {
-                    TaskRequest task_request;
-                    task_request.task_id = ++pimpl->m_slave_taskid;
-                    ::detail::assign_packet(task_request.package, package);
-                    task_request.time_signed.tm = system_clock::to_time_t(system_clock::now());
-                    meshpp::signature signed_msg = pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
-                                                                        meshpp::hash(package.to_string()) +
-                                                                        std::to_string(task_request.time_signed.tm));
-                    task_request.signature = signed_msg.base58;
-
-                    // send task to slave
-                    pimpl->m_ptr_rpc_socket->send(pimpl->m_slave_peer, task_request);
-
-                    pimpl->m_slave_tasks.add(task_request.task_id, package);
-                }
-                else
-                    pimpl->reconnect_slave();
-            }
-            else
-            {
-                errored = true;
-                std::cout << "action_storagefile -> File verification filed" << std::endl;
-            }
-
-            completed = true;
-            expected_next_package_type = size_t(-1);
-            break;
-        }
-        default:
-            assert(false);
-            break;
-        }
-    }
-    else
-    {
-        code = false;
-    }
-
-    return code;
-}
-
-bool session_action_storagefile::permanent() const
-{
-    return false;
-}
-
 // --------------------------- session_action_sync_request ---------------------------
 
 session_action_sync_request::session_action_sync_request(detail::node_internals& impl)
@@ -1068,6 +981,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         if (pimpl->m_node_type == NodeType::channel)
             broadcast_storage_info(*pimpl);
 
+        /*
         if (pimpl->m_node_type == NodeType::storage && !pimpl->m_slave_peer.empty())
         {
             ServiceStatistics service_statistics;
@@ -1088,6 +1002,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
             pimpl->m_slave_tasks.add(task_request.task_id, task_packet);
         }
+        */
     }
 }
 
@@ -1195,6 +1110,81 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
 }
 
 bool session_action_save_file::permanent() const
+{
+    return false;
+}
+
+// --------------------------- session_action_delete_file ---------------------------
+
+session_action_delete_file::session_action_delete_file(detail::node_internals& impl,
+                                                       string const& _uri,
+                                                       beltpp::isocket& sk,
+                                                       beltpp::isocket::peer_id const& _peerid)
+    : meshpp::session_action<meshpp::session_header>()
+    , pimpl(&impl)
+    , psk(&sk)
+    , peerid(_peerid)
+    , uri(_uri)
+{}
+
+session_action_delete_file::~session_action_delete_file()
+{
+    if (size_t(-1) != expected_next_package_type &&
+        false == errored)
+    {
+        BlockchainMessage::RemoteError msg;
+        msg.message = "unknown error deleting the file";
+        psk->send(peerid, std::move(msg));
+    }
+}
+
+void session_action_delete_file::initiate(meshpp::session_header&/* header*/)
+{
+    StorageFileDelete msg;
+    msg.uri = uri;
+    pimpl->m_slave_node->send(std::move(msg));
+    pimpl->m_slave_node->wake();
+    expected_next_package_type = BlockchainMessage::Done::rtt;
+}
+
+bool session_action_delete_file::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
+{
+    bool code = true;
+
+    beltpp::on_failure guard([this]{ errored = true; });
+
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
+    {
+        switch (package.type())
+        {
+        case BlockchainMessage::Done::rtt:
+        {
+            psk->send(peerid, BlockchainMessage::Done());
+
+            completed = true;
+            expected_next_package_type = size_t(-1);
+
+            break;
+        }
+        default:
+            assert(false);
+            break;
+        }
+    }
+    else
+    {
+        psk->send(peerid, std::move(package));
+        completed = true;
+        expected_next_package_type = size_t(-1);
+    }
+
+    guard.dismiss();
+
+    return code;
+}
+
+bool session_action_delete_file::permanent() const
 {
     return false;
 }

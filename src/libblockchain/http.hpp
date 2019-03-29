@@ -54,14 +54,16 @@ string file_response(beltpp::detail::session_special_data& ssd,
     {
         string str_result;
         string message;
-        if (pc.type() == BlockchainMessage::FileNotFound::rtt)
+        if (pc.type() == BlockchainMessage::UriError::rtt)
         {
-            BlockchainMessage::FileNotFound const* pError = nullptr;
+            BlockchainMessage::UriError const* pError = nullptr;
             pc.get(pError);
-            message = "404 Not Found\r\n"
-                    "requested file: " + pError->uri;
+            if (pError->uri_problem_type == BlockchainMessage::UriProblemType::missing)
+                message = "404 Not Found\r\n"
+                          "requested file: " + pError->uri;
         }
-        else
+
+        if (message.empty())
             message = "internal error";
 
         str_result += "HTTP/1.1 404 Not Found\r\n";

@@ -83,16 +83,7 @@ bool storage_node::run()
             {
             try
             {
-                vector<packet*> composition;
-                open_container_packet<TaskRequest> any_task;
-
-                if (false == any_task.open(received_packet, composition, m_pimpl->m_pv_key.get_public_key()))
-                {
-                    composition.clear();
-                    composition.push_back(&received_packet);
-                }
-
-                packet& ref_packet = *composition.back();
+                packet& ref_packet = received_packet;
 
                 switch (ref_packet.type())
                 {
@@ -129,31 +120,6 @@ bool storage_node::run()
 
                     break;
                 }
-                case StorageFile::rtt:
-                {
-                    TaskRequest* p_task_request = nullptr;
-                    StorageFile* p_storage_file = nullptr;
-
-                    any_task.items[0]->get(p_task_request);
-                    ref_packet.get(p_storage_file);
-
-                    assert(p_task_request);
-                    assert(p_storage_file);
-
-                    TaskRequest& task_request = *p_task_request;
-                    StorageFile& storage_file = *p_storage_file;
-
-                    StorageFileAddress file_address;
-                    file_address.uri = m_pimpl->m_storage.put(std::move(storage_file));
-
-                    TaskResponse task_response;
-                    task_response.task_id = task_request.task_id;
-                    task_response.package = file_address;
-
-                    psk->send(peerid, task_response);
-
-                    break;
-                }
                 case StorageFileRequest::rtt:
                 {
                     StorageFileRequest file_info;
@@ -166,8 +132,9 @@ bool storage_node::run()
                     }
                     else
                     {
-                        FileNotFound error;
+                        UriError error;
                         error.uri = file_info.uri;
+                        error.uri_problem_type = UriProblemType::missing;
                         psk->send(peerid, std::move(error));
                     }
 
@@ -221,11 +188,16 @@ bool storage_node::run()
             }
             catch (std::exception const& e)
             {
-                B_UNUSED(e);
+                RemoteError msg;
+                msg.message = e.what();
+                psk->send(peerid, std::move(msg));
                 throw;
             }
             catch (...)
             {
+                RemoteError msg;
+                msg.message = "unknown exception";
+                psk->send(peerid, std::move(msg));
                 throw;
             }
             }   // for (auto& received_packet : received_packets)
@@ -255,10 +227,41 @@ bool storage_node::run()
                 {
                     StorageFile storage_file;
                     std::move(request).get(storage_file);
-                    StorageFileAddress file_address;
-                    file_address.uri = m_pimpl->m_storage.put(std::move(storage_file));
+                    string uri;
+                    if (m_pimpl->m_storage.put(std::move(storage_file), uri))
+                    {
+                        StorageFileAddress file_address;
+                        file_address.uri = uri;
+                        response.set(std::move(file_address));
+                    }
+                    else
+                    {
+                        UriError msg;
+                        msg.uri = uri;
+                        msg.uri_problem_type = UriProblemType::duplicate;
+                        response.set(std::move(msg));
+                    }
 
-                    response.set(std::move(file_address));
+                    m_pimpl->m_master_node->wake();
+                    break;
+                }
+                case StorageFileDelete::rtt:
+                {
+                    StorageFileDelete storage_file_delete;
+                    std::move(request).get(storage_file_delete);
+
+                    if (m_pimpl->m_storage.remove(storage_file_delete.uri))
+                    {
+                        response.set(Done());
+                    }
+                    else
+                    {
+                        UriError msg;
+                        msg.uri = storage_file_delete.uri;
+                        msg.uri_problem_type = UriProblemType::missing;
+                        response.set(std::move(msg));
+                    }
+
                     m_pimpl->m_master_node->wake();
                     break;
                 }

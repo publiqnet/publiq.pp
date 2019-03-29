@@ -357,6 +357,33 @@ bool node::run()
                     
                     break;
                 }
+                case StorageFileDelete::rtt:
+                {
+                    if (NodeType::blockchain == m_pimpl->m_node_type ||
+                        nullptr == m_pimpl->m_slave_node)
+                        throw wrong_request_exception("Do not distrub!");
+
+                    if (m_pimpl->m_slave_node)
+                    {
+                        StorageFileDelete storage_file_delete;
+                        std::move(ref_packet).get(storage_file_delete);
+
+                        vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                        actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
+                                                                            std::move(storage_file_delete.uri),
+                                                                            *psk,
+                                                                            peerid));
+
+                        meshpp::session_header header;
+                        header.peerid = "slave";
+                        m_pimpl->m_sessions.add(header,
+                                                std::move(actions),
+                                                chrono::minutes(1));
+                    }
+
+                    break;
+                }
+                /*
                 case TaskResponse::rtt:
                 {
                     if(peerid != m_pimpl->m_slave_peer)
@@ -391,6 +418,7 @@ bool node::run()
 
                     break;
                 }
+                */
                 case LoggedTransactionsRequest::rtt:
                 {
                     if (it == interface_type::rpc)
@@ -515,15 +543,6 @@ bool node::run()
                                       m_pimpl->m_ptr_p2p_socket.get());
 
                     psk->send(peerid, std::move(transaction_done));
-
-                    break;
-                }
-                case FileNotFound::rtt:
-                {
-                    FileNotFound error;
-                    std::move(ref_packet).get(error);
-
-                    m_pimpl->writeln_node("File not found error: " + error.uri);
 
                     break;
                 }

@@ -61,35 +61,56 @@ storage::storage(boost::filesystem::path const& fs_storage)
 storage::~storage()
 {}
 
-string storage::put(BlockchainMessage::StorageFile&& file)
+bool storage::put(BlockchainMessage::StorageFile&& file, string& uri)
 {
-    string hash;
-    hash = meshpp::hash(file.data);
+    bool code = false;
+    uri = meshpp::hash(file.data);
     file.data = meshpp::to_base64(file.data);
     beltpp::on_failure guard([this]
     {
         m_pimpl->map.discard();
     });
 
-    m_pimpl->map.insert(hash, file);
+    if (m_pimpl->map.insert(uri, file))
+        code = true;
 
     m_pimpl->map.save();
 
     guard.dismiss();
     m_pimpl->map.commit();
-    return hash;
+    return code;
 }
 
-bool storage::get(string const& hash, BlockchainMessage::StorageFile& file)
+bool storage::get(string const& uri, BlockchainMessage::StorageFile& file)
 {
     auto keys = m_pimpl->map.keys();
-    auto it = keys.find(hash);
+    auto it = keys.find(uri);
     if (it == keys.end())
         return false;
 
-    file = std::move(m_pimpl->map.at(hash));
+    file = std::move(m_pimpl->map.at(uri));
     file.data = meshpp::from_base64(file.data);
     m_pimpl->map.discard();
+
+    return true;
+}
+
+bool storage::remove(string const& uri)
+{
+    auto keys = m_pimpl->map.keys();
+    auto it = keys.find(uri);
+    if (it == keys.end())
+        return false;
+
+    beltpp::on_failure guard([this]
+    {
+        m_pimpl->map.discard();
+    });
+    m_pimpl->map.erase(uri);
+    m_pimpl->map.save();
+
+    guard.dismiss();
+    m_pimpl->map.commit();
 
     return true;
 }
