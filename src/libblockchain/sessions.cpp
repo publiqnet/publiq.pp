@@ -681,9 +681,9 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
 
                 if(temp_from == temp_to)
                     //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
-                    pimpl->writeln_node("processing block " + std::to_string(temp_from));
+                    pimpl->writeln_node("validating block " + std::to_string(temp_from));
                 else
-                    pimpl->writeln_node("proc. blocks [" + std::to_string(temp_from) +
+                    pimpl->writeln_node("validating blocks [" + std::to_string(temp_from) +
                                         "," + std::to_string(temp_to) + "] from " + detail::peer_short_names(header.peerid));
             }
 
@@ -754,16 +754,16 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     //2. check and add received blockchain to sync_blocks_vector for future process
     size_t length = sync_blocks.size();
 
-    string prev_block_hash;
-
+    // put prev_signed_block in correct place
+    SignedBlock const* prev_signed_block;
     if (sync_blocks.empty())
-        prev_block_hash = pimpl->m_blockchain.last_hash();
+        prev_signed_block = &pimpl->m_blockchain.at(block_number - 1);
     else
-        prev_block_hash = meshpp::hash(sync_blocks.back().block_details.to_string());
+        prev_signed_block = &(sync_blocks.back());
 
     auto header_it = sync_headers.rbegin() + length;
 
-    if (header_it->prev_hash != prev_block_hash)
+    if (header_it->prev_hash != meshpp::hash(prev_signed_block->block_details.to_string()))
         return set_errored("blockchain response. previous hash!", throw_for_debugging_only);
 
     ++header_it;
@@ -808,6 +808,8 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         return; // will wait new chain
     }
+
+    pimpl->writeln_node("inserting above validated blocks");
 
     //3. all needed blocks received, start to check
     pimpl->m_transaction_cache.backup();
