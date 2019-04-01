@@ -687,8 +687,7 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                                         "," + std::to_string(temp_to) + "] from " + detail::peer_short_names(header.peerid));
             }
 
-            process_response(header,
-                             std::move(blockchain_response));
+            process_response(header, std::move(blockchain_response));
             break;
         }
         default:
@@ -748,22 +747,25 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     uint64_t block_number = sync_headers.back().block_number;
 
     assert(block_number > 0);
+    assert(block_number <= pimpl->m_blockchain.length());
     if (block_number == 0)
         throw std::logic_error("sync headers action must take care of this, the program will stop because of this");
 
     //2. check and add received blockchain to sync_blocks_vector for future process
-    size_t length = sync_blocks.size();
-
-    // put prev_signed_block in correct place
-    SignedBlock const* prev_signed_block;
+    string prev_block_hash;
     if (sync_blocks.empty())
-        prev_signed_block = &pimpl->m_blockchain.at(block_number - 1);
+    {
+        if (block_number == pimpl->m_blockchain.length())
+            prev_block_hash = pimpl->m_blockchain.last_hash();
+        else
+            prev_block_hash = pimpl->m_blockchain.header_at(block_number).prev_hash;
+    }
     else
-        prev_signed_block = &(sync_blocks.back());
+        prev_block_hash = meshpp::hash(sync_blocks.back().block_details.to_string());
 
-    auto header_it = sync_headers.rbegin() + length;
+    auto header_it = sync_headers.rbegin() + sync_blocks.size();
 
-    if (header_it->prev_hash != meshpp::hash(prev_signed_block->block_details.to_string()))
+    if (header_it->prev_hash != prev_block_hash)
         return set_errored("blockchain response. previous hash!", throw_for_debugging_only);
 
     ++header_it;
@@ -961,7 +963,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
     // request new chain if the process was stopped
     // by BLOCK_INSERT_LENGTH restriction
-    length = sync_blocks.size();
+    size_t length = sync_blocks.size();
     if (length < sync_headers.size())
     {
         // clear already inserted blocks and headers
