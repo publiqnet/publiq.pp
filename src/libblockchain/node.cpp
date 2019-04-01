@@ -43,7 +43,6 @@ namespace publiqpp
 node::node(string const& genesis_signed_block,
            ip_address const & public_address,
            ip_address const& rpc_bind_to_address,
-           ip_address const& slave_connect_to_address,
            ip_address const& p2p_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
            boost::filesystem::path const& fs_blockchain,
@@ -60,7 +59,6 @@ node::node(string const& genesis_signed_block,
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          rpc_bind_to_address,
-                                         slave_connect_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,
                                          fs_blockchain,
@@ -139,11 +137,6 @@ bool node::run()
                     m_pimpl->remove_peer(peerid);
                     m_pimpl->m_nodeid_sessions.remove(peerid);
                 }
-                else if (peerid == m_pimpl->m_slave_peer)
-                {
-                    m_pimpl->m_slave_peer.clear();
-                    m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
-                }
             };
             //-----------------------------------------------------//
 
@@ -174,8 +167,7 @@ bool node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    if (peerid != m_pimpl->m_slave_peer_attempt)
-                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -190,19 +182,6 @@ bool node::run()
                         assert(external_address.remote.empty());
                         external_address.local.port =
                                 m_pimpl->m_rpc_bind_to_address.local.port;
-
-                        guard.dismiss();
-                    }
-                    else
-                    {
-                        beltpp::on_failure guard(
-                            [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::isocket_drop())); });
-
-                        if (peerid == m_pimpl->m_slave_peer_attempt)
-                        {
-                            m_pimpl->m_slave_peer = peerid;
-                            m_pimpl->writeln_node(" <=======> Slave connected!");
-                        }
 
                         guard.dismiss();
                     }
@@ -759,14 +738,6 @@ bool node::run()
     m_pimpl->m_nodeid_sessions.erase_all_pending();
     m_pimpl->m_sessions.erase_all_pending();
 
-    // channels and storages connect to slave threads
-    if (m_pimpl->m_reconnect_timer.expired())
-    {
-        m_pimpl->m_reconnect_timer.update();
-
-        m_pimpl->reconnect_slave();
-    }
-
 //    // test ! print summary report about connections
 //    if (m_pimpl->m_summary_report_timer.expired())
 //    {
@@ -829,8 +800,6 @@ bool node::run()
         m_pimpl->m_cache_cleanup_timer.update();
 
         m_pimpl->clean_transaction_cache();
-
-        m_pimpl->m_slave_tasks.clean();
 
         //  temp place
         broadcast_node_type(m_pimpl);

@@ -236,7 +236,6 @@ int main(int argc, char** argv)
         publiqpp::node node(genesis_signed_block(),
                             public_address,
                             rpc_bind_to_address,
-                            slave_bind_to_address,
                             p2p_bind_to_address,
                             p2p_connect_to_addresses,
                             fs_blockchain,
