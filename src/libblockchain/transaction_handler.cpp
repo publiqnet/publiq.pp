@@ -322,7 +322,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  beltpp::packet const& package)
+                  beltpp::packet const& package,
+                  state_layer layer)
 {
     if (impl.m_transfer_only &&
         package.type() != Transfer::rtt)
@@ -334,49 +335,49 @@ void action_apply(publiqpp::detail::node_internals& impl,
     {
         Transfer const* paction;
         package.get(paction);
-        action_apply(impl, *paction);
+        action_apply(impl, *paction, layer);
         break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        action_apply(impl, *paction);
+        action_apply(impl, *paction, layer);
         break;
     }
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
         package.get(paction);
-        action_apply(impl, *paction);
+        action_apply(impl, *paction, layer);
         break;
     }
     case Content::rtt:
     {
         Content const* paction;
         package.get(paction);
-        action_apply(impl, *paction);
+        action_apply(impl, *paction, layer);
         break;
     }
     case Role::rtt:
     {
         Role const* paction;
         package.get(paction);
-        action_apply(impl, *paction);
+        action_apply(impl, *paction, layer);
         break;
     }
     case StorageUpdate::rtt:
     {
         StorageUpdate const* paction;
         package.get(paction);
-        action_apply(impl, *paction);
+        action_apply(impl, *paction, layer);
         break;
     }
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
         package.get(paction);
-        action_apply(impl, *paction);
+        action_apply(impl, *paction, layer);
         break;
     }
     default:
@@ -385,7 +386,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   beltpp::packet const& package)
+                   beltpp::packet const& package,
+                   state_layer layer)
 {
     if (impl.m_transfer_only &&
         package.type() != Transfer::rtt)
@@ -397,49 +399,49 @@ void action_revert(publiqpp::detail::node_internals& impl,
     {
         Transfer const* paction;
         package.get(paction);
-        action_revert(impl, *paction);
+        action_revert(impl, *paction, layer);
         break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        action_revert(impl, *paction);
+        action_revert(impl, *paction, layer);
         break;
     }
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
         package.get(paction);
-        action_revert(impl, *paction);
+        action_revert(impl, *paction, layer);
         break;
     }
     case Content::rtt:
     {
         Content const* paction;
         package.get(paction);
-        action_revert(impl, *paction);
+        action_revert(impl, *paction, layer);
         break;
     }
     case Role::rtt:
     {
         Role const* paction;
         package.get(paction);
-        action_revert(impl, *paction);
+        action_revert(impl, *paction, layer);
         break;
     }
     case StorageUpdate::rtt:
     {
         StorageUpdate const* paction;
         package.get(paction);
-        action_revert(impl, *paction);
+        action_revert(impl, *paction, layer);
         break;
     }
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
         package.get(paction);
-        action_revert(impl, *paction);
+        action_revert(impl, *paction, layer);
         break;
     }
     default:
@@ -450,7 +452,7 @@ void action_revert(publiqpp::detail::node_internals& impl,
 void fee_validate(publiqpp::detail::node_internals const& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction)
 {
-    Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address);
+    Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address, state_layer::pool);
     if (coin(balance) < signed_transaction.transaction_details.fee)
         throw not_enough_balance_exception(coin(balance),
                                            signed_transaction.transaction_details.fee);
@@ -459,7 +461,7 @@ void fee_validate(publiqpp::detail::node_internals const& impl,
 bool fee_can_apply(publiqpp::detail::node_internals const& impl,
                    SignedTransaction const& signed_transaction)
 {
-    Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address);
+    Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address, state_layer::pool);
     if (coin(balance) < signed_transaction.transaction_details.fee)
         return false;
     return true;
@@ -472,13 +474,13 @@ void fee_apply(publiqpp::detail::node_internals& impl,
     if (false == fee_receiver.empty())
     {
         auto const& fee = signed_transaction.transaction_details.fee;
-        Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address);
+        Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address, state_layer::pool);
         if (coin(balance) < fee)
             throw not_enough_balance_exception(coin(balance),
                                                fee);
 
-        impl.m_state.increase_balance(fee_receiver, fee);
-        impl.m_state.decrease_balance(signed_transaction.authorizations.front().address, fee);
+        impl.m_state.increase_balance(fee_receiver, fee, state_layer::chain);
+        impl.m_state.decrease_balance(signed_transaction.authorizations.front().address, fee, state_layer::chain);
     }
 }
 
@@ -489,13 +491,13 @@ void fee_revert(publiqpp::detail::node_internals& impl,
     if (false == fee_receiver.empty())
     {
         auto const& fee = signed_transaction.transaction_details.fee;
-        Coin balance = impl.m_state.get_balance(fee_receiver);
+        Coin balance = impl.m_state.get_balance(fee_receiver, state_layer::pool);
         if (coin(balance) < fee)
             throw not_enough_balance_exception(coin(balance),
                                                fee);
 
-        impl.m_state.decrease_balance(fee_receiver, fee);
-        impl.m_state.increase_balance(signed_transaction.authorizations.front().address, fee);
+        impl.m_state.decrease_balance(fee_receiver, fee, state_layer::chain);
+        impl.m_state.increase_balance(signed_transaction.authorizations.front().address, fee, state_layer::chain);
     }
 }
 
@@ -536,7 +538,7 @@ broadcast_type action_process_on_chain_t(BlockchainMessage::SignedTransaction& s
         false == action_can_apply(impl, action))
     {
         //  validate and add to state
-        action_apply(impl, action);
+        action_apply(impl, action, state_layer::pool);
 
         //  only validate the fee, but don't apply it
         fee_validate(impl, signed_transaction);

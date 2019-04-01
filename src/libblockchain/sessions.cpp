@@ -34,7 +34,7 @@ session_action_connections::session_action_connections(beltpp::socket& sk)
 session_action_connections::~session_action_connections()
 {
     if (false == peerid_to_drop.empty())
-        psk->send(peerid_to_drop, beltpp::isocket_drop());
+        psk->send(peerid_to_drop, beltpp::packet(beltpp::isocket_drop()));
 }
 
 void session_action_connections::initiate(meshpp::nodeid_session_header& header)
@@ -79,7 +79,7 @@ bool session_action_connections::process(beltpp::packet&& package, meshpp::nodei
         case beltpp::isocket_protocol_error::rtt:
             errored = true;
             std::cout << "action_connections - protocol error" << std::endl;
-            psk->send(header.peerid, beltpp::isocket_drop());
+            psk->send(header.peerid, beltpp::packet(beltpp::isocket_drop()));
             peerid_to_drop.clear();
             break;
         case beltpp::isocket_open_error::rtt:
@@ -138,7 +138,7 @@ bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::no
     case beltpp::isocket_protocol_error::rtt:
         errored = true;
         std::cout << "action_p2pconnections - protocol error" << std::endl;
-        psk->send(header.peerid, beltpp::isocket_drop());
+        psk->send(header.peerid, beltpp::packet(beltpp::isocket_drop()));
         pimpl->remove_peer(header.peerid);
         break;
     default:
@@ -175,7 +175,7 @@ session_action_signatures::~session_action_signatures()
 
 void session_action_signatures::initiate(meshpp::nodeid_session_header& header)
 {
-    psk->send(header.peerid, BlockchainMessage::Ping());
+    psk->send(header.peerid, beltpp::packet(BlockchainMessage::Ping()));
     expected_next_package_type = BlockchainMessage::Pong::rtt;
 
     nodeid = header.nodeid;
@@ -327,7 +327,7 @@ session_action_sync_request::~session_action_sync_request()
 
 void session_action_sync_request::initiate(meshpp::nodeid_session_header& header)
 {
-    pimpl->m_ptr_p2p_socket->send(header.peerid, BlockchainMessage::SyncRequest());
+    pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(BlockchainMessage::SyncRequest()));
     expected_next_package_type = BlockchainMessage::SyncResponse::rtt;
 }
 
@@ -409,7 +409,7 @@ void session_action_header::initiate(meshpp::nodeid_session_header& header)
     header_request.blocks_from = block_index_from;
     header_request.blocks_to = block_index_to;
 
-    pimpl->m_ptr_p2p_socket->send(header.peerid, header_request);
+    pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(header_request));
     expected_next_package_type = BlockchainMessage::BlockHeaderResponse::rtt;
 }
 
@@ -476,7 +476,7 @@ void session_action_header::process_request(beltpp::isocket::peer_id const& peer
     //  header_response.block_headers has highest index - first element
     //                                and lowest index - last element
 
-    impl.m_ptr_p2p_socket->send(peerid, header_response);
+    impl.m_ptr_p2p_socket->send(peerid, beltpp::packet(header_response));
 }
 
 void session_action_header::process_response(meshpp::nodeid_session_header& header,
@@ -649,7 +649,7 @@ void session_action_block::initiate(meshpp::nodeid_session_header& header)
     blockchain_request.blocks_from = sync_headers.back().block_number;
     blockchain_request.blocks_to = sync_headers.front().block_number;
 
-    pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);
+    pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(blockchain_request));
     expected_next_package_type = BlockchainMessage::BlockchainResponse::rtt;
 }
 
@@ -730,7 +730,7 @@ void session_action_block::process_request(beltpp::isocket::peer_id const& peeri
         chain_response.signed_blocks.push_back(std::move(signed_block));
     }
 
-    impl.m_ptr_p2p_socket->send(peerid, chain_response);
+    impl.m_ptr_p2p_socket->send(peerid, beltpp::packet(chain_response));
 }
 
 void session_action_block::process_response(meshpp::nodeid_session_header& header,
@@ -806,7 +806,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         blockchain_request.blocks_from = (header_it - 1)->block_number;
         blockchain_request.blocks_to = sync_headers.begin()->block_number;
 
-        pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);
+        pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(blockchain_request));
 
         return; // will wait new chain
     }
@@ -859,7 +859,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         // decrease all reward amounts from balances and revert reward
         for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
-            pimpl->m_state.decrease_balance(it->to, it->amount);
+            pimpl->m_state.decrease_balance(it->to, it->amount, state_layer::chain);
 
         // calculate back transactions
         for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
@@ -880,7 +880,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         Block const& block = signed_block.block_details;
 
         // verify consensus_delta
-        Coin amount = pimpl->m_state.get_balance(signed_block.authorization.address);
+        Coin amount = pimpl->m_state.get_balance(signed_block.authorization.address, state_layer::pool);
         uint64_t delta = pimpl->calc_delta(signed_block.authorization.address, amount.whole, block.header.prev_hash, c_const);
 
         if (delta != block.header.delta)
@@ -906,7 +906,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         // increase all reward amounts to balances
         for (auto const& reward_item : block.rewards)
-            pimpl->m_state.increase_balance(reward_item.to, reward_item.amount);
+            pimpl->m_state.increase_balance(reward_item.to, reward_item.amount, state_layer::chain);
 
         // Insert to blockchain
         pimpl->m_blockchain.insert(signed_block);
@@ -975,7 +975,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         blockchain_request.blocks_from = sync_headers.back().block_number;
         blockchain_request.blocks_to = sync_headers.front().block_number;
 
-        pimpl->m_ptr_p2p_socket->send(header.peerid, blockchain_request);
+        pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(blockchain_request));
     }
     else
     {
@@ -1037,13 +1037,13 @@ session_action_save_file::~session_action_save_file()
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error uploading the file";
-        psk->send(peerid, std::move(msg));
+        psk->send(peerid, beltpp::packet(std::move(msg)));
     }
 }
 
 void session_action_save_file::initiate(meshpp::session_header&/* header*/)
 {
-    pimpl->m_slave_node->send(std::move(file));
+    pimpl->m_slave_node->send(beltpp::packet(std::move(file)));
     pimpl->m_slave_node->wake();
     expected_next_package_type = BlockchainMessage::StorageFileAddress::rtt;
 }
@@ -1064,7 +1064,7 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
             BlockchainMessage::StorageFileAddress msg;
             std::move(package).get(msg);
 
-            psk->send(peerid, std::move(msg));
+            psk->send(peerid, beltpp::packet(std::move(msg)));
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1138,7 +1138,7 @@ session_action_delete_file::~session_action_delete_file()
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error deleting the file";
-        psk->send(peerid, std::move(msg));
+        psk->send(peerid, beltpp::packet(std::move(msg)));
     }
 }
 
@@ -1146,7 +1146,7 @@ void session_action_delete_file::initiate(meshpp::session_header&/* header*/)
 {
     StorageFileDelete msg;
     msg.uri = uri;
-    pimpl->m_slave_node->send(std::move(msg));
+    pimpl->m_slave_node->send(beltpp::packet(std::move(msg)));
     pimpl->m_slave_node->wake();
     expected_next_package_type = BlockchainMessage::Done::rtt;
 }
@@ -1164,7 +1164,7 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
         {
         case BlockchainMessage::Done::rtt:
         {
-            psk->send(peerid, BlockchainMessage::Done());
+            psk->send(peerid, beltpp::packet(BlockchainMessage::Done()));
 
             completed = true;
             expected_next_package_type = size_t(-1);

@@ -45,7 +45,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  StorageUpdate const& storage_update)
+                  StorageUpdate const& storage_update,
+                  state_layer/* layer*/)
 {
     NodeType node_type;
     if (false == impl.m_state.get_role(storage_update.storage_address, node_type) ||
@@ -54,7 +55,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,
-                   StorageUpdate const& /*storage_update*/)
+                   StorageUpdate const& /*storage_update*/,
+                   state_layer/* layer*/)
 {
 }
 }

@@ -43,33 +43,35 @@ authorization_process_result action_authorization_process(SignedTransaction&/* s
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       Transfer const& transfer)
 {
-    Coin balance = impl.m_state.get_balance(transfer.from);
+    Coin balance = impl.m_state.get_balance(transfer.from, state_layer::pool);
     if (coin(balance) < transfer.amount)
         return false;
     return true;
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  Transfer const& transfer)
+                  Transfer const& transfer,
+                  state_layer layer)
 {
-    Coin balance = impl.m_state.get_balance(transfer.from);
+    Coin balance = impl.m_state.get_balance(transfer.from, state_layer::pool);
     if (coin(balance) < transfer.amount)
         throw not_enough_balance_exception(coin(balance),
                                            transfer.amount);
 
-    impl.m_state.increase_balance(transfer.to, transfer.amount);
-    impl.m_state.decrease_balance(transfer.from, transfer.amount);
+    impl.m_state.increase_balance(transfer.to, transfer.amount, layer);
+    impl.m_state.decrease_balance(transfer.from, transfer.amount, layer);
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   Transfer const& transfer)
+                   Transfer const& transfer,
+                   state_layer layer)
 {
-    Coin balance = impl.m_state.get_balance(transfer.to);
+    Coin balance = impl.m_state.get_balance(transfer.to, state_layer::pool);
     if (coin(balance) < transfer.amount)
         throw not_enough_balance_exception(coin(balance),
                                            transfer.amount);
 
-    impl.m_state.increase_balance(transfer.from, transfer.amount);
-    impl.m_state.decrease_balance(transfer.to, transfer.amount);
+    impl.m_state.increase_balance(transfer.from, transfer.amount, layer);
+    impl.m_state.decrease_balance(transfer.to, transfer.amount, layer);
 }
 }

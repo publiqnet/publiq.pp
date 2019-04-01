@@ -180,7 +180,7 @@ bool node::run()
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
                         beltpp::on_failure guard(
-                            [&peerid, &psk] { psk->send(peerid, beltpp::isocket_drop()); });
+                            [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::isocket_drop())); });
 
                         m_pimpl->add_peer(peerid);
 
@@ -196,7 +196,7 @@ bool node::run()
                     else
                     {
                         beltpp::on_failure guard(
-                            [&peerid, &psk] { psk->send(peerid, beltpp::isocket_drop()); });
+                            [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::isocket_drop())); });
 
                         if (peerid == m_pimpl->m_slave_peer_attempt)
                         {
@@ -223,7 +223,7 @@ bool node::run()
                     ref_packet.get(msg);
                     m_pimpl->writeln_node("protocol error: " + detail::peer_short_names(peerid));
                     m_pimpl->writeln_node(msg.buffer);
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
 
                     remove_peer();
                     
@@ -287,7 +287,7 @@ bool node::run()
                     }
                 
                     if (it == interface_type::rpc)
-                        psk->send(peerid, Done());
+                        psk->send(peerid, beltpp::packet(Done()));
 
                     break;
                 }
@@ -479,7 +479,7 @@ bool node::run()
                         sync_response.promised_header = m_pimpl->all_sync_info.own_sync_info();
 
                     //m_pimpl->writeln_node("sync response - " + peerid);
-                    psk->send(peerid, std::move(sync_response));
+                    psk->send(peerid, beltpp::packet(std::move(sync_response)));
 
                     break;
                 }
@@ -542,7 +542,7 @@ bool node::run()
                                       m_pimpl->m_p2p_peers,
                                       m_pimpl->m_ptr_p2p_socket.get());
 
-                    psk->send(peerid, std::move(transaction_done));
+                    psk->send(peerid, beltpp::packet(std::move(transaction_done)));
 
                     break;
                 }
@@ -565,11 +565,11 @@ bool node::run()
                 {
                     InvalidPublicKey msg;
                     msg.public_key = e.pub_key;
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -580,11 +580,11 @@ bool node::run()
                 {
                     InvalidPrivateKey msg;
                     msg.private_key = e.priv_key;
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -600,11 +600,11 @@ bool node::run()
                                                       std::string(e.sgn.message.begin(), e.sgn.message.end()),
                                                       nullptr);
 
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -615,11 +615,11 @@ bool node::run()
                 {
                     RemoteError remote_error;
                     remote_error.message = e.message;
-                    psk->send(peerid, remote_error);
+                    psk->send(peerid, beltpp::packet(remote_error));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -630,11 +630,11 @@ bool node::run()
                 {
                     RemoteError remote_error;
                     remote_error.message = e.message;
-                    psk->send(peerid, remote_error);
+                    psk->send(peerid, beltpp::packet(remote_error));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -645,11 +645,11 @@ bool node::run()
                 {
                     RemoteError remote_error;
                     remote_error.message = e.message;
-                    psk->send(peerid, remote_error);
+                    psk->send(peerid, beltpp::packet(remote_error));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -661,11 +661,11 @@ bool node::run()
                     InvalidAuthority msg;
                     msg.authority_provided = e.authority_provided;
                     msg.authority_required = e.authority_required;
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -677,11 +677,11 @@ bool node::run()
                     NotEnoughBalance msg;
                     e.balance.to_Coin(msg.balance);
                     e.spending.to_Coin(msg.spending);
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -692,11 +692,11 @@ bool node::run()
                 {
                     TooLongString msg;
                     beltpp::assign(msg, e);
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -707,11 +707,11 @@ bool node::run()
                 {
                     UriError msg;
                     beltpp::assign(msg, e);
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -722,7 +722,7 @@ bool node::run()
                 {
                     RemoteError msg;
                     msg.message = e.what();
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 throw;
             }
@@ -732,7 +732,7 @@ bool node::run()
                 {
                     RemoteError msg;
                     msg.message = "unknown exception";
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 throw;
             }

@@ -128,14 +128,14 @@ bool storage_node::run()
                     StorageFile file;
                     if (m_pimpl->m_storage.get(file_info.uri, file))
                     {
-                        psk->send(peerid, std::move(file));
+                        psk->send(peerid, beltpp::packet(std::move(file)));
                     }
                     else
                     {
                         UriError error;
                         error.uri = file_info.uri;
                         error.uri_problem_type = UriProblemType::missing;
-                        psk->send(peerid, std::move(error));
+                        psk->send(peerid, beltpp::packet(std::move(error)));
                     }
 
                     break;
@@ -173,7 +173,7 @@ bool storage_node::run()
                     auto signed_message = m_pimpl->m_pv_key.sign(message_pong);
 
                     msg_pong.signature = std::move(signed_message.base58);
-                    psk->send(peerid, std::move(msg_pong));
+                    psk->send(peerid, beltpp::packet(std::move(msg_pong)));
                     break;
                 }
                 default:
@@ -181,7 +181,7 @@ bool storage_node::run()
                     m_pimpl->writeln_node("slave don't know how to handle: " + std::to_string(ref_packet.type()) +
                                           " from " + detail::peer_short_names(peerid));
 
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     break;
                 }
                 }   // switch ref_packet.type()
@@ -190,14 +190,14 @@ bool storage_node::run()
             {
                 RemoteError msg;
                 msg.message = e.what();
-                psk->send(peerid, std::move(msg));
+                psk->send(peerid, beltpp::packet(std::move(msg)));
                 throw;
             }
             catch (...)
             {
                 RemoteError msg;
                 msg.message = "unknown exception";
-                psk->send(peerid, std::move(msg));
+                psk->send(peerid, beltpp::packet(std::move(msg)));
                 throw;
             }
             }   // for (auto& received_packet : received_packets)

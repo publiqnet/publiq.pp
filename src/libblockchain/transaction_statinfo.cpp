@@ -59,7 +59,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  ServiceStatistics const& service_statistics)
+                  ServiceStatistics const& service_statistics,
+                  state_layer/* layer*/)
 {
     NodeType node_type;
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
@@ -81,7 +82,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,
-                   ServiceStatistics const& /*service_statistics*/)
+                   ServiceStatistics const& /*service_statistics*/,
+                   state_layer/* layer*/)
 {
 }
 }

@@ -270,7 +270,7 @@ public:
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
         , m_transaction_pool(fs_transaction_pool)
-        , m_state(fs_state)
+        , m_state(fs_state, *this)
         , m_documents(fs_documents)
         , all_sync_info(*this)
         , m_node_type(n_type)
@@ -405,7 +405,7 @@ public:
 
     BlockchainMessage::Coin get_balance() const
     {
-        return m_state.get_balance(m_pb_key.to_string());
+        return m_state.get_balance(m_pb_key.to_string(), state_layer::chain);
     }
 
     bool is_miner() const
@@ -429,7 +429,7 @@ public:
 
         // apply rewards to state and action_log
         for (auto const& item : signed_block.block_details.rewards)
-            m_state.increase_balance(item.to, item.amount);
+            m_state.increase_balance(item.to, item.amount, state_layer::chain);
 
         // insert to blockchain and action_log
         m_blockchain.insert(signed_block);

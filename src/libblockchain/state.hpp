@@ -12,22 +12,29 @@ namespace publiqpp
 {
 namespace detail
 {
+class node_internals;
+}
+enum class state_layer { chain, pool };
+
+namespace detail
+{
 class state_internals;
 }
 class state
 {
 public:
-    state(boost::filesystem::path const& fs_state);
+    state(boost::filesystem::path const& fs_state,
+          detail::node_internals const& impl);
     ~state();
 
     void save();
     void commit();
     void discard();
 
-    BlockchainMessage::Coin get_balance(std::string const& key) const;
+    BlockchainMessage::Coin get_balance(std::string const& key, state_layer layer) const;
 
-    void increase_balance(std::string const& key, coin const& amount);
-    void decrease_balance(std::string const& key, coin const& amount);
+    void increase_balance(std::string const& key, coin const& amount, state_layer layer);
+    void decrease_balance(std::string const& key, coin const& amount, state_layer layer);
 
     std::vector<std::string> get_nodes_by_type(BlockchainMessage::NodeType const& node_type) const;
     bool get_role(std::string const& nodeid, BlockchainMessage::NodeType& node_type) const;

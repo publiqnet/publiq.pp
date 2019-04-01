@@ -88,7 +88,7 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
     }
     assert(action_stack.empty());
 
-    sk.send(peerid, std::move(msg_actions));
+    sk.send(peerid, beltpp::packet(std::move(msg_actions)));
 }
 
 void get_hash(DigestRequest&& msg_get_hash,
@@ -99,7 +99,7 @@ void get_hash(DigestRequest&& msg_get_hash,
     msg_hash_result.base58_hash = meshpp::hash(msg_get_hash.package.to_string());
     msg_hash_result.package = std::move(msg_get_hash.package);
 
-    sk.send(peerid, std::move(msg_hash_result));
+    sk.send(peerid, beltpp::packet(std::move(msg_hash_result)));
 }
 
 void get_random_seed(beltpp::isocket& sk,
@@ -109,7 +109,7 @@ void get_random_seed(beltpp::isocket& sk,
     MasterKey rs_msg;
     rs_msg.master_key = rs.get_brain_key();
 
-    sk.send(peerid, std::move(rs_msg));
+    sk.send(peerid, beltpp::packet(std::move(rs_msg)));
 }
 
 void get_key_pair(KeyPairRequest const& kpr_msg,
@@ -126,7 +126,7 @@ void get_key_pair(KeyPairRequest const& kpr_msg,
     kp_msg.public_key = pb.to_string();
     kp_msg.index = kpr_msg.index;
 
-    sk.send(peerid, std::move(kp_msg));
+    sk.send(peerid, beltpp::packet(std::move(kp_msg)));
 }
 
 void get_signature(SignRequest&& msg,
@@ -141,7 +141,7 @@ void get_signature(SignRequest&& msg,
     sg_msg.signature = signed_msg.base58;
     sg_msg.public_key = pv.get_public_key().to_string();
 
-    sk.send(peerid, std::move(sg_msg));
+    sk.send(peerid, beltpp::packet(std::move(sg_msg)));
 }
 
 void verify_signature(Signature const& msg,
@@ -150,7 +150,7 @@ void verify_signature(Signature const& msg,
 {
     meshpp::signature signed_msg(msg.public_key, msg.package.to_string(), msg.signature);
 
-    sk.send(peerid, Done());
+    sk.send(peerid, beltpp::packet(Done()));
 }
 
 void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
@@ -233,7 +233,7 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
         if (plog)
             plog->message("will rebroadcast to: " + peer);
 
-        psk->send(peer, broadcast);
+        psk->send(peer, beltpp::packet(broadcast));
     }
 }
 

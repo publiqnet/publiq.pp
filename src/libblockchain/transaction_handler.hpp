@@ -30,10 +30,12 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       beltpp::packet const& package);
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  beltpp::packet const& package);
+                  beltpp::packet const& package,
+                  state_layer layer);
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   beltpp::packet const& package);
+                   beltpp::packet const& package,
+                   state_layer layer);
 
 void fee_validate(publiqpp::detail::node_internals const& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction);
