@@ -498,7 +498,7 @@ bool node::run()
                     Authority authorization;
                     meshpp::private_key pv(transaction_broadcast_request.private_key);
                     authorization.address = pv.get_public_key().to_string();
-                    authorization.signature = pv.sign(transaction_broadcast_request.to_string()).base58;
+                    authorization.signature = pv.sign(transaction_broadcast_request.transaction_details.to_string()).base58;
 
                     BlockchainMessage::SignedTransaction signed_transaction;
                     signed_transaction.transaction_details = transaction_broadcast_request.transaction_details;
@@ -507,17 +507,25 @@ bool node::run()
                     TransactionDone transaction_done;
                     transaction_done.transaction_hash = meshpp::hash(signed_transaction.to_string());
 
+                    broadcast_type process_result;
+                    process_result = action_process_on_chain(signed_transaction, *m_pimpl.get());
+
                     BlockchainMessage::Broadcast broadcast;
                     broadcast.echoes = 2;
                     broadcast.package = std::move(signed_transaction);
 
-                    broadcast_message(std::move(broadcast),
-                                      m_pimpl->m_ptr_p2p_socket->name(),
-                                      peerid,
-                                      true,
-                                      nullptr,
-                                      m_pimpl->m_p2p_peers,
-                                      m_pimpl->m_ptr_p2p_socket.get());
+                    if (process_result != broadcast_type::none)
+                    {
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          (it == interface_type::rpc ||
+                                           process_result == broadcast_type::full_broadcast),
+                                          //m_pimpl->plogger_node,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+                    }
 
                     psk->send(peerid, beltpp::packet(std::move(transaction_done)));
 
