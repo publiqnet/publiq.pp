@@ -162,7 +162,8 @@ void process_transactions(uint64_t head_block_index,
                 result.log.push_back(std::move(item));
             }
         }
-        if (authority == address)
+        if (authority == address &&
+            transaction_log.fee != BlockchainMessage::Coin())
         {
             AccountHistoryItem item;
             AccountHistoryReceivedFee details;
