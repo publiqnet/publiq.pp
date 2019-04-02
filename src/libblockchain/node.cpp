@@ -864,10 +864,7 @@ bool node::run()
             for (auto& it : m_pimpl->all_sync_info.sync_responses)
             {
                 if (m_pimpl->m_p2p_peers.find(it.first) == m_pimpl->m_p2p_peers.end())
-                {
-                    assert(false); //   sessions must have had handled this
                     continue; // for the case if peer is droped before sync started
-                }
 
                 if (scan_consensus_sum < it.second.own_header.c_sum &&
                     scan_block_number <= it.second.own_header.block_number)
