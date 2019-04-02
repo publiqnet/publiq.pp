@@ -451,13 +451,11 @@ bool node::run()
                     SyncResponse sync_response;
                     sync_response.own_header = header;
 
-                    if (m_pimpl->all_sync_info.net_sync_info().c_sum >
-                        m_pimpl->all_sync_info.own_sync_info().c_sum)
+                    if (m_pimpl->all_sync_info.net_sync_info().c_sum > m_pimpl->all_sync_info.own_sync_info().c_sum)
                         sync_response.promised_header = m_pimpl->all_sync_info.net_sync_info();
                     else
                         sync_response.promised_header = m_pimpl->all_sync_info.own_sync_info();
 
-                    //m_pimpl->writeln_node("sync response - " + peerid);
                     psk->send(peerid, beltpp::packet(std::move(sync_response)));
 
                     break;
@@ -863,6 +861,8 @@ bool node::run()
         }
 
         //  work through process of block header sync or mining
+        //  if there is no active sync
+        if(false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
         {
             // process collected SyncResponse data
             BlockHeader const& head_block_header = m_pimpl->m_blockchain.last_header();
@@ -896,65 +896,56 @@ bool node::run()
 
             bool mine_now = false;
             bool sync_now = false;
-            bool far_behind = (head_block_header.block_number + 1 < scan_block_number);
-            bool just_same = (head_block_header.block_number == scan_block_number);
-            B_UNUSED(just_same);
 
             auto net_sum = m_pimpl->all_sync_info.net_sync_info().c_sum;
             auto own_sum = m_pimpl->all_sync_info.own_sync_info().c_sum;
 
-            if (far_behind &&
-                false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
+            if (head_block_header.block_number + 1 < scan_block_number)
             {
+                // network is far behaind and I have to sync first
                 sync_now = true;
-                assert(false == just_same);
             }
-            else if (false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
+            else if (head_block_header.c_sum < scan_consensus_sum && 
+                     head_block_header.block_number == scan_block_number)
             {
-                //  just one block behind or just same
-                //
-                if (own_sum < scan_consensus_sum &&
-                    net_sum < scan_consensus_sum)
+                //  there is a better consensus sum I have and I must get it first
+                sync_now = true;
+            }
+            else if (own_sum < scan_consensus_sum &&
+                     net_sum < scan_consensus_sum)
+            {
+                //  direct peer has ready excellent chain to offer
+                sync_now = true;
+            }
+            else if (own_sum < scan_consensus_sum &&
+                     net_sum == scan_consensus_sum)
+            {
+                //  direct peer finally got the excellent chain that was promised before
+                sync_now = true;
+            }
+            else if (own_sum < scan_consensus_sum/* &&
+                     net_sum > scan_consensus_sum*/)
+            {
+                //  the promised excellent block did not arrive yet
+                //  and the network has ready better block than I can mine
+                if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) < since_head_block)
                 {
-                    //  direct peer has ready excellent chain to offer
+                    //  and it is too late already, can't wait anymore
                     sync_now = true;
-                    assert(false == just_same);
                 }
-                else if (own_sum < scan_consensus_sum &&
-                         net_sum == scan_consensus_sum)
+                //  otherwise will just wait
+            }
+            else// if (own_sum >= scan_consensus_sum)
+            {
+                //  I can mine better block and don't need received data
+                //  I can wait until it is
+                //  either past BLOCK_MINE_DELAY and I can mine better than scan_consensus_sum
+                //  or it is past BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY and I can mine better than net_sum
+                if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) <= since_head_block ||
+                    (chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block && own_sum >= net_sum))
                 {
-                    //  direct peer finally got the excellent chain that was promised before
-                    sync_now = true;
-                    assert(false == just_same);
-                }
-                else if (own_sum < scan_consensus_sum/* &&
-                         net_sum > scan_consensus_sum*/)
-                {
-                    //  the promised excellent block did not arrive yet
-                    //  and the network has ready better block than I can mine
-                    if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) < since_head_block)
-                    {
-                        //  and it is too late already, can't wait anymore
-                        sync_now = true;
-                        assert(false == just_same);
-                    }
-                    //  otherwise will just wait
-                }
-                else// if (own_sum >= scan_consensus_sum)
-                {
-                    //  I can mine better block and don't need received data
-                    //  I can wait until it is
-                    //  either past BLOCK_MINE_DELAY and I can mine better than scan_consensus_sum
-                    //  or it is past BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY and I can mine better than net_sum
-                    if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) < since_head_block ||
-                        (
-                            chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block &&
-                            own_sum >= net_sum
-                        ))
-                    {
-                        mine_now = true;
-                        assert(false == sync_now);
-                    }
+                    mine_now = true;
+                    assert(false == sync_now);
                 }
             }
 
@@ -962,7 +953,6 @@ bool node::run()
 
             if (sync_now)
             {
-                assert(false == just_same);
                 assert(false == scan_peer.empty());
                 vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
                 actions.emplace_back(new session_action_header(*m_pimpl.get(),
@@ -977,8 +967,7 @@ bool node::run()
                                                std::move(actions),
                                                chrono::seconds(SYNC_TIMER));
             }
-            else if (m_pimpl->is_miner() &&
-                     mine_now)
+            else if (m_pimpl->is_miner() && mine_now)
             {
                 mine_block(m_pimpl);
             }

@@ -21,7 +21,6 @@ node_synchronization::node_synchronization(detail::node_internals& impl)
 BlockHeaderExtended node_synchronization::net_sync_info() const
 {
     BlockHeaderExtended result;
-    BlockHeaderExtended my_sync_info = own_sync_info();
 
     result.c_sum = 0;
     result.block_number = 0;
@@ -30,7 +29,7 @@ BlockHeaderExtended node_synchronization::net_sync_info() const
     {
         BlockHeaderExtended const& sync_info = item.second.promised_header;
 
-        if (sync_info.block_number == my_sync_info.block_number &&
+        if (sync_info.block_number == pimpl->m_blockchain.last_header().block_number + 1 &&
             sync_info.c_sum > result.c_sum)
         {
             result = sync_info;
