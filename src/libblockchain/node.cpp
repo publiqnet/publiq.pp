@@ -870,7 +870,7 @@ bool node::run()
 
         //  work through process of block header sync or mining
         //  if there is no active sync
-        if(false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
+        if (false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
         {
             // process collected SyncResponse data
             BlockHeader const& head_block_header = m_pimpl->m_blockchain.last_header();
@@ -888,10 +888,7 @@ bool node::run()
             for (auto& it : m_pimpl->all_sync_info.sync_responses)
             {
                 if (m_pimpl->m_p2p_peers.find(it.first) == m_pimpl->m_p2p_peers.end())
-                {
-                    assert(false); // because the session must handle this
                     continue; // for the case if peer is droped before sync started
-                }
 
                 if (scan_consensus_sum < it.second.own_header.c_sum &&
                     scan_block_number <= it.second.own_header.block_number)
