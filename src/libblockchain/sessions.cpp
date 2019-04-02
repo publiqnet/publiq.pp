@@ -742,6 +742,10 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     if (blockchain_response.signed_blocks.empty())
         return set_errored("blockchain response. empty response received!", throw_for_debugging_only);
 
+    if (blockchain_response.signed_blocks.size() + sync_blocks.size() >
+        sync_headers.size())
+        return set_errored("blockchain response. more than expected blocks received", throw_for_debugging_only);
+
     // find last common block
     uint64_t block_number = sync_headers.back().block_number;
 
@@ -762,12 +766,12 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     else
         prev_block_hash = meshpp::hash(sync_blocks.back().block_details.to_string());
 
+    assert(sync_blocks.size() < sync_headers.size());
     auto header_it = sync_headers.rbegin() + sync_blocks.size();
 
     if (header_it->prev_hash != prev_block_hash)
         return set_errored("blockchain response. previous hash!", throw_for_debugging_only);
 
-    ++header_it;
     for (auto& block_item : blockchain_response.signed_blocks)
     {
         Block& block = block_item.block_details;
@@ -777,15 +781,13 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         if (!meshpp::verify_signature(meshpp::public_key(block_item.authorization.address), str, block_item.authorization.signature))
             return set_errored("blockchain response. block signature!", throw_for_debugging_only);
 
-        if (header_it != sync_headers.rend())
-        {
-            BlockHeader temp_header;
-            temp_header = *(header_it - 1);
-            if (temp_header != block.header || header_it->prev_hash != meshpp::hash(str))
-                return set_errored("blockchain response. block header!", throw_for_debugging_only);
+        BlockHeaderExtended& temp_header_ex = *header_it;
+        BlockHeader temp_header;
+        temp_header = temp_header_ex;
+        if (temp_header != block.header || temp_header_ex.block_hash != meshpp::hash(str))
+            return set_errored("blockchain response. block header!", throw_for_debugging_only);
 
-            ++header_it;
-        }
+        ++header_it;
 
         // verify block transactions
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
@@ -804,12 +806,12 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         sync_blocks.size() < sync_headers.size())
     {
         BlockchainRequest blockchain_request;
-        blockchain_request.blocks_from = (header_it - 1)->block_number;
+        blockchain_request.blocks_from = header_it->block_number;
         blockchain_request.blocks_to = sync_headers.begin()->block_number;
 
         pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(blockchain_request));
 
-        return; // will wait new chain
+        return; // will wait for new chain
     }
 
     pimpl->writeln_node("inserting above validated blocks");
@@ -964,13 +966,11 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
     // request new chain if the process was stopped
     // by BLOCK_INSERT_LENGTH restriction
-    size_t length = sync_blocks.size();
-    if (length < sync_headers.size())
+    if (sync_blocks.size() < sync_headers.size())
     {
         // clear already inserted blocks and headers
+        sync_headers.resize(sync_headers.size() - sync_blocks.size());
         sync_blocks.clear();
-        for (size_t i = 0; i < length; ++i)
-            sync_headers.pop_back();
 
         BlockchainRequest blockchain_request;
         blockchain_request.blocks_from = sync_headers.back().block_number;
