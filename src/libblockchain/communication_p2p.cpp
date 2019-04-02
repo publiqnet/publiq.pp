@@ -250,14 +250,15 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 }
 
 //  this has opposite bool logic - true means error :)
-bool check_headers(BlockHeader const& next_header, BlockHeader const& header)
+bool check_headers(BlockHeaderExtended const& next_header, BlockHeaderExtended const& header)
 {
     bool t = next_header.block_number != header.block_number + 1;
     t = t || next_header.c_sum <= header.c_sum;
     t = t || next_header.c_sum != next_header.delta + header.c_sum;
     t = t || (next_header.c_const != header.c_const &&
-              next_header.c_const != header.c_const * 2 && 
+              next_header.c_const != header.c_const * 2 &&
               next_header.c_const != header.c_const / 2);
+    t = t || (next_header.prev_hash != header.block_hash);
 
     system_clock::time_point time_point1 = system_clock::from_time_t(header.time_signed.tm);
     system_clock::time_point time_point2 = system_clock::from_time_t(next_header.time_signed.tm);

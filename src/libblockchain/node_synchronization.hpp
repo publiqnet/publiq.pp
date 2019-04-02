@@ -26,7 +26,7 @@ public:
     detail::node_internals* pimpl;
     bool blockchain_sync_in_progress;
     std::unordered_map<beltpp::isocket::peer_id, BlockchainMessage::SyncResponse> sync_responses;
-    std::unordered_map<beltpp::isocket::peer_id, std::vector<BlockchainMessage::BlockHeader>> sync_headers;
+    std::unordered_map<beltpp::isocket::peer_id, std::vector<BlockchainMessage::BlockHeaderExtended>> sync_headers;
     BlockchainMessage::BlockHeaderExtended net_sync_info() const;
     BlockchainMessage::BlockHeaderExtended own_sync_info() const;
 };

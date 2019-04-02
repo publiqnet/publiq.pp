@@ -30,8 +30,8 @@ void revert_pool(time_t expiry_time,
                  std::multimap<BlockchainMessage::ctime, BlockchainMessage::SignedTransaction>& pool_transactions);
 
 //  this has opposite bool logic - true means error :)
-bool check_headers(BlockchainMessage::BlockHeader const& next_header,
-                   BlockchainMessage::BlockHeader const& header);
+bool check_headers(BlockchainMessage::BlockHeaderExtended const& next_header,
+                   BlockchainMessage::BlockHeaderExtended const& header);
 bool check_rewards(BlockchainMessage::Block const& block,
                    std::string const& authority,
                    publiqpp::detail::node_internals& impl);

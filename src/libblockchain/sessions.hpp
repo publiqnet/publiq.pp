@@ -119,7 +119,7 @@ public:
     void set_errored(std::string const& message, bool throw_for_debugging_only);
 
     //  this has opposite bool logic - true means error :)
-    bool check_headers_vector(std::vector<BlockchainMessage::BlockHeader> const& header_vector);
+    bool check_headers_vector(std::vector<BlockchainMessage::BlockHeaderExtended> const& header_vector);
 
     detail::node_internals* pimpl;
     uint64_t block_index_from;
@@ -127,7 +127,7 @@ public:
     uint64_t const promised_block_number;
     uint64_t const promised_consensus_sum;
     std::string current_peerid;
-    std::vector<BlockchainMessage::BlockHeader> sync_headers;
+    std::vector<BlockchainMessage::BlockHeaderExtended> sync_headers;
 };
 
 class session_action_block : public meshpp::session_action<meshpp::nodeid_session_header>
@@ -152,7 +152,7 @@ public:
 
     detail::node_internals* pimpl;
     std::vector<BlockchainMessage::SignedBlock> sync_blocks;
-    std::vector<BlockchainMessage::BlockHeader> sync_headers;
+    std::vector<BlockchainMessage::BlockHeaderExtended> sync_headers;
 };
 
 class session_action_save_file : public meshpp::session_action<meshpp::session_header>

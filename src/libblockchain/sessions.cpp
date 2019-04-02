@@ -320,8 +320,7 @@ session_action_sync_request::session_action_sync_request(detail::node_internals&
 
 session_action_sync_request::~session_action_sync_request()
 {
-    if (false == current_peerid.empty() &&
-        false == errored)
+    if (true == errored)
         pimpl->all_sync_info.sync_responses.erase(current_peerid);
 }
 
@@ -541,7 +540,7 @@ void session_action_header::process_response(meshpp::nodeid_session_header& head
 
         assert(sync_headers.back().block_number != 0);
 
-        if (check_headers(sync_headers.back(), pimpl->m_blockchain.header_at(lcb_index)))
+        if (check_headers(sync_headers.back(), pimpl->m_blockchain.header_ex_at(lcb_index)))
             return set_errored("blockheader response. header check failed!", throw_for_debugging_only);
 
         //  verify consensus_const
@@ -618,7 +617,7 @@ void session_action_header::set_errored(string const& message, bool throw_for_de
 }
 
 //  this has opposite bool logic - true means error :)
-bool session_action_header::check_headers_vector(std::vector<BlockchainMessage::BlockHeader> const& header_vector)
+bool session_action_header::check_headers_vector(std::vector<BlockchainMessage::BlockHeaderExtended> const& header_vector)
 {
     bool t = false;
     auto it = header_vector.begin();
@@ -780,7 +779,9 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         if (header_it != sync_headers.rend())
         {
-            if (*(header_it - 1) != block.header || header_it->prev_hash != meshpp::hash(str))
+            BlockHeader temp_header;
+            temp_header = *(header_it - 1);
+            if (temp_header != block.header || header_it->prev_hash != meshpp::hash(str))
                 return set_errored("blockchain response. block header!", throw_for_debugging_only);
 
             ++header_it;
