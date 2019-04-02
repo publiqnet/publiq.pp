@@ -907,13 +907,13 @@ bool node::run()
 
             if (head_block_header.block_number + 1 < scan_block_number)
             {
-                // network is far behaind and I have to sync first
+                // network is far behind and I have to sync first
                 sync_now = true;
             }
             else if (head_block_header.c_sum < scan_consensus_sum && 
                      head_block_header.block_number == scan_block_number)
             {
-                //  there is a better consensus sum I have and I must get it first
+                //  there is a better consensus sum than what I have and I must get it first
                 sync_now = true;
             }
             else if (own_sum < scan_consensus_sum &&
