@@ -95,7 +95,7 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
         block_log.rewards.push_back(reward_log);
     }
 
-    insert(std::move(block_log));
+    insert(beltpp::packet(std::move(block_log)));
 }
 
 void action_log::log_transaction(SignedTransaction const& signed_transaction)
@@ -112,7 +112,7 @@ void action_log::log_transaction(SignedTransaction const& signed_transaction)
     transaction_log.transaction_size = transaction_serialized.size();
     BlockchainMessage::detail::assign_packet(transaction_log.action, signed_transaction.transaction_details.action);
 
-    insert(std::move(transaction_log));
+    insert(beltpp::packet(std::move(transaction_log)));
 }
 
 void action_log::at(size_t number, LoggedTransaction& action_info) const

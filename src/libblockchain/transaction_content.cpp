@@ -55,7 +55,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  Content const& content)
+                  Content const& content,
+                  state_layer/* layer*/)
 {
     for (auto const& uri : content.content_unit_uris)
     {
@@ -65,7 +66,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,
-                   Content const& /*content*/)
+                   Content const& /*content*/,
+                   state_layer/* layer*/)
 {
 }
 }

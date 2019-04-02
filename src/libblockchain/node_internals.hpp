@@ -232,7 +232,6 @@ public:
     node_internals(string const& genesis_signed_block,
                    ip_address const & public_address,
                    ip_address const& rpc_bind_to_address,
-                   ip_address const& slave_connect_to_address,
                    ip_address const& p2p_bind_to_address,
                    std::vector<ip_address> const& p2p_connect_to_addresses,
                    filesystem::path const& fs_blockchain,
@@ -266,11 +265,10 @@ public:
         , m_summary_report_timer()
         , m_public_address(public_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
-        , m_slave_connect_to_address(slave_connect_to_address)
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
         , m_transaction_pool(fs_transaction_pool)
-        , m_state(fs_state)
+        , m_state(fs_state, *this)
         , m_documents(fs_documents)
         , all_sync_info(*this)
         , m_node_type(n_type)
@@ -281,7 +279,6 @@ public:
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
-        m_reconnect_timer.set(chrono::seconds(RECONNECT_TIMER));
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
@@ -308,8 +305,6 @@ public:
         if (m_state.get_role(m_pb_key.to_string(), stored_node_type) &&
             stored_node_type != m_node_type)
             throw std::runtime_error("the stored node role is different");
-
-        m_slave_taskid = 0;
 
         load_transaction_cache(*this);
     }
@@ -345,15 +340,6 @@ public:
     {
         if (0 == m_p2p_peers.erase(peerid))
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
-    }
-
-    void reconnect_slave()
-    {
-        if (m_node_type != NodeType::blockchain && m_slave_peer.empty())
-        {
-            auto peers_list = m_ptr_rpc_socket->open(m_slave_connect_to_address);
-            m_slave_peer_attempt = peers_list.front();
-        }
     }
 
     void save(beltpp::on_failure& guard)
@@ -405,7 +391,7 @@ public:
 
     BlockchainMessage::Coin get_balance() const
     {
-        return m_state.get_balance(m_pb_key.to_string());
+        return m_state.get_balance(m_pb_key.to_string(), state_layer::chain);
     }
 
     bool is_miner() const
@@ -429,7 +415,7 @@ public:
 
         // apply rewards to state and action_log
         for (auto const& item : signed_block.block_details.rewards)
-            m_state.increase_balance(item.to, item.amount);
+            m_state.increase_balance(item.to, item.amount, state_layer::chain);
 
         // insert to blockchain and action_log
         m_blockchain.insert(signed_block);
@@ -448,13 +434,11 @@ public:
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
     beltpp::timer m_broadcast_timer;
-    beltpp::timer m_reconnect_timer;
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
 
     beltpp::ip_address m_public_address;
     beltpp::ip_address m_rpc_bind_to_address;
-    beltpp::ip_address m_slave_connect_to_address;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
@@ -468,15 +452,10 @@ public:
     meshpp::session_manager<meshpp::nodeid_session_header> m_nodeid_sessions;
     meshpp::session_manager<meshpp::session_header> m_sessions;
 
-    beltpp::isocket::peer_id m_slave_peer;
-    beltpp::isocket::peer_id m_slave_peer_attempt;
-
     unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
     transaction_cache m_transaction_cache;
 
     NodeType m_node_type;
-    uint64_t m_slave_taskid;
-    task_table m_slave_tasks;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
 

@@ -78,7 +78,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  File const& file)
+                  File const& file,
+                  state_layer/* layer*/)
 {
     if (impl.m_documents.exist_file(file.uri))
         throw uri_exception(file.uri, uri_exception::duplicate);
@@ -86,7 +87,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   File const& file)
+                   File const& file,
+                   state_layer/* layer*/)
 {
     impl.m_documents.remove_file(file.uri);
 }

@@ -43,7 +43,6 @@ namespace publiqpp
 node::node(string const& genesis_signed_block,
            ip_address const & public_address,
            ip_address const& rpc_bind_to_address,
-           ip_address const& slave_connect_to_address,
            ip_address const& p2p_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
            boost::filesystem::path const& fs_blockchain,
@@ -60,7 +59,6 @@ node::node(string const& genesis_signed_block,
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          rpc_bind_to_address,
-                                         slave_connect_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,
                                          fs_blockchain,
@@ -139,11 +137,6 @@ bool node::run()
                     m_pimpl->remove_peer(peerid);
                     m_pimpl->m_nodeid_sessions.remove(peerid);
                 }
-                else if (peerid == m_pimpl->m_slave_peer)
-                {
-                    m_pimpl->m_slave_peer.clear();
-                    m_pimpl->writeln_node(" <=  /  => Slave disconnected!");
-                }
             };
             //-----------------------------------------------------//
 
@@ -174,13 +167,12 @@ bool node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    if (peerid != m_pimpl->m_slave_peer_attempt)
-                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
+                    m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
                         beltpp::on_failure guard(
-                            [&peerid, &psk] { psk->send(peerid, beltpp::isocket_drop()); });
+                            [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::isocket_drop())); });
 
                         m_pimpl->add_peer(peerid);
 
@@ -190,19 +182,6 @@ bool node::run()
                         assert(external_address.remote.empty());
                         external_address.local.port =
                                 m_pimpl->m_rpc_bind_to_address.local.port;
-
-                        guard.dismiss();
-                    }
-                    else
-                    {
-                        beltpp::on_failure guard(
-                            [&peerid, &psk] { psk->send(peerid, beltpp::isocket_drop()); });
-
-                        if (peerid == m_pimpl->m_slave_peer_attempt)
-                        {
-                            m_pimpl->m_slave_peer = peerid;
-                            m_pimpl->writeln_node(" <=======> Slave connected!");
-                        }
 
                         guard.dismiss();
                     }
@@ -223,7 +202,7 @@ bool node::run()
                     ref_packet.get(msg);
                     m_pimpl->writeln_node("protocol error: " + detail::peer_short_names(peerid));
                     m_pimpl->writeln_node(msg.buffer);
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
 
                     remove_peer();
                     
@@ -287,7 +266,7 @@ bool node::run()
                     }
                 
                     if (it == interface_type::rpc)
-                        psk->send(peerid, Done());
+                        psk->send(peerid, beltpp::packet(Done()));
 
                     break;
                 }
@@ -472,12 +451,14 @@ bool node::run()
                     SyncResponse sync_response;
                     sync_response.own_header = header;
 
-                    if (m_pimpl->all_sync_info.net_sync_info().c_sum > m_pimpl->all_sync_info.own_sync_info().c_sum)
+                    if (m_pimpl->all_sync_info.net_sync_info().c_sum >
+                        m_pimpl->all_sync_info.own_sync_info().c_sum)
                         sync_response.promised_header = m_pimpl->all_sync_info.net_sync_info();
                     else
                         sync_response.promised_header = m_pimpl->all_sync_info.own_sync_info();
 
-                    psk->send(peerid, std::move(sync_response));
+                    //m_pimpl->writeln_node("sync response - " + peerid);
+                    psk->send(peerid, beltpp::packet(std::move(sync_response)));
 
                     break;
                 }
@@ -540,7 +521,7 @@ bool node::run()
                                       m_pimpl->m_p2p_peers,
                                       m_pimpl->m_ptr_p2p_socket.get());
 
-                    psk->send(peerid, std::move(transaction_done));
+                    psk->send(peerid, beltpp::packet(std::move(transaction_done)));
 
                     break;
                 }
@@ -563,11 +544,11 @@ bool node::run()
                 {
                     InvalidPublicKey msg;
                     msg.public_key = e.pub_key;
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -578,11 +559,11 @@ bool node::run()
                 {
                     InvalidPrivateKey msg;
                     msg.private_key = e.priv_key;
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -598,11 +579,11 @@ bool node::run()
                                                       std::string(e.sgn.message.begin(), e.sgn.message.end()),
                                                       nullptr);
 
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -613,11 +594,11 @@ bool node::run()
                 {
                     RemoteError remote_error;
                     remote_error.message = e.message;
-                    psk->send(peerid, remote_error);
+                    psk->send(peerid, beltpp::packet(remote_error));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -628,11 +609,11 @@ bool node::run()
                 {
                     RemoteError remote_error;
                     remote_error.message = e.message;
-                    psk->send(peerid, remote_error);
+                    psk->send(peerid, beltpp::packet(remote_error));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -643,11 +624,11 @@ bool node::run()
                 {
                     RemoteError remote_error;
                     remote_error.message = e.message;
-                    psk->send(peerid, remote_error);
+                    psk->send(peerid, beltpp::packet(remote_error));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -659,11 +640,11 @@ bool node::run()
                     InvalidAuthority msg;
                     msg.authority_provided = e.authority_provided;
                     msg.authority_required = e.authority_required;
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -675,11 +656,11 @@ bool node::run()
                     NotEnoughBalance msg;
                     e.balance.to_Coin(msg.balance);
                     e.spending.to_Coin(msg.spending);
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -690,11 +671,11 @@ bool node::run()
                 {
                     TooLongString msg;
                     beltpp::assign(msg, e);
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -705,11 +686,11 @@ bool node::run()
                 {
                     UriError msg;
                     beltpp::assign(msg, e);
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 else
                 {
-                    psk->send(peerid, beltpp::isocket_drop());
+                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     remove_peer();
                 }
                 throw;
@@ -720,7 +701,7 @@ bool node::run()
                 {
                     RemoteError msg;
                     msg.message = e.what();
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 throw;
             }
@@ -730,7 +711,7 @@ bool node::run()
                 {
                     RemoteError msg;
                     msg.message = "unknown exception";
-                    psk->send(peerid, msg);
+                    psk->send(peerid, beltpp::packet(msg));
                 }
                 throw;
             }
@@ -756,14 +737,6 @@ bool node::run()
 
     m_pimpl->m_nodeid_sessions.erase_all_pending();
     m_pimpl->m_sessions.erase_all_pending();
-
-    // channels and storages connect to slave threads
-    if (m_pimpl->m_reconnect_timer.expired())
-    {
-        m_pimpl->m_reconnect_timer.update();
-
-        m_pimpl->reconnect_slave();
-    }
 
 //    // test ! print summary report about connections
 //    if (m_pimpl->m_summary_report_timer.expired())
@@ -827,8 +800,6 @@ bool node::run()
         m_pimpl->m_cache_cleanup_timer.update();
 
         m_pimpl->clean_transaction_cache();
-
-        m_pimpl->m_slave_tasks.clean();
 
         //  temp place
         broadcast_node_type(m_pimpl);
@@ -926,28 +897,35 @@ bool node::run()
             bool mine_now = false;
             bool sync_now = false;
             bool far_behind = (head_block_header.block_number + 1 < scan_block_number);
+            bool just_same = (head_block_header.block_number == scan_block_number);
+            B_UNUSED(just_same);
 
             auto net_sum = m_pimpl->all_sync_info.net_sync_info().c_sum;
             auto own_sum = m_pimpl->all_sync_info.own_sync_info().c_sum;
 
-            if (far_behind && false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
+            if (far_behind &&
+                false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
             {
                 sync_now = true;
+                assert(false == just_same);
             }
             else if (false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
             {
                 //  just one block behind or just same
-                if (own_sum < scan_consensus_sum && 
+                //
+                if (own_sum < scan_consensus_sum &&
                     net_sum < scan_consensus_sum)
                 {
                     //  direct peer has ready excellent chain to offer
                     sync_now = true;
+                    assert(false == just_same);
                 }
                 else if (own_sum < scan_consensus_sum &&
                          net_sum == scan_consensus_sum)
                 {
                     //  direct peer finally got the excellent chain that was promised before
                     sync_now = true;
+                    assert(false == just_same);
                 }
                 else if (own_sum < scan_consensus_sum/* &&
                          net_sum > scan_consensus_sum*/)
@@ -958,6 +936,7 @@ bool node::run()
                     {
                         //  and it is too late already, can't wait anymore
                         sync_now = true;
+                        assert(false == just_same);
                     }
                     //  otherwise will just wait
                 }
@@ -968,7 +947,10 @@ bool node::run()
                     //  either past BLOCK_MINE_DELAY and I can mine better than scan_consensus_sum
                     //  or it is past BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY and I can mine better than net_sum
                     if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) < since_head_block ||
-                        (own_sum >= net_sum && chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block))
+                        (
+                            chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block &&
+                            own_sum >= net_sum
+                        ))
                     {
                         mine_now = true;
                         assert(false == sync_now);
@@ -980,6 +962,7 @@ bool node::run()
 
             if (sync_now)
             {
+                assert(false == just_same);
                 assert(false == scan_peer.empty());
                 vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
                 actions.emplace_back(new session_action_header(*m_pimpl.get(),
@@ -994,7 +977,8 @@ bool node::run()
                                                std::move(actions),
                                                chrono::seconds(SYNC_TIMER));
             }
-            else if (m_pimpl->is_miner() && mine_now)
+            else if (m_pimpl->is_miner() &&
+                     mine_now)
             {
                 mine_block(m_pimpl);
             }

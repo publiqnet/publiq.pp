@@ -92,7 +92,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  ContentUnit const& content_unit)
+                  ContentUnit const& content_unit,
+                  state_layer/* layer*/)
 {
     if (impl.m_documents.exist_unit(content_unit.uri))
         throw uri_exception(content_unit.uri, uri_exception::duplicate);
@@ -107,7 +108,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   ContentUnit const& content_unit)
+                   ContentUnit const& content_unit,
+                   state_layer/* layer*/)
 {
     impl.m_documents.remove_unit(content_unit.uri);
 }

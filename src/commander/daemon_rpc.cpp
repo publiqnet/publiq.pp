@@ -146,7 +146,7 @@ void daemon_rpc::close()
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to close");
 
-    socket.send(peerid, beltpp::isocket_drop());
+    socket.send(peerid, beltpp::packet(beltpp::isocket_drop()));
 }
 
 enum class update_balance_type {increase, decrease};
@@ -361,7 +361,7 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
     bc.echoes = 2;
     bc.package = std::move(stx);
 
-    socket.send(peerid, std::move(bc));
+    socket.send(peerid, beltpp::packet(std::move(bc)));
 
     bool keep_trying = true;
     while (keep_trying)
@@ -498,7 +498,7 @@ void daemon_rpc::sync(rpc& rpc_server,
         LoggedTransactionsRequest req;
         req.max_count = max_count;
         req.start_index = start_index();
-        socket.send(peerid, req);
+        socket.send(peerid, beltpp::packet(req));
 
         size_t count = 0;
         bool new_import_done = false;

@@ -83,13 +83,13 @@ int main(int argc, char** argv)
     key_pair_request.index = 0;
 
     key_pair_request.master_key = "ARMEN";
-    Send(key_pair_request, receive_package, sk, peerid, eh);
+    Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
 
     KeyPair armen_key;
     receive_package.get(armen_key);
 
     key_pair_request.master_key = "TIGRAN";
-    Send(key_pair_request, receive_package, sk, peerid, eh);
+    Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
 
     KeyPair tigran_key;
     receive_package.get(tigran_key);
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
         sign_request.private_key = armen_key.private_key;
         sign_request.package = transaction;
 
-        Send(sign_request, receive_package, sk, peerid, eh);
+        Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
 
         Signature signature;
         receive_package.get(signature);
@@ -131,7 +131,7 @@ int main(int argc, char** argv)
         broadcast.echoes = 2;
         broadcast.package = signed_transaction;
 
-        Send(broadcast, receive_package, sk, peerid, eh);
+        Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
 
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }

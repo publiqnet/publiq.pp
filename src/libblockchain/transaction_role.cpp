@@ -50,7 +50,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  Role const& role)
+                  Role const& role,
+                  state_layer/* layer*/)
 {
     NodeType node_type;
     if (impl.m_state.get_role(role.node_address, node_type))
@@ -68,7 +69,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   Role const& role)
+                   Role const& role,
+                   state_layer/* layer*/)
 {
     impl.m_state.remove_role(role.node_address);
 }

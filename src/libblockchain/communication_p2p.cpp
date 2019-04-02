@@ -35,11 +35,15 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
     if (false == action_can_apply(impl, signed_transaction.transaction_details.action))
         return false;
 
-    action_apply(impl, signed_transaction.transaction_details.action);
+    state_layer layer = state_layer::pool;
+    if (false == key.empty())
+        layer = state_layer::chain;
+
+    action_apply(impl, signed_transaction.transaction_details.action, layer);
 
     if (false == fee_can_apply(impl, signed_transaction))
     {
-        action_revert(impl, signed_transaction.transaction_details.action);
+        action_revert(impl, signed_transaction.transaction_details.action, layer);
         return false;
     }
 
@@ -54,7 +58,11 @@ void revert_transaction(SignedTransaction const& signed_transaction,
 {
     fee_revert(impl, signed_transaction, key);
 
-    action_revert(impl, signed_transaction.transaction_details.action);
+    state_layer layer = state_layer::pool;
+    if (false == key.empty())
+        layer = state_layer::chain;
+
+    action_revert(impl, signed_transaction.transaction_details.action, layer);
 }
 
 void validate_delations(map<string, ServiceStatistics> const& right_delations,
@@ -485,7 +493,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     // apply rewards to state and action_log
     for (auto& reward : block.rewards)
-        m_pimpl->m_state.increase_balance(reward.to, reward.amount);
+        m_pimpl->m_state.increase_balance(reward.to, reward.amount, state_layer::chain);
 
     // insert to blockchain and action_log
     m_pimpl->m_blockchain.insert(signed_block);

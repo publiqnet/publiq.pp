@@ -72,13 +72,13 @@ int main( int argc, char** argv )
 
     LoggedTransactionsRequest logged_transactions_request1;
     logged_transactions_request1.start_index = std::atoi(argv[3]);
-    Send( logged_transactions_request1, receive_package1, sk1, peerid1, eh1 );
+    Send( beltpp::packet(logged_transactions_request1), receive_package1, sk1, peerid1, eh1 );
     LoggedTransactions logged_transactions1;
     receive_package1.get( logged_transactions1 );
 
     LoggedTransactionsRequest logged_transactions_request2;
     logged_transactions_request2.start_index = std::atoi(argv[3]);
-    Send( logged_transactions_request2, receive_package2, sk2, peerid2, eh2 );
+    Send( beltpp::packet(logged_transactions_request2), receive_package2, sk2, peerid2, eh2 );
     LoggedTransactions logged_transactions2;
     receive_package2.get( logged_transactions2 );
 

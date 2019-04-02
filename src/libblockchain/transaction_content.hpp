@@ -4,6 +4,7 @@
 #include "message.hpp"
 #include "node.hpp"
 #include "common.hpp"
+#include "state.hpp"
 
 #include <string>
 
@@ -20,8 +21,10 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       BlockchainMessage::Content const& content);
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  BlockchainMessage::Content const& content);
+                  BlockchainMessage::Content const& content,
+                  state_layer layer);
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   BlockchainMessage::Content const& content);
+                   BlockchainMessage::Content const& content,
+                   state_layer layer);
 }
