@@ -12,7 +12,6 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
-#include <iostream>
 #include <algorithm>
 #include <map>
 
@@ -57,7 +56,6 @@ bool session_action_connections::process(beltpp::packet&& package, meshpp::nodei
         switch (package.type())
         {
         case beltpp::isocket_join::rtt:
-            std::cout << "session_action_connections - join" << std::endl;
             peerid_to_drop = header.peerid;
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -74,20 +72,15 @@ bool session_action_connections::process(beltpp::packet&& package, meshpp::nodei
         case beltpp::isocket_drop::rtt:
             errored = true;
             peerid_to_drop.clear();
-            std::cout << "action_connections - drop" << std::endl;
             break;
         case beltpp::isocket_protocol_error::rtt:
             errored = true;
-            std::cout << "action_connections - protocol error" << std::endl;
-            psk->send(header.peerid, beltpp::packet(beltpp::isocket_drop()));
             peerid_to_drop.clear();
             break;
         case beltpp::isocket_open_error::rtt:
-            std::cout << "action_connections - open error" << std::endl;
             errored = true;
             break;
         case beltpp::isocket_open_refused::rtt:
-            std::cout << "action_connections - open refused" << std::endl;
             errored = true;
             break;
         default:
@@ -114,8 +107,7 @@ session_action_p2pconnections::session_action_p2pconnections(meshpp::p2psocket& 
 {}
 
 session_action_p2pconnections::~session_action_p2pconnections()
-{
-}
+{}
 
 void session_action_p2pconnections::initiate(meshpp::nodeid_session_header& header)
 {
@@ -126,23 +118,17 @@ void session_action_p2pconnections::initiate(meshpp::nodeid_session_header& head
 
 bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
-    bool code = true;
+    bool code = false;
 
     switch (package.type())
     {
     case beltpp::isocket_drop::rtt:
         errored = true;
-        std::cout << "action_p2pconnections - drop" << std::endl;
-        pimpl->remove_peer(header.peerid);
         break;
     case beltpp::isocket_protocol_error::rtt:
         errored = true;
-        std::cout << "action_p2pconnections - protocol error" << std::endl;
-        psk->send(header.peerid, beltpp::packet(beltpp::isocket_drop()));
-        pimpl->remove_peer(header.peerid);
         break;
     default:
-        code = false;
         break;
     }
 
@@ -206,14 +192,11 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid
                 meshpp::verify_signature(msg.node_address, message, msg.signature) &&
                 header.nodeid == msg.node_address)
             {
-                std::cout << "action_signatures - ok verify" << std::endl;
-
                 erase(true, true);
             }
             else
             {
                 errored = true;
-                std::cout << "action_signatures -> signiture filed" << std::endl;
 
                 erase(false, false);
             }
@@ -288,7 +271,6 @@ session_action_broadcast_address_info::~session_action_broadcast_address_info()
 
 void session_action_broadcast_address_info::initiate(meshpp::nodeid_session_header&)
 {
-    std::cout << "action_broadcast - broadcasting" << std::endl;
     broadcast_message(std::move(msg),
                       pimpl->m_ptr_p2p_socket->name(),
                       source_peer,
@@ -320,7 +302,7 @@ session_action_sync_request::session_action_sync_request(detail::node_internals&
 
 session_action_sync_request::~session_action_sync_request()
 {
-    if (true == errored)
+    if (errored)
         pimpl->all_sync_info.sync_responses.erase(current_peerid);
 }
 
@@ -635,8 +617,7 @@ session_action_block::session_action_block(detail::node_internals& impl)
 {}
 
 session_action_block::~session_action_block()
-{
-}
+{}
 
 void session_action_block::initiate(meshpp::nodeid_session_header& header)
 {
@@ -1033,8 +1014,8 @@ session_action_save_file::session_action_save_file(detail::node_internals& impl,
 
 session_action_save_file::~session_action_save_file()
 {
-    if (size_t(-1) != expected_next_package_type &&
-        false == errored)
+    if (size_t(-1) != expected_next_package_type ||
+        errored)
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error uploading the file";
@@ -1082,31 +1063,6 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
         psk->send(peerid, std::move(package));
         completed = true;
         expected_next_package_type = size_t(-1);
-        /*switch (package.type())
-        {
-        case beltpp::isocket_drop::rtt:
-            errored = true;
-            peerid_to_drop.clear();
-            std::cout << "action_connections - drop" << std::endl;
-            break;
-        case beltpp::isocket_protocol_error::rtt:
-            errored = true;
-            std::cout << "action_connections - protocol error" << std::endl;
-            psk->send(header.peerid, beltpp::isocket_drop());
-            peerid_to_drop.clear();
-            break;
-        case beltpp::isocket_open_error::rtt:
-            std::cout << "action_connections - open error" << std::endl;
-            errored = true;
-            break;
-        case beltpp::isocket_open_refused::rtt:
-            std::cout << "action_connections - open refused" << std::endl;
-            errored = true;
-            break;
-        default:
-            code = false;
-            break;
-        }*/
     }
 
     guard.dismiss();
@@ -1134,8 +1090,8 @@ session_action_delete_file::session_action_delete_file(detail::node_internals& i
 
 session_action_delete_file::~session_action_delete_file()
 {
-    if (size_t(-1) != expected_next_package_type &&
-        false == errored)
+    if (size_t(-1) != expected_next_package_type ||
+        errored)
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error deleting the file";

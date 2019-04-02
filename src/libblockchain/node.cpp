@@ -129,18 +129,6 @@ bool node::run()
             if (psk != nullptr)
                 received_packets = psk->receive(peerid);
 
-            //-----------------------------------------------------//
-            auto remove_peer = [&]()
-            {
-                if (psk == m_pimpl->m_ptr_p2p_socket.get())
-                {
-                    m_pimpl->remove_peer(peerid);
-                    m_pimpl->m_nodeid_sessions.remove(peerid);
-                }
-            };
-            //-----------------------------------------------------//
-
-
             for (auto& received_packet : received_packets)
             {
             try
@@ -192,7 +180,8 @@ bool node::run()
                 {
                     m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
 
-                    remove_peer();
+                    if (it == interface_type::p2p)
+                        m_pimpl->remove_peer(peerid);
 
                     break;
                 }
@@ -204,7 +193,8 @@ bool node::run()
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
 
-                    remove_peer();
+                    if (it == interface_type::p2p)
+                        m_pimpl->remove_peer(peerid);
                     
                     break;
                 }
@@ -536,10 +526,6 @@ bool node::run()
                     m_pimpl->writeln_node("master don't know how to handle: " + std::to_string(ref_packet.type())/* +
                                           ". dropping " + detail::peer_short_names(peerid)*/);
 
-                    //psk->send(peerid, beltpp::isocket_drop());
-                    //
-                    //remove_peer();
-
                     break;
                 }
                 }   // switch ref_packet.type()
@@ -555,7 +541,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -570,7 +556,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -590,7 +576,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -605,7 +591,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -620,7 +606,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -635,7 +621,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -651,7 +637,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -667,7 +653,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -682,7 +668,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -697,7 +683,7 @@ bool node::run()
                 else
                 {
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    remove_peer();
+                    m_pimpl->remove_peer(peerid);
                 }
                 throw;
             }
@@ -812,23 +798,14 @@ bool node::run()
         broadcast_address_info(m_pimpl);
 
         //  yes temp place still
-        //  collect up to 100 addresses to check
-        size_t collected = 0;
         for (auto& nodeid_item : m_pimpl->m_nodeid_service.nodeids)
         {
-            if (collected == 100)
-                break;
-
             for (auto& address : nodeid_item.second.get())
             {
                 auto ptr_action = nodeid_item.second.take_action(address);
 
                 if (ptr_action)
                 {
-                    m_pimpl->writeln_node(std::to_string(nodeid_item.second.is_verified(address)) +
-                        " - " + nodeid_item.first + ": " +
-                        address.to_string());
-
                     vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
                     actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
                     actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
@@ -843,7 +820,6 @@ bool node::run()
                                                    std::move(actions),
                                                    chrono::minutes(1));
                 }
-                ++collected;
             }
         }
     }
@@ -888,7 +864,10 @@ bool node::run()
             for (auto& it : m_pimpl->all_sync_info.sync_responses)
             {
                 if (m_pimpl->m_p2p_peers.find(it.first) == m_pimpl->m_p2p_peers.end())
+                {
+                    assert(false); //   sessions must have had handled this
                     continue; // for the case if peer is droped before sync started
+                }
 
                 if (scan_consensus_sum < it.second.own_header.c_sum &&
                     scan_block_number <= it.second.own_header.block_number)

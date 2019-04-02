@@ -338,6 +338,9 @@ public:
 
     void remove_peer(socket::peer_id peerid)
     {
+        writeln_node("remove peer: " + detail::peer_short_names(peerid));
+        m_nodeid_sessions.remove(peerid);
+        m_sessions.remove(peerid);
         if (0 == m_p2p_peers.erase(peerid))
             throw std::runtime_error("p2p peer not found to remove: " + peerid);
     }
