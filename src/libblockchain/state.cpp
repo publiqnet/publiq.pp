@@ -71,7 +71,7 @@ Coin state::get_balance(string const& key, state_layer layer) const
 
     if (layer == state_layer::chain &&
         m_pimpl->m_node_accounts.as_const().contains(key))
-        return m_pimpl->m_accounts.as_const().at(key);
+        return m_pimpl->m_node_accounts.as_const().at(key);
 
     return Coin(); // all accounts not included have 0 balance
 }
