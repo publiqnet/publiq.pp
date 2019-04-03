@@ -296,8 +296,10 @@ public:
         else
         {
             SignedBlock const& signed_block = m_blockchain.at(0);
+            SignedBlock signed_block_hardcode;
+            signed_block_hardcode.from_string(genesis_signed_block);
 
-            if (signed_block.to_string() != genesis_signed_block)
+            if (signed_block.to_string() != signed_block_hardcode.to_string())
                 throw std::runtime_error("the stored genesis is different from the one built in");
         }
 

@@ -24,6 +24,7 @@
 #include <exception>
 #include <thread>
 #include <functional>
+#include <chrono>
 
 #include <csignal>
 
@@ -477,5 +478,238 @@ bool process_command_line(int argc, char** argv,
 
 string genesis_signed_block()
 {
-    return R"genesis({"rtt":8,"block_details":{"rtt":7,"header":{"rtt":5,"block_number":0,"delta":0,"c_sum":0,"c_const":1,"prev_hash":"FoEffUCZW2fdQp5SJXnjoYbgJezDPeZmEsJ5Aa6i8Cx5","time_signed":"2019-03-26 06:00:00"},"rewards":[{"rtt":12,"to":"PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ","amount":{"rtt":0,"whole":100,"fraction":0},"reward_type":"initial"},{"rtt":12,"to":"PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu","amount":{"rtt":0,"whole":100,"fraction":0},"reward_type":"initial"},{"rtt":12,"to":"PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G","amount":{"rtt":0,"whole":100,"fraction":0},"reward_type":"initial"},{"rtt":12,"to":"PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk","amount":{"rtt":0,"whole":100,"fraction":0},"reward_type":"initial"},{"rtt":12,"to":"PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6","amount":{"rtt":0,"whole":100,"fraction":0},"reward_type":"initial"}],"signed_transactions":[]},"authorization":{"rtt":3,"address":"iKx1CJNgzhr3Ef25CssfgM4ZM1H3ZHRe5DcrsXz7wXM47tz6bpiP5oBG5h3AYmU7tRrD63KAZhTXMAgchpyVzHs1h8t6HpnrTU","signature":"PBQ5HnbMEwb8AYsqZrrEwPaKZ1kzADmwuUMhhtdhL5ZdCCW5pkWmq"}})genesis";
+#ifdef 0
+    Block genesis_block_mainnet;
+    genesis_block_mainnet.header.block_number = 0;
+    genesis_block_mainnet.header.delta = 0;
+    genesis_block_mainnet.header.c_sum = 0;
+    genesis_block_mainnet.header.c_const = 1;
+    genesis_block_mainnet.header.prev_hash = meshpp::hash("PUBLIQ. blockchain distributed media. GETTING STARTED ON PUBLIQ. 26 March, 2019. https://publiq.network/en/gettin-started-on-publiq/");
+    beltpp::gm_string_to_gm_time_t("2019-04-01 00:00:00", genesis_block_mainnet.header.time_signed.tm);
+
+    Reward reward_publiq1;
+    reward_publiq1.amount.whole = 150000000;
+    reward_publiq1.reward_type = RewardType::initial;
+    reward_publiq1.to = "PBQ7cGUNdApH4e958Nbj9WfEwmcjLUsFk88tz6TJNGtNuJ6WXRiKz";
+
+    Reward reward_publiq2;
+    reward_publiq2.amount.whole = 60000000;
+    reward_publiq2.reward_type = RewardType::initial;
+    reward_publiq2.to = "PBQ7VVS2JvqardqQ3hvGV8ANfHEQNn2SxC3RHKoHkGmzx8moRjFHy";
+
+    Reward reward_publiq3;
+    reward_publiq3.amount.whole = 40000000;
+    reward_publiq3.reward_type = RewardType::initial;
+    reward_publiq3.to = "PBQ7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM";
+
+    Reward reward_publiq_test1;
+    reward_publiq_test1.amount.whole = 100;
+    reward_publiq_test1.reward_type = RewardType::initial;
+    reward_publiq_test1.to = "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ";
+
+    Reward reward_publiq_test2;
+    reward_publiq_test2.amount.whole = 100;
+    reward_publiq_test2.reward_type = RewardType::initial;
+    reward_publiq_test2.to = "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu";
+
+    Reward reward_publiq_test3;
+    reward_publiq_test3.amount.whole = 100;
+    reward_publiq_test3.reward_type = RewardType::initial;
+    reward_publiq_test3.to = "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk";
+
+    Reward reward_publiq_test4;
+    reward_publiq_test4.amount.whole = 100;
+    reward_publiq_test4.reward_type = RewardType::initial;
+    reward_publiq_test4.to = "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6";
+
+    genesis_block_mainnet.rewards =
+    {
+        reward_publiq1,
+        reward_publiq2,
+        reward_publiq3
+    };
+
+    Block genesis_block_testnet = genesis_block_mainnet;
+    genesis_block_testnet.rewards =
+    {
+        reward_publiq1,
+        reward_publiq2,
+        reward_publiq3,
+        reward_publiq_test1,
+        reward_publiq_test2,
+        reward_publiq_test3,
+        reward_publiq_test4
+    };
+
+    meshpp::random_seed seed;
+    meshpp::private_key pvk = seed.get_private_key(0);
+    meshpp::public_key pbk = pvk.get_public_key();
+
+    SignedBlock sb;
+    sb.block_details = std::move(genesis_block_testnet);
+
+    Authority authorization;
+    authorization.address = pbk.to_string();
+    authorization.signature = pvk.sign(sb.block_details.to_string()).base58;
+
+    sb.authorization = authorization;
+
+    //std::cout << sb.to_string() << std::endl;
+#endif
+    std::string str_genesis_testnet = R"genesis(
+                                      {
+                                         "rtt":8,
+                                         "block_details":{
+                                            "rtt":7,
+                                            "header":{
+                                               "rtt":5,
+                                               "block_number":0,
+                                               "delta":0,
+                                               "c_sum":0,
+                                               "c_const":1,
+                                               "prev_hash":"GnFozpoEMEuVkVFnuJfVn64oWqpPmYQSyzsmo7ptmUD3",
+                                               "time_signed":"2019-04-01 00:00:00"
+                                            },
+                                            "rewards":[
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ7cGUNdApH4e958Nbj9WfEwmcjLUsFk88tz6TJNGtNuJ6WXRiKz",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":150000000,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ7VVS2JvqardqQ3hvGV8ANfHEQNn2SxC3RHKoHkGmzx8moRjFHy",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":60000000,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":40000000,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":100,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":100,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":100,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":100,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               }
+                                            ],
+                                            "signed_transactions":[
+
+                                            ]
+                                         },
+                                         "authorization":{
+                                            "rtt":3,
+                                            "address":"PBQ6MUCKb9tSqSvfuKMXtVjBjsMh9AFHT8W5DAS1Rte43XfE2Xa6V",
+                                            "signature":"AN1rKpsPQAKHsagQ3EQPzXjosQdrZZC6pH7ei4FESHceMNT1evtjmv6vUJx3dzuaQmdoDwNLJ31eyySgbHCVuCQx36tgLHiXy"
+                                         }
+                                      }
+                                      )genesis";
+    std::string str_genesis_mainnet = R"genesis(
+                                      {
+                                         "rtt":8,
+                                         "block_details":{
+                                            "rtt":7,
+                                            "header":{
+                                               "rtt":5,
+                                               "block_number":0,
+                                               "delta":0,
+                                               "c_sum":0,
+                                               "c_const":1,
+                                               "prev_hash":"GnFozpoEMEuVkVFnuJfVn64oWqpPmYQSyzsmo7ptmUD3",
+                                               "time_signed":"2019-04-01 00:00:00"
+                                            },
+                                            "rewards":[
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ7cGUNdApH4e958Nbj9WfEwmcjLUsFk88tz6TJNGtNuJ6WXRiKz",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":150000000,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ7VVS2JvqardqQ3hvGV8ANfHEQNn2SxC3RHKoHkGmzx8moRjFHy",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":60000000,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               },
+                                               {
+                                                  "rtt":12,
+                                                  "to":"PBQ7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM",
+                                                  "amount":{
+                                                     "rtt":0,
+                                                     "whole":40000000,
+                                                     "fraction":0
+                                                  },
+                                                  "reward_type":"initial"
+                                               }
+                                            ],
+                                            "signed_transactions":[
+
+                                            ]
+                                         },
+                                         "authorization":{
+                                            "rtt":3,
+                                            "address":"PBQ54ERjngj4eZfmvAbM12mgFQXoJ8j7wECdCmsm7chNc6Wcm814p",
+                                            "signature":"381yXYvCzQ8toJZrrRjQyE3Lsv4EwPVxrYayvU1dc7Yx946UgnEc4bRqRx3ef94XMgv7KiuGH2AqfYeQpwtxr7rA5Ts76GG3"
+                                         }
+                                      }
+                                      )genesis";
+
+    return str_genesis_testnet;
 }
