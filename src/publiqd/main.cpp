@@ -429,7 +429,9 @@ bool process_command_line(int argc, char** argv,
         if (p2p_connect_to_addresses.empty())
         {
             beltpp::ip_address address_item;
-            address_item.from_string("north.publiq.network:12222");
+            address_item.from_string("north.publiq.network:14100");
+            p2p_connect_to_addresses.push_back(address_item);
+            address_item.from_string("north.publiq.network:14110");
             p2p_connect_to_addresses.push_back(address_item);
         }
 
