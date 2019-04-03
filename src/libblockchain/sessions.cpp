@@ -849,6 +849,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             return set_errored("blockchain response. miner balance!", throw_for_debugging_only);
 
         // verify block transactions
+        time_t prev_transaction_time = 0;
         for (auto const& tr_item : block.signed_transactions)
         {
             if (false == pimpl->m_transaction_cache.add_chain(tr_item))
@@ -856,6 +857,11 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
             if (!apply_transaction(tr_item, *pimpl, signed_block.authorization.address))
                 return set_errored("blockchain response. apply_transaction().", throw_for_debugging_only);
+
+            if (prev_transaction_time > tr_item.transaction_details.creation.tm)
+                return set_errored("blockchain response. transaction time sorting!", throw_for_debugging_only);
+
+            prev_transaction_time = tr_item.transaction_details.creation.tm;
         }
 
         // verify block rewards
@@ -933,37 +939,37 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(blockchain_request));
     }
-    else
-    {
-        completed = true;
-        expected_next_package_type = size_t(-1);
-
-        if (pimpl->m_node_type == NodeType::channel)
-            broadcast_storage_info(*pimpl);
-
-        /*
-        if (pimpl->m_node_type == NodeType::storage && !pimpl->m_slave_peer.empty())
-        {
-            ServiceStatistics service_statistics;
-            TaskRequest task_request;
-            task_request.task_id = ++pimpl->m_slave_taskid;
-            ::detail::assign_packet(task_request.package, service_statistics);
-            task_request.time_signed.tm = system_clock::to_time_t(now);
-            meshpp::signature signed_msg = pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
-                                                                meshpp::hash(service_statistics.to_string()) +
-                                                                std::to_string(task_request.time_signed.tm));
-            task_request.signature = signed_msg.base58;
-
-            // send task to slave
-            pimpl->m_ptr_rpc_socket->send(pimpl->m_slave_peer, task_request);
-
-            beltpp::packet task_packet;
-            task_packet.set(service_statistics);
-
-            pimpl->m_slave_tasks.add(task_request.task_id, task_packet);
-        }
-        */
-    }
+    //else
+    //{
+    //    completed = true;
+    //    expected_next_package_type = size_t(-1);
+    //
+    //    if (pimpl->m_node_type == NodeType::channel)
+    //        broadcast_storage_info(*pimpl);
+    //
+    //    /*
+    //    if (pimpl->m_node_type == NodeType::storage && !pimpl->m_slave_peer.empty())
+    //    {
+    //        ServiceStatistics service_statistics;
+    //        TaskRequest task_request;
+    //        task_request.task_id = ++pimpl->m_slave_taskid;
+    //        ::detail::assign_packet(task_request.package, service_statistics);
+    //        task_request.time_signed.tm = system_clock::to_time_t(now);
+    //        meshpp::signature signed_msg = pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
+    //                                                            meshpp::hash(service_statistics.to_string()) +
+    //                                                            std::to_string(task_request.time_signed.tm));
+    //        task_request.signature = signed_msg.base58;
+    //
+    //        // send task to slave
+    //        pimpl->m_ptr_rpc_socket->send(pimpl->m_slave_peer, task_request);
+    //
+    //        beltpp::packet task_packet;
+    //        task_packet.set(service_statistics);
+    //
+    //        pimpl->m_slave_tasks.add(task_request.task_id, task_packet);
+    //    }
+    //    */
+    //}
 }
 
 void session_action_block::set_errored(string const& message, bool throw_for_debugging_only)

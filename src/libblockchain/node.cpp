@@ -729,25 +729,6 @@ bool node::run()
     m_pimpl->m_nodeid_sessions.erase_all_pending();
     m_pimpl->m_sessions.erase_all_pending();
 
-//    // test ! print summary report about connections
-//    if (m_pimpl->m_summary_report_timer.expired())
-//    {
-//        m_pimpl->m_summary_report_timer.update();
-//
-//        m_pimpl->writeln_node("Summary Report");
-//        m_pimpl->writeln_node("    p2p nodes connected");
-//        if (m_pimpl->m_p2p_peers.empty())
-//            m_pimpl->writeln_node("        none");
-//        else
-//        {
-//            for (auto const& item : m_pimpl->m_p2p_peers)
-//                m_pimpl->writeln_node("        " + detail::peer_short_names(item));
-//        }
-//        m_pimpl->writeln_node("    blockchain heigth: " +
-//                              std::to_string(m_pimpl->m_blockchain.length()));
-//        m_pimpl->writeln_node("End Summary Report");
-//    }
-
     // broadcast own transactions to all peers for the case
     // when node could not do this when received it through rpc
     if (m_pimpl->m_broadcast_timer.expired() && !m_pimpl->m_p2p_peers.empty())
