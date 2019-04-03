@@ -302,7 +302,7 @@ BlockchainMessage::PublicAddressesInfo nodeid_service::get_addresses() const
             if (it->verified == nodeid_address_unit::verified_type::never)
                 seconds_since = chrono::duration_cast<chrono::seconds>(system_clock::now() - system_clock::time_point());
             else
-                seconds_since = chrono::duration_cast<chrono::seconds>(tp_now - it->header.checked_time_point);
+                seconds_since = chrono::duration_cast<chrono::seconds>(steady_clock::now() - it->header.checked_time_point);
 
             address_info.seconds_since_checked = uint64_t(seconds_since.count());
 
