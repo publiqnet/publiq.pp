@@ -135,6 +135,8 @@ bool node::run()
             {
                 if (m_pimpl->m_nodeid_sessions.process(peerid, std::move(received_packet)))
                     continue;
+                if (m_pimpl->m_sync_sessions.process(peerid, std::move(received_packet)))
+                    continue;
 
                 vector<packet*> composition;
 
@@ -743,6 +745,7 @@ bool node::run()
         }
     }
 
+    m_pimpl->m_sync_sessions.erase_all_pending();
     m_pimpl->m_nodeid_sessions.erase_all_pending();
     m_pimpl->m_sessions.erase_all_pending();
 
@@ -830,9 +833,9 @@ bool node::run()
             meshpp::nodeid_session_header header;
             header.nodeid = peerid;
             header.address = m_pimpl->m_ptr_p2p_socket->info_connection(peerid);
-            m_pimpl->m_nodeid_sessions.add(header,
-                                           std::move(actions),
-                                           chrono::seconds(SYNC_TIMER));
+            m_pimpl->m_sync_sessions.add(header,
+                                         std::move(actions),
+                                         chrono::seconds(SYNC_TIMER));
         }
 
         //  work through process of block header sync or mining
@@ -935,9 +938,9 @@ bool node::run()
                 meshpp::nodeid_session_header header;
                 header.nodeid = scan_peer;
                 header.address = m_pimpl->m_ptr_p2p_socket->info_connection(scan_peer);
-                m_pimpl->m_nodeid_sessions.add(header,
-                                               std::move(actions),
-                                               chrono::seconds(SYNC_TIMER));
+                m_pimpl->m_sync_sessions.add(header,
+                                             std::move(actions),
+                                             chrono::seconds(SYNC_TIMER));
             }
             else if (m_pimpl->is_miner() && mine_now)
             {

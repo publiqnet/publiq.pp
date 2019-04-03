@@ -116,9 +116,8 @@ void session_action_p2pconnections::initiate(meshpp::nodeid_session_header& head
     completed = true;
 }
 
-bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
+bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::nodeid_session_header&)
 {
-    B_UNUSED(header);
     bool code = false;
 
     switch (package.type())
