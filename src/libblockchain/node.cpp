@@ -525,6 +525,18 @@ bool node::run()
 
                     break;
                 }
+                case Ping::rtt:
+                {
+                    Pong msg_pong;
+                    msg_pong.node_address = m_pimpl->m_pv_key.get_public_key().to_string();
+                    msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
+                    string message_pong = msg_pong.node_address + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
+                    auto signed_message = m_pimpl->m_pv_key.sign(message_pong);
+
+                    msg_pong.signature = std::move(signed_message.base58);
+                    psk->send(peerid, beltpp::packet(std::move(msg_pong)));
+                    break;
+                }
                 default:
                 {
                     m_pimpl->writeln_node("master don't know how to handle: " + std::to_string(ref_packet.type())/* +

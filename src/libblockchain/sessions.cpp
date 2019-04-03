@@ -182,7 +182,6 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid
         {
         case BlockchainMessage::Pong::rtt:
         {
-            //std::cout << "action_signatures -> pong received" << std::endl;
             BlockchainMessage::Pong msg;
             std::move(package).get(msg);
 

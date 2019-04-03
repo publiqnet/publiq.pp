@@ -10,6 +10,7 @@
 #include <utility>
 #include <string>
 #include <chrono>
+#include <unordered_set>
 
 using std::pair;
 using std::vector;
@@ -150,8 +151,8 @@ void nodeid_service::keep_successful(std::string const& node_address,
     if (it == m_pimpl->nodeids.end())
     {
         assert(false);
-        throw std::logic_error("session_action_signatures::erase "
-            "cannot find the expected entry");
+        throw std::logic_error("nodeid_service::keep_successful "
+            "cannot find the expected nodeid");
     }
     else
     {
@@ -210,6 +211,44 @@ void nodeid_service::keep_successful(std::string const& node_address,
             assert(modified);
         }
     }
+
+    auto& index_by_address = m_pimpl->nodeids.template get<typename nodeid_container::by_address>();
+    auto it2 = index_by_address.find(node_address);
+    if (it2 == index_by_address.end())
+    {
+        assert(false);
+        throw std::logic_error("nodeid_service::keep_successful "
+            "cannot find the expected address");
+    }
+    else
+    {
+        size_t erased_count = 0, kept_count = 0;
+        while (it2 != index_by_address.end() &&
+               it2->header.address == address)
+        {
+            if (it2->header.node_address != node_address)
+            {
+                it2 = index_by_address.erase(it2);
+                ++erased_count;
+            }
+            else
+            {
+                ++it2;
+                ++kept_count;
+            }
+        }
+
+        assert(kept_count == 1);
+        if (kept_count != 1)
+            throw std::logic_error("nodeid_service keep_successful2()");
+
+        if (false == verified)
+        {
+            assert(erased_count == 0);
+            if (erased_count != 0)
+                throw std::logic_error("nodeid_service keep_successful2(false)");
+        }
+    }
 }
 
 void nodeid_service::erase_failed(std::string const& node_address,
@@ -219,7 +258,7 @@ void nodeid_service::erase_failed(std::string const& node_address,
     if (it == m_pimpl->nodeids.end())
     {
         assert(false);
-        throw std::logic_error("session_action_signatures::erase "
+        throw std::logic_error("nodeid_service::erase_failed "
             "cannot find the expected entry");
     }
     else
@@ -249,14 +288,18 @@ void nodeid_service::take_actions(std::function<void (std::string const& node_ad
                                                       beltpp::ip_address const& address,
                                                       std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)> const& callback)
 {
-    string prev_node_address;
+    std::unordered_set<string> prev_node_addresses;
+    std::unordered_set<string> prev_addresses;
+
     for (auto it = m_pimpl->nodeids.begin(); it != m_pimpl->nodeids.end(); ++it)
     {
         auto const& nodeid_item = *it;
         if (nodeid_item.ptr_action &&
-            nodeid_item.header.node_address != prev_node_address)
+            0 == prev_node_addresses.count(nodeid_item.header.node_address) &&
+            0 == prev_addresses.count(nodeid_item.header.address.to_string()))
         {
-            prev_node_address = nodeid_item.header.node_address;
+            prev_node_addresses.insert(nodeid_item.header.node_address);
+            prev_addresses.insert(nodeid_item.header.address.to_string());
 
             std::unique_ptr<session_action_broadcast_address_info> ptr_action;
 
