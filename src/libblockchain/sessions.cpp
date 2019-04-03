@@ -118,6 +118,7 @@ void session_action_p2pconnections::initiate(meshpp::nodeid_session_header& head
 
 bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
+    B_UNUSED(header);
     bool code = false;
 
     switch (package.type())
@@ -758,6 +759,9 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         Block& block = block_item.block_details;
         string str = block.to_string();
 
+        if(block.signed_transactions.size() > BLOCK_MAX_TRANSACTIONS)
+            return set_errored("blockchain response. block max transactions count!", throw_for_debugging_only);
+
         // verify block signature
         if (!meshpp::verify_signature(meshpp::public_key(block_item.authorization.address), str, block_item.authorization.signature))
             return set_errored("blockchain response. block signature!", throw_for_debugging_only);
@@ -795,7 +799,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         return; // will wait for new chain
     }
 
-    pimpl->writeln_node("inserting above validated blocks");
+    pimpl->writeln_node("inserting " + std::to_string(sync_blocks.size()) + " validated blocks");
 
     //3. all needed blocks received, start to check
     pimpl->m_transaction_cache.backup();
