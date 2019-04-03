@@ -232,6 +232,28 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "seed")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::MasterKeyRequest>();
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::MasterKeyRequest::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::MasterKeyRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "dns")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::PublicAddressesRequest>();
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::PublicAddressesRequest::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::PublicAddressesRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "protocol")
         {
             ssd.session_specal_handler = nullptr;

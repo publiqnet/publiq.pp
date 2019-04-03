@@ -1,6 +1,7 @@
 #pragma once
 
 #include "global.hpp"
+#include "message.hpp"
 
 #include <mesh.pp/p2psocket.hpp>
 
@@ -36,6 +37,8 @@ public:
     void take_actions(std::function<void (std::string const& node_address,
                                           beltpp::ip_address const& address,
                                           std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)> const& callback);
+
+    BlockchainMessage::PublicAddressesInfo get_addresses() const;
 private:
     std::unique_ptr<detail::nodeid_service_impl> m_pimpl;
 };

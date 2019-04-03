@@ -209,6 +209,32 @@ module BlockchainMessage
     class TransactionReserve14 {}
     class TransactionReserve15 {}
 
+    //  ip address information
+    class IPDestination
+    {
+        UInt16 port
+        String address
+    }
+
+    class IPAddress
+    {
+        IPType ip_type
+        IPDestination local
+        IPDestination remote
+    }
+
+    enum IPType {any ipv4 ipv6}
+
+    class Ping
+    {}
+
+    class Pong
+    {
+        String node_address
+        TimePoint stamp
+        String signature
+    }
+
     //  request/response
     class DigestRequest { Object package }
     class Digest
@@ -318,6 +344,18 @@ module BlockchainMessage
         Array SignedBlock signed_blocks
     }
 
+    class PublicAddressesRequest {}
+    class PublicAddressesInfo
+    {
+        Array PublicAddressInfo addresses_info
+    }
+    class PublicAddressInfo
+    {
+        IPDestination ip_destination
+        String node_address
+        UInt64 seconds_since_checked
+    }
+
     class ApiReserve1 {}
     class ApiReserve2 {}
     class ApiReserve3 {}
@@ -405,31 +443,5 @@ module BlockchainMessage
     class GenericModelReserve8 {}
     class GenericModelReserve9 {}
     class GenericModelReserve10 {}
-
-    //  ip address information
-    class IPDestination
-    {
-        UInt16 port
-        String address
-    }
-
-    class IPAddress
-    {
-        IPType ip_type
-        IPDestination local
-        IPDestination remote
-    }
-
-    enum IPType {any ipv4 ipv6}
-
-    class Ping
-    {}
-
-    class Pong
-    {
-        String node_address
-        TimePoint stamp
-        String signature
-    }
 }
 ////2

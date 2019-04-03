@@ -17,6 +17,10 @@ void get_hash(DigestRequest&& msg_get_hash,
 void get_random_seed(beltpp::isocket& sk,
                      beltpp::isocket::peer_id const& peerid);
 
+void get_public_addresses(beltpp::isocket& sk,
+                          beltpp::isocket::peer_id const& peerid,
+                          publiqpp::detail::node_internals& impl);
+
 void get_key_pair(KeyPairRequest const& kpr_msg,
                   beltpp::isocket& sk,
                   beltpp::isocket::peer_id const& peerid);

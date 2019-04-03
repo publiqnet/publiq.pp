@@ -112,6 +112,15 @@ void get_random_seed(beltpp::isocket& sk,
     sk.send(peerid, beltpp::packet(std::move(rs_msg)));
 }
 
+void get_public_addresses(beltpp::isocket& sk,
+                          beltpp::isocket::peer_id const& peerid,
+                          publiqpp::detail::node_internals& impl)
+{
+    PublicAddressesInfo result = impl.m_nodeid_service.get_addresses();
+
+    sk.send(peerid, beltpp::packet(std::move(result)));
+}
+
 void get_key_pair(KeyPairRequest const& kpr_msg,
                   beltpp::isocket& sk,
                   beltpp::isocket::peer_id const& peerid)

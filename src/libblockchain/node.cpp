@@ -409,6 +409,11 @@ bool node::run()
                     get_random_seed(*psk, peerid);
                     break;
                 }
+                case PublicAddressesRequest::rtt:
+                {
+                    get_public_addresses(*psk, peerid, *m_pimpl.get());
+                    break;
+                }
                 case KeyPairRequest::rtt:
                 {
                     KeyPairRequest kpr_msg;
