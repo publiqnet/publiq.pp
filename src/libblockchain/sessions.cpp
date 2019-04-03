@@ -155,9 +155,9 @@ session_action_signatures::~session_action_signatures()
 {
     if (completed &&
         false == errored)
-        erase(true, false);
+        pnodeid_service->keep_successful(nodeid, address, false);
     else if (expected_next_package_type != size_t(-1))
-        erase(false, false);
+        pnodeid_service->erase_failed(nodeid, address);
 }
 
 void session_action_signatures::initiate(meshpp::nodeid_session_header& header)
@@ -193,13 +193,13 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid
                 meshpp::verify_signature(msg.node_address, message, msg.signature) &&
                 header.nodeid == msg.node_address)
             {
-                erase(true, true);
+                pnodeid_service->keep_successful(nodeid, address, true);
             }
             else
             {
                 errored = true;
 
-                erase(false, false);
+                pnodeid_service->erase_failed(nodeid, address);
             }
 
             completed = true;
@@ -224,36 +224,6 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid
 bool session_action_signatures::permanent() const
 {
     return true;
-}
-
-void session_action_signatures::erase(bool success, bool verified)
-{
-    auto it = pnodeid_service->nodeids.find(nodeid);
-    if (it == pnodeid_service->nodeids.end())
-    {
-        assert(false);
-        throw std::logic_error("session_action_signatures::erase "
-            "cannot find the expected entry");
-    }
-    else
-    {
-        auto& array = it->second.addresses;
-        auto it_end = std::remove_if(array.begin(), array.end(),
-            [this, success](nodeid_address_unit const& unit)
-        {
-            if (success)
-                return unit.address != address;
-            else
-                return unit.address == address;
-        });
-        array.erase(it_end, array.end());
-
-        if (success)
-        {
-            assert(array.size() == 1);
-            array.front().verified = verified;
-        }
-    }
 }
 
 // --------------------------- session_action_broadcast_address_info ---------------------------

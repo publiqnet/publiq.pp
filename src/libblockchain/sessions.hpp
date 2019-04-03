@@ -57,8 +57,6 @@ public:
     bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
-    void erase(bool success, bool verified);
-
     beltpp::socket* psk;
     nodeid_service* pnodeid_service;
     std::string nodeid;

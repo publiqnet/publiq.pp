@@ -1,49 +1,42 @@
 #pragma once
 
 #include "global.hpp"
-#include "message.hpp"
 
 #include <mesh.pp/p2psocket.hpp>
 
-#include <unordered_map>
-#include <vector>
-#include <utility>
 #include <memory>
+#include <functional>
 
 namespace publiqpp
 {
 class session_action_broadcast_address_info;
-class nodeid_address_unit
+
+namespace detail
 {
-public:
-    nodeid_address_unit();
-    nodeid_address_unit(nodeid_address_unit&&);
-    ~nodeid_address_unit();
-
-    nodeid_address_unit& operator = (nodeid_address_unit&&);
-
-    beltpp::ip_address address;
-    std::unique_ptr<session_action_broadcast_address_info> ptr_action;
-    bool verified;
-};
-
-class nodeid_address_info
-{
-    friend class session_action_signatures;
-public:
-    void add(beltpp::ip_address const& address,
-             std::unique_ptr<session_action_broadcast_address_info>&& ptr_action);
-    std::vector<beltpp::ip_address> get() const;
-    std::unique_ptr<session_action_broadcast_address_info> take_action(beltpp::ip_address const& address);
-    bool is_verified(beltpp::ip_address const& address) const;
-
-private:
-    std::vector<nodeid_address_unit> addresses;
-};
+    class nodeid_service_impl;
+}
 
 class nodeid_service
 {
 public:
-    std::unordered_map<meshpp::p2psocket::peer_id, nodeid_address_info> nodeids;
+    nodeid_service();
+    nodeid_service(nodeid_service const&) = delete;
+    ~nodeid_service();
+
+    void add(std::string const& node_address,
+             beltpp::ip_address const& address,
+             std::unique_ptr<session_action_broadcast_address_info>&& ptr_action);
+
+    void keep_successful(std::string const& node_address,
+                         beltpp::ip_address const& address,
+                         bool verified);
+    void erase_failed(std::string const& node_address,
+                      beltpp::ip_address const& address);
+
+    void take_actions(std::function<void (std::string const& node_address,
+                                          beltpp::ip_address const& address,
+                                          std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)> const& callback);
+private:
+    std::unique_ptr<detail::nodeid_service_impl> m_pimpl;
 };
 }// end of namespace publiqpp

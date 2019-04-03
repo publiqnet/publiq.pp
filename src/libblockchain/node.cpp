@@ -289,13 +289,12 @@ bool node::run()
                         beltpp::ip_address beltpp_ip_address;
                         beltpp::assign(beltpp_ip_address, address_info.ip_address);
 
-                        nodeid_address_info& nodeid_info = m_pimpl->m_nodeid_service.nodeids[address_info.node_address];
-
-                        nodeid_info.add(beltpp_ip_address,
-                                        unique_ptr<session_action_broadcast_address_info>(
-                                            new session_action_broadcast_address_info(*m_pimpl.get(),
-                                                                                      peerid,
-                                                                                      std::move(broadcast))));
+                        m_pimpl->m_nodeid_service.add(address_info.node_address,
+                                                      beltpp_ip_address,
+                                                      unique_ptr<session_action_broadcast_address_info>(
+                                                          new session_action_broadcast_address_info(*m_pimpl.get(),
+                                                                                                    peerid,
+                                                                                                    std::move(broadcast))));
                     }
 
                     break;
@@ -798,30 +797,24 @@ bool node::run()
         broadcast_address_info(m_pimpl);
 
         //  yes temp place still
-        for (auto& nodeid_item : m_pimpl->m_nodeid_service.nodeids)
+        m_pimpl->m_nodeid_service.take_actions([this](std::string const& node_address,
+                                                      beltpp::ip_address const& address,
+                                                      std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)
         {
-            for (auto& address : nodeid_item.second.get())
-            {
-                auto ptr_action = nodeid_item.second.take_action(address);
+            vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+            actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
+            actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
+                                                                m_pimpl->m_nodeid_service));
 
-                if (ptr_action)
-                {
-                    vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
-                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                        m_pimpl->m_nodeid_service));
+            actions.emplace_back(std::move(ptr_action));
 
-                    actions.emplace_back(std::move(ptr_action));
-
-                    meshpp::nodeid_session_header header;
-                    header.nodeid = nodeid_item.first;
-                    header.address = address;
-                    m_pimpl->m_nodeid_sessions.add(header,
-                                                   std::move(actions),
-                                                   chrono::minutes(1));
-                }
-            }
-        }
+            meshpp::nodeid_session_header header;
+            header.nodeid = node_address;
+            header.address = address;
+            m_pimpl->m_nodeid_sessions.add(header,
+                                           std::move(actions),
+                                           chrono::minutes(1));
+        });
     }
 
     // init sync process and block mining
