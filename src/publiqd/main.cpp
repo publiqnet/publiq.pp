@@ -478,7 +478,7 @@ bool process_command_line(int argc, char** argv,
 
 string genesis_signed_block()
 {
-#ifdef 0
+#if 0
     Block genesis_block_mainnet;
     genesis_block_mainnet.header.block_number = 0;
     genesis_block_mainnet.header.delta = 0;
