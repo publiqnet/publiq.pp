@@ -213,7 +213,7 @@ void nodeid_service::keep_successful(std::string const& node_address,
     }
 
     auto& index_by_address = m_pimpl->nodeids.template get<typename nodeid_container::by_address>();
-    auto it2 = index_by_address.find(node_address);
+    auto it2 = index_by_address.find(address.to_string());
     if (it2 == index_by_address.end())
     {
         assert(false);
