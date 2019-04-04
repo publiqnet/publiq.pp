@@ -128,10 +128,20 @@ void nodeid_service::add(std::string const& node_address,
         it_find->verified == nodeid_address_unit::verified_type::current)
         return;
 
+    auto& index_by_address = m_pimpl->nodeids.template get<typename nodeid_container::by_address>();
+    auto it_find2 = index_by_address.find(address.to_string());
+    if (it_find2 != index_by_address.end() &&
+        it_find2->verified == nodeid_address_unit::verified_type::current)
+        return;
+
     auto insert_result = m_pimpl->nodeids.insert(std::move(nodeid_item));
     auto it_nodeid = insert_result.first;
 
-    if (insert_result.second)
+    if (insert_result.second ||
+        (
+            it_nodeid->header.address == nodeid_item.header.address &&
+            it_nodeid->header.node_address == nodeid_item.header.node_address
+        ))
     {
         bool modified;
         B_UNUSED(modified);
