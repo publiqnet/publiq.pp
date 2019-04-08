@@ -319,6 +319,176 @@ void process_reward(uint64_t block_index,
     }
 }
 
+string get_address(TransactionLog const& transaction_log)
+{
+    string result;
+
+    switch (transaction_log.action.type())
+    {
+        case Transfer::rtt:
+        {
+            Transfer transfer;
+            transaction_log.action.get(transfer);
+            result = transfer.from;
+
+            return result;
+        }
+        case File::rtt:
+        {
+            File file;
+            transaction_log.action.get(file);
+            result = file.author_addresses[0];
+
+            return result;
+        }
+        case ContentUnit::rtt:
+        {
+            ContentUnit content_unit;
+            transaction_log.action.get(content_unit);
+            result = content_unit.author_addresses[0];
+
+            return result;
+        }
+        case Content::rtt:
+        {
+            Content content;
+            transaction_log.action.get(content);
+            result = content.channel_address;
+
+            return result;
+        }
+        case Role::rtt:
+        {
+            Role role;
+            transaction_log.action.get(role);
+            result = role.node_address;
+
+            return result;
+        }
+        case StorageUpdate::rtt:
+        {
+            StorageUpdate storage_update;
+            transaction_log.action.get(storage_update);
+            result = storage_update.storage_address;
+
+            return result;
+        }
+        case ServiceStatistics::rtt:
+        {
+            ServiceStatistics service_statistics;
+            transaction_log.action.get(service_statistics);
+            result = service_statistics.server_address;
+
+            return result;
+        }
+        default:
+        {
+            assert(false);
+            throw std::logic_error("unknown transaction log item - " +
+                                   std::to_string(transaction_log.action.type()));
+        }
+    }
+
+}
+
+void update_balances(unordered_set<string> const& set_accounts,
+                    rpc& rpc_server,
+                    TransactionLog const& transaction_log,
+                    string  const& authority)
+{
+    string address = get_address(transaction_log);
+
+    if (transaction_log.action.type() == Transfer::rtt)
+    {
+        Transfer tf;
+        transaction_log.action.get(tf);
+
+        update_balance(tf.from,
+                       tf.amount,
+                       set_accounts,
+                       rpc_server.accounts,
+                       update_balance_type::decrease);
+
+        update_balance(tf.to,
+                       tf.amount,
+                       set_accounts,
+                       rpc_server.accounts,
+                       update_balance_type::increase);
+    }
+
+    update_balance(address,
+                   transaction_log.fee,
+                   set_accounts,
+                   rpc_server.accounts,
+                   update_balance_type::decrease);
+
+    if (!authority.empty())
+    {
+        update_balance(authority,
+                       transaction_log.fee,
+                       set_accounts,
+                       rpc_server.accounts,
+                       update_balance_type::increase);
+    }
+}
+
+void process_transactions(uint64_t block_index,
+                         BlockchainMessage::TransactionLog const& transaction_log,
+                         unordered_set<string> const& set_accounts,
+                         unordered_map<string, TransactionLogLoader>& transactions,
+                         unordered_map<string, LogIndexLoader>& index_transactions,
+                         string  const& authority,
+                         LoggingType type)
+{
+    string address = get_address(transaction_log);
+
+    process_transaction(block_index,
+                        address,
+                        transaction_log,
+                        set_accounts,
+                        transactions,
+                        index_transactions,
+                        type);
+
+    if (transaction_log.action.type() == Transfer::rtt)
+    {
+        Transfer tf;
+        transaction_log.action.get(tf);
+
+        if (tf.to != tf.from)
+        process_transaction(block_index,
+                            tf.to,
+                            transaction_log,
+                            set_accounts,
+                            transactions,
+                            index_transactions,
+                            type);
+
+        if (!authority.empty() &&
+            authority != tf.to &&
+            authority != tf.from)
+        process_transaction(block_index,
+                            authority,
+                            transaction_log,
+                            set_accounts,
+                            transactions,
+                            index_transactions,
+                            type);
+    }
+    if (!authority.empty() &&
+        authority != address &&
+        transaction_log.action.type() != Transfer::rtt)
+    {
+        process_transaction(block_index,
+                            authority,
+                            transaction_log,
+                            set_accounts,
+                            transactions,
+                            index_transactions,
+                            type);
+    }
+}
+
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
                                 rpc& rpc_server)
 {
@@ -568,64 +738,18 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     {
                                         ++count;
 
-                                        if (transaction_log.action.type() == Transfer::rtt)
-                                        {
-                                            Transfer tf;
-                                            transaction_log.action.get(tf);
+                                        update_balances(set_accounts,
+                                                       rpc_server,
+                                                       transaction_log,
+                                                       block_log.authority);
 
-                                            update_balance(tf.from,
-                                                           tf.amount,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::decrease);
-
-                                            update_balance(tf.to,
-                                                           tf.amount,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::increase);
-                                            update_balance(tf.from,
-                                                           transaction_log.fee,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::decrease);
-                                            update_balance(block_log.authority,
-                                                           transaction_log.fee,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::increase);
-
-                                            process_transaction(block_index,
-                                                                tf.from,
-                                                                transaction_log,
-                                                                set_accounts,
-                                                                transactions,
-                                                                index_transactions,
-                                                                LoggingType::apply);
-                                            if (tf.to != tf.from)
-                                            process_transaction(block_index,
-                                                                tf.to,
-                                                                transaction_log,
-                                                                set_accounts,
-                                                                transactions,
-                                                                index_transactions,
-                                                                LoggingType::apply);
-                                            if (block_log.authority != tf.to &&
-                                                block_log.authority != tf.from)
-                                            process_transaction(block_index,
-                                                                block_log.authority,
-                                                                transaction_log,
-                                                                set_accounts,
-                                                                transactions,
-                                                                index_transactions,
-                                                                LoggingType::apply);
-                                        }
-                                        else
-                                        {
-//                                            assert(false);
-//                                            throw std::logic_error("unknown transaction log item - " +
-//                                                                   std::to_string(action_type));
-                                        }
+                                        process_transactions(block_index,
+                                                            transaction_log,
+                                                            set_accounts,
+                                                            transactions,
+                                                            index_transactions,
+                                                            block_log.authority,
+                                                            LoggingType::apply);
                                     }
 
                                     for (auto& reward_info : block_log.rewards)
@@ -655,56 +779,18 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     TransactionLog transaction_log;
                                     std::move(action_info.action).get(transaction_log);
 
-                                    if (transaction_log.action.type() == Transfer::rtt)
-                                    {
-                                        Transfer tf;
-                                        transaction_log.action.get(tf);
+                                    update_balances(set_accounts,
+                                                   rpc_server,
+                                                   transaction_log,
+                                                   string());
 
-                                        update_balance(tf.from,
-                                                       tf.amount,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::decrease);
-                                        update_balance(tf.to,
-                                                       tf.amount,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::increase);
-                                        update_balance(tf.from,
-                                                       transaction_log.fee,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::decrease);
-
-
-                                        process_transaction(block_index,
-                                                            tf.from,
-                                                            transaction_log,
-                                                            set_accounts,
-                                                            transactions,
-                                                            index_transactions,
-                                                            LoggingType::apply);
-                                        if (tf.to != tf.from)
-                                        process_transaction(block_index,
-                                                            tf.to,
-                                                            transaction_log,
-                                                            set_accounts,
-                                                            transactions,
-                                                            index_transactions,
-                                                            LoggingType::apply);
-                                    }
-                                    else
-                                    {
-//                                        assert(false);
-//                                        throw std::logic_error("unknown transaction log item - " +
-//                                                               std::to_string(action_type));
-                                    }
-                                }
-                                else
-                                {
-                                    assert(false);
-                                    throw std::logic_error("unknown log item - " +
-                                                           std::to_string(action_type));
+                                    process_transactions(block_index,
+                                                        transaction_log,
+                                                        set_accounts,
+                                                        transactions,
+                                                        index_transactions,
+                                                        string(),
+                                                        LoggingType::apply);
                                 }
                             }
                             else// if (action_info.logging_type == LoggingType::revert)
@@ -722,63 +808,18 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     {
                                         ++count;
 
-                                        if (transaction_log.action.type() == Transfer::rtt)
-                                        {
-                                            Transfer tf;
-                                            transaction_log.action.get(tf);
+                                        update_balances(set_accounts,
+                                                       rpc_server,
+                                                       transaction_log,
+                                                       block_log.authority);
 
-                                            update_balance(tf.from,
-                                                           tf.amount,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::increase);
-                                            update_balance(tf.to,
-                                                           tf.amount,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::decrease);
-                                            update_balance(tf.from,
-                                                           transaction_log.fee,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::increase);
-                                            update_balance(block_log.authority,
-                                                           transaction_log.fee,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
-                                                           update_balance_type::decrease);
-
-                                            process_transaction(block_index,
-                                                                tf.from,
-                                                                transaction_log,
-                                                                set_accounts,
-                                                                transactions,
-                                                                index_transactions,
-                                                                LoggingType::revert);
-                                            if (tf.to != tf.from)
-                                            process_transaction(block_index,
-                                                                tf.to,
-                                                                transaction_log,
-                                                                set_accounts,
-                                                                transactions,
-                                                                index_transactions,
-                                                                LoggingType::revert);
-                                            if (block_log.authority != tf.to &&
-                                                block_log.authority != tf.from)
-                                            process_transaction(block_index,
-                                                                block_log.authority,
-                                                                transaction_log,
-                                                                set_accounts,
-                                                                transactions,
-                                                                index_transactions,
-                                                                LoggingType::revert);
-                                        }
-                                        else
-                                        {
-//                                            assert(false);
-//                                            throw std::logic_error("unknown transaction log item - " +
-//                                                                   std::to_string(action_type));
-                                        }
+                                        process_transactions(block_index,
+                                                            transaction_log,
+                                                            set_accounts,
+                                                            transactions,
+                                                            index_transactions,
+                                                            block_log.authority,
+                                                            LoggingType::revert);
                                     }
 
                                     for (auto& reward_info : block_log.rewards)
@@ -813,55 +854,18 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                     uint64_t block_index = head_block_index() + 1;
 
-                                    if (transaction_log.action.type() == Transfer::rtt)
-                                    {
-                                        Transfer tf;
-                                        transaction_log.action.get(tf);
+                                    update_balances(set_accounts,
+                                                   rpc_server,
+                                                   transaction_log,
+                                                   string());
 
-                                        update_balance(tf.from,
-                                                       tf.amount,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::increase);
-                                        update_balance(tf.to,
-                                                       tf.amount,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::decrease);
-                                        update_balance(tf.from,
-                                                       transaction_log.fee,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::increase);
-
-                                        process_transaction(block_index,
-                                                            tf.from,
-                                                            transaction_log,
-                                                            set_accounts,
-                                                            transactions,
-                                                            index_transactions,
-                                                            LoggingType::revert);
-                                        if (tf.to != tf.from)
-                                        process_transaction(block_index,
-                                                            tf.to,
-                                                            transaction_log,
-                                                            set_accounts,
-                                                            transactions,
-                                                            index_transactions,
-                                                            LoggingType::revert);
-                                    }
-                                    else
-                                    {
-//                                        assert(false);
-//                                        throw std::logic_error("unknown transaction log item - " +
-//                                                               std::to_string(action_type));
-                                    }
-                                }
-                                else
-                                {
-                                    assert(false);
-                                    throw std::logic_error("unknown log item - " +
-                                                           std::to_string(action_type));
+                                    process_transactions(block_index,
+                                                        transaction_log,
+                                                        set_accounts,
+                                                        transactions,
+                                                        index_transactions,
+                                                        string(),
+                                                        LoggingType::revert);
                                 }
                             }
                             if (new_import && local_start_index == log_index.as_const()->value)
@@ -876,7 +880,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                         throw std::runtime_error(std::to_string(ref_packet.type()) + " - sync cannot handle");
                     }
                 }
-
                 if (false == received_packets.empty())
                     break;  //  breaks while() that calls receive()
             }
