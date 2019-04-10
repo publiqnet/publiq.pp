@@ -55,7 +55,7 @@ BlockHeaderExtended node_synchronization::own_sync_info() const
         result.block_hash.clear();
         result.delta = delta;
         result.c_sum += delta;
-        auto time_signed = system_clock::from_time_t(result.time_signed.tm) + chrono::minutes(10);
+        auto time_signed = system_clock::from_time_t(result.time_signed.tm) + chrono::seconds(BLOCK_MINE_DELAY);
         result.time_signed.tm = system_clock::to_time_t(time_signed);
         ++result.block_number;
         //

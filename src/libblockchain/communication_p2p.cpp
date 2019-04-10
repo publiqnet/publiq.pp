@@ -488,7 +488,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     uint64_t delta = m_pimpl->calc_delta(own_key,
                                          m_pimpl->get_balance().whole,
                                          prev_hash,
-                                         calculate_c_const);
+                                         prev_header.c_const);
 
     // fill new block header data
     BlockHeader block_header;
