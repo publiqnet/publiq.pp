@@ -496,53 +496,26 @@ void session_action_header::process_response(meshpp::nodeid_session_header& head
 
         //  verify consensus_const
         vector<pair<uint64_t, uint64_t>> delta_vector;
-
-        for (auto const& item : sync_headers)
-            delta_vector.push_back(pair<uint64_t, uint64_t>(item.delta, item.c_const));
-
-        uint64_t number = sync_headers.back().block_number - 1;
-        assert(number == lcb_index);
-        B_UNUSED(number);
-        uint64_t delta_step = lcb_index < DELTA_STEP ? lcb_index : DELTA_STEP;
-
-        for (uint64_t i = 0; i < delta_step; ++i)
+        size_t index = 0;
+        if (lcb_index + 1 >= DELTA_STEP)
+            index = lcb_index + 1 - DELTA_STEP;
+        for (; index <= lcb_index; ++index)
         {
-            BlockHeader const& tmp_header = pimpl->m_blockchain.header_at(lcb_index - i);
-
-            delta_vector.push_back(pair<uint64_t, uint64_t>(tmp_header.delta, tmp_header.c_const));
+            BlockHeader const& tmp_header = pimpl->m_blockchain.header_at(index);
+            delta_vector.push_back(std::make_pair(tmp_header.delta, tmp_header.c_const));
         }
 
-        for (auto it = delta_vector.begin(); it + delta_step != delta_vector.end(); ++it)
-        {
-            if (it->first > DELTA_UP)
-            {
-                size_t step = 0;
-                uint64_t _delta = it->first;
+        for (auto it = sync_headers.crbegin(); it != sync_headers.crend(); ++it)
+            delta_vector.push_back(std::make_pair(it->delta, it->c_const));
 
-                while (_delta > DELTA_UP && step < DELTA_STEP && it + step != delta_vector.end())
-                {
-                    ++step;
-                    _delta = (it + step)->first;
-                }
+        assert(false == delta_vector.empty());
+        assert(sync_headers.back().block_number - 1 == lcb_index);
 
-                if (step >= DELTA_STEP && it->second != (it + 1)->second * 2)
-                    return set_errored("blockheader response. wrong consensus const up!", throw_for_debugging_only);
-            }
-            else if (it->first < DELTA_DOWN && it->second > 1)
-            {
-                size_t step = 0;
-                uint64_t _delta = it->first;
+        string check_delta_vector_error;
+        check_delta_vector(delta_vector, check_delta_vector_error);
 
-                while (_delta < DELTA_DOWN && step < DELTA_STEP && it + step != delta_vector.end())
-                {
-                    ++step;
-                    _delta = (it + step)->first;
-                }
-
-                if (step >= DELTA_STEP && it->second != (it + 1)->second / 2)
-                    return set_errored("blockheader response. wrong consensus const down!", throw_for_debugging_only);
-            }
-        }
+        if (false == check_delta_vector_error.empty())
+            return set_errored(check_delta_vector_error, throw_for_debugging_only);
 
         current_peerid = header.peerid;
         pimpl->all_sync_info.sync_headers[current_peerid] = std::move(sync_headers);

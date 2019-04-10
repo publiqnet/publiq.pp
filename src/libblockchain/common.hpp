@@ -44,10 +44,10 @@
 #define NODES_TIME_SHIFT 60
 
 // Consensus delta definitions
-#define DELTA_STEP  10ull
-#define DELTA_MAX   120000000ull
-#define DELTA_UP    100000000ull
-#define DELTA_DOWN  80000000ull
+#define DELTA_STEP  3ull
+#define DELTA_MAX   7000000000ull
+#define DELTA_UP    5000000000ull
+#define DELTA_DOWN  3000000000ull
 
 #define DIST_MAX    4294967296ull
 

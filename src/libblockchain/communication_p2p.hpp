@@ -36,4 +36,6 @@ bool check_rewards(BlockchainMessage::Block const& block,
                    std::string const& authority,
                    publiqpp::detail::node_internals& impl);
 void broadcast_storage_info(publiqpp::detail::node_internals& impl);
+
+uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);
 }// end of namespace publiqpp

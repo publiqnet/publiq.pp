@@ -340,6 +340,70 @@ void broadcast_storage_info(publiqpp::detail::node_internals& impl)
                       impl.m_ptr_p2p_socket.get());
 }
 
+uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error)
+{
+    static_assert(DELTA_STEP > 0, "check this please");
+    assert(false == delta_vector.empty());
+    if (delta_vector.empty())
+        throw std::logic_error("check_delta_vector(): delta_vector.empty()");
+
+    uint64_t expected_c_const = delta_vector.front().second;
+    size_t check_c_const_at_index = DELTA_STEP;
+
+    auto set_error = [&error](size_t idx, uint64_t actual, uint64_t expected)
+    {
+        error = "c_const at index " + std::to_string(idx) +
+                " is expected to be " + std::to_string(expected) +
+                " instead of " + std::to_string(actual);
+        return expected;
+    };
+
+    size_t index_end = 0;
+    if (delta_vector.size() >= DELTA_STEP)
+        index_end = delta_vector.size() - DELTA_STEP + 1;
+    else
+        index_end = 1;
+
+    for (size_t index = 0; index != index_end; ++index)
+    {
+        bool have_enough_steps = true;
+
+        size_t delta_sum = 0;
+        size_t index2_end = index + DELTA_STEP;
+        if (index2_end > delta_vector.size())
+        {
+            index2_end = delta_vector.size();
+            have_enough_steps = false;
+        }
+
+        for (size_t index2 = index; index2 != index2_end; ++index2)
+        {
+            auto const& ref_delta = delta_vector[index2].first;
+            auto const& ref_c_const = delta_vector[index2].second;
+
+            if (check_c_const_at_index == index2)
+            {
+                ++check_c_const_at_index;
+
+                if (ref_c_const != expected_c_const)
+                    return set_error(index2, ref_c_const, expected_c_const);
+            }
+
+            delta_sum += ref_delta;
+        }
+
+        if (have_enough_steps &&
+            delta_sum > DELTA_STEP * DELTA_UP)
+            expected_c_const *= 2;
+        else if (have_enough_steps &&
+                 delta_sum < DELTA_STEP * DELTA_DOWN &&
+                 expected_c_const > 1)
+            expected_c_const /= 2;
+    }
+
+    return expected_c_const;
+}
+
 void revert_pool(time_t expiry_time, 
                  publiqpp::detail::node_internals& impl,
                  multimap<BlockchainMessage::ctime, SignedTransaction>& pool_transactions)
@@ -396,61 +460,44 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     revert_pool(system_clock::to_time_t(now), *m_pimpl.get(), pool_transactions);
 
     uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
+
+    //  calculate consensus_const
+    vector<pair<uint64_t, uint64_t>> delta_vector;
+    size_t index = 0;
+    if (block_number + 1 >= DELTA_STEP)
+        index = block_number + 1 - DELTA_STEP;
+    for (; index <= block_number; ++index)
+    {
+        BlockHeader const& tmp_header = m_pimpl->m_blockchain.header_at(index);
+        delta_vector.push_back(std::make_pair(tmp_header.delta, tmp_header.c_const));
+    }
+
+    assert(false == delta_vector.empty());
+
+    string check_delta_vector_error;
+    uint64_t calculate_c_const = check_delta_vector(delta_vector, check_delta_vector_error);
+    assert(false == check_delta_vector_error.empty());
+    if (false == check_delta_vector_error.empty())
+        throw std::logic_error("own blockchain is somehow wrong");
+
     SignedBlock const& prev_signed_block = m_pimpl->m_blockchain.at(block_number);
-
     BlockHeader const& prev_header = m_pimpl->m_blockchain.last_header();
-
     string own_key = m_pimpl->m_pb_key.to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
+
     uint64_t delta = m_pimpl->calc_delta(own_key,
                                          m_pimpl->get_balance().whole,
                                          prev_hash,
-                                         prev_header.c_const);
+                                         calculate_c_const);
 
     // fill new block header data
     BlockHeader block_header;
     block_header.block_number = block_number + 1;
     block_header.delta = delta;
-    block_header.c_const = prev_header.c_const;
+    block_header.c_const = calculate_c_const;
     block_header.c_sum = prev_header.c_sum + delta;
     block_header.prev_hash = prev_hash;
     block_header.time_signed.tm = prev_header.time_signed.tm + BLOCK_MINE_DELAY;
-
-    // update consensus_const if needed
-    if (delta > DELTA_UP)
-    {
-        size_t step = 0;
-        BlockHeader const* prev_header_local =
-                &m_pimpl->m_blockchain.header_at(block_number);
-
-        while (prev_header_local->delta > DELTA_UP &&
-            step <= DELTA_STEP && prev_header_local->block_number > 0)
-        {
-            ++step;
-            prev_header_local = &m_pimpl->m_blockchain.header_at(prev_header_local->block_number - 1);
-        }
-
-        // -1 because current delta is not counted
-        if (step >= DELTA_STEP - 1)
-            block_header.c_const = prev_header.c_const * 2;
-    }
-    else if (delta < DELTA_DOWN && block_header.c_const > 1)
-    {
-        size_t step = 0;
-        BlockHeader const* prev_header_local =
-                &m_pimpl->m_blockchain.header_at(block_number);
-
-        while (prev_header_local->delta < DELTA_DOWN &&
-               step <= DELTA_STEP && prev_header_local->block_number > 0)
-        {
-            ++step;
-            prev_header_local = &m_pimpl->m_blockchain.header_at(prev_header_local->block_number - 1);
-        }
-
-        // -1 because current delta is not counted
-        if (step >= DELTA_STEP - 1)
-            block_header.c_const = prev_header.c_const / 2;
-    }
 
     Block block;
     block.header = block_header;

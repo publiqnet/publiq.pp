@@ -439,9 +439,6 @@ bool node::run()
                 }
                 case SyncRequest::rtt:
                 {
-                    if (it != interface_type::p2p)
-                        throw wrong_request_exception("SyncRequest received through rpc!");
-
                     BlockHeaderExtended const& header = m_pimpl->m_blockchain.header_ex_at(m_pimpl->m_blockchain.length() - 1);
 
                     SyncResponse sync_response;
@@ -458,9 +455,6 @@ bool node::run()
                 }
                 case BlockHeaderRequest::rtt:
                 {
-                    if (it != interface_type::p2p)
-                        throw wrong_request_exception("BlockHeaderRequest received through rpc!");
-
                     BlockHeaderRequest header_request;
                     std::move(ref_packet).get(header_request);
 
