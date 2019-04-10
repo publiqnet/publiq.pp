@@ -48,9 +48,10 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
-                          bool& log_enabled);
+                          bool& log_enabled,
+                          bool& testnet);
 
-string genesis_signed_block();
+string genesis_signed_block(bool testnet);
 
 static bool g_termination_handled = false;
 static publiqpp::node* g_pnode = nullptr;
@@ -148,8 +149,6 @@ int main(int argc, char** argv)
     catch (...)
     {}  //  don't care for exception, for now
     //
-    meshpp::config::set_public_key_prefix("PBQ");
-    //
     meshpp::settings::set_application_name("publiqd");
     meshpp::settings::set_data_directory(meshpp::config_directory_path().string());
 
@@ -161,6 +160,7 @@ int main(int argc, char** argv)
     string data_directory;
     NodeType n_type;
     bool log_enabled;
+    bool testnet;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
 
@@ -173,8 +173,14 @@ int main(int argc, char** argv)
                                       data_directory,
                                       pv_key,
                                       n_type,
-                                      log_enabled))
+                                      log_enabled,
+                                      testnet))
         return 1;
+
+    if (testnet)
+        meshpp::config::set_public_key_prefix("TPBQ");
+    else
+        meshpp::config::set_public_key_prefix("PBQ");
 
     if (false == data_directory.empty())
         meshpp::settings::set_data_directory(data_directory);
@@ -234,7 +240,7 @@ int main(int argc, char** argv)
 
         //__debugbreak();
         
-        publiqpp::node node(genesis_signed_block(),
+        publiqpp::node node(genesis_signed_block(testnet),
                             public_address,
                             rpc_bind_to_address,
                             p2p_bind_to_address,
@@ -365,7 +371,8 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
-                          bool& log_enabled)
+                          bool& log_enabled,
+                          bool& testnet)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -395,7 +402,8 @@ bool process_command_line(int argc, char** argv,
             ("node_private_key,k", program_options::value<string>(&str_pv_key),
                             "Node private key to start with")
             ("node_type,t", program_options::value<string>(&str_n_type),
-                            "Node start mode");
+                            "Node start mode")
+            ("testnet", "Work in testnet blockchain");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -410,6 +418,7 @@ bool process_command_line(int argc, char** argv,
         {
             throw std::runtime_error("");
         }
+        testnet = options.count("testnet");
 
         p2p_bind_to_address.from_string(p2p_local_interface);
         if (false == rpc_local_interface.empty())
@@ -428,20 +437,28 @@ bool process_command_line(int argc, char** argv,
 
         if (p2p_connect_to_addresses.empty())
         {
-            beltpp::ip_address address_item;
-            address_item.from_string("north.publiq.network:14100");
-            p2p_connect_to_addresses.push_back(address_item);
-            address_item.from_string("north.publiq.network:14110");
-            p2p_connect_to_addresses.push_back(address_item);
+            if (testnet)
+            {
+                beltpp::ip_address address_item;
+                address_item.from_string("north.publiq.network:14100");
+                p2p_connect_to_addresses.push_back(address_item);
+                address_item.from_string("north.publiq.network:14110");
+                p2p_connect_to_addresses.push_back(address_item);
+            }
+            else
+            {
+                beltpp::ip_address address_item;
+                address_item.from_string("north.publiq.network:14000");
+                p2p_connect_to_addresses.push_back(address_item);
+                address_item.from_string("north.publiq.network:14010");
+                p2p_connect_to_addresses.push_back(address_item);
+            }
         }
 
         if (false == str_pv_key.empty())
             pv_key = meshpp::private_key(str_pv_key);
 
-        if (options.count("action_log"))
-            log_enabled = true;
-        else
-            log_enabled = false;
+        log_enabled = options.count("action_log");
 
         n_type = BlockchainMessage::NodeType::blockchain;
         if (false == str_n_type.empty())
@@ -478,7 +495,7 @@ bool process_command_line(int argc, char** argv,
     return true;
 }
 
-string genesis_signed_block()
+string genesis_signed_block(bool testnet)
 {
 #if 0
     Block genesis_block_mainnet;
@@ -489,40 +506,41 @@ string genesis_signed_block()
     genesis_block_mainnet.header.prev_hash = meshpp::hash("PUBLIQ. blockchain distributed media. GETTING STARTED ON PUBLIQ. 26 March, 2019. https://publiq.network/en/gettin-started-on-publiq/");
     beltpp::gm_string_to_gm_time_t("2019-04-01 00:00:00", genesis_block_mainnet.header.time_signed.tm);
 
+    string prefix = meshpp::config::public_key_prefix();
     Reward reward_publiq1;
     reward_publiq1.amount.whole = 150000000;
     reward_publiq1.reward_type = RewardType::initial;
-    reward_publiq1.to = "PBQ7cGUNdApH4e958Nbj9WfEwmcjLUsFk88tz6TJNGtNuJ6WXRiKz";
+    reward_publiq1.to = prefix + "7cGUNdApH4e958Nbj9WfEwmcjLUsFk88tz6TJNGtNuJ6WXRiKz";
 
     Reward reward_publiq2;
     reward_publiq2.amount.whole = 60000000;
     reward_publiq2.reward_type = RewardType::initial;
-    reward_publiq2.to = "PBQ7VVS2JvqardqQ3hvGV8ANfHEQNn2SxC3RHKoHkGmzx8moRjFHy";
+    reward_publiq2.to = prefix + "7VVS2JvqardqQ3hvGV8ANfHEQNn2SxC3RHKoHkGmzx8moRjFHy";
 
     Reward reward_publiq3;
     reward_publiq3.amount.whole = 40000000;
     reward_publiq3.reward_type = RewardType::initial;
-    reward_publiq3.to = "PBQ7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM";
+    reward_publiq3.to = prefix + "7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM";
 
     Reward reward_publiq_test1;
     reward_publiq_test1.amount.whole = 100;
     reward_publiq_test1.reward_type = RewardType::initial;
-    reward_publiq_test1.to = "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ";
+    reward_publiq_test1.to = prefix + "7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ";
 
     Reward reward_publiq_test2;
     reward_publiq_test2.amount.whole = 100;
     reward_publiq_test2.reward_type = RewardType::initial;
-    reward_publiq_test2.to = "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu";
+    reward_publiq_test2.to = prefix + "76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu";
 
     Reward reward_publiq_test3;
     reward_publiq_test3.amount.whole = 100;
     reward_publiq_test3.reward_type = RewardType::initial;
-    reward_publiq_test3.to = "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk";
+    reward_publiq_test3.to = prefix + "8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk";
 
     Reward reward_publiq_test4;
     reward_publiq_test4.amount.whole = 100;
     reward_publiq_test4.reward_type = RewardType::initial;
-    reward_publiq_test4.to = "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6";
+    reward_publiq_test4.to = prefix + "8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6";
 
     genesis_block_mainnet.rewards =
     {
@@ -548,7 +566,10 @@ string genesis_signed_block()
     meshpp::public_key pbk = pvk.get_public_key();
 
     SignedBlock sb;
-    sb.block_details = std::move(genesis_block_testnet);
+    if (testnet)
+        sb.block_details = std::move(genesis_block_testnet);
+    else
+        sb.block_details = std::move(genesis_block_mainnet);
 
     Authority authorization;
     authorization.address = pbk.to_string();
@@ -556,7 +577,7 @@ string genesis_signed_block()
 
     sb.authorization = authorization;
 
-    //std::cout << sb.to_string() << std::endl;
+    std::cout << sb.to_string() << std::endl;
 #endif
     std::string str_genesis_testnet = R"genesis(
                                       {
@@ -575,7 +596,7 @@ string genesis_signed_block()
                                             "rewards":[
                                                {
                                                   "rtt":12,
-                                                  "to":"PBQ7cGUNdApH4e958Nbj9WfEwmcjLUsFk88tz6TJNGtNuJ6WXRiKz",
+                                                  "to":"TPBQ7cGUNdApH4e958Nbj9WfEwmcjLUsFk88tz6TJNGtNuJ6WXRiKz",
                                                   "amount":{
                                                      "rtt":0,
                                                      "whole":150000000,
@@ -585,7 +606,7 @@ string genesis_signed_block()
                                                },
                                                {
                                                   "rtt":12,
-                                                  "to":"PBQ7VVS2JvqardqQ3hvGV8ANfHEQNn2SxC3RHKoHkGmzx8moRjFHy",
+                                                  "to":"TPBQ7VVS2JvqardqQ3hvGV8ANfHEQNn2SxC3RHKoHkGmzx8moRjFHy",
                                                   "amount":{
                                                      "rtt":0,
                                                      "whole":60000000,
@@ -595,7 +616,7 @@ string genesis_signed_block()
                                                },
                                                {
                                                   "rtt":12,
-                                                  "to":"PBQ7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM",
+                                                  "to":"TPBQ7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM",
                                                   "amount":{
                                                      "rtt":0,
                                                      "whole":40000000,
@@ -605,7 +626,7 @@ string genesis_signed_block()
                                                },
                                                {
                                                   "rtt":12,
-                                                  "to":"PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ",
+                                                  "to":"TPBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ",
                                                   "amount":{
                                                      "rtt":0,
                                                      "whole":100,
@@ -615,7 +636,7 @@ string genesis_signed_block()
                                                },
                                                {
                                                   "rtt":12,
-                                                  "to":"PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu",
+                                                  "to":"TPBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu",
                                                   "amount":{
                                                      "rtt":0,
                                                      "whole":100,
@@ -625,7 +646,7 @@ string genesis_signed_block()
                                                },
                                                {
                                                   "rtt":12,
-                                                  "to":"PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk",
+                                                  "to":"TPBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk",
                                                   "amount":{
                                                      "rtt":0,
                                                      "whole":100,
@@ -635,7 +656,7 @@ string genesis_signed_block()
                                                },
                                                {
                                                   "rtt":12,
-                                                  "to":"PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6",
+                                                  "to":"TPBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6",
                                                   "amount":{
                                                      "rtt":0,
                                                      "whole":100,
@@ -650,8 +671,8 @@ string genesis_signed_block()
                                          },
                                          "authorization":{
                                             "rtt":3,
-                                            "address":"PBQ6MUCKb9tSqSvfuKMXtVjBjsMh9AFHT8W5DAS1Rte43XfE2Xa6V",
-                                            "signature":"AN1rKpsPQAKHsagQ3EQPzXjosQdrZZC6pH7ei4FESHceMNT1evtjmv6vUJx3dzuaQmdoDwNLJ31eyySgbHCVuCQx36tgLHiXy"
+                                            "address":"TPBQ7y8zVhaQ9vyvCiKaxNatw5PDqsSzSuF4opYbT2j3vwVmzCzfDa",
+                                            "signature":"AN1rKvtnBnKbfhmPx1phkR5PLLGHEcrNBF9vBZ8WfpV6AnxL9uXg7kC5tV198hnD8JuY1x6Sy6xYNV5BncYzzc2WRREkiJmT4"
                                          }
                                       }
                                       )genesis";
@@ -707,11 +728,14 @@ string genesis_signed_block()
                                          },
                                          "authorization":{
                                             "rtt":3,
-                                            "address":"PBQ54ERjngj4eZfmvAbM12mgFQXoJ8j7wECdCmsm7chNc6Wcm814p",
-                                            "signature":"381yXYvCzQ8toJZrrRjQyE3Lsv4EwPVxrYayvU1dc7Yx946UgnEc4bRqRx3ef94XMgv7KiuGH2AqfYeQpwtxr7rA5Ts76GG3"
+                                            "address":"PBQ6sx9qUobi84gcEDxtHqbEY1HScyiBQ3HodnskwfVf1RYkU77Za",
+                                            "signature":"AN1rKp6KAXTNXpAbC5SzpWAbs2KVvoxVGjGdkED5JJgUZfh2vhALctCo4s3x9y7dCcpKgE8dEfSDRGtaRy7MfzN4PRqQYCiEb"
                                          }
                                       }
                                       )genesis";
 
-    return str_genesis_testnet;
+    if (testnet)
+        return str_genesis_testnet;
+    else
+        return str_genesis_mainnet;
 }

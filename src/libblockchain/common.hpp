@@ -103,73 +103,73 @@ beltpp::void_unique_ptr get_putl()
 inline 
 std::string peer_short_names(std::string const& peerid)
 {
-    if (peerid == "PBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
+    if (peerid == "TPBQ7JEFjtQNjyzwnThepF2jJtCe7cCpUFEaxGdUnN2W9wPP5Nh92G")
         return "$tigran(0)";
-    if (peerid == "PBQ8gyokoWdo9tSLcDQQjxdhYgmmnScUPT6YDCaVVoeSFRz1zkGpv")
+    if (peerid == "TPBQ8gyokoWdo9tSLcDQQjxdhYgmmnScUPT6YDCaVVoeSFRz1zkGpv")
         return "$tigran(1)";
-    if (peerid == "PBQ5LNw1peEL8ZRDEw6ukndHpaob8A43dsh2beYg9cwocHm5r3tPR")
+    if (peerid == "TPBQ5LNw1peEL8ZRDEw6ukndHpaob8A43dsh2beYg9cwocHm5r3tPR")
         return "$tigran(2)";
-    if (peerid == "PBQ5pFSs7NKc26b3gpeFN17oGYkn3vFEuf8sA4HhZQsF9MfRrXShC")
+    if (peerid == "TPBQ5pFSs7NKc26b3gpeFN17oGYkn3vFEuf8sA4HhZQsF9MfRrXShC")
         return "$tigran(3)";
-    if (peerid == "PBQ5Nd79pnM2X6E8NTPPwMXBrX8XigztwU3L51ALPSVBQH2L8tiZw")
+    if (peerid == "TPBQ5Nd79pnM2X6E8NTPPwMXBrX8XigztwU3L51ALPSVBQH2L8tiZw")
         return "$tigran(4)";
-    if (peerid == "PBQ4te6LkpCnsu9DyoRUZpmhMypbMwqrpofUWvRgGanY8c2vYciwz")
+    if (peerid == "TPBQ4te6LkpCnsu9DyoRUZpmhMypbMwqrpofUWvRgGanY8c2vYciwz")
         return "$tigran(5)";
-    if (peerid == "PBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu")
+    if (peerid == "TPBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu")
         return "$armen(0)";
-    if (peerid == "PBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
+    if (peerid == "TPBQ7aYzUMXfRcmho8wDwFk1oFyGopjD6ADWG7JR4DxvfJn392mpe4")
         return "$armen(1)";
-    if (peerid == "PBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
+    if (peerid == "TPBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6")
         return "$sona(0)";
-    if (peerid == "PBQ8VLQxxbfD8SNp5LWy2y8rEvLsqcLpKsWCdKqhAEgsjpyhNVqkf")
+    if (peerid == "TPBQ8VLQxxbfD8SNp5LWy2y8rEvLsqcLpKsWCdKqhAEgsjpyhNVqkf")
         return "$sona(1)";
-    if (peerid == "PBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
+    if (peerid == "TPBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk")
         return "$gagik(0)";
-    if (peerid == "PBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
+    if (peerid == "TPBQ87WZycpRYUWcVC9wB3PL5QgYiZRh3Adg8FWAjtTo2GykFj3anC")
         return "$gagik(1)";
-    if (peerid == "PBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
+    if (peerid == "TPBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ")
         return "$node(0)";
-    if (peerid == "PBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
+    if (peerid == "TPBQ4vj4CpQ11HTWg7wSFY3cg5gR4qBxgJJi2uSNJGNTmF22qt5Mbg")
         return "$state(0)";
 
     // test channels
-    if (peerid == "PBQ7MJwGCpZStXbTsukEbunryBKaBL6USPY6n2FyJA97uCiHkvasp")
+    if (peerid == "TPBQ7MJwGCpZStXbTsukEbunryBKaBL6USPY6n2FyJA97uCiHkvasp")
         return "Channel 1";
-    if (peerid == "PBQ55JmktyTGavdkoNyYKaGyQc3MoPKeF9GJm9B8DSKyR8wdasLFi")
+    if (peerid == "TPBQ55JmktyTGavdkoNyYKaGyQc3MoPKeF9GJm9B8DSKyR8wdasLFi")
         return "Channel 2";
-    if (peerid == "PBQ6QhGD13EVcNPyCoh5TDrMg4qjLEie3bY4TSHguzieGaU76uBTW")
+    if (peerid == "TPBQ6QhGD13EVcNPyCoh5TDrMg4qjLEie3bY4TSHguzieGaU76uBTW")
         return "Channel 3";
-    if (peerid == "PBQ5JS7M2FvurTN6Z4xvArrsTeGkEvozxBynn72mqGvBxFGDkc7sF")
+    if (peerid == "TPBQ5JS7M2FvurTN6Z4xvArrsTeGkEvozxBynn72mqGvBxFGDkc7sF")
         return "Channel 4";
-    if (peerid == "PBQ6fRwbcEhy6V7szQcWi3xZGjgSyfc5rG2xJZkEwGDvN911aabqB")
+    if (peerid == "TPBQ6fRwbcEhy6V7szQcWi3xZGjgSyfc5rG2xJZkEwGDvN911aabqB")
         return "Channel 5";
-    if (peerid == "PBQ81SSqnfubb49evai9mXNnMKPGbpf1NogRNKfyc4cKZiT4zUt82")
+    if (peerid == "TPBQ81SSqnfubb49evai9mXNnMKPGbpf1NogRNKfyc4cKZiT4zUt82")
         return "Channel 6";
-    if (peerid == "PBQ7LeKRHY74LZxremBwGUUYBwahmxF667e5K6QydSRhnMMWjtbpR")
+    if (peerid == "TPBQ7LeKRHY74LZxremBwGUUYBwahmxF667e5K6QydSRhnMMWjtbpR")
         return "Channel 7";
-    if (peerid == "PBQ7ed4zmD1oMkCNmtTcL2xovaEPFUCFD2CQTWeJjTsS394ZHcnLS")
+    if (peerid == "TPBQ7ed4zmD1oMkCNmtTcL2xovaEPFUCFD2CQTWeJjTsS394ZHcnLS")
         return "Channel 8";
-    if (peerid == "PBQ7e2QM4PGk4GdFHULGQ8D5pDZEZiUDAEh4giyfoCxE38DmFcuZx")
+    if (peerid == "TPBQ7e2QM4PGk4GdFHULGQ8D5pDZEZiUDAEh4giyfoCxE38DmFcuZx")
         return "Channel 9";
 
     // test storages
-    if (peerid == "PBQ8mogwgutXv1hJnuYXrQF9z6AeMU69TpVeau7qhwoshCEpSQEbt")
+    if (peerid == "TPBQ8mogwgutXv1hJnuYXrQF9z6AeMU69TpVeau7qhwoshCEpSQEbt")
         return "Storage 1";
-    if (peerid == "PBQ8NBGvuRuaMgWZaehdj5RyZ3eYPoVGqtQPxGL7cpSD4buMNHnoj")
+    if (peerid == "TPBQ8NBGvuRuaMgWZaehdj5RyZ3eYPoVGqtQPxGL7cpSD4buMNHnoj")
         return "Storage 2";
-    if (peerid == "PBQ7DZupx4cFDRDLUdfv6kBEcam3HUxJEb12tJcd9YXEUkJqnHBpo")
+    if (peerid == "TPBQ7DZupx4cFDRDLUdfv6kBEcam3HUxJEb12tJcd9YXEUkJqnHBpo")
         return "Storage 3";
-    if (peerid == "PBQ5YeuYa2Gx46JScNBLodo3rpYGGsvpXanBEa8xDMuTnBLSZ2dUF")
+    if (peerid == "TPBQ5YeuYa2Gx46JScNBLodo3rpYGGsvpXanBEa8xDMuTnBLSZ2dUF")
         return "Storage 4";
-    if (peerid == "PBQ78f9mssRrSCC7vPeRQDURXB4v4GrNt2MRa9hUpxxSMWvVuiXVw")
+    if (peerid == "TPBQ78f9mssRrSCC7vPeRQDURXB4v4GrNt2MRa9hUpxxSMWvVuiXVw")
         return "Storage 5";
-    if (peerid == "PBQ5Jq6NAcUSvToXGYGBxrFCeptBbiZLDjsiGdAPC6ghpT2Pycdq2")
+    if (peerid == "TPBQ5Jq6NAcUSvToXGYGBxrFCeptBbiZLDjsiGdAPC6ghpT2Pycdq2")
         return "Storage 6";
-    if (peerid == "PBQ4va3AgdbeCZaeLeijyAUC9XhUKceLfS65ZaKYCgTgHsxorBM64")
+    if (peerid == "TPBQ4va3AgdbeCZaeLeijyAUC9XhUKceLfS65ZaKYCgTgHsxorBM64")
         return "Storage 7";
-    if (peerid == "PBQ7ifcSMvBeBPcjDfPb9hPxJfJjNAsvHMX6UtzRKwSnuBYVLjMMy")
+    if (peerid == "TPBQ7ifcSMvBeBPcjDfPb9hPxJfJjNAsvHMX6UtzRKwSnuBYVLjMMy")
         return "Storage 8";
-    if (peerid == "PBQ5ouJXAaRiXbBwZuoXr4Qgn4MPaA6aE44nbJLrRyg6r1FJFBr7G")
+    if (peerid == "TPBQ5ouJXAaRiXbBwZuoXr4Qgn4MPaA6aE44nbJLrRyg6r1FJFBr7G")
         return "Storage 9";
 
     return peerid;
