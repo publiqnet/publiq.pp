@@ -476,7 +476,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     string check_delta_vector_error;
     uint64_t calculate_c_const = check_delta_vector(delta_vector, check_delta_vector_error);
-    assert(false == check_delta_vector_error.empty());
+    assert(check_delta_vector_error.empty());
     if (false == check_delta_vector_error.empty())
         throw std::logic_error("own blockchain is somehow wrong");
 
