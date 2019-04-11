@@ -343,10 +343,8 @@ session_action_header::session_action_header(detail::node_internals& impl,
 
 session_action_header::~session_action_header()
 {
-    if (false == current_peerid.empty() && errored)
-    {
+    if (false == current_peerid.empty())
         pimpl->all_sync_info.sync_headers.erase(current_peerid);
-    }
 
     pimpl->all_sync_info.blockchain_sync_in_progress = false;
 }
