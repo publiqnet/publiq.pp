@@ -343,9 +343,11 @@ session_action_header::session_action_header(detail::node_internals& impl,
 
 session_action_header::~session_action_header()
 {
-    if (false == current_peerid.empty() &&
-        false == errored)
+    if (false == current_peerid.empty() && errored)
+    {
+        pimpl->all_sync_info.sync_responses.erase(current_peerid);
         pimpl->all_sync_info.sync_headers.erase(current_peerid);
+    }
 
     pimpl->all_sync_info.blockchain_sync_in_progress = false;
 }
@@ -379,6 +381,7 @@ bool session_action_header::process(beltpp::packet&& package, meshpp::nodeid_ses
             BlockHeaderResponse header_response;
             std::move(package).get(header_response);
 
+            current_peerid = header.peerid;
             process_response(header, std::move(header_response));
 
             break;
@@ -432,8 +435,8 @@ void session_action_header::process_request(beltpp::isocket::peer_id const& peer
 void session_action_header::process_response(meshpp::nodeid_session_header& header,
                                              BlockchainMessage::BlockHeaderResponse&& header_response)
 {
-    bool throw_for_debugging_only = false;
-
+    bool throw_for_debugging_only = true;
+    
     //  validate received headers
     if (header_response.block_headers.empty())
         return set_errored("blockheader response. empty response received!", throw_for_debugging_only);
@@ -517,7 +520,7 @@ void session_action_header::process_response(meshpp::nodeid_session_header& head
         if (false == check_delta_vector_error.empty())
             return set_errored(check_delta_vector_error, throw_for_debugging_only);
 
-        current_peerid = header.peerid;
+//        current_peerid = header.peerid;
         pimpl->all_sync_info.sync_headers[current_peerid] = std::move(sync_headers);
         completed = true;
         expected_next_package_type = size_t(-1);
@@ -658,7 +661,7 @@ void session_action_block::process_request(beltpp::isocket::peer_id const& peeri
 void session_action_block::process_response(meshpp::nodeid_session_header& header,
                                             BlockchainMessage::BlockchainResponse&& blockchain_response)
 {
-    bool throw_for_debugging_only = false;
+    bool throw_for_debugging_only = true;
 
     //1. check received blockchain validity
 
