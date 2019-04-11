@@ -58,7 +58,7 @@
 
 using coin = publiqpp::coin;
 
-static const coin MINE_AMOUNT_THRESHOLD(1, 0);
+static const coin MINE_AMOUNT_THRESHOLD(10000, 0);
 
 static const std::vector<coin> BLOCK_REWARD_ARRAY
 {

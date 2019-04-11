@@ -523,22 +523,22 @@ string genesis_signed_block(bool testnet)
     reward_publiq3.to = prefix + "7rnCF7htZsQmChm8dMm8eL7hoJMoTEnJqQheEbHKWBBKeZAibM";
 
     Reward reward_publiq_test1;
-    reward_publiq_test1.amount.whole = 100;
+    reward_publiq_test1.amount.whole = 10000;
     reward_publiq_test1.reward_type = RewardType::initial;
     reward_publiq_test1.to = prefix + "7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ";
 
     Reward reward_publiq_test2;
-    reward_publiq_test2.amount.whole = 100;
+    reward_publiq_test2.amount.whole = 10000;
     reward_publiq_test2.reward_type = RewardType::initial;
     reward_publiq_test2.to = prefix + "76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu";
 
     Reward reward_publiq_test3;
-    reward_publiq_test3.amount.whole = 100;
+    reward_publiq_test3.amount.whole = 10000;
     reward_publiq_test3.reward_type = RewardType::initial;
     reward_publiq_test3.to = prefix + "8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk";
 
     Reward reward_publiq_test4;
-    reward_publiq_test4.amount.whole = 100;
+    reward_publiq_test4.amount.whole = 10000;
     reward_publiq_test4.reward_type = RewardType::initial;
     reward_publiq_test4.to = prefix + "8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6";
 
@@ -629,7 +629,7 @@ string genesis_signed_block(bool testnet)
                                                   "to":"TPBQ7Ta31VaxCB9VfDRvYYosKYpzxXNgVH46UkM9i4FhzNg4JEU3YJ",
                                                   "amount":{
                                                      "rtt":0,
-                                                     "whole":100,
+                                                     "whole":10000,
                                                      "fraction":0
                                                   },
                                                   "reward_type":"initial"
@@ -639,7 +639,7 @@ string genesis_signed_block(bool testnet)
                                                   "to":"TPBQ76Zv5QceNSLibecnMGEKbKo3dVFV6HRuDSuX59mJewJxHPhLwu",
                                                   "amount":{
                                                      "rtt":0,
-                                                     "whole":100,
+                                                     "whole":10000,
                                                      "fraction":0
                                                   },
                                                   "reward_type":"initial"
@@ -649,7 +649,7 @@ string genesis_signed_block(bool testnet)
                                                   "to":"TPBQ8f5Z8SKVrYFES1KLHtCYMx276a5NTgZX6baahzTqkzfnB4Pidk",
                                                   "amount":{
                                                      "rtt":0,
-                                                     "whole":100,
+                                                     "whole":10000,
                                                      "fraction":0
                                                   },
                                                   "reward_type":"initial"
@@ -659,7 +659,7 @@ string genesis_signed_block(bool testnet)
                                                   "to":"TPBQ8MiwBdYzSj38etLYLES4FSuKJnLPkXAJv4MyrLW7YJNiPbh4z6",
                                                   "amount":{
                                                      "rtt":0,
-                                                     "whole":100,
+                                                     "whole":10000,
                                                      "fraction":0
                                                   },
                                                   "reward_type":"initial"
@@ -671,8 +671,8 @@ string genesis_signed_block(bool testnet)
                                          },
                                          "authorization":{
                                             "rtt":3,
-                                            "address":"TPBQ7y8zVhaQ9vyvCiKaxNatw5PDqsSzSuF4opYbT2j3vwVmzCzfDa",
-                                            "signature":"AN1rKvtnBnKbfhmPx1phkR5PLLGHEcrNBF9vBZ8WfpV6AnxL9uXg7kC5tV198hnD8JuY1x6Sy6xYNV5BncYzzc2WRREkiJmT4"
+                                            "address":"TPBQ7ztjFZ28yCrcYffMEYQp3kMtRV1g5QmgiSkp4d7ic4FU2BdUFd",
+                                            "signature":"381yXZB2msTUmsnhZVXus7YwhWSbwbbvnBS4JpK1cnVqrjsEnqHL9FBYN9GJeECHfbfE6aGs7awn7W1jeegSMrHAEwAhoxPh"
                                          }
                                       }
                                       )genesis";
