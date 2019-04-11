@@ -134,7 +134,7 @@ void filter_penals(map<string, uint64_t> const& penals, set<string>& result)
 }
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions,
-                   vector<Reward>& rewards, 
+                   vector<Reward>& rewards,
                    string const& address,
                    uint64_t block_number,
                    publiqpp::detail::node_internals& impl)
@@ -347,7 +347,12 @@ uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector
     if (delta_vector.empty())
         throw std::logic_error("check_delta_vector(): delta_vector.empty()");
 
-    uint64_t expected_c_const = delta_vector.front().second;
+    uint64_t expected_c_const;
+    if (delta_vector.size() >= DELTA_STEP)
+        expected_c_const = delta_vector[DELTA_STEP - 1].second;
+    else
+        expected_c_const = delta_vector.back().second;
+
     size_t check_c_const_at_index = DELTA_STEP;
 
     auto set_error = [&error](size_t idx, uint64_t actual, uint64_t expected)
@@ -404,7 +409,7 @@ uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector
     return expected_c_const;
 }
 
-void revert_pool(time_t expiry_time, 
+void revert_pool(time_t expiry_time,
                  publiqpp::detail::node_internals& impl,
                  multimap<BlockchainMessage::ctime, SignedTransaction>& pool_transactions)
 {
