@@ -319,74 +319,158 @@ void process_reward(uint64_t block_index,
     }
 }
 
-string get_address(TransactionLog const& transaction_log)
+std::vector<string> get_addresses(TransactionLog const& transaction_log)
 {
-    string result;
+
+    std::vector<string> result;
+    result[1] = string();
 
     switch (transaction_log.action.type())
     {
-        case Transfer::rtt:
-        {
-            Transfer transfer;
-            transaction_log.action.get(transfer);
-            result = transfer.from;
+    case Transfer::rtt:
+    {
+        Transfer transfer;
+        transaction_log.action.get(transfer);
 
-            return result;
-        }
-        case File::rtt:
-        {
-            File file;
-            transaction_log.action.get(file);
-            result = file.author_addresses[0];
+        result[0] = transfer.from;
+        result[1] = transfer.to;
 
-            return result;
-        }
-        case ContentUnit::rtt:
-        {
-            ContentUnit content_unit;
-            transaction_log.action.get(content_unit);
-            result = content_unit.author_addresses[0];
+        return result;
+    }
+    case File::rtt:
+    {
+        File file;
+        transaction_log.action.get(file);
 
-            return result;
-        }
-        case Content::rtt:
-        {
-            Content content;
-            transaction_log.action.get(content);
-            result = content.channel_address;
+        result[0] = file.author_addresses[0];
 
-            return result;
-        }
-        case Role::rtt:
-        {
-            Role role;
-            transaction_log.action.get(role);
-            result = role.node_address;
+        return result;
+    }
+    case ContentUnit::rtt:
+    {
+        ContentUnit content_unit;
+        transaction_log.action.get(content_unit);
 
-            return result;
-        }
-        case StorageUpdate::rtt:
-        {
-            StorageUpdate storage_update;
-            transaction_log.action.get(storage_update);
-            result = storage_update.storage_address;
+        result[0] = content_unit.author_addresses[0];
 
-            return result;
-        }
-        case ServiceStatistics::rtt:
-        {
-            ServiceStatistics service_statistics;
-            transaction_log.action.get(service_statistics);
-            result = service_statistics.server_address;
+        return result;
+    }
+    case Content::rtt:
+    {
+        Content content;
+        transaction_log.action.get(content);
 
-            return result;
-        }
-        default:
-        {
-            assert(false);
-            throw std::logic_error("unknown transaction log item - " +
-                                   std::to_string(transaction_log.action.type()));
-        }
+        result[0] = content.channel_address;
+
+        return result;
+    }
+    case Role::rtt:
+    {
+        Role role;
+        transaction_log.action.get(role);
+
+        result[0] = role.node_address;
+
+        return result;
+    }
+    case StorageUpdate::rtt:
+    {
+        StorageUpdate storage_update;
+        transaction_log.action.get(storage_update);
+
+        result[0] = storage_update.storage_address;
+
+        return result;
+    }
+    case ServiceStatistics::rtt:
+    {
+        ServiceStatistics service_statistics;
+        transaction_log.action.get(service_statistics);
+
+        result[0] = service_statistics.server_address;
+
+        return result;
+    }
+    default:
+    {
+        assert(false);
+        throw std::logic_error("unknown transaction log item - " +
+                               std::to_string(transaction_log.action.type()));
+    }
+    }
+
+}
+
+std::vector<Coin> get_amount_and_fee(TransactionLog const& transaction_log)
+{
+
+    std::vector<Coin> result;
+    result[0] = transaction_log.fee;
+
+    Coin amount;
+    amount.whole = 0;
+    amount.fraction = 0;
+    result[1] = amount;
+
+    switch (transaction_log.action.type())
+    {
+    case Transfer::rtt:
+    {
+        Transfer transfer;
+        transaction_log.action.get(transfer);
+
+        result[0] = transfer.amount;
+
+        return result;
+    }
+    case File::rtt:
+    {
+        File file;
+        transaction_log.action.get(file);
+
+        return result;
+    }
+    case ContentUnit::rtt:
+    {
+        ContentUnit content_unit;
+        transaction_log.action.get(content_unit);
+
+        return result;
+    }
+    case Content::rtt:
+    {
+        Content content;
+        transaction_log.action.get(content);
+
+        return result;
+    }
+    case Role::rtt:
+    {
+        Role role;
+        transaction_log.action.get(role);
+
+        return result;
+    }
+    case StorageUpdate::rtt:
+    {
+        StorageUpdate storage_update;
+        transaction_log.action.get(storage_update);
+
+        return result;
+    }
+    case ServiceStatistics::rtt:
+    {
+        ServiceStatistics service_statistics;
+        transaction_log.action.get(service_statistics);
+
+        return result;
+    }
+    default:
+    {
+        assert(false);
+        throw std::logic_error("unknown transaction log item - " +
+                               std::to_string(transaction_log.action.type()));
+    }
     }
 
 }
@@ -396,40 +480,51 @@ void update_balances(unordered_set<string> const& set_accounts,
                     TransactionLog const& transaction_log,
                     string  const& authority)
 {
-    string address = get_address(transaction_log);
 
-    if (transaction_log.action.type() == Transfer::rtt)
+    std::vector<string> addresses = get_addresses(transaction_log);
+    string from = addresses[0];
+    string to = addresses[1];
+
+    std::vector<Coin> coins = get_amount_and_fee(transaction_log);
+    Coin fee = coins[0];
+    Coin amount = coins[1];
+
+    if (amount.whole != 0 ||
+        amount.fraction != 0)
     {
-        Transfer tf;
-        transaction_log.action.get(tf);
+        if (!from.empty())
+            update_balance(from,
+                           amount,
+                           set_accounts,
+                           rpc_server.accounts,
+                           update_balance_type::decrease);
 
-        update_balance(tf.from,
-                       tf.amount,
-                       set_accounts,
-                       rpc_server.accounts,
-                       update_balance_type::decrease);
-
-        update_balance(tf.to,
-                       tf.amount,
-                       set_accounts,
-                       rpc_server.accounts,
-                       update_balance_type::increase);
+        if (!to.empty())
+            update_balance(to,
+                           amount,
+                           set_accounts,
+                           rpc_server.accounts,
+                           update_balance_type::increase);
     }
 
-    update_balance(address,
-                   transaction_log.fee,
-                   set_accounts,
-                   rpc_server.accounts,
-                   update_balance_type::decrease);
-
-    if (!authority.empty())
+    if (fee.whole != 0 ||
+        fee.fraction != 0)
     {
-        update_balance(authority,
-                       transaction_log.fee,
-                       set_accounts,
-                       rpc_server.accounts,
-                       update_balance_type::increase);
+        if (!from.empty())
+            update_balance(from,
+                           fee,
+                           set_accounts,
+                           rpc_server.accounts,
+                           update_balance_type::decrease);
+
+        if (!authority.empty())
+            update_balance(authority,
+                           fee,
+                           set_accounts,
+                           rpc_server.accounts,
+                           update_balance_type::increase);
     }
+
 }
 
 void process_transactions(uint64_t block_index,
@@ -440,45 +535,22 @@ void process_transactions(uint64_t block_index,
                          string  const& authority,
                          LoggingType type)
 {
-    string address = get_address(transaction_log);
 
-    process_transaction(block_index,
-                        address,
-                        transaction_log,
-                        set_accounts,
-                        transactions,
-                        index_transactions,
-                        type);
+    std::vector<string> addresses = get_addresses(transaction_log);
+    string from = addresses[0];
+    string to = addresses[1];
 
-    if (transaction_log.action.type() == Transfer::rtt)
-    {
-        Transfer tf;
-        transaction_log.action.get(tf);
-
-        if (tf.to != tf.from)
+    if (!from.empty())
         process_transaction(block_index,
-                            tf.to,
+                            from,
                             transaction_log,
                             set_accounts,
                             transactions,
                             index_transactions,
                             type);
 
-        if (!authority.empty() &&
-            authority != tf.to &&
-            authority != tf.from)
-        process_transaction(block_index,
-                            authority,
-                            transaction_log,
-                            set_accounts,
-                            transactions,
-                            index_transactions,
-                            type);
-    }
     if (!authority.empty() &&
-        authority != address &&
-        transaction_log.action.type() != Transfer::rtt)
-    {
+         authority != from)
         process_transaction(block_index,
                             authority,
                             transaction_log,
@@ -486,7 +558,18 @@ void process_transactions(uint64_t block_index,
                             transactions,
                             index_transactions,
                             type);
-    }
+
+    if (!to.empty() &&
+         to != from &&
+         to != authority)
+        process_transaction(block_index,
+                            to,
+                            transaction_log,
+                            set_accounts,
+                            transactions,
+                            index_transactions,
+                            type);
+
 }
 
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
