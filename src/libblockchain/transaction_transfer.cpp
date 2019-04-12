@@ -16,6 +16,10 @@ void action_validate(SignedTransaction const& signed_transaction,
     //  this is checked in signed_transaction_validate
     assert(false == signed_transaction.authorizations.empty());
 
+    if (transfer.from == transfer.to ||
+        transfer.amount == Coin())
+        throw std::runtime_error("dummy transfer");
+
     if (signed_transaction.authorizations.size() != 1)
         throw authority_exception(signed_transaction.authorizations.back().address, string());
 
