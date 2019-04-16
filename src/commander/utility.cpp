@@ -1,8 +1,10 @@
 #include "utility.hpp"
 
-const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog const& transaction_log)
+using namespace BlockchainMessage;
+
+TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
 {
-    this->fee = transaction_log.fee;
+    fee = transaction_log.fee;
 
     switch (transaction_log.action.type())
     {
@@ -11,9 +13,9 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
         Transfer transfer;
         transaction_log.action.get(transfer);
 
-        this->from = transfer.from;
-        this->to = transfer.to;
-        this->amount = transfer.amount;
+        from = transfer.from;
+        to = transfer.to;
+        amount = transfer.amount;
 
         break;
     }
@@ -22,7 +24,7 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
         File file;
         transaction_log.action.get(file);
 
-        this->from = file.author_addresses[0];
+        from = file.author_addresses[0];
 
         break;
     }
@@ -31,7 +33,7 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
         ContentUnit content_unit;
         transaction_log.action.get(content_unit);
 
-        this->from = content_unit.author_addresses[0];
+        from = content_unit.author_addresses[0];
 
         break;
     }
@@ -40,7 +42,7 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
         Content content;
         transaction_log.action.get(content);
 
-        this->from = content.channel_address;
+        from = content.channel_address;
 
         break;
     }
@@ -49,7 +51,7 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
         Role role;
         transaction_log.action.get(role);
 
-        this->from = role.node_address;
+        from = role.node_address;
 
         break;
     }
@@ -58,7 +60,7 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
         StorageUpdate storage_update;
         transaction_log.action.get(storage_update);
 
-        this->from = storage_update.storage_address;
+        from = storage_update.storage_address;
 
         break;
     }
@@ -67,7 +69,7 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
         ServiceStatistics service_statistics;
         transaction_log.action.get(service_statistics);
 
-        this->from = service_statistics.server_address;
+        from = service_statistics.server_address;
 
         break;
     }
@@ -78,5 +80,4 @@ const TransactionInfo& TransactionInfo::get_transaction_info(TransactionLog cons
                                std::to_string(transaction_log.action.type()));
     }
     }
-    return *this;
 }

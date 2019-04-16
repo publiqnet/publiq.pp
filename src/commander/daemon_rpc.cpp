@@ -325,42 +325,39 @@ void update_balances(unordered_set<string> const& set_accounts,
                     string  const& authority,
                     LoggingType type)
 {
-    TransactionInfo* transaction_info = new TransactionInfo();
-    transaction_info->get_transaction_info(transaction_log);
+    const TransactionInfo transaction_info = TransactionInfo(transaction_log);
 
     if (LoggingType::apply == type)
     {
-        if (transaction_info->amount.whole != 0 ||
-            transaction_info->amount.fraction != 0)
+        if (Coin() != transaction_info.amount)
         {
-            if (!transaction_info->from.empty())
-                update_balance(transaction_info->from,
-                               transaction_info->amount,
+            if (!transaction_info.from.empty())
+                update_balance(transaction_info.from,
+                               transaction_info.amount,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::decrease);
 
-            if (!transaction_info->to.empty())
-                update_balance(transaction_info->to,
-                               transaction_info->amount,
+            if (!transaction_info.to.empty())
+                update_balance(transaction_info.to,
+                               transaction_info.amount,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::increase);
         }
 
-        if (transaction_info->fee.whole != 0 ||
-            transaction_info->fee.fraction != 0)
+        if (Coin() != transaction_info.fee)
         {
-            if (!transaction_info->from.empty())
-                update_balance(transaction_info->from,
-                               transaction_info->fee,
+            if (!transaction_info.from.empty())
+                update_balance(transaction_info.from,
+                               transaction_info.fee,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::decrease);
 
             if (!authority.empty())
                 update_balance(authority,
-                               transaction_info->fee,
+                               transaction_info.fee,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::increase);
@@ -368,37 +365,35 @@ void update_balances(unordered_set<string> const& set_accounts,
     }
     else // if (LoggingType::revert == type)
     {
-        if (transaction_info->amount.whole != 0 ||
-            transaction_info->amount.fraction != 0)
+        if (Coin() != transaction_info.amount)
         {
-            if (!transaction_info->from.empty())
-                update_balance(transaction_info->from,
-                               transaction_info->amount,
+            if (!transaction_info.from.empty())
+                update_balance(transaction_info.from,
+                               transaction_info.amount,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::increase);
 
-            if (!transaction_info->to.empty())
-                update_balance(transaction_info->to,
-                               transaction_info->amount,
+            if (!transaction_info.to.empty())
+                update_balance(transaction_info.to,
+                               transaction_info.amount,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::decrease);
         }
 
-        if (transaction_info->fee.whole != 0 ||
-            transaction_info->fee.fraction != 0)
+        if (Coin() != transaction_info.fee)
         {
-            if (!transaction_info->from.empty())
-                update_balance(transaction_info->from,
-                               transaction_info->fee,
+            if (!transaction_info.from.empty())
+                update_balance(transaction_info.from,
+                               transaction_info.fee,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::increase);
 
             if (!authority.empty())
                 update_balance(authority,
-                               transaction_info->fee,
+                               transaction_info.fee,
                                set_accounts,
                                rpc_server.accounts,
                                update_balance_type::decrease);
@@ -416,12 +411,11 @@ void process_transactions(uint64_t block_index,
                          LoggingType type)
 {
 
-    TransactionInfo* transaction_info = new TransactionInfo();
-    transaction_info->get_transaction_info(transaction_log);
+    const TransactionInfo transaction_info = TransactionInfo(transaction_log);
 
-    if (!transaction_info->from.empty())
+    if (!transaction_info.from.empty())
         process_transaction(block_index,
-                            transaction_info->from,
+                            transaction_info.from,
                             transaction_log,
                             set_accounts,
                             transactions,
@@ -429,7 +423,7 @@ void process_transactions(uint64_t block_index,
                             type);
 
     if (!authority.empty() &&
-         authority != transaction_info->from)
+         authority != transaction_info.from)
         process_transaction(block_index,
                             authority,
                             transaction_log,
@@ -438,11 +432,11 @@ void process_transactions(uint64_t block_index,
                             index_transactions,
                             type);
 
-    if (!transaction_info->to.empty() &&
-         transaction_info->to != transaction_info->from &&
-         transaction_info->to != authority)
+    if (!transaction_info.to.empty() &&
+         transaction_info.to != transaction_info.from &&
+         transaction_info.to != authority)
         process_transaction(block_index,
-                            transaction_info->to,
+                            transaction_info.to,
                             transaction_log,
                             set_accounts,
                             transactions,
