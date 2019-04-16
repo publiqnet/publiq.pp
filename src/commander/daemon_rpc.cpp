@@ -1,12 +1,12 @@
 #include "daemon_rpc.hpp"
 #include "rpc.hpp"
+#include "utility.hpp"
 
 #include <belt.pp/socket.hpp>
 #include <belt.pp/scope_helper.hpp>
 
 #include <mesh.pp/settings.hpp>
 #include <mesh.pp/cryptoutility.hpp>
-
 #include <publiq.pp/coin.hpp>
 
 #include <unordered_set>
@@ -319,210 +319,90 @@ void process_reward(uint64_t block_index,
     }
 }
 
-std::vector<string> get_addresses(TransactionLog const& transaction_log)
-{
-
-    std::vector<string> result;
-    result[1] = string();
-
-    switch (transaction_log.action.type())
-    {
-    case Transfer::rtt:
-    {
-        Transfer transfer;
-        transaction_log.action.get(transfer);
-
-        result[0] = transfer.from;
-        result[1] = transfer.to;
-
-        return result;
-    }
-    case File::rtt:
-    {
-        File file;
-        transaction_log.action.get(file);
-
-        result[0] = file.author_addresses[0];
-
-        return result;
-    }
-    case ContentUnit::rtt:
-    {
-        ContentUnit content_unit;
-        transaction_log.action.get(content_unit);
-
-        result[0] = content_unit.author_addresses[0];
-
-        return result;
-    }
-    case Content::rtt:
-    {
-        Content content;
-        transaction_log.action.get(content);
-
-        result[0] = content.channel_address;
-
-        return result;
-    }
-    case Role::rtt:
-    {
-        Role role;
-        transaction_log.action.get(role);
-
-        result[0] = role.node_address;
-
-        return result;
-    }
-    case StorageUpdate::rtt:
-    {
-        StorageUpdate storage_update;
-        transaction_log.action.get(storage_update);
-
-        result[0] = storage_update.storage_address;
-
-        return result;
-    }
-    case ServiceStatistics::rtt:
-    {
-        ServiceStatistics service_statistics;
-        transaction_log.action.get(service_statistics);
-
-        result[0] = service_statistics.server_address;
-
-        return result;
-    }
-    default:
-    {
-        assert(false);
-        throw std::logic_error("unknown transaction log item - " +
-                               std::to_string(transaction_log.action.type()));
-    }
-    }
-
-}
-
-std::vector<Coin> get_amount_and_fee(TransactionLog const& transaction_log)
-{
-
-    std::vector<Coin> result;
-    result[0] = transaction_log.fee;
-
-    Coin amount;
-    amount.whole = 0;
-    amount.fraction = 0;
-    result[1] = amount;
-
-    switch (transaction_log.action.type())
-    {
-    case Transfer::rtt:
-    {
-        Transfer transfer;
-        transaction_log.action.get(transfer);
-
-        result[0] = transfer.amount;
-
-        return result;
-    }
-    case File::rtt:
-    {
-        File file;
-        transaction_log.action.get(file);
-
-        return result;
-    }
-    case ContentUnit::rtt:
-    {
-        ContentUnit content_unit;
-        transaction_log.action.get(content_unit);
-
-        return result;
-    }
-    case Content::rtt:
-    {
-        Content content;
-        transaction_log.action.get(content);
-
-        return result;
-    }
-    case Role::rtt:
-    {
-        Role role;
-        transaction_log.action.get(role);
-
-        return result;
-    }
-    case StorageUpdate::rtt:
-    {
-        StorageUpdate storage_update;
-        transaction_log.action.get(storage_update);
-
-        return result;
-    }
-    case ServiceStatistics::rtt:
-    {
-        ServiceStatistics service_statistics;
-        transaction_log.action.get(service_statistics);
-
-        return result;
-    }
-    default:
-    {
-        assert(false);
-        throw std::logic_error("unknown transaction log item - " +
-                               std::to_string(transaction_log.action.type()));
-    }
-    }
-
-}
-
 void update_balances(unordered_set<string> const& set_accounts,
                     rpc& rpc_server,
                     TransactionLog const& transaction_log,
-                    string  const& authority)
+                    string  const& authority,
+                    LoggingType type)
 {
+    TransactionInfo* transaction_info = new TransactionInfo();
+    transaction_info->get_transaction_info(transaction_log);
 
-    std::vector<string> addresses = get_addresses(transaction_log);
-    string from = addresses[0];
-    string to = addresses[1];
-
-    std::vector<Coin> coins = get_amount_and_fee(transaction_log);
-    Coin fee = coins[0];
-    Coin amount = coins[1];
-
-    if (amount.whole != 0 ||
-        amount.fraction != 0)
+    if (LoggingType::apply == type)
     {
-        if (!from.empty())
-            update_balance(from,
-                           amount,
-                           set_accounts,
-                           rpc_server.accounts,
-                           update_balance_type::decrease);
+        if (transaction_info->amount.whole != 0 ||
+            transaction_info->amount.fraction != 0)
+        {
+            if (!transaction_info->from.empty())
+                update_balance(transaction_info->from,
+                               transaction_info->amount,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::decrease);
 
-        if (!to.empty())
-            update_balance(to,
-                           amount,
-                           set_accounts,
-                           rpc_server.accounts,
-                           update_balance_type::increase);
+            if (!transaction_info->to.empty())
+                update_balance(transaction_info->to,
+                               transaction_info->amount,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::increase);
+        }
+
+        if (transaction_info->fee.whole != 0 ||
+            transaction_info->fee.fraction != 0)
+        {
+            if (!transaction_info->from.empty())
+                update_balance(transaction_info->from,
+                               transaction_info->fee,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::decrease);
+
+            if (!authority.empty())
+                update_balance(authority,
+                               transaction_info->fee,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::increase);
+        }
     }
-
-    if (fee.whole != 0 ||
-        fee.fraction != 0)
+    else // if (LoggingType::revert == type)
     {
-        if (!from.empty())
-            update_balance(from,
-                           fee,
-                           set_accounts,
-                           rpc_server.accounts,
-                           update_balance_type::decrease);
+        if (transaction_info->amount.whole != 0 ||
+            transaction_info->amount.fraction != 0)
+        {
+            if (!transaction_info->from.empty())
+                update_balance(transaction_info->from,
+                               transaction_info->amount,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::increase);
 
-        if (!authority.empty())
-            update_balance(authority,
-                           fee,
-                           set_accounts,
-                           rpc_server.accounts,
-                           update_balance_type::increase);
+            if (!transaction_info->to.empty())
+                update_balance(transaction_info->to,
+                               transaction_info->amount,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::decrease);
+        }
+
+        if (transaction_info->fee.whole != 0 ||
+            transaction_info->fee.fraction != 0)
+        {
+            if (!transaction_info->from.empty())
+                update_balance(transaction_info->from,
+                               transaction_info->fee,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::increase);
+
+            if (!authority.empty())
+                update_balance(authority,
+                               transaction_info->fee,
+                               set_accounts,
+                               rpc_server.accounts,
+                               update_balance_type::decrease);
+        }
     }
 
 }
@@ -536,13 +416,12 @@ void process_transactions(uint64_t block_index,
                          LoggingType type)
 {
 
-    std::vector<string> addresses = get_addresses(transaction_log);
-    string from = addresses[0];
-    string to = addresses[1];
+    TransactionInfo* transaction_info = new TransactionInfo();
+    transaction_info->get_transaction_info(transaction_log);
 
-    if (!from.empty())
+    if (!transaction_info->from.empty())
         process_transaction(block_index,
-                            from,
+                            transaction_info->from,
                             transaction_log,
                             set_accounts,
                             transactions,
@@ -550,7 +429,7 @@ void process_transactions(uint64_t block_index,
                             type);
 
     if (!authority.empty() &&
-         authority != from)
+         authority != transaction_info->from)
         process_transaction(block_index,
                             authority,
                             transaction_log,
@@ -559,17 +438,16 @@ void process_transactions(uint64_t block_index,
                             index_transactions,
                             type);
 
-    if (!to.empty() &&
-         to != from &&
-         to != authority)
+    if (!transaction_info->to.empty() &&
+         transaction_info->to != transaction_info->from &&
+         transaction_info->to != authority)
         process_transaction(block_index,
-                            to,
+                            transaction_info->to,
                             transaction_log,
                             set_accounts,
                             transactions,
                             index_transactions,
                             type);
-
 }
 
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
@@ -824,7 +702,8 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         update_balances(set_accounts,
                                                        rpc_server,
                                                        transaction_log,
-                                                       block_log.authority);
+                                                       block_log.authority,
+                                                       LoggingType::apply);
 
                                         process_transactions(block_index,
                                                             transaction_log,
@@ -865,7 +744,8 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     update_balances(set_accounts,
                                                    rpc_server,
                                                    transaction_log,
-                                                   string());
+                                                   string(),
+                                                   LoggingType::apply);
 
                                     process_transactions(block_index,
                                                         transaction_log,
@@ -894,7 +774,8 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         update_balances(set_accounts,
                                                        rpc_server,
                                                        transaction_log,
-                                                       block_log.authority);
+                                                       block_log.authority,
+                                                       LoggingType::revert);
 
                                         process_transactions(block_index,
                                                             transaction_log,
@@ -940,7 +821,8 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     update_balances(set_accounts,
                                                    rpc_server,
                                                    transaction_log,
-                                                   string());
+                                                   string(),
+                                                   LoggingType::revert);
 
                                     process_transactions(block_index,
                                                         transaction_log,

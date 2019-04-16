@@ -16,7 +16,9 @@ add_executable(commander
     rpc.cpp
     rpc.hpp
     daemon_rpc.cpp
-    daemon_rpc.hpp)
+    daemon_rpc.hpp
+    utility.cpp
+    utility.hpp)
 
 # libraries this module links to
 target_link_libraries(commander PRIVATE
