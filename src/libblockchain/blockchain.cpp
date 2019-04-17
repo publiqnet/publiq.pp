@@ -81,6 +81,11 @@ BlockHeader const& blockchain::last_header() const
     return m_pimpl->m_last_header;
 }
 
+BlockHeaderExtended blockchain::last_header_ex() const
+{
+    return header_ex_at(m_pimpl->m_blockchain.size() - 1);
+}
+
 void blockchain::insert(SignedBlock const& signed_block)
 {
     Block const& block = signed_block.block_details;

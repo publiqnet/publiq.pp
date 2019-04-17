@@ -43,6 +43,8 @@
 // acceptable between nodes
 #define NODES_TIME_SHIFT 60
 
+#define PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS 600
+
 // Consensus delta definitions
 #define DELTA_STEP  3ull
 #define DELTA_MAX   7000000000ull

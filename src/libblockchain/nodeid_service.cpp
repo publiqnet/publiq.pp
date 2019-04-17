@@ -340,7 +340,7 @@ BlockchainMessage::PublicAddressesInfo nodeid_service::get_addresses() const
          ++it)
     {
         BlockchainMessage::PublicAddressInfo address_info;
-        beltpp::assign(address_info.ip_destination, it->header.address.local);
+        beltpp::assign(address_info.ip_address, it->header.address);
         address_info.node_address = it->header.node_address;
 
         if (it->verified == nodeid_address_unit::verified_type::current)

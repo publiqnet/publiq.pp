@@ -36,7 +36,8 @@ using std::unique_ptr;
 
 namespace publiqpp
 {
-
+//  free functions
+void sync_worker(detail::node_internals& impl);
 /*
  * node
  */
@@ -817,130 +818,7 @@ bool node::run()
     {
         m_pimpl->m_check_timer.update();
 
-        for (auto const& peerid : m_pimpl->m_p2p_peers)
-        {
-            vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-            actions.emplace_back(new session_action_p2pconnections(*m_pimpl->m_ptr_p2p_socket.get(),
-                                                                   *m_pimpl.get()));
-            actions.emplace_back(new session_action_sync_request(*m_pimpl.get()));
-
-            meshpp::nodeid_session_header header;
-            header.nodeid = peerid;
-            header.address = m_pimpl->m_ptr_p2p_socket->info_connection(peerid);
-            m_pimpl->m_sync_sessions.add(header,
-                                         std::move(actions),
-                                         chrono::seconds(SYNC_TIMER));
-        }
-
-        //  work through process of block header sync or mining
-        //  if there is no active sync
-        if (false == m_pimpl->all_sync_info.blockchain_sync_in_progress)
-        {
-            // process collected SyncResponse data
-            BlockHeader const& head_block_header = m_pimpl->m_blockchain.last_header();
-
-            uint64_t scan_block_number = head_block_header.block_number;
-            uint64_t scan_consensus_sum = head_block_header.c_sum;
-            beltpp::isocket::peer_id scan_peer;
-
-            //  the duration passed according to my system time since the head block
-            //  was signed
-            chrono::system_clock::duration since_head_block =
-                    system_clock::now() -
-                    system_clock::from_time_t(head_block_header.time_signed.tm);
-
-            for (auto& it : m_pimpl->all_sync_info.sync_responses)
-            {
-                if (m_pimpl->m_p2p_peers.find(it.first) == m_pimpl->m_p2p_peers.end())
-                    continue; // for the case if peer is droped before sync started
-
-                if (scan_consensus_sum < it.second.own_header.c_sum &&
-                    scan_block_number <= it.second.own_header.block_number)
-                {
-                    scan_block_number = it.second.own_header.block_number;
-                    scan_consensus_sum = it.second.own_header.c_sum;
-                    scan_peer = it.first;
-                }
-            }
-
-            bool mine_now = false;
-            bool sync_now = false;
-
-            auto net_sum = m_pimpl->all_sync_info.net_sync_info().c_sum;
-            auto own_sum = m_pimpl->all_sync_info.own_sync_info().c_sum;
-
-            if (head_block_header.block_number + 1 < scan_block_number)
-            {
-                // network is far behind and I have to sync first
-                sync_now = true;
-            }
-            else if (head_block_header.c_sum < scan_consensus_sum && 
-                     head_block_header.block_number == scan_block_number)
-            {
-                //  there is a better consensus sum than what I have and I must get it first
-                sync_now = true;
-            }
-            else if (own_sum < scan_consensus_sum &&
-                     net_sum < scan_consensus_sum)
-            {
-                //  direct peer has ready excellent chain to offer
-                sync_now = true;
-            }
-            else if (own_sum < scan_consensus_sum &&
-                     net_sum == scan_consensus_sum)
-            {
-                //  direct peer finally got the excellent chain that was promised before
-                sync_now = true;
-            }
-            else if (own_sum < scan_consensus_sum/* &&
-                     net_sum > scan_consensus_sum*/)
-            {
-                //  the promised excellent block did not arrive yet
-                //  and the network has ready better block than I can mine
-                if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) < since_head_block)
-                {
-                    //  and it is too late already, can't wait anymore
-                    sync_now = true;
-                }
-                //  otherwise will just wait
-            }
-            else// if (own_sum >= scan_consensus_sum)
-            {
-                //  I can mine better block and don't need received data
-                //  I can wait until it is
-                //  either past BLOCK_MINE_DELAY and I can mine better than scan_consensus_sum
-                //  or it is past BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY and I can mine better than net_sum
-                if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) <= since_head_block ||
-                    (chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block && own_sum >= net_sum))
-                {
-                    mine_now = true;
-                    assert(false == sync_now);
-                }
-            }
-
-            assert(false == sync_now || false == mine_now);
-
-            if (sync_now)
-            {
-                assert(false == scan_peer.empty());
-                vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-                actions.emplace_back(new session_action_header(*m_pimpl.get(),
-                                                               scan_block_number,
-                                                               scan_consensus_sum));
-                actions.emplace_back(new session_action_block(*m_pimpl.get()));
-
-                meshpp::nodeid_session_header header;
-                header.nodeid = scan_peer;
-                header.address = m_pimpl->m_ptr_p2p_socket->info_connection(scan_peer);
-                m_pimpl->m_sync_sessions.add(header,
-                                             std::move(actions),
-                                             chrono::seconds(SYNC_TIMER));
-            }
-            else if (m_pimpl->is_miner() && mine_now)
-            {
-                mine_block(m_pimpl);
-            }
-        }
+        sync_worker(*m_pimpl.get());
     }
 
     return code;
@@ -949,6 +827,315 @@ bool node::run()
 void node::set_slave_node(storage_node& slave_node)
 {
     m_pimpl->m_slave_node = &slave_node;
+}
+
+//  free functions
+void block_worker(detail::node_internals& impl)
+{
+    if (impl.all_sync_info.blockchain_sync_in_progress)
+        return;
+
+    double const free_revert_threshhold = 0.05;
+    uint64_t additional_delay_threshhold = 60;
+
+    auto const blockchain_length = impl.m_blockchain.length();
+    auto const last_header = impl.m_blockchain.last_header();
+
+    chrono::system_clock::duration last_block_age =
+            chrono::system_clock::now() -
+            chrono::system_clock::from_time_t(last_header.time_signed.tm);
+
+    double last_block_age_seconds = chrono::duration_cast<chrono::seconds>(last_block_age).count();
+
+    double revert_fraction = std::max(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
+
+    auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
+    auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
+
+    for (auto it = impl.all_sync_info.headers_actions_data.begin();
+         it != impl.all_sync_info.headers_actions_data.end();
+         ++it)
+    {
+        if (it->second.headers.empty())
+            continue;
+
+        auto scan_peer = it->first;
+        auto start_number = it->second.headers.back().block_number;
+
+        if (start_number > blockchain_length)
+            continue;   //  in case we had earlier reverted to a shorter chain
+                        //  but an even older headers response is laying around
+
+        double revert_coefficient = 0;
+        size_t revert_count = blockchain_length - start_number;
+        if (1 <= revert_count)
+            revert_coefficient = revert_count - 1 + revert_fraction;
+
+        it->second.reverts_required = revert_coefficient;
+
+        if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert ||
+            it_scan_least_revert->second.reverts_required > revert_coefficient)
+            it_scan_least_revert = it;
+
+        if (free_revert_threshhold < revert_coefficient)
+        {
+            unordered_map<string, string> map_nodeid_ip_address;
+            for (auto const& peerid : impl.m_p2p_peers)
+                map_nodeid_ip_address[peerid] = impl.m_ptr_p2p_socket->info_connection(peerid).remote.address;
+
+            PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
+
+            for (auto const& item : public_addresses.addresses_info)
+            {
+                if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                    break;
+                if (impl.m_p2p_peers.count(item.node_address))
+                    continue;
+
+                map_nodeid_ip_address[item.node_address] = item.ip_address.local.address;
+            }
+
+            publiqpp::coin approve, reject;
+            unordered_map<string, publiqpp::coin> votes;
+
+            for (auto const& item : impl.all_sync_info.sync_responses)
+            {
+                auto it_ip_address = map_nodeid_ip_address.find(item.first);
+                if (it_ip_address == map_nodeid_ip_address.end())
+                    continue;
+                string str_ip_address = it_ip_address->second;
+                publiqpp::coin& replacing = votes[str_ip_address];
+                publiqpp::coin voting = impl.m_state.get_balance(item.first, state_layer::pool);
+                if (voting < replacing)
+                    continue;
+
+                if (item.second.own_header == it->second.headers.front())
+                {
+                    approve -= replacing;
+                    approve += voting;
+                }
+                else
+                {
+                    reject -= replacing;
+                    reject += voting;
+                }
+
+                replacing = voting;
+            }
+
+            if (approve > reject &&
+                (
+                    impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
+                    it_scan_most_approved_revert->second.reverts_required < revert_coefficient
+                )
+               )
+                it_scan_most_approved_revert = it;
+        }
+    }
+
+
+    auto it_chosen = impl.all_sync_info.headers_actions_data.end();
+    if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
+        it_chosen = it_scan_most_approved_revert;
+    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert &&
+             it_scan_least_revert->second.reverts_required <= free_revert_threshhold)
+        it_chosen = it_scan_least_revert;
+
+    if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
+    {
+        bool safe_time_to_revert =
+                BLOCK_WAIT_DELAY + additional_delay_threshhold >=
+                it_chosen->second.reverts_required * BLOCK_MINE_DELAY;
+        //  that is if revert coefficient is less than or equal to 0.4
+
+        if (safe_time_to_revert)
+        {
+            vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+            actions.emplace_back(new session_action_block(impl));
+
+            meshpp::nodeid_session_header header;
+            header.nodeid = it_chosen->first;
+            header.address = impl.m_ptr_p2p_socket->info_connection(it_chosen->first);
+            impl.m_sync_sessions.add(header,
+                                     std::move(actions),
+                                     chrono::seconds(SYNC_TIMER));
+        }
+    }
+}
+
+double header_worker(detail::node_internals& impl)
+{
+    block_worker(impl);
+
+    // process collected SyncResponse data
+    BlockHeaderExtended head_block_header = impl.m_blockchain.last_header_ex();
+
+    BlockHeaderExtended scan_block_header = head_block_header;
+    beltpp::isocket::peer_id scan_peer;
+
+    bool empty = true;
+
+    double revert_coefficient = 0;
+
+    for (auto const& item : impl.all_sync_info.sync_responses)
+    {
+        if (0 == impl.m_p2p_peers.count(item.first))
+            continue; // for the case if peer is dropped before sync started, or this is a public contact (using rpc)
+
+        auto it = impl.all_sync_info.headers_actions_data.find(item.first);
+        if (it != impl.all_sync_info.headers_actions_data.end() &&
+            it->second.reverts_required > 0)
+        {
+            revert_coefficient = it->second.reverts_required;
+            continue; // don't consider this peer during header action is active
+        }
+
+        if (scan_block_header.c_sum < item.second.own_header.c_sum &&
+            scan_block_header.block_number <= item.second.own_header.block_number)
+        {
+            empty = false;
+
+            scan_block_header = item.second.own_header;
+            scan_peer = item.first;
+        }
+    }
+
+    //  work through process of block header sync or mining
+    //  if there is no active sync
+    if (false == empty &&
+        false == impl.all_sync_info.blockchain_sync_in_progress)
+    {
+        BlockHeaderExtended head_block_header = impl.m_blockchain.last_header_ex();
+
+        //  the duration passed according to my system time since the head block
+        //  was signed
+        chrono::system_clock::duration since_head_block =
+                system_clock::now() -
+                system_clock::from_time_t(head_block_header.time_signed.tm);
+
+        bool mine_now = false;
+        bool sync_now = false;
+
+        auto net_sum = impl.all_sync_info.net_sync_info().c_sum;
+        auto own_sum = impl.all_sync_info.own_sync_info().c_sum;
+
+        if (head_block_header.block_number + 1 < scan_block_header.block_number)
+        {
+            // network is far behind and I have to sync first
+            sync_now = true;
+        }
+        else if (head_block_header.c_sum < scan_block_header.c_sum &&
+                 head_block_header.block_number == scan_block_header.block_number)
+        {
+            //  there is a better consensus sum than what I have and I must get it first
+            sync_now = true;
+        }
+        else if (own_sum < scan_block_header.c_sum &&
+                 net_sum < scan_block_header.c_sum)
+        {
+            //  direct peer has ready excellent chain to offer
+            sync_now = true;
+        }
+        else if (own_sum < scan_block_header.c_sum &&
+                 net_sum == scan_block_header.c_sum)
+        {
+            //  direct peer finally got the excellent chain that was promised before
+            sync_now = true;
+        }
+        else if (own_sum < scan_block_header.c_sum/* &&
+                 net_sum > scan_block_header.c_sum*/)
+        {
+            //  the promised excellent block did not arrive yet
+            //  and the network has ready better block than I can mine
+            if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) < since_head_block)
+            {
+                //  and it is too late already, can't wait anymore
+                sync_now = true;
+            }
+            //  otherwise will just wait
+        }
+        else// if (own_sum >= scan_block_header.c_sum)
+        {
+            //  I can mine better block and don't need received data
+            //  I can wait until it is
+            //  either past BLOCK_MINE_DELAY and I can mine better than scan_consensus_sum
+            //  or it is past BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY and I can mine better than net_sum
+            if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) <= since_head_block ||
+                (chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block && own_sum >= net_sum))
+            {
+                mine_now = true;
+                assert(false == sync_now);
+            }
+        }
+
+        assert(false == sync_now || false == mine_now);
+
+        if (sync_now)
+        {
+            assert(false == scan_peer.empty());
+            vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+            actions.emplace_back(new session_action_header(impl,
+                                                           scan_block_header));
+
+            meshpp::nodeid_session_header header;
+            header.nodeid = scan_peer;
+            header.address = impl.m_ptr_p2p_socket->info_connection(scan_peer);
+            impl.m_sync_sessions.add(header,
+                                     std::move(actions),
+                                     chrono::seconds(SYNC_TIMER));
+        }
+        else if (impl.is_miner() && mine_now)
+        {
+            mine_block(impl);
+        }
+    }
+
+    return revert_coefficient;
+}
+
+void sync_worker(detail::node_internals& impl)
+{
+    double revert_coefficient = header_worker(impl);
+
+    for (auto const& peerid : impl.m_p2p_peers)
+    {
+        vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+        actions.emplace_back(new session_action_p2pconnections(*impl.m_ptr_p2p_socket.get()));
+        actions.emplace_back(new session_action_sync_request(impl));
+
+        meshpp::nodeid_session_header header;
+        header.nodeid = peerid;
+        header.address = impl.m_ptr_p2p_socket->info_connection(peerid);
+        impl.m_sync_sessions.add(header,
+                                 std::move(actions),
+                                 chrono::seconds(SYNC_TIMER));
+    }
+
+    if (0 < revert_coefficient)
+    {
+        PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
+
+        for (auto const& item : public_addresses.addresses_info)
+        {
+            if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                break;
+            if (impl.m_p2p_peers.count(item.node_address))
+                continue;
+
+            vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+            actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
+            actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
+                                                               impl.m_nodeid_service));
+            actions.emplace_back(new session_action_sync_request(impl));
+
+            meshpp::nodeid_session_header header;
+            header.nodeid = item.node_address;
+            beltpp::assign(header.address, item.ip_address);
+            impl.m_nodeid_sessions.add(header,
+                                       std::move(actions),
+                                       chrono::minutes(SYNC_TIMER));
+        }
+    }
 }
 
 }
