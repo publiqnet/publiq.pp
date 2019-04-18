@@ -22,22 +22,15 @@ namespace commander
 namespace http
 {
 
-bool check_arguments(unordered_map<string, string>& arguments,
+string check_arguments(unordered_map<string, string>& arguments,
                      std::set<string>const& all_arguments,
                      std::set<string>const& ui64_arguments)
 {
 
-    if (!arguments.empty())
-    {
-        if (!all_arguments.empty())
-        {
-            for (auto const& it : arguments)
-            {
-                if (it.second.empty() ||
-                    all_arguments.find(it.first) == all_arguments.end())
-                        return false;
-            }
-        }
+        for (auto const& it : arguments)
+            if (it.second.empty() ||
+                all_arguments.find(it.first) == all_arguments.end())
+                    return it.first;
 
         if (!ui64_arguments.empty())
         {
@@ -46,15 +39,17 @@ bool check_arguments(unordered_map<string, string>& arguments,
             {
                 if (arguments.find(it) != arguments.end())
                 {
+                    if (arguments[it].empty())
+                        return arguments[it] + "is empty";
+
                     beltpp::stoui64(arguments[it], pos);
-                    if (arguments[it].size() != pos )
-                        return false;
+                    if (arguments[it].size() != pos)
+                        return arguments[it];
                 }
             }
          }
-    }
 
-    return true;
+    return string();
 }
 
 inline
@@ -223,12 +218,13 @@ beltpp::detail::pmsg_all message_list_load(
             const std::set<string> all_arguments = {"to", "whole", "fraction", "fee_whole", "fee_fraction", "message", "seconds"};
             const std::set<string> ui64_arguments = {"whole", "fraction", "fee_whole", "fee_fraction", "seconds"};
 
-            if (!check_arguments(pss->resource.arguments, all_arguments, ui64_arguments))
+            string check_result = check_arguments(pss->resource.arguments, all_arguments, ui64_arguments);
+            if (!check_result.empty())
             {
                 auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Failed>();
                 ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
                 CommanderMessage::Failed & ref = *reinterpret_cast<CommanderMessage::Failed*>(p.get());
-                ref.message = "invalid argument";
+                ref.message = "invalid argument: " + check_result;
                 return ::beltpp::detail::pmsg_all(CommanderMessage::Failed::rtt,
                                                   std::move(p),
                                                   &CommanderMessage::Failed::pvoid_saver);
