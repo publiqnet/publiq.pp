@@ -363,7 +363,7 @@ void update_balances(unordered_set<string> const& set_accounts,
                                update_balance_type::increase);
         }
     }
-    else // if (LoggingType::revert == type)
+    else //if (LoggingType::revert == type)
     {
         if (Coin() != transaction_info.amount)
         {

@@ -10,6 +10,7 @@
 #include <vector>
 #include <utility>
 #include <unordered_map>
+#include <set>
 
 using std::string;
 using std::vector;
@@ -20,6 +21,41 @@ namespace commander
 {
 namespace http
 {
+
+bool check_arguments(unordered_map<string, string>& arguments,
+                     std::set<string>const& all_arguments,
+                     std::set<string>const& ui64_arguments)
+{
+
+    if (!arguments.empty())
+    {
+        if (!all_arguments.empty())
+        {
+            for (auto const& it : arguments)
+            {
+                if (it.second.empty() ||
+                    all_arguments.find(it.first) == all_arguments.end())
+                        return false;
+            }
+        }
+
+        if (!ui64_arguments.empty())
+        {
+            size_t pos;
+            for (auto const& it : ui64_arguments)
+            {
+                if (arguments.find(it) != arguments.end())
+                {
+                    beltpp::stoui64(arguments[it], pos);
+                    if (arguments[it].size() != pos )
+                        return false;
+                }
+            }
+         }
+    }
+
+    return true;
+}
 
 inline
 string response(beltpp::detail::session_special_data& ssd,
@@ -184,6 +220,20 @@ beltpp::detail::pmsg_all message_list_load(
                  pss->resource.path.size() == 2 &&
                  pss->resource.path.front() == "send")
         {
+            const std::set<string> all_arguments = {"to", "whole", "fraction", "fee_whole", "fee_fraction", "message", "seconds"};
+            const std::set<string> ui64_arguments = {"whole", "fraction", "fee_whole", "fee_fraction", "seconds"};
+
+            if (!check_arguments(pss->resource.arguments, all_arguments, ui64_arguments))
+            {
+                auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Failed>();
+                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+                CommanderMessage::Failed & ref = *reinterpret_cast<CommanderMessage::Failed*>(p.get());
+                ref.message = "invalid argument";
+                return ::beltpp::detail::pmsg_all(CommanderMessage::Failed::rtt,
+                                                  std::move(p),
+                                                  &CommanderMessage::Failed::pvoid_saver);
+            }
+
             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Send>();
             CommanderMessage::Send& ref = *reinterpret_cast<CommanderMessage::Send*>(p.get());
 
