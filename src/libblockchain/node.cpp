@@ -845,7 +845,7 @@ void block_worker(detail::node_internals& impl)
             chrono::system_clock::now() -
             chrono::system_clock::from_time_t(last_header.time_signed.tm);
 
-    double last_block_age_seconds = chrono::duration_cast<chrono::seconds>(last_block_age).count();
+    double last_block_age_seconds = (double)chrono::duration_cast<chrono::seconds>(last_block_age).count();
 
     double revert_fraction = std::max(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
 
@@ -1005,7 +1005,7 @@ double header_worker(detail::node_internals& impl)
     if (false == empty &&
         false == impl.all_sync_info.blockchain_sync_in_progress)
     {
-        BlockHeaderExtended head_block_header = impl.m_blockchain.last_header_ex();
+        head_block_header = impl.m_blockchain.last_header_ex();
 
         //  the duration passed according to my system time since the head block
         //  was signed
