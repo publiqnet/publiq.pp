@@ -842,7 +842,7 @@ void block_worker(detail::node_internals& impl)
             chrono::system_clock::now() -
             chrono::system_clock::from_time_t(last_header.time_signed.tm);
 
-    double last_block_age_seconds = (double)chrono::duration_cast<chrono::seconds>(last_block_age).count();
+    double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
 
     double revert_fraction = std::max(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
 
@@ -899,7 +899,8 @@ void block_worker(detail::node_internals& impl)
             }
 
             coin approve, reject;
-            unordered_map<string, coin> votes;
+            enum class vote_type {approve, reject};
+            unordered_map<string, pair<coin, vote_type>> votes;
 
             size_t poll_participants = 0;
 
@@ -909,23 +910,30 @@ void block_worker(detail::node_internals& impl)
                 if (it_ip_address == map_nodeid_ip_address.end())
                     continue;
                 string str_ip_address = it_ip_address->second;
-                coin& replacing = votes[str_ip_address];
-                coin voting = impl.m_state.get_balance(item.first, state_layer::pool) + coin(1,0);
-                if (voting <= replacing)
+                auto& replacing = votes[str_ip_address];
+                auto voting = std::make_pair(
+                                  impl.m_state.get_balance(item.first, state_layer::pool) + coin(1,0),
+                                  vote_type::approve);
+                if (voting.first <= replacing.first)
                     continue;
 
-                if (replacing == publiqpp::coin())
+                if (replacing.first == publiqpp::coin())
                     ++poll_participants;
+
+                if (replacing.second == vote_type::approve)
+                    approve -= replacing.first;
+                else
+                    reject -= replacing.first;
 
                 if (item.second.own_header == it->second.headers.front())
                 {
-                    approve -= replacing;
-                    approve += voting;
+                    voting.second = vote_type::approve;
+                    approve += voting.first;
                 }
                 else
                 {
-                    reject -= replacing;
-                    reject += voting;
+                    voting.second = vote_type::reject;
+                    reject += voting.first;
                 }
 
                 replacing = voting;
