@@ -730,7 +730,7 @@ bool node::run()
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
 
-    if (m_pimpl->m_slave_node && wait_result & beltpp::event_handler::on_demand)
+    if (m_pimpl->m_slave_node && (wait_result & beltpp::event_handler::on_demand))
     {
         beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
 
@@ -864,6 +864,11 @@ void block_worker(detail::node_internals& impl)
             continue;   //  in case we had earlier reverted to a shorter chain
                         //  but an even older headers response is laying around
 
+        if (start_number > 0 &&
+            impl.m_blockchain.header_ex_at(start_number - 1).block_hash !=
+            it->second.headers.back().prev_hash)
+            continue;
+
         double revert_coefficient = 0;
         size_t revert_count = blockchain_length - start_number;
         if (1 <= revert_count)
@@ -972,8 +977,6 @@ double header_worker(detail::node_internals& impl)
     beltpp::isocket::peer_id scan_peer;
 
     double revert_coefficient = 0;
-    bool empty = false == impl.all_sync_info.headers_actions_data.empty();
-                // if no headers data block mining must have a chance
 
     for (auto const& item : impl.all_sync_info.sync_responses)
     {
@@ -990,8 +993,6 @@ double header_worker(detail::node_internals& impl)
         if (scan_block_header.c_sum < item.second.own_header.c_sum &&
             scan_block_header.block_number <= item.second.own_header.block_number)
         {
-            empty = false;
-
             scan_block_header = item.second.own_header;
             scan_peer = item.first;
         }
@@ -999,8 +1000,7 @@ double header_worker(detail::node_internals& impl)
 
     //  work through process of block header sync or mining
     //  if there is no active sync
-    if (false == empty &&
-        false == impl.all_sync_info.blockchain_sync_in_progress)
+    if (false == impl.all_sync_info.blockchain_sync_in_progress)
     {
         head_block_header = impl.m_blockchain.last_header_ex();
 
@@ -1071,6 +1071,8 @@ double header_worker(detail::node_internals& impl)
         {
             assert(false == scan_peer.empty());
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+            actions.emplace_back(new session_action_p2pconnections(*impl.m_ptr_p2p_socket.get()));
+            actions.emplace_back(new session_action_sync_request(impl));
             actions.emplace_back(new session_action_header(impl,
                                                            scan_block_header));
 
@@ -1115,7 +1117,7 @@ void sync_worker(detail::node_internals& impl)
         for (auto const& item : public_addresses.addresses_info)
         {
             if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
-                continue;
+                break;
             if (impl.m_p2p_peers.count(item.node_address))
                 continue;
 
