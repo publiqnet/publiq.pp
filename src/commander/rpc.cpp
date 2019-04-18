@@ -549,10 +549,7 @@ void rpc::run()
             }
             case Failed::rtt:
             {
-                Failed msg;
-                std::move(ref_packet).get(msg);
-
-                rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+                rpc_socket.send(peerid, std::move(ref_packet));
 
                 break;
             }
