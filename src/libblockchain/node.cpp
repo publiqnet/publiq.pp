@@ -833,7 +833,6 @@ void block_worker(detail::node_internals& impl)
     if (impl.all_sync_info.blockchain_sync_in_progress)
         return;
 
-    double const free_revert_threshhold = 0.05;
     uint64_t additional_delay_threshhold = 60;
 
     auto const blockchain_length = impl.m_blockchain.length();
@@ -876,11 +875,12 @@ void block_worker(detail::node_internals& impl)
 
         it->second.reverts_required = revert_coefficient;
 
-        if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert ||
-            it_scan_least_revert->second.reverts_required > revert_coefficient)
-            it_scan_least_revert = it;
+        bool unsafe_time_to_revert = BLOCK_WAIT_DELAY + additional_delay_threshhold <
+                                     revert_coefficient * BLOCK_MINE_DELAY;
+        //  that is if revert_coefficient > 0.4
+        //  or in other words need to revert block that is older than 4 minutes
 
-        if (free_revert_threshhold < revert_coefficient)
+        if (unsafe_time_to_revert)
         {
             unordered_map<string, string> map_nodeid_ip_address;
             for (auto const& peerid : impl.m_p2p_peers)
@@ -901,6 +901,8 @@ void block_worker(detail::node_internals& impl)
             publiqpp::coin approve, reject;
             unordered_map<string, publiqpp::coin> votes;
 
+            size_t poll_participants = 0;
+
             for (auto const& item : impl.all_sync_info.sync_responses)
             {
                 auto it_ip_address = map_nodeid_ip_address.find(item.first);
@@ -909,8 +911,11 @@ void block_worker(detail::node_internals& impl)
                 string str_ip_address = it_ip_address->second;
                 publiqpp::coin& replacing = votes[str_ip_address];
                 publiqpp::coin voting = impl.m_state.get_balance(item.first, state_layer::pool);
-                if (voting < replacing)
+                if (voting <= replacing)
                     continue;
+
+                if (replacing != publiqpp::coin())
+                    ++poll_participants;
 
                 if (item.second.own_header == it->second.headers.front())
                 {
@@ -927,6 +932,7 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > reject &&
+                poll_participants > 2 &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required < revert_coefficient
@@ -934,15 +940,16 @@ void block_worker(detail::node_internals& impl)
                )
                 it_scan_most_approved_revert = it;
         }
+        else if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert ||
+                 it_scan_least_revert->second.reverts_required > revert_coefficient)
+            it_scan_least_revert = it;
     }
 
 
     auto it_chosen = impl.all_sync_info.headers_actions_data.end();
     if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
         it_chosen = it_scan_most_approved_revert;
-    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert &&
-             it_scan_least_revert->second.reverts_required <= free_revert_threshhold &&
-             BLOCK_WAIT_DELAY + additional_delay_threshhold >= it_chosen->second.reverts_required * BLOCK_MINE_DELAY)
+    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert)
         it_chosen = it_scan_least_revert;
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
