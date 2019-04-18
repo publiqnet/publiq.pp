@@ -730,14 +730,12 @@ bool node::run()
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
 
-    if (m_pimpl->m_slave_node &&
-        wait_result & beltpp::event_handler::on_demand)
+    if (m_pimpl->m_slave_node && wait_result & beltpp::event_handler::on_demand)
     {
         beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
+
         for (auto& ref_packet : received_packets)
-        {
             m_pimpl->m_sessions.process("slave", std::move(ref_packet));
-        }
     }
 
     m_pimpl->m_sync_sessions.erase_all_pending();
@@ -973,9 +971,9 @@ double header_worker(detail::node_internals& impl)
     BlockHeaderExtended scan_block_header = head_block_header;
     beltpp::isocket::peer_id scan_peer;
 
-    bool empty = true;
-
     double revert_coefficient = 0;
+    bool empty = false == impl.all_sync_info.headers_actions_data.empty();
+                // if no headers data block mining must have a chance
 
     for (auto const& item : impl.all_sync_info.sync_responses)
     {
@@ -983,8 +981,7 @@ double header_worker(detail::node_internals& impl)
             continue; // for the case if peer is dropped before sync started, or this is a public contact (using rpc)
 
         auto it = impl.all_sync_info.headers_actions_data.find(item.first);
-        if (it != impl.all_sync_info.headers_actions_data.end() &&
-            it->second.reverts_required > 0)
+        if (it != impl.all_sync_info.headers_actions_data.end() && it->second.reverts_required > 0)
         {
             revert_coefficient = it->second.reverts_required;
             continue; // don't consider this peer during header action is active
@@ -1118,7 +1115,7 @@ void sync_worker(detail::node_internals& impl)
         for (auto const& item : public_addresses.addresses_info)
         {
             if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
-                break;
+                continue;
             if (impl.m_p2p_peers.count(item.node_address))
                 continue;
 
