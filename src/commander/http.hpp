@@ -40,11 +40,11 @@ string check_arguments(unordered_map<string, string>& arguments,
                 if (arguments.find(it) != arguments.end())
                 {
                     if (arguments[it].empty())
-                        return arguments[it] + "is empty";
+                        return arguments[it] + " is empty";
 
                     beltpp::stoui64(arguments[it], pos);
                     if (arguments[it].size() != pos)
-                        return arguments[it];
+                        return it + " " + arguments[it];
                 }
             }
          }
