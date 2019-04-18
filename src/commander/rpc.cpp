@@ -547,6 +547,15 @@ void rpc::run()
 
                 break;
             }
+            case Failed::rtt:
+            {
+                Failed msg;
+                std::move(ref_packet).get(msg);
+
+                rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+
+                break;
+            }
             }
         }
         catch (meshpp::exception_private_key const& ex)
