@@ -898,8 +898,8 @@ void block_worker(detail::node_internals& impl)
                 map_nodeid_ip_address[item.node_address] = item.ip_address.local.address;
             }
 
-            publiqpp::coin approve, reject;
-            unordered_map<string, publiqpp::coin> votes;
+            coin approve, reject;
+            unordered_map<string, coin> votes;
 
             size_t poll_participants = 0;
 
@@ -909,12 +909,12 @@ void block_worker(detail::node_internals& impl)
                 if (it_ip_address == map_nodeid_ip_address.end())
                     continue;
                 string str_ip_address = it_ip_address->second;
-                publiqpp::coin& replacing = votes[str_ip_address];
-                publiqpp::coin voting = impl.m_state.get_balance(item.first, state_layer::pool);
+                coin& replacing = votes[str_ip_address];
+                coin voting = impl.m_state.get_balance(item.first, state_layer::pool) + coin(1,0);
                 if (voting <= replacing)
                     continue;
 
-                if (replacing != publiqpp::coin())
+                if (replacing == publiqpp::coin())
                     ++poll_participants;
 
                 if (item.second.own_header == it->second.headers.front())
