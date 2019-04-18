@@ -941,28 +941,21 @@ void block_worker(detail::node_internals& impl)
     if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
         it_chosen = it_scan_most_approved_revert;
     else if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert &&
-             it_scan_least_revert->second.reverts_required <= free_revert_threshhold)
+             it_scan_least_revert->second.reverts_required <= free_revert_threshhold &&
+             BLOCK_WAIT_DELAY + additional_delay_threshhold >= it_chosen->second.reverts_required * BLOCK_MINE_DELAY)
         it_chosen = it_scan_least_revert;
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
     {
-        bool safe_time_to_revert =
-                BLOCK_WAIT_DELAY + additional_delay_threshhold >=
-                it_chosen->second.reverts_required * BLOCK_MINE_DELAY;
-        //  that is if revert coefficient is less than or equal to 0.4
+        vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+        actions.emplace_back(new session_action_block(impl));
 
-        if (safe_time_to_revert)
-        {
-            vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-            actions.emplace_back(new session_action_block(impl));
-
-            meshpp::nodeid_session_header header;
-            header.nodeid = it_chosen->first;
-            header.address = impl.m_ptr_p2p_socket->info_connection(it_chosen->first);
-            impl.m_sync_sessions.add(header,
-                                     std::move(actions),
-                                     chrono::seconds(SYNC_TIMER));
-        }
+        meshpp::nodeid_session_header header;
+        header.nodeid = it_chosen->first;
+        header.address = impl.m_ptr_p2p_socket->info_connection(it_chosen->first);
+        impl.m_sync_sessions.add(header,
+                                 std::move(actions),
+                                 chrono::seconds(SYNC_TIMER));
     }
 }
 
