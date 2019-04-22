@@ -22,13 +22,13 @@ namespace commander
 namespace http
 {
 string check_arguments(unordered_map<string, string>& arguments,
-                       std::set<string>const& all_arguments,
-                       std::set<string>const& ui64_arguments)
+                       std::set<string> const& all_arguments,
+                       std::set<string> const& ui64_arguments)
 {
     for (auto const& it : arguments)
         if (it.second.empty() ||
             all_arguments.find(it.first) == all_arguments.end())
-                return it.first;
+                return "invalid argument: " + it.first;
 
     size_t pos;
     for (auto const& it : ui64_arguments)
@@ -36,7 +36,7 @@ string check_arguments(unordered_map<string, string>& arguments,
         {
             beltpp::stoui64(arguments[it], pos);
             if (arguments[it].size() != pos)
-                return it + " " + arguments[it];
+                return "invalid argument: " + it + " " + arguments[it];
         }
 
     return string();
@@ -48,7 +48,7 @@ beltpp::detail::pmsg_all request_failed(string const& message,
     auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Failed>();
     ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
     CommanderMessage::Failed & ref = *reinterpret_cast<CommanderMessage::Failed*>(p.get());
-    ref.message = "invalid argument: " + message;
+    ref.message = message;
     return ::beltpp::detail::pmsg_all(CommanderMessage::Failed::rtt,
                                       std::move(p),
                                       &CommanderMessage::Failed::pvoid_saver);
@@ -166,11 +166,15 @@ beltpp::detail::pmsg_all message_list_load(
             ref.address = pss->resource.path.back();
 
             std::vector<string> args {pss->resource.path[1], pss->resource.path[2]};
+            if (pss->resource.path[1].empty() ||
+                pss->resource.path[2].empty())
+                return request_failed("invalid argument: ", ssd);
+
             for (auto const& it : args)
             {
                 beltpp::stoui64(it, pos);
                 if (it.size() != pos)
-                    return request_failed(it, ssd);
+                    return request_failed("invalid argument: " + it, ssd);
             }
 
             ref.start_block_index = beltpp::stoui64(pss->resource.path[1], pos);
@@ -213,12 +217,15 @@ beltpp::detail::pmsg_all message_list_load(
             CommanderMessage::BlockInfoRequest& ref = *reinterpret_cast<CommanderMessage::BlockInfoRequest*>(p.get());
 
             size_t pos;
-            std::vector<string> args {pss->resource.path[1]};
+            std::vector<string> args {pss->resource.path.back()};
+            if (pss->resource.path.back().empty())
+                return request_failed("invalid argument: ", ssd);
+
             for (auto const& it : args)
             {
                 beltpp::stoui64(it, pos);
                 if (it.size() != pos)
-                    return request_failed(it, ssd);
+                    return request_failed("invalid argument: " + it, ssd);
             }
 
             ref.block_number = beltpp::stoui64(pss->resource.path.back(), pos);
