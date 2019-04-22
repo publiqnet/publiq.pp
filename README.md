@@ -59,4 +59,5 @@ also pay attention to all the console logging.
 everything's is in an active development stage.
 
 ### more details?
-refer to mesh.pp and belt.pp readme files
+refer to the [wiki](https://github.com/publiqnet/publiq.pp/wiki "wiki") page.
+don't forget to check out mesh.pp and belt.pp readme files
