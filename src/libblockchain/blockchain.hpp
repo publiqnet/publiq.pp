@@ -32,6 +32,7 @@ public:
     uint64_t length() const;
     std::string last_hash() const;
     BlockchainMessage::BlockHeader const& last_header() const;
+    BlockchainMessage::BlockHeaderExtended last_header_ex() const;
 
     void insert(BlockchainMessage::SignedBlock const& signed_block);
     BlockchainMessage::SignedBlock const& at(uint64_t number) const;
