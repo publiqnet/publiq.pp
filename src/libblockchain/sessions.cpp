@@ -99,11 +99,9 @@ bool session_action_connections::permanent() const
 
 // --------------------------- session_action_p2pconnections ---------------------------
 
-session_action_p2pconnections::session_action_p2pconnections(meshpp::p2psocket& sk,
-                                                             detail::node_internals& impl)
+session_action_p2pconnections::session_action_p2pconnections(meshpp::p2psocket& sk)
     : meshpp::session_action<meshpp::nodeid_session_header>()
     , psk(&sk)
-    , pimpl(&impl)
 {}
 
 session_action_p2pconnections::~session_action_p2pconnections()
@@ -328,38 +326,56 @@ bool session_action_sync_request::permanent() const
 // --------------------------- session_action_header ---------------------------
 
 session_action_header::session_action_header(detail::node_internals& impl,
-                                             uint64_t _promised_block_number,
-                                             uint64_t _promised_consensus_sum)
+                                             BlockchainMessage::BlockHeaderExtended const& _promised_header)
     : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
-    , block_index_from(_promised_block_number)
+    , block_index_from(_promised_header.block_number)
     , block_index_to(pimpl->m_blockchain.last_header().block_number)
-    , promised_block_number(_promised_block_number)
-    , promised_consensus_sum(_promised_consensus_sum)
-{
-    assert(false == pimpl->all_sync_info.blockchain_sync_in_progress);
-    pimpl->all_sync_info.blockchain_sync_in_progress = true;
-}
+    , promised_header(_promised_header)
+{}
 
 session_action_header::~session_action_header()
 {
     if (false == current_peerid.empty())
-        pimpl->all_sync_info.sync_headers.erase(current_peerid);
-
-    pimpl->all_sync_info.blockchain_sync_in_progress = false;
+        pimpl->all_sync_info.headers_actions_data.erase(current_peerid);
 }
 
 void session_action_header::initiate(meshpp::nodeid_session_header& header)
 {
+    _initiate(header, true);
+}
+
+void session_action_header::_initiate(meshpp::nodeid_session_header& header, bool first)
+{
     assert(false == header.peerid.empty());
     //  this assert means that the current session must have session_action_p2pconnections
 
-    BlockHeaderRequest header_request;
-    header_request.blocks_from = block_index_from;
-    header_request.blocks_to = block_index_to;
+    bool reserved = false;
+    if (first)
+    {
+        auto insert_result = pimpl->all_sync_info.headers_actions_data.insert(
+                                 std::make_pair(header.peerid,
+                                                headers_action_data()));
+        if (insert_result.second)
+            reserved = true;
+    }
 
-    pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(header_request));
-    expected_next_package_type = BlockchainMessage::BlockHeaderResponse::rtt;
+    if (false == first || reserved)
+    {
+        current_peerid = header.peerid;
+
+        BlockHeaderRequest header_request;
+        header_request.blocks_from = block_index_from;
+        header_request.blocks_to = block_index_to;
+
+        pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(header_request));
+        expected_next_package_type = BlockchainMessage::BlockHeaderResponse::rtt;
+    }
+    else
+    {
+        completed = true;
+        expected_next_package_type = size_t(-1);
+    }
 }
 
 bool session_action_header::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
@@ -442,8 +458,7 @@ void session_action_header::process_response(meshpp::nodeid_session_header& head
                         header_response.block_headers.end());
 
     //  sync_headers.front() has the highest index
-    if (sync_headers.front().c_sum != promised_consensus_sum ||
-        sync_headers.front().block_number != promised_block_number ||
+    if (sync_headers.front() != promised_header ||
         sync_headers.front().block_number != sync_headers.back().block_number + sync_headers.size() - 1 ||
         sync_headers.front().block_number < sync_headers.back().block_number)
         return set_errored("blockheader response. wrong data received!", throw_for_debugging_only);
@@ -516,8 +531,7 @@ void session_action_header::process_response(meshpp::nodeid_session_header& head
         if (false == check_delta_vector_error.empty())
             return set_errored(check_delta_vector_error, throw_for_debugging_only);
 
-        current_peerid = header.peerid;
-        pimpl->all_sync_info.sync_headers[current_peerid] = std::move(sync_headers);
+        pimpl->all_sync_info.headers_actions_data[current_peerid].headers = std::move(sync_headers);
         completed = true;
         expected_next_package_type = size_t(-1);
         return;
@@ -528,7 +542,7 @@ void session_action_header::process_response(meshpp::nodeid_session_header& head
         block_index_to = block_index_from > HEADER_TR_LENGTH ? block_index_from - HEADER_TR_LENGTH : 0;
 
         // request more headers
-        initiate(header);
+        _initiate(header, false);
     }
 }
 
@@ -555,17 +569,22 @@ bool session_action_header::check_headers_vector(std::vector<BlockchainMessage::
 session_action_block::session_action_block(detail::node_internals& impl)
     : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
-{}
+{
+    assert(false == pimpl->all_sync_info.blockchain_sync_in_progress);
+    pimpl->all_sync_info.blockchain_sync_in_progress = true;
+}
 
 session_action_block::~session_action_block()
-{}
+{
+    pimpl->all_sync_info.blockchain_sync_in_progress = false;
+}
 
 void session_action_block::initiate(meshpp::nodeid_session_header& header)
 {
     assert(false == header.peerid.empty());
     //  this assert means that the current session must have session_action_p2pconnections
 
-    sync_headers = std::move(pimpl->all_sync_info.sync_headers[header.peerid]);
+    sync_headers = std::move(pimpl->all_sync_info.headers_actions_data[header.peerid].headers);
     BlockchainRequest blockchain_request;
     blockchain_request.blocks_from = sync_headers.back().block_number;
     blockchain_request.blocks_to = sync_headers.front().block_number;

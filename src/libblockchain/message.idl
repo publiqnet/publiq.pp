@@ -351,7 +351,7 @@ module BlockchainMessage
     }
     class PublicAddressInfo
     {
-        IPDestination ip_destination
+        IPAddress ip_address
         String node_address
         UInt64 seconds_since_checked
     }

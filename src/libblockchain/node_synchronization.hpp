@@ -19,6 +19,13 @@ class node_internals;
 
 namespace publiqpp
 {
+class headers_action_data
+{
+public:
+    double reverts_required = 0;
+    std::vector<BlockchainMessage::BlockHeaderExtended> headers;
+};
+
 class node_synchronization
 {
 public:
@@ -26,7 +33,7 @@ public:
     detail::node_internals* pimpl;
     bool blockchain_sync_in_progress;
     std::unordered_map<beltpp::isocket::peer_id, BlockchainMessage::SyncResponse> sync_responses;
-    std::unordered_map<beltpp::isocket::peer_id, std::vector<BlockchainMessage::BlockHeaderExtended>> sync_headers;
+    std::unordered_map<beltpp::isocket::peer_id, headers_action_data> headers_actions_data;
     BlockchainMessage::BlockHeaderExtended net_sync_info() const;
     BlockchainMessage::BlockHeaderExtended own_sync_info() const;
 };

@@ -4,7 +4,7 @@
 
 namespace publiqpp
 {
-void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+void mine_block(publiqpp::detail::node_internals& impl);
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 

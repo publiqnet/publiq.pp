@@ -34,8 +34,7 @@ public:
 class session_action_p2pconnections : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
-    session_action_p2pconnections(meshpp::p2psocket& sk,
-                                  detail::node_internals& impl);
+    session_action_p2pconnections(meshpp::p2psocket& sk);
     ~session_action_p2pconnections() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -43,7 +42,6 @@ public:
     bool permanent() const override;
 
     meshpp::p2psocket* psk;
-    detail::node_internals* pimpl;
 };
 
 class session_action_signatures : public meshpp::session_action<meshpp::nodeid_session_header>
@@ -98,8 +96,7 @@ class session_action_header: public meshpp::session_action<meshpp::nodeid_sessio
 {
 public:
     session_action_header(detail::node_internals& impl,
-                          uint64_t promised_block_number,
-                          uint64_t promised_consensus_sum);
+                          BlockchainMessage::BlockHeaderExtended const& promised_header);
     ~session_action_header() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -122,10 +119,12 @@ public:
     detail::node_internals* pimpl;
     uint64_t block_index_from;
     uint64_t block_index_to;
-    uint64_t const promised_block_number;
-    uint64_t const promised_consensus_sum;
+    BlockchainMessage::BlockHeaderExtended const promised_header;
     std::string current_peerid;
     std::vector<BlockchainMessage::BlockHeaderExtended> sync_headers;
+
+protected:
+    void _initiate(meshpp::nodeid_session_header& header, bool first);
 };
 
 class session_action_block : public meshpp::session_action<meshpp::nodeid_session_header>

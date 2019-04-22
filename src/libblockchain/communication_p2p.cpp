@@ -448,23 +448,23 @@ void revert_pool(time_t expiry_time,
     assert(impl.m_transaction_pool.length() == 0);
 }
 
-void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+void mine_block(publiqpp::detail::node_internals& impl)
 {
     auto now = system_clock::now();
 
-    m_pimpl->m_transaction_cache.backup();
-    beltpp::on_failure guard([&m_pimpl]
+    impl.m_transaction_cache.backup();
+    beltpp::on_failure guard([&impl]
     {
-        m_pimpl->discard();
-        m_pimpl->m_transaction_cache.restore();
+        impl.discard();
+        impl.m_transaction_cache.restore();
     });
 
     multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    revert_pool(system_clock::to_time_t(now), *m_pimpl.get(), pool_transactions);
+    revert_pool(system_clock::to_time_t(now), impl, pool_transactions);
 
-    uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
+    uint64_t block_number = impl.m_blockchain.length() - 1;
 
     //  calculate consensus_const
     vector<pair<uint64_t, uint64_t>> delta_vector;
@@ -473,7 +473,7 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
         index = block_number + 1 - DELTA_STEP;
     for (; index <= block_number; ++index)
     {
-        BlockHeader const& tmp_header = m_pimpl->m_blockchain.header_at(index);
+        BlockHeader const& tmp_header = impl.m_blockchain.header_at(index);
         delta_vector.push_back(std::make_pair(tmp_header.delta, tmp_header.c_const));
     }
 
@@ -485,15 +485,15 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     if (false == check_delta_vector_error.empty())
         throw std::logic_error("own blockchain is somehow wrong");
 
-    SignedBlock const& prev_signed_block = m_pimpl->m_blockchain.at(block_number);
-    BlockHeader const& prev_header = m_pimpl->m_blockchain.last_header();
-    string own_key = m_pimpl->m_pb_key.to_string();
+    SignedBlock const& prev_signed_block = impl.m_blockchain.at(block_number);
+    BlockHeader const& prev_header = impl.m_blockchain.last_header();
+    string own_key = impl.m_pb_key.to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
 
-    uint64_t delta = m_pimpl->calc_delta(own_key,
-                                         m_pimpl->get_balance().whole,
-                                         prev_hash,
-                                         prev_header.c_const);
+    uint64_t delta = impl.calc_delta(own_key,
+                                     impl.get_balance().whole,
+                                     prev_hash,
+                                     prev_header.c_const);
 
     // fill new block header data
     BlockHeader block_header;
@@ -513,13 +513,13 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     while (it != pool_transactions.end() && transactions_count < size_t(BLOCK_MAX_TRANSACTIONS))
     {
         auto& signed_transaction = it->second;
-        auto code = action_authorization_process(*m_pimpl.get(), signed_transaction);
+        auto code = action_authorization_process(impl, signed_transaction);
 
         if (code.complete &&
             signed_transaction.transaction_details.creation < block_header.time_signed &&
-            apply_transaction(signed_transaction, *m_pimpl.get(), own_key))
+            apply_transaction(signed_transaction, impl, own_key))
         {
-            m_pimpl->m_transaction_cache.add_chain(signed_transaction);
+            impl.m_transaction_cache.add_chain(signed_transaction);
             block.signed_transactions.push_back(std::move(signed_transaction));
 
             ++transactions_count;
@@ -535,9 +535,9 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
     }
 
     // grant rewards and move to block
-    grant_rewards(block.signed_transactions, block.rewards, own_key, block.header.block_number, *m_pimpl.get());
+    grant_rewards(block.signed_transactions, block.rewards, own_key, block.header.block_number, impl);
 
-    meshpp::signature sgn = m_pimpl->m_pv_key.sign(block.to_string());
+    meshpp::signature sgn = impl.m_pv_key.sign(block.to_string());
 
     SignedBlock signed_block;
     signed_block.authorization.address = sgn.pb_key.to_string();
@@ -546,38 +546,38 @@ void mine_block(unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 
     // apply rewards to state and action_log
     for (auto& reward : block.rewards)
-        m_pimpl->m_state.increase_balance(reward.to, reward.amount, state_layer::chain);
+        impl.m_state.increase_balance(reward.to, reward.amount, state_layer::chain);
 
     // insert to blockchain and action_log
-    m_pimpl->m_blockchain.insert(signed_block);
-    m_pimpl->m_action_log.log_block(signed_block);
+    impl.m_blockchain.insert(signed_block);
+    impl.m_action_log.log_block(signed_block);
 
     // apply back rest of the pool content to the state and action_log
     for (auto& item : pool_transactions)
     {
         auto& signed_transaction = item.second;
-        auto code = action_authorization_process(*m_pimpl.get(), signed_transaction);
+        auto code = action_authorization_process(impl, signed_transaction);
         bool complete = code.complete;
 
         bool ok_logic = true;
         if (complete ||
-            false == action_can_apply(*m_pimpl.get(), signed_transaction.transaction_details.action))
+            false == action_can_apply(impl, signed_transaction.transaction_details.action))
         {
-            ok_logic = apply_transaction(signed_transaction, *m_pimpl.get());
+            ok_logic = apply_transaction(signed_transaction, impl);
             if (ok_logic)
-                m_pimpl->m_action_log.log_transaction(signed_transaction);
+                impl.m_action_log.log_transaction(signed_transaction);
         }
 
         if (ok_logic)
         {
-            m_pimpl->m_transaction_pool.push_back(signed_transaction);
-            m_pimpl->m_transaction_cache.add_pool(signed_transaction, complete);
+            impl.m_transaction_pool.push_back(signed_transaction);
+            impl.m_transaction_cache.add_pool(signed_transaction, complete);
         }
     }
 
-    m_pimpl->save(guard);
+    impl.save(guard);
 
-    m_pimpl->writeln_node("new block mined : " + std::to_string(block_header.block_number));
+    impl.writeln_node("new block mined : " + std::to_string(block_header.block_number));
 }
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
