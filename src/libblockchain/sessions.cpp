@@ -262,9 +262,11 @@ bool session_action_broadcast_address_info::permanent() const
 
 // --------------------------- session_action_sync_request ---------------------------
 
-session_action_sync_request::session_action_sync_request(detail::node_internals& impl)
+session_action_sync_request::session_action_sync_request(detail::node_internals& impl,
+                                                         beltpp::isocket& sk)
     : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
+    , psk(&sk)
 {}
 
 session_action_sync_request::~session_action_sync_request()
@@ -275,7 +277,7 @@ session_action_sync_request::~session_action_sync_request()
 
 void session_action_sync_request::initiate(meshpp::nodeid_session_header& header)
 {
-    pimpl->m_ptr_p2p_socket->send(header.peerid, beltpp::packet(BlockchainMessage::SyncRequest()));
+    psk->send(header.peerid, beltpp::packet(BlockchainMessage::SyncRequest()));
     expected_next_package_type = BlockchainMessage::SyncResponse::rtt;
 }
 

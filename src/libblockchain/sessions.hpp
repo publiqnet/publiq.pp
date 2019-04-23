@@ -81,7 +81,8 @@ public:
 class session_action_sync_request : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
-    session_action_sync_request(detail::node_internals& impl);
+    session_action_sync_request(detail::node_internals& impl,
+                                beltpp::isocket& sk);
     ~session_action_sync_request() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -89,6 +90,7 @@ public:
     bool permanent() const override;
 
     detail::node_internals* pimpl;
+    beltpp::isocket* psk;
     std::string current_peerid;
 };
 

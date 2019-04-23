@@ -1080,7 +1080,8 @@ double header_worker(detail::node_internals& impl)
             assert(false == scan_peer.empty());
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
             actions.emplace_back(new session_action_p2pconnections(*impl.m_ptr_p2p_socket.get()));
-            actions.emplace_back(new session_action_sync_request(impl));
+            actions.emplace_back(new session_action_sync_request(impl,
+                                                                 *impl.m_ptr_p2p_socket.get()));
             actions.emplace_back(new session_action_header(impl,
                                                            scan_block_header));
 
@@ -1108,7 +1109,8 @@ void sync_worker(detail::node_internals& impl)
     {
         vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
         actions.emplace_back(new session_action_p2pconnections(*impl.m_ptr_p2p_socket.get()));
-        actions.emplace_back(new session_action_sync_request(impl));
+        actions.emplace_back(new session_action_sync_request(impl,
+                                                             *impl.m_ptr_p2p_socket.get()));
 
         meshpp::nodeid_session_header header;
         header.nodeid = peerid;
@@ -1133,7 +1135,8 @@ void sync_worker(detail::node_internals& impl)
             actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
             actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
                                                                impl.m_nodeid_service));
-            actions.emplace_back(new session_action_sync_request(impl));
+            actions.emplace_back(new session_action_sync_request(impl,
+                                                                 *impl.m_ptr_rpc_socket.get()));
 
             meshpp::nodeid_session_header header;
             header.nodeid = item.node_address;
