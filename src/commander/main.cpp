@@ -61,7 +61,9 @@ int main(int argc, char** argv)
     string application_name = "commander";
     if (prefix.empty() == false)
         application_name += "_" + prefix;
-    application_name += "_" + connect_to_address.to_string();
+    string add_to_dir = connect_to_address.to_string();
+    replace(add_to_dir.begin(), add_to_dir.end(), ':', '_');
+    application_name += "_" + add_to_dir;
 
     meshpp::settings::set_application_name(application_name);
     meshpp::settings::set_data_directory(meshpp::config_directory_path().string());
