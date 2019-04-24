@@ -55,6 +55,16 @@ int main(int argc, char** argv)
                                       connect_to_address,
                                       rpc_address))
         return 1;
+
+#ifdef B_OS_WINDOWS
+    signal(SIGINT, termination_handler);
+#else
+    struct sigaction signal_handler;
+    signal_handler.sa_handler = termination_handler;
+    ::sigaction(SIGINT, &signal_handler, nullptr);
+    ::sigaction(SIGTERM, &signal_handler, nullptr);
+#endif
+
     //
     meshpp::config::set_public_key_prefix(prefix);
     //
@@ -102,6 +112,7 @@ int main(int argc, char** argv)
         catch(...)
         {
             cout << "always throw std::exceptions" << endl;
+            termination_handler(0);
             break;
         }
         }
