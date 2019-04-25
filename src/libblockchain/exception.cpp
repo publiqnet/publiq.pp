@@ -120,8 +120,23 @@ too_long_string_exception& too_long_string_exception::operator=(too_long_string_
 too_long_string_exception::~too_long_string_exception() noexcept
 {}
 
+string uri_exception_prefix(uri_exception::Type uri_problem_type)
+{
+    switch (uri_problem_type)
+    {
+    case uri_exception::duplicate:
+        return "duplicate uri ";
+    case uri_exception::invalid:
+        return "invalid uri ";
+    case uri_exception::missing:
+        return "missing uri ";
+    }
+    //  msvc thinks this is an execution path that needs to be covered
+    assert(false);
+    throw std::logic_error("why do I have to use 'default:' even when all cases are handled?");
+}
 uri_exception::uri_exception(string const& _uri, uri_exception::Type _uri_problem_type)
-    : runtime_error("duplicate uri " + _uri)
+    : runtime_error(uri_exception_prefix(_uri_problem_type) + _uri)
     , uri(_uri)
     , uri_problem_type(_uri_problem_type)
 {}

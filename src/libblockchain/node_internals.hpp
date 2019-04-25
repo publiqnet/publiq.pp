@@ -57,7 +57,7 @@ namespace publiqpp
 namespace detail
 {
 
-class packet_and_expiry
+/*class packet_and_expiry
 {
 public:
     beltpp::packet packet;
@@ -106,7 +106,7 @@ public:
 
 private:
     map<uint64_t, pair<system_clock::time_point, packet>> task_map;
-};
+};*/
 
 class transaction_cache
 {

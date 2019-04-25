@@ -29,7 +29,7 @@ void action_validate(SignedTransaction const& signed_transaction,
     {
         string unit_hash = meshpp::from_base58(uri);
         if (unit_hash.length() != 32)
-            throw std::runtime_error("invalid uri: " + uri);
+            throw uri_exception(uri, uri_exception::invalid);
     }
 }
 
