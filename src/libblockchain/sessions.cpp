@@ -760,7 +760,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         return; // will wait for new chain
     }
 
-    pimpl->writeln_node("inserting " + std::to_string(sync_blocks.size()) + " validated blocks");
+    //pimpl->writeln_node("inserting " + std::to_string(sync_blocks.size()) + " validated blocks");
 
     //3. all needed blocks received, start to check
     pimpl->m_transaction_cache.backup();

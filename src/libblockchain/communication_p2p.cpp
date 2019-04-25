@@ -577,7 +577,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     impl.save(guard);
 
-    impl.writeln_node("new block mined : " + std::to_string(block_header.block_number));
+    impl.writeln_node("NEW block mined : " + std::to_string(block_header.block_number));
 }
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
