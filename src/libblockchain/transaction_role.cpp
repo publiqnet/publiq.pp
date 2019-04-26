@@ -6,9 +6,16 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 using namespace BlockchainMessage;
+using std::string;
+using std::vector;
 
 namespace publiqpp
 {
+vector<string> action_owners(Role const& role)
+{
+    return {role.node_address};
+}
+
 void action_validate(SignedTransaction const& signed_transaction,
                      Role const& role,
                      bool/* check_complete*/)
@@ -27,14 +34,10 @@ void action_validate(SignedTransaction const& signed_transaction,
         throw std::runtime_error("there is no need to broadcast role::blockchain");
 }
 
-authorization_process_result action_authorization_process(SignedTransaction&/* signed_transaction*/,
-                                                          Role const&/* role*/)
+bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
+                        Role const&/* role*/)
 {
-    authorization_process_result code;
-    code.complete = true;
-    code.modified = false;
-
-    return code;
+    return true;
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,

@@ -409,13 +409,14 @@ uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector
     return expected_c_const;
 }
 
-void revert_pool(time_t expiry_time,
-                 publiqpp::detail::node_internals& impl,
-                 multimap<BlockchainMessage::ctime, SignedTransaction>& pool_transactions)
+multimap<BlockchainMessage::ctime, SignedTransaction>
+revert_pool(time_t expiry_time,
+            publiqpp::detail::node_internals& impl)
 {
+    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
+
     //  collect transactions to be reverted from pool
     //
-    pool_transactions.clear();
     size_t state_pool_size = impl.m_transaction_pool.length();
 
     for (size_t index = 0; index != state_pool_size; ++index)
@@ -446,6 +447,8 @@ void revert_pool(time_t expiry_time,
     }
 
     assert(impl.m_transaction_pool.length() == 0);
+
+    return pool_transactions;
 }
 
 void mine_block(publiqpp::detail::node_internals& impl)
@@ -459,10 +462,10 @@ void mine_block(publiqpp::detail::node_internals& impl)
         impl.m_transaction_cache.restore();
     });
 
-    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    revert_pool(system_clock::to_time_t(now), impl, pool_transactions);
+    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions =
+            revert_pool(system_clock::to_time_t(now), impl);
 
     uint64_t block_number = impl.m_blockchain.length() - 1;
 
@@ -507,21 +510,33 @@ void mine_block(publiqpp::detail::node_internals& impl)
     Block block;
     block.header = block_header;
 
+    //  here we collect incomplete transactions and try to find
+    //  if they form a complete transaction already
+    unordered_map<string, vector<SignedTransaction>> map_incomplete_transactions;
+
     // check and copy transactions to block
     size_t transactions_count = 0;
     auto it = pool_transactions.begin();
     while (it != pool_transactions.end() && transactions_count < size_t(BLOCK_MAX_TRANSACTIONS))
     {
         auto& signed_transaction = it->second;
-        auto code = action_authorization_process(impl, signed_transaction);
+        bool complete = action_is_complete(impl, signed_transaction);
 
-        if (code.complete &&
-            signed_transaction.transaction_details.creation < block_header.time_signed &&
-            apply_transaction(signed_transaction, impl, own_key))
+        if (signed_transaction.transaction_details.creation < block_header.time_signed &&
+            false == complete)
         {
-            impl.m_transaction_cache.add_chain(signed_transaction);
-            block.signed_transactions.push_back(std::move(signed_transaction));
+            string incomplete_key = signed_transaction.transaction_details.to_string();
+            vector<SignedTransaction>& transactions = map_incomplete_transactions[incomplete_key];
 
+            transactions.emplace_back(std::move(it->second));
+
+            it = pool_transactions.erase(it);
+        }
+        else if (signed_transaction.transaction_details.creation < block_header.time_signed &&
+                 apply_transaction(signed_transaction, impl, own_key) &&
+                 impl.m_transaction_cache.add_chain(signed_transaction))
+        {
+            block.signed_transactions.push_back(std::move(signed_transaction));
             ++transactions_count;
             it = pool_transactions.erase(it);
         }
@@ -531,6 +546,61 @@ void mine_block(publiqpp::detail::node_internals& impl)
             //  or it couldn't be applied because of the order
             //  or it will not even be possible to apply at all
             ++it;
+        }
+    }
+
+    for (auto& key_stxs : map_incomplete_transactions)
+    {
+        unordered_map<string, string> map_authorizations;
+
+        auto const& stxs = key_stxs.second;
+        assert(false == stxs.empty());
+
+        for (auto const& stx : stxs)
+        {
+            assert(stx.authorizations.size() == 1);
+            map_authorizations[stx.authorizations.front().address] = stx.authorizations.front().signature;
+        }
+
+        auto signed_transaction = stxs.front();
+        signed_transaction.authorizations.clear();
+
+        vector<string> owners = action_owners(signed_transaction);
+
+        bool not_found = false;
+        for (auto const& owner : owners)
+        {
+            auto it = map_authorizations.find(owner);
+            if (map_authorizations.end() != it)
+            {
+                Authority temp_authority;
+                temp_authority.address = it->first;
+                temp_authority.signature = it->second;
+
+                signed_transaction.authorizations.push_back(std::move(temp_authority));
+            }
+            else
+            {
+                not_found = true;
+                break;
+            }
+        }
+
+        if (false == not_found &&
+            transactions_count < size_t(BLOCK_MAX_TRANSACTIONS) &&
+            apply_transaction(signed_transaction, impl, own_key) &&
+            impl.m_transaction_cache.add_chain(signed_transaction))
+        {
+            block.signed_transactions.push_back(std::move(signed_transaction));
+            ++transactions_count;
+        }
+        else
+        {
+            for (auto& stx : stxs)
+            {
+                pool_transactions.insert(
+                            std::make_pair(stx.transaction_details.creation, std::move(stx)));
+            }
         }
     }
 
@@ -556,8 +626,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
     for (auto& item : pool_transactions)
     {
         auto& signed_transaction = item.second;
-        auto code = action_authorization_process(impl, signed_transaction);
-        bool complete = code.complete;
+        bool complete = action_is_complete(impl, signed_transaction);
 
         bool ok_logic = true;
         if (complete ||
@@ -613,7 +682,7 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     signed_transaction.authorizations.push_back(authorization);
     signed_transaction.transaction_details = transaction;
 
-    if (broadcast_type::none != action_process_on_chain(signed_transaction, *m_pimpl.get()))
+    if (action_process_on_chain(signed_transaction, *m_pimpl.get()))
     {
         Broadcast broadcast;
         broadcast.echoes = 2;

@@ -6,9 +6,16 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 using namespace BlockchainMessage;
+using std::string;
+using std::vector;
 
 namespace publiqpp
 {
+vector<string> action_owners(File const& file)
+{
+    return file.author_addresses;
+}
+
 void action_validate(SignedTransaction const& signed_transaction,
                      File const& file,
                      bool check_complete)
@@ -39,19 +46,23 @@ void action_validate(SignedTransaction const& signed_transaction,
     }
     else
     {
-        for (size_t index = 0;
-             index != signed_transaction.authorizations.size() &&
-             index != file.author_addresses.size();
-             ++index)
+        if (signed_transaction.authorizations.size() != 1)
+            throw authority_exception(signed_transaction.authorizations[1].address, string());
+
+        bool found = false;
+        for (size_t index = 0; index != file.author_addresses.size(); ++index)
         {
-            auto const& signer = signed_transaction.authorizations[index].address;
+            auto const& signer = signed_transaction.authorizations.front().address;
             auto const& author = file.author_addresses[index];
 
             meshpp::public_key pb_key_author(author);
 
-            if (signer != author)
-                throw authority_exception(signer, author);
+            if (signer == author)
+                found = true;
         }
+
+        if (false == found)
+            throw authority_exception(signed_transaction.authorizations.front().address, string());
     }
 
     string file_hash = meshpp::from_base58(file.uri);
@@ -59,14 +70,10 @@ void action_validate(SignedTransaction const& signed_transaction,
         throw uri_exception(file.uri, uri_exception::invalid);
 }
 
-authorization_process_result action_authorization_process(SignedTransaction& signed_transaction,
-                                                          File const& file)
+bool action_is_complete(SignedTransaction const& signed_transaction,
+                        File const& file)
 {
-    authorization_process_result code;
-    code.complete = (signed_transaction.authorizations.size() == file.author_addresses.size());
-    code.modified = false;
-
-    return code;
+    return (signed_transaction.authorizations.size() == file.author_addresses.size());
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,

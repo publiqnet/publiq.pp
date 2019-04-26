@@ -42,14 +42,17 @@ inline packet& contained_member(TaskRequest& task_request, meshpp::public_key co
 }
 */
 
-inline packet& contained_member(Broadcast& pck)
+inline packet& contained_member(Broadcast& pck, detail::node_internals& /*impl*/)
 {
     return pck.package;
 }
 
-inline packet& contained_member(SignedTransaction& signed_tx)
+inline packet& contained_member(SignedTransaction& signed_tx, detail::node_internals& impl)
 {
-    signed_transaction_validate(signed_tx, std::chrono::system_clock::now(), std::chrono::seconds(NODES_TIME_SHIFT));
+    signed_transaction_validate(signed_tx,
+                                std::chrono::system_clock::now(),
+                                std::chrono::seconds(NODES_TIME_SHIFT),
+                                impl);
 
     return signed_tx.transaction_details.action;
 }

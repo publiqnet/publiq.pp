@@ -115,22 +115,36 @@ public:
     {
         string key = meshpp::hash(signed_transaction.to_string());
 
-        auto insert_result = data.insert({key, {true, system_clock::from_time_t(signed_transaction.transaction_details.creation.tm)}});
-        if (false == insert_result.second)
+        if (data.count(key))
             return false;
 
         if (signed_transaction.authorizations.size() > 1)
         {
             SignedTransaction st = signed_transaction;
-            while (st.authorizations.size() > 1)
+            auto authorizations = st.authorizations;
+
+            for (auto const& authorization : authorizations)
             {
-                st.authorizations.resize(st.authorizations.size() - 1);
+                st.authorizations = {authorization};
                 string key_sub = meshpp::hash(st.to_string());
-                insert_result = data.insert({key_sub, {true, system_clock::from_time_t(signed_transaction.transaction_details.creation.tm)}});
-                if (false == insert_result.second)
+
+                if (data.count(key_sub))
                     return false;
             }
+
+            for (auto const& authorization : authorizations)
+            {
+                st.authorizations = {authorization};
+                string key_sub = meshpp::hash(st.to_string());
+                auto insert_result = data.insert({key_sub, {true, system_clock::from_time_t(signed_transaction.transaction_details.creation.tm)}});
+                assert(insert_result.second);
+                B_UNUSED(insert_result);
+            }
         }
+
+        auto insert_result = data.insert({key, {true, system_clock::from_time_t(signed_transaction.transaction_details.creation.tm)}});
+        assert(insert_result.second);
+        B_UNUSED(insert_result);
 
         return true;
     }
@@ -145,9 +159,11 @@ public:
         if (signed_transaction.authorizations.size() > 1)
         {
             SignedTransaction st = signed_transaction;
-            while (st.authorizations.size() > 1)
+            auto authorizations = st.authorizations;
+
+            for (auto const& authorization : authorizations)
             {
-                st.authorizations.resize(st.authorizations.size() - 1);
+                st.authorizations = {authorization};
                 string key_sub = meshpp::hash(st.to_string());
                 count = data.erase(key_sub);
                 /*if (0 == count)
@@ -244,7 +260,8 @@ public:
                    meshpp::private_key const& pv_key,
                    NodeType& n_type,
                    bool log_enabled,
-                   bool transfer_only)
+                   bool transfer_only,
+                   bool testnet)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
@@ -275,6 +292,7 @@ public:
         , m_pv_key(pv_key)
         , m_pb_key(pv_key.get_public_key())
         , m_transfer_only(transfer_only)
+        , m_testnet(testnet)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -467,6 +485,7 @@ public:
     meshpp::public_key m_pb_key;
 
     bool m_transfer_only;
+    bool m_testnet;
 };
 
 }

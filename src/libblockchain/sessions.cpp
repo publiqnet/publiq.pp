@@ -738,7 +738,10 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         // verify block transactions
         for (auto tr_it = block.signed_transactions.begin(); tr_it != block.signed_transactions.end(); ++tr_it)
         {
-            signed_transaction_validate(*tr_it, system_clock::from_time_t(block.header.time_signed.tm), std::chrono::seconds(0));
+            signed_transaction_validate(*tr_it,
+                                        system_clock::from_time_t(block.header.time_signed.tm),
+                                        std::chrono::seconds(0),
+                                        *pimpl);
 
             action_validate(*pimpl, *tr_it, true);
         }
@@ -789,10 +792,10 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
                                      signed_block.block_details.signed_transactions.end());
     }
 
-    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    revert_pool(system_clock::to_time_t(now), *pimpl, pool_transactions);
+    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions =
+            revert_pool(system_clock::to_time_t(now), *pimpl);
 
     //  revert blocks
     //  calculate back to get state at LCB point
@@ -884,14 +887,9 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         auto& signed_transaction = reverted_transactions[index];
 
         bool complete = false;
-        if (index < chain_reverted_count)
+        if (index < chain_reverted_count ||
+            action_is_complete(*pimpl, signed_transaction))
             complete = true;
-        else
-        {
-            auto code = action_authorization_process(*pimpl, signed_transaction);
-            if (code.complete)
-                complete = true;
-        }
 
         if (now - chrono::seconds(NODES_TIME_SHIFT) <=
             system_clock::from_time_t(signed_transaction.transaction_details.expiry.tm) &&

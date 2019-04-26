@@ -79,15 +79,6 @@ static const std::vector<coin> BLOCK_REWARD_ARRAY
 namespace publiqpp
 {
 
-class authorization_process_result
-{
-public:
-    bool complete = false;
-    bool modified = false;
-};
-
-enum class broadcast_type {none, continue_broadcast, full_broadcast};
-
 namespace detail
 {
 inline

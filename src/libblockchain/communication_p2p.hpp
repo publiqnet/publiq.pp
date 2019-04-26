@@ -25,9 +25,9 @@ void revert_transaction(BlockchainMessage::SignedTransaction const& signed_trans
                         publiqpp::detail::node_internals& impl,
                         std::string const& key = std::string());
 
-void revert_pool(time_t expiry_time,
-                 publiqpp::detail::node_internals& impl,
-                 std::multimap<BlockchainMessage::ctime, BlockchainMessage::SignedTransaction>& pool_transactions);
+std::multimap<BlockchainMessage::ctime, BlockchainMessage::SignedTransaction>
+revert_pool(time_t expiry_time,
+            publiqpp::detail::node_internals& impl);
 
 //  this has opposite bool logic - true means error :)
 bool check_headers(BlockchainMessage::BlockHeaderExtended const& next_header,

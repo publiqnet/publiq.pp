@@ -109,29 +109,13 @@ void load_transaction_cache(publiqpp::detail::node_internals& impl)
         }
     }
 
-    bool modified = false;
     for (size_t index = 0; index != impl.m_transaction_pool.length(); ++index)
     {
         auto& item = impl.m_transaction_pool.ref_at(index);
-        auto code = action_authorization_process(impl, item);
-        if (code.modified)
-            modified = true;
+        bool complete = action_is_complete(impl, item);
 
-        if (false == impl.m_transaction_cache.add_pool(item, code.complete))
+        if (false == impl.m_transaction_cache.add_pool(item, complete))
             throw std::logic_error("inconsistent stored pool");
-    }
-
-    if (modified)
-    {
-        try
-        {
-            impl.m_transaction_pool.save();
-            impl.m_transaction_pool.commit();
-        }
-        catch (...)
-        {
-            throw std::logic_error("cannot recover transaction cache");
-        }
     }
 }
 

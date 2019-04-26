@@ -6,9 +6,16 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 using namespace BlockchainMessage;
+using std::string;
+using std::vector;
 
 namespace publiqpp
 {
+vector<string> action_owners(ServiceStatistics const& service_statistics)
+{
+    return {service_statistics.server_address};
+}
+
 void action_validate(SignedTransaction const& signed_transaction,
                      ServiceStatistics const& service_statistics,
                      bool/* check_complete*/)
@@ -24,14 +31,10 @@ void action_validate(SignedTransaction const& signed_transaction,
         throw authority_exception(signed_authority, service_statistics.server_address);
 }
 
-authorization_process_result action_authorization_process(SignedTransaction&/* signed_transaction*/,
-                                                          ServiceStatistics const&/* service_statistics*/)
+bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
+                        ServiceStatistics const&/* service_statistics*/)
 {
-    authorization_process_result code;
-    code.complete = true;
-    code.modified = false;
-
-    return code;
+    return true;
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,

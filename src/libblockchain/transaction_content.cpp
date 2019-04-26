@@ -6,9 +6,16 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 using namespace BlockchainMessage;
+using std::string;
+using std::vector;
 
 namespace publiqpp
 {
+vector<string> action_owners(Content const& content)
+{
+    return {content.channel_address};
+}
+
 void action_validate(SignedTransaction const& signed_transaction,
                      Content const& content,
                      bool /*check_complete*/)
@@ -33,14 +40,10 @@ void action_validate(SignedTransaction const& signed_transaction,
     }
 }
 
-authorization_process_result action_authorization_process(SignedTransaction&/* signed_transaction*/,
-                                                          Content const&/* content*/)
+bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
+                        Content const&/* content*/)
 {
-    authorization_process_result code;
-    code.complete = true;
-    code.modified = false;
-
-    return code;
+    return true;
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
@@ -49,6 +52,11 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     for (auto const& uri : content.content_unit_uris)
     {
         if (false == impl.m_documents.exist_unit(uri))
+            return false;
+
+        ContentUnit const& unit = impl.m_documents.get_unit(uri);
+        if (unit.channel_address != content.channel_address ||
+            unit.content_id != content.content_id)
             return false;
     }
     return true;
@@ -61,7 +69,12 @@ void action_apply(publiqpp::detail::node_internals& impl,
     for (auto const& uri : content.content_unit_uris)
     {
         if (false == impl.m_documents.exist_unit(uri))
-            throw wrong_document_exception("Missing content_unit with uri: " + uri);
+            throw uri_exception(uri, uri_exception::missing);
+
+        ContentUnit const& unit = impl.m_documents.get_unit(uri);
+        if (unit.channel_address != content.channel_address ||
+            unit.content_id != content.content_id)
+            throw wrong_data_exception("the content and the content unit do not correspond to each other");
     }
 }
 

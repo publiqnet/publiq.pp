@@ -56,7 +56,8 @@ node::node(string const& genesis_signed_block,
            meshpp::private_key const& pv_key,
            NodeType& n_type,
            bool log_enabled,
-           bool transfer_only)
+           bool transfer_only,
+           bool testnet)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          rpc_bind_to_address,
@@ -72,7 +73,8 @@ node::node(string const& genesis_signed_block,
                                          pv_key,
                                          n_type,
                                          log_enabled,
-                                         transfer_only))
+                                         transfer_only,
+                                         testnet))
 {}
 
 node::node(node&&) noexcept = default;
@@ -143,8 +145,8 @@ bool node::run()
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
                 open_container_packet<Broadcast> broadcast_anything;
-                bool is_container = broadcast_signed_transaction.open(received_packet, composition) ||
-                                    broadcast_anything.open(received_packet, composition);
+                bool is_container = broadcast_signed_transaction.open(received_packet, composition, *m_pimpl.get()) ||
+                                    broadcast_anything.open(received_packet, composition, *m_pimpl.get());
 
                 if (is_container == false)
                 {
@@ -241,17 +243,13 @@ bool node::run()
 
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
-                
-                    broadcast_type process_result;
-                    process_result = action_process_on_chain(signed_tx, *m_pimpl.get());
 
-                    if (process_result != broadcast_type::none)
+                    if (action_process_on_chain(signed_tx, *m_pimpl.get()))
                     {
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
-                                          (it == interface_type::rpc ||
-                                           process_result == broadcast_type::full_broadcast),
+                                          it == interface_type::rpc,
                                           //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
@@ -498,20 +496,16 @@ bool node::run()
                     TransactionDone transaction_done;
                     transaction_done.transaction_hash = meshpp::hash(signed_transaction.to_string());
 
-                    broadcast_type process_result;
-                    process_result = action_process_on_chain(signed_transaction, *m_pimpl.get());
-
-                    BlockchainMessage::Broadcast broadcast;
-                    broadcast.echoes = 2;
-                    broadcast.package = std::move(signed_transaction);
-
-                    if (process_result != broadcast_type::none)
+                    if (action_process_on_chain(signed_transaction, *m_pimpl.get()))
                     {
+                        BlockchainMessage::Broadcast broadcast;
+                        broadcast.echoes = 2;
+                        broadcast.package = std::move(signed_transaction);
+
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
-                                          (it == interface_type::rpc ||
-                                           process_result == broadcast_type::full_broadcast),
+                                          it == interface_type::rpc,
                                           //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,

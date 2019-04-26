@@ -9,31 +9,41 @@
 #include "transaction_contentinfo.hpp"
 #include "transaction_statinfo.hpp"
 
+#include <unordered_set>
+
 using namespace BlockchainMessage;
+
+using std::string;
+using std::vector;
+using std::unordered_set;
 
 namespace publiqpp
 {
 void signed_transaction_validate(SignedTransaction& signed_transaction,
                                  std::chrono::system_clock::time_point const& now,
-                                 std::chrono::seconds const& time_shift)
+                                 std::chrono::seconds const& time_shift,
+                                 publiqpp::detail::node_internals& impl)
 {
     if (signed_transaction.authorizations.empty())
         throw wrong_data_exception("transaction with no authorizations");
 
-    string prev_signature;
+    unordered_set<string> owners;
+
+    string signed_message = signed_transaction.transaction_details.to_string();
     for (auto const& authority : signed_transaction.authorizations)
     {
+        if (owners.count(authority.address))
+            throw wrong_data_exception("same account - double signed transaction");
+
+        owners.insert(authority.address);
+
         meshpp::public_key pb_key(authority.address);
-        string signed_message;
-        if (prev_signature.empty())
-            signed_message = signed_transaction.transaction_details.to_string();
-        else
-            signed_message = prev_signature;
-
         meshpp::signature signature_check(pb_key, signed_message, authority.signature);
-
-        prev_signature = authority.signature;
     }
+
+    if (/*false == impl.m_testnet &&*/
+        signed_transaction.authorizations.size() > 1)
+        throw wrong_data_exception("for now multi-account transactions are disabled");
 
     namespace chrono = std::chrono;
     using chrono::system_clock;
@@ -52,14 +62,14 @@ void signed_transaction_validate(SignedTransaction& signed_transaction,
 }
 
 template <typename T_action>
-broadcast_type action_process_on_chain_t(SignedTransaction& signed_transaction,
-                                         T_action const& action,
-                                         publiqpp::detail::node_internals& impl);
+bool action_process_on_chain_t(SignedTransaction const& signed_transaction,
+                               T_action const& action,
+                               publiqpp::detail::node_internals& impl);
 
-broadcast_type action_process_on_chain(SignedTransaction& signed_transaction,
-                                       publiqpp::detail::node_internals& impl)
+bool action_process_on_chain(SignedTransaction const& signed_transaction,
+                             publiqpp::detail::node_internals& impl)
 {
-    broadcast_type code;
+    bool code;
     auto const& package = signed_transaction.transaction_details.action;
 
     if (impl.m_transfer_only && package.type() != Transfer::rtt)
@@ -121,6 +131,69 @@ broadcast_type action_process_on_chain(SignedTransaction& signed_transaction,
     }
 
     return code;
+}
+
+vector<string> action_owners(SignedTransaction const& signed_transaction)
+{
+    vector<string> result;
+    auto const& package = signed_transaction.transaction_details.action;
+
+    switch (package.type())
+    {
+    case Transfer::rtt:
+    {
+        Transfer const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case File::rtt:
+    {
+        File const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case ContentUnit::rtt:
+    {
+        ContentUnit const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case Content::rtt:
+    {
+        Content const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case Role::rtt:
+    {
+        Role const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case StorageUpdate::rtt:
+    {
+        StorageUpdate const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case ServiceStatistics::rtt:
+    {
+        ServiceStatistics const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    default:
+        throw wrong_data_exception("unknown transaction action type!");
+    }
+
+    return result;
 }
 
 void action_validate(publiqpp::detail::node_internals& impl,
@@ -188,10 +261,10 @@ void action_validate(publiqpp::detail::node_internals& impl,
     }
 }
 
-authorization_process_result action_authorization_process(publiqpp::detail::node_internals& impl,
-                                                          SignedTransaction& signed_transaction)
+bool action_is_complete(publiqpp::detail::node_internals& impl,
+                        SignedTransaction const& signed_transaction)
 {
-    authorization_process_result code;
+    bool complete;
     auto const& package = signed_transaction.transaction_details.action;
 
     if (impl.m_transfer_only && package.type() != Transfer::rtt)
@@ -203,56 +276,56 @@ authorization_process_result action_authorization_process(publiqpp::detail::node
     {
         Transfer const* paction;
         package.get(paction);
-        code = action_authorization_process(signed_transaction, *paction);
+        complete = action_is_complete(signed_transaction, *paction);
         break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        code = action_authorization_process(signed_transaction, *paction);
+        complete = action_is_complete(signed_transaction, *paction);
         break;
     }
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
         package.get(paction);
-        code = action_authorization_process(signed_transaction, *paction);
+        complete = action_is_complete(signed_transaction, *paction);
         break;
     }
     case Content::rtt:
     {
         Content const* paction;
         package.get(paction);
-        code = action_authorization_process(signed_transaction, *paction);
+        complete = action_is_complete(signed_transaction, *paction);
         break;
     }
     case Role::rtt:
     {
         Role const* paction;
         package.get(paction);
-        code = action_authorization_process(signed_transaction, *paction);
+        complete = action_is_complete(signed_transaction, *paction);
         break;
     }
     case StorageUpdate::rtt:
     {
         StorageUpdate const* paction;
         package.get(paction);
-        code = action_authorization_process(signed_transaction, *paction);
+        complete = action_is_complete(signed_transaction, *paction);
         break;
     }
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
         package.get(paction);
-        code = action_authorization_process(signed_transaction, *paction);
+        complete = action_is_complete(signed_transaction, *paction);
         break;
     }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
 
-    return code;
+    return complete;
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
@@ -502,30 +575,25 @@ void fee_revert(publiqpp::detail::node_internals& impl,
 }
 
 template <typename T_action>
-broadcast_type action_process_on_chain_t(BlockchainMessage::SignedTransaction& signed_transaction,
-                                         T_action const& action,
-                                         publiqpp::detail::node_internals& impl)
+bool action_process_on_chain_t(BlockchainMessage::SignedTransaction const& signed_transaction,
+                               T_action const& action,
+                               publiqpp::detail::node_internals& impl)
 {
-    authorization_process_result code;
-    code = action_authorization_process(impl, signed_transaction);
+    bool complete = action_is_complete(impl, signed_transaction);
 
-    broadcast_type on_success = broadcast_type::continue_broadcast;
-    if (code.modified)
-        on_success = broadcast_type::full_broadcast;
-
-    action_validate(signed_transaction, action, code.complete);
+    action_validate(signed_transaction, action, complete);
 
     // Don't need to store transaction if sync in process
     // and seems is too far from current block.
     // Just will check the transaction and broadcast
 
-    if (system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm) < 
+    if (system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm) <
         system_clock::now() - chrono::seconds(BLOCK_TR_LENGTH * BLOCK_MINE_DELAY))
-        return on_success;
+        return true;
 
     // Check pool
     if (impl.m_transaction_cache.contains(signed_transaction))
-        return broadcast_type::none;
+        return false;
 
     impl.m_transaction_cache.backup();
     beltpp::on_failure guard([&impl]
@@ -534,7 +602,7 @@ broadcast_type action_process_on_chain_t(BlockchainMessage::SignedTransaction& s
         impl.m_transaction_cache.restore();
     });
 
-    if (code.complete ||
+    if (complete ||
         false == action_can_apply(impl, action))
     {
         //  validate and add to state
@@ -549,10 +617,10 @@ broadcast_type action_process_on_chain_t(BlockchainMessage::SignedTransaction& s
 
     // Add to the pool
     impl.m_transaction_pool.push_back(signed_transaction);
-    impl.m_transaction_cache.add_pool(signed_transaction, code.complete);
+    impl.m_transaction_cache.add_pool(signed_transaction, complete);
 
     impl.save(guard);
 
-    return on_success;
+    return true;
 }
 }// end of namespace publiqpp

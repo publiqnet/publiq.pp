@@ -66,12 +66,12 @@ void documents::discard()
 
 bool documents::exist_file(string const& uri) const
 {
-    return m_pimpl->m_files.as_const().contains(uri);
+    return m_pimpl->m_files.contains(uri);
 }
 
 bool documents::insert_file(File const& file)
 {
-    if (m_pimpl->m_files.as_const().contains(file.uri))
+    if (m_pimpl->m_files.contains(file.uri))
         return false;
 
     m_pimpl->m_files.insert(file.uri, file);
@@ -84,14 +84,19 @@ void documents::remove_file(string const& uri)
     m_pimpl->m_files.erase(uri);
 }
 
+BlockchainMessage::File const& documents::get_file(std::string const& uri) const
+{
+    return m_pimpl->m_files.as_const().at(uri);
+}
+
 bool documents::exist_unit(string const& uri) const
 {
-    return m_pimpl->m_units.as_const().contains(uri);
+    return m_pimpl->m_units.contains(uri);
 }
 
 bool documents::insert_unit(ContentUnit const& unit)
 {
-    if (m_pimpl->m_units.as_const().contains(unit.uri))
+    if (m_pimpl->m_units.contains(unit.uri))
         return false;
 
     m_pimpl->m_units.insert(unit.uri, unit);
@@ -102,6 +107,11 @@ bool documents::insert_unit(ContentUnit const& unit)
 void documents::remove_unit(string const& uri)
 {
     m_pimpl->m_units.erase(uri);
+}
+
+BlockchainMessage::ContentUnit const& documents::get_unit(std::string const& uri) const
+{
+    return m_pimpl->m_units.as_const().at(uri);
 }
 
 }

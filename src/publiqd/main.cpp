@@ -255,7 +255,8 @@ int main(int argc, char** argv)
                             pv_key,
                             n_type,
                             log_enabled,
-                            testnet ? false : true);
+                            testnet ? false : true,
+                            testnet);
 
         cout << endl;
         cout << "Node: " << node.name() << endl;
