@@ -570,12 +570,12 @@ void mine_block(publiqpp::detail::node_internals& impl)
         bool not_found = false;
         for (auto const& owner : owners)
         {
-            auto it = map_authorizations.find(owner);
-            if (map_authorizations.end() != it)
+            auto it_map = map_authorizations.find(owner);
+            if (map_authorizations.end() != it_map)
             {
                 Authority temp_authority;
-                temp_authority.address = it->first;
-                temp_authority.signature = it->second;
+                temp_authority.address = it_map->first;
+                temp_authority.signature = it_map->second;
 
                 signed_transaction.authorizations.push_back(std::move(temp_authority));
             }
