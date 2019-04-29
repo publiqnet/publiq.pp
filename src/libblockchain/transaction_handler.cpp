@@ -547,10 +547,11 @@ void fee_apply(publiqpp::detail::node_internals& impl,
     if (false == fee_receiver.empty())
     {
         auto const& fee = signed_transaction.transaction_details.fee;
+        /*  this is written already in decrease_balance
         Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address, state_layer::pool);
         if (coin(balance) < fee)
             throw not_enough_balance_exception(coin(balance),
-                                               fee);
+                                               fee);*/
 
         impl.m_state.increase_balance(fee_receiver, fee, state_layer::chain);
         impl.m_state.decrease_balance(signed_transaction.authorizations.front().address, fee, state_layer::chain);
@@ -564,10 +565,12 @@ void fee_revert(publiqpp::detail::node_internals& impl,
     if (false == fee_receiver.empty())
     {
         auto const& fee = signed_transaction.transaction_details.fee;
+        /*  this is written already in decrease_balance
         Coin balance = impl.m_state.get_balance(fee_receiver, state_layer::pool);
         if (coin(balance) < fee)
             throw not_enough_balance_exception(coin(balance),
                                                fee);
+                                               */
 
         impl.m_state.decrease_balance(fee_receiver, fee, state_layer::chain);
         impl.m_state.increase_balance(signed_transaction.authorizations.front().address, fee, state_layer::chain);

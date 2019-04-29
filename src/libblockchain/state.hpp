@@ -32,7 +32,7 @@ public:
     void discard();
 
     BlockchainMessage::Coin get_balance(std::string const& key, state_layer layer) const;
-
+    void set_balance(std::string const& key, coin const& amount, state_layer layer);
     void increase_balance(std::string const& key, coin const& amount, state_layer layer);
     void decrease_balance(std::string const& key, coin const& amount, state_layer layer);
 

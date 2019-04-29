@@ -76,38 +76,43 @@ Coin state::get_balance(string const& key, state_layer layer) const
     return Coin(); // all accounts not included have 0 balance
 }
 
+void state::set_balance(std::string const& key, coin const& amount, state_layer layer)
+{
+    Coin Amount;
+    amount.to_Coin(Amount);
+
+    if (amount.empty())
+        m_pimpl->m_accounts.erase(key);
+    else if (m_pimpl->m_accounts.contains(key))
+    {
+        Coin& balance = m_pimpl->m_accounts.at(key);
+        balance = Amount;
+    }
+    else
+        m_pimpl->m_accounts.insert(key, Amount);
+
+    if (state_layer::chain == layer &&
+        m_pimpl->pimpl_node->m_pb_key.to_string() == key)
+    {
+        if (amount.empty())
+            m_pimpl->m_node_accounts.erase(key);
+        else if (m_pimpl->m_node_accounts.contains(key))
+        {
+            Coin& node_balance = m_pimpl->m_node_accounts.at(key);
+            node_balance = Amount;
+        }
+        else
+            m_pimpl->m_node_accounts.insert(key, Amount);
+    }
+}
+
 void state::increase_balance(string const& key, coin const& amount, state_layer layer)
 {
     if (amount.empty())
         return;
 
-    Coin temp;
-
-    if (m_pimpl->m_accounts.contains(key))
-    {
-        Coin& balance = m_pimpl->m_accounts.at(key);
-        (balance + amount).to_Coin(balance);
-        temp = balance;
-    }
-    else
-    {
-        amount.to_Coin(temp);
-        m_pimpl->m_accounts.insert(key, temp);
-    }
-
-    if (state_layer::chain == layer &&
-        m_pimpl->pimpl_node->m_pb_key.to_string() == key)
-    {
-        if (m_pimpl->m_node_accounts.contains(key))
-        {
-            Coin& node_balance = m_pimpl->m_node_accounts.at(key);
-            node_balance = temp;
-        }
-        else
-        {
-            m_pimpl->m_node_accounts.insert(key, temp);
-        }
-    }
+    Coin balance = get_balance(key, state_layer::pool);
+    set_balance(key, balance + amount, layer);
 }
 
 void state::decrease_balance(string const& key, coin const& amount, state_layer layer)
@@ -115,37 +120,12 @@ void state::decrease_balance(string const& key, coin const& amount, state_layer 
     if (amount.empty())
         return;
 
-    if (!m_pimpl->m_accounts.contains(key))
-        throw not_enough_balance_exception(coin(), amount);
-
-    Coin& balance = m_pimpl->m_accounts.at(key);
+    Coin balance = get_balance(key, state_layer::pool);
 
     if (coin(balance) < amount)
         throw not_enough_balance_exception(coin(balance), amount);
 
-    coin(balance - amount).to_Coin(balance);
-
-    Coin temp = balance;
-
-    if (coin(balance).empty())
-        m_pimpl->m_accounts.erase(key);
-
-    if (state_layer::chain == layer &&
-        m_pimpl->pimpl_node->m_pb_key.to_string() == key)
-    {
-        if (coin(temp).empty())
-            m_pimpl->m_node_accounts.erase(key);
-
-        if (m_pimpl->m_node_accounts.contains(key))
-        {
-            Coin& node_balance = m_pimpl->m_node_accounts.at(key);
-            node_balance = temp;
-        }
-        else
-        {
-            m_pimpl->m_node_accounts.insert(key, temp);
-        }
-    }
+    set_balance(key, balance - amount, layer);
 }
 
 std::vector<std::string> state::get_nodes_by_type(NodeType const& node_type) const

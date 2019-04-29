@@ -448,6 +448,11 @@ revert_pool(time_t expiry_time,
 
     assert(impl.m_transaction_pool.length() == 0);
 
+    //  sync the node balance at chain level
+    impl.m_state.set_balance(impl.m_pb_key.to_string(),
+                             impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool),
+                             state_layer::chain);
+
     return pool_transactions;
 }
 

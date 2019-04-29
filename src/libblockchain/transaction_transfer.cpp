@@ -60,10 +60,12 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   Transfer const& transfer,
                   state_layer layer)
 {
+    /*  this is written already in decrease_balance
     Coin balance = impl.m_state.get_balance(transfer.from, state_layer::pool);
     if (coin(balance) < transfer.amount)
         throw not_enough_balance_exception(coin(balance),
                                            transfer.amount);
+    */
 
     impl.m_state.increase_balance(transfer.to, transfer.amount, layer);
     impl.m_state.decrease_balance(transfer.from, transfer.amount, layer);
@@ -73,10 +75,12 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    Transfer const& transfer,
                    state_layer layer)
 {
+    /*  this is written already in decrease_balance
     Coin balance = impl.m_state.get_balance(transfer.to, state_layer::pool);
     if (coin(balance) < transfer.amount)
         throw not_enough_balance_exception(coin(balance),
                                            transfer.amount);
+    */
 
     impl.m_state.increase_balance(transfer.from, transfer.amount, layer);
     impl.m_state.decrease_balance(transfer.to, transfer.amount, layer);
