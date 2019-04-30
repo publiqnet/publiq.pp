@@ -591,7 +591,7 @@ bool action_process_on_chain_t(BlockchainMessage::SignedTransaction const& signe
     // Just will check the transaction and broadcast
 
     if (system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm) <
-        system_clock::now() - chrono::seconds(BLOCK_TR_LENGTH * BLOCK_MINE_DELAY))
+        system_clock::now() - chrono::seconds((BLOCK_TR_LENGTH + 1) * BLOCK_MINE_DELAY))
         return true;
 
     // Check pool
