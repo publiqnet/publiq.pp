@@ -160,7 +160,8 @@ bool node::run()
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
+                    if (it == interface_type::p2p)
+                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -183,7 +184,8 @@ bool node::run()
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
+                    if (it == interface_type::p2p)
+                        m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
 
                     if (it == interface_type::p2p)
                         m_pimpl->remove_peer(peerid);
