@@ -344,7 +344,12 @@ module BlockchainMessage
         Array SignedBlock signed_blocks
     }
 
-    class PublicAddressesRequest {}
+    enum PublicAddressType { p2p rpc }
+
+    class PublicAddressesRequest
+    {
+        PublicAddressType address_type
+    }
     class PublicAddressesInfo
     {
         Array PublicAddressInfo addresses_info

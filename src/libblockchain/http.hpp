@@ -247,6 +247,23 @@ beltpp::detail::pmsg_all message_list_load(
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::PublicAddressesRequest>();
 
+            BlockchainMessage::PublicAddressesRequest& ref = *reinterpret_cast<BlockchainMessage::PublicAddressesRequest*>(p.get());
+            ref.address_type = BlockchainMessage::PublicAddressType::rpc;
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::PublicAddressesRequest::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::PublicAddressesRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "peers")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::PublicAddressesRequest>();
+
+            BlockchainMessage::PublicAddressesRequest& ref = *reinterpret_cast<BlockchainMessage::PublicAddressesRequest*>(p.get());
+            ref.address_type = BlockchainMessage::PublicAddressType::p2p;
+
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(BlockchainMessage::PublicAddressesRequest::rtt,
                                               std::move(p),

@@ -121,6 +121,23 @@ void get_public_addresses(beltpp::isocket& sk,
     sk.send(peerid, beltpp::packet(std::move(result)));
 }
 
+void get_peers_addresses(beltpp::isocket& sk,
+                         beltpp::isocket::peer_id const& peerid,
+                         publiqpp::detail::node_internals& impl)
+{
+    PublicAddressesInfo result;
+    for (auto const& item : impl.m_p2p_peers)
+    {
+        PublicAddressInfo info;
+        info.ip_address = impl.m_ptr_p2p_socket->info_connection(item);
+        info.node_address = item;
+        info.seconds_since_checked = 0;
+        result.addresses_info.push_back(std::move(info));
+    }
+
+    sk.send(peerid, beltpp::packet(std::move(result)));
+}
+
 void get_key_pair(KeyPairRequest const& kpr_msg,
                   beltpp::isocket& sk,
                   beltpp::isocket::peer_id const& peerid)

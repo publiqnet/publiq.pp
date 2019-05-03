@@ -414,7 +414,14 @@ bool node::run()
                 }
                 case PublicAddressesRequest::rtt:
                 {
-                    get_public_addresses(*psk, peerid, *m_pimpl.get());
+                    PublicAddressesRequest msg;
+                    std::move(ref_packet).get(msg);
+
+                    if (msg.address_type == PublicAddressType::rpc)
+                        get_public_addresses(*psk, peerid, *m_pimpl.get());
+                    else
+                        get_peers_addresses(*psk, peerid, *m_pimpl.get());
+
                     break;
                 }
                 case KeyPairRequest::rtt:
