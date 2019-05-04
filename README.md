@@ -12,7 +12,7 @@
 + wallet functionality
 
 ## details on supported/unsupported features/technologies
-+ *dependencies?* [boost](https://www.boost.org "boost"), [mesh.pp](https://github.com/publiqnet/mesh.pp "mesh.pp"), [belt.pp](https://github.com/publiqnet/belt.pp "belt.pp") and [a simple cmake utility](https://github.com/publiqnet/cmake_utility "the simple title for the simple cmake utility")
++ *dependencies?* [boost](https://www.boost.org "boost"), [mesh.pp](https://github.com/publiqnet/mesh.pp "mesh.pp"), [belt.pp](https://github.com/publiqnet/belt.pp "belt.pp") and [a simple cmake utility](https://github.com/publiqnet/cmake_utility "the simple title for the simple cmake utility"). [crypto++](https://www.cryptopp.com/ "crypto++") is another dependency of mesh.pp.
 + *portable?* yes! it's a goal. clang, gcc, msvc working.
 + *build system?* cmake. refer to cmake project generator options for msvc, xcode, etc... project generation.
 + *static linking vs dynamic linking?* both supported, refer to BUILD_SHARED_LIBS cmake option
