@@ -1,7 +1,3 @@
-if(NOT WIN32 AND NOT APPLE)
-set( CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-pthread")
-endif()
-
 # define the executable
 add_executable(publiqd
     main.cpp)
@@ -22,6 +18,11 @@ target_link_libraries(publiqd PRIVATE
     Boost::program_options
     Boost::locale
     )
+
+if(NOT WIN32 AND NOT APPLE)
+    find_package(Threads REQUIRED)
+    target_link_libraries(publiqd PRIVATE Threads::Threads)
+endif()
 
 # what to do on make install
 install(TARGETS publiqd
