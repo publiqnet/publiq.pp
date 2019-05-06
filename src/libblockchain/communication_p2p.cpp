@@ -65,38 +65,38 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     action_revert(impl, signed_transaction.transaction_details.action, layer);
 }
 
-void validate_delations(map<string, ServiceStatistics> const& right_delations,
-                        map<string, ServiceStatistics> const& check_delations,
-                        map<string, uint64_t>& penals)
-{
-    penals.clear();
-    // to check an algorithm for now
-
-    for (auto const& right_item_it : right_delations)
-    {
-        for (auto const& right_info_item : right_item_it.second.stat_items)
-        {
-            bool compare_failed = true;
-            auto check_item_it = check_delations.find(right_info_item.peer_address);
-
-            if(check_item_it != check_delations.end())
-                for (auto const& check_info_item : check_item_it->second.stat_items)
-                {
-                    if (check_info_item.peer_address == right_item_it.first)
-                    {
-                        //  need to check for equality or inequality?
-                        if (check_info_item.count == right_info_item.count)
-                            compare_failed = false;
-
-                        break;
-                    }
-                }
-
-            if (compare_failed)
-                ++penals[right_info_item.peer_address];
-        }
-    }
-}
+//void validate_delations(map<string, ServiceStatistics> const& right_delations,
+//                        map<string, ServiceStatistics> const& check_delations,
+//                        map<string, uint64_t>& penals)
+//{
+//    penals.clear();
+//    // to check an algorithm for now
+//
+//    for (auto const& right_item_it : right_delations)
+//    {
+//        for (auto const& right_info_item : right_item_it.second.stat_items)
+//        {
+//            bool compare_failed = true;
+//            auto check_item_it = check_delations.find(right_info_item.peer_address);
+//
+//            if(check_item_it != check_delations.end())
+//                for (auto const& check_info_item : check_item_it->second.stat_items)
+//                {
+//                    if (check_info_item.peer_address == right_item_it.first)
+//                    {
+//                        //  need to check for equality or inequality?
+//                        if (check_info_item.count == right_info_item.count)
+//                            compare_failed = false;
+//
+//                        break;
+//                    }
+//                }
+//
+//            if (compare_failed)
+//                ++penals[right_info_item.peer_address];
+//        }
+//    }
+//}
 
 void filter_penals(map<string, uint64_t> const& penals, set<string>& result)
 {
@@ -137,7 +137,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    vector<Reward>& rewards,
                    string const& address,
                    uint64_t block_number,
-                   publiqpp::detail::node_internals& impl)
+                   publiqpp::detail::node_internals& /*impl*/)
 {
     rewards.clear();
 
@@ -151,32 +151,32 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         fee += it->transaction_details.fee;
 
-        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
-        {
-            ServiceStatistics stat_info;
-            it->transaction_details.action.get(stat_info);
-
-            NodeType node_type;
-            if (impl.m_state.get_role(stat_info.server_address, node_type))
-            {
-                if (node_type == NodeType::channel)
-                {
-                    for (auto const& item : stat_info.stat_items)
-                    {
-                        storage_penals[item.peer_address] = 0;
-                        channel_delations[item.peer_address] = stat_info;
-                    }
-                }
-                else if (node_type == NodeType::storage)
-                {
-                    for (auto const& item : stat_info.stat_items)
-                    {
-                        channel_penals[item.peer_address] = 0;
-                        storage_delations[item.peer_address] = stat_info;
-                    }
-                }
-            }
-        }
+        //if (it->transaction_details.action.type() == ServiceStatistics::rtt)
+        //{
+        //    ServiceStatistics stat_info;
+        //    it->transaction_details.action.get(stat_info);
+        //
+        //    NodeType node_type;
+        //    if (impl.m_state.get_role(stat_info.server_address, node_type))
+        //    {
+        //        if (node_type == NodeType::channel)
+        //        {
+        //            for (auto const& item : stat_info.stat_items)
+        //            {
+        //                storage_penals[item.peer_address] = 0;
+        //                channel_delations[item.peer_address] = stat_info;
+        //            }
+        //        }
+        //        else if (node_type == NodeType::storage)
+        //        {
+        //            for (auto const& item : stat_info.stat_items)
+        //            {
+        //                channel_penals[item.peer_address] = 0;
+        //                storage_delations[item.peer_address] = stat_info;
+        //            }
+        //        }
+        //    }
+        //}
     }
 
     size_t year_index = block_number / 50000;
@@ -191,7 +191,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     // grant channel rewards
     set<string> channels;
-    validate_delations(channel_delations, storage_delations, storage_penals);
+    //validate_delations(channel_delations, storage_delations, storage_penals);
     filter_penals(channel_penals, channels);
 
     if (channels.size() && !channel_reward.empty())
@@ -215,7 +215,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     // grant storage rewards
     set<string> storages;
-    validate_delations(storage_delations, channel_delations, channel_penals);
+    //validate_delations(storage_delations, channel_delations, channel_penals);
     filter_penals(storage_penals, storages);
 
     if (storages.size() && !storage_reward.empty())
@@ -287,57 +287,6 @@ bool check_rewards(Block const& block, string const& authority,
     }
 
     return bad_reward;
-}
-
-void broadcast_storage_info(publiqpp::detail::node_internals& impl)
-{//TODO
-    vector<string> storages = impl.m_state.get_nodes_by_type(NodeType::storage);
-
-    if (storages.empty()) return;
-
-    //uint64_t block_number = impl.m_blockchain.length() - 1;
-    //SignedBlock const& signed_block = impl.m_blockchain.at(block_number);
-
-    ServiceStatistics stat_info;
-    //  use block number instead, or something similar
-    //stat_info.hash = meshpp::hash(signed_block.block_details.to_string());
-    stat_info.server_address = impl.m_pb_key.to_string();
-
-    for (auto& nodeid : storages)
-    {
-        ServiceStatisticsItem stat_item;
-        stat_item.peer_address = nodeid;
-        //stat_item.content_hash = meshpp::hash("storage");
-        stat_item.count = 1;
-        //stat_item.failed = 0;
-
-        stat_info.stat_items.push_back(stat_item);
-    }
-
-    Transaction transaction;
-    transaction.action = stat_info;
-    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
-
-    Authority authorization;
-    authorization.address = impl.m_pb_key.to_string();
-    authorization.signature = impl.m_pv_key.sign(transaction.to_string()).base58;
-
-    SignedTransaction signed_transaction;
-    signed_transaction.authorizations.push_back(authorization);
-    signed_transaction.transaction_details = transaction;
-
-    Broadcast broadcast;
-    broadcast.echoes = 2;
-    broadcast.package = signed_transaction;
-
-    broadcast_message(std::move(broadcast),
-                      impl.m_ptr_p2p_socket->name(),
-                      impl.m_ptr_p2p_socket->name(),
-                      true,
-                      nullptr,
-                      impl.m_p2p_peers,
-                      impl.m_ptr_p2p_socket.get());
 }
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error)
@@ -738,61 +687,6 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         m_pimpl->m_ptr_p2p_socket->name(),
         true, // broadcast to all peers
         nullptr, // log disabled
-        m_pimpl->m_p2p_peers,
-        m_pimpl->m_ptr_p2p_socket.get());
-}
-
-void broadcast_storage_stat(ServiceStatistics& service_statistics,
-                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
-{
-    unordered_set<string> channels_set;
-    vector<string> channels = m_pimpl->m_state.get_nodes_by_type(NodeType::channel);
-
-    if (channels.empty()) return;
-
-    for (auto& channel_node_address : channels)
-        channels_set.insert(channel_node_address);
-
-    auto it = service_statistics.stat_items.begin();
-    while (it != service_statistics.stat_items.end())
-    {
-        if (channels_set.count(it->peer_address))
-            ++it;
-        else
-            it = service_statistics.stat_items.erase(it);
-    }
-
-    if (service_statistics.stat_items.empty()) return;
-
-    //uint64_t block_number = m_pimpl->m_blockchain.length() - 1;
-    //SignedBlock const& signed_block = m_pimpl->m_blockchain.at(block_number);
-
-    //  use something else instead of hash, block number maybe
-    //service_statistics.hash = meshpp::hash(signed_block.block_details.to_string());
-    service_statistics.server_address = m_pimpl->m_pb_key.to_string();
-
-    Transaction transaction;
-    transaction.action = service_statistics;
-    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
-
-    Authority authorization;
-    authorization.address = m_pimpl->m_pb_key.to_string();
-    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
-
-    SignedTransaction signed_transaction;
-    signed_transaction.transaction_details = transaction;
-    signed_transaction.authorizations.push_back(authorization);
-
-    Broadcast broadcast;
-    broadcast.echoes = 2;
-    broadcast.package = signed_transaction;
-
-    broadcast_message(std::move(broadcast),
-        m_pimpl->m_ptr_p2p_socket->name(),
-        m_pimpl->m_ptr_p2p_socket->name(),
-        true,
-        nullptr,
         m_pimpl->m_p2p_peers,
         m_pimpl->m_ptr_p2p_socket.get());
 }

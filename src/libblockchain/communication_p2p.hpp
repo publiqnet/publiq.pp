@@ -10,9 +10,6 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
 
 void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
-void broadcast_storage_stat(ServiceStatistics& service_statistics,
-                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
-
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
@@ -26,16 +23,15 @@ void revert_transaction(BlockchainMessage::SignedTransaction const& signed_trans
                         std::string const& key = std::string());
 
 std::multimap<BlockchainMessage::ctime, BlockchainMessage::SignedTransaction>
-revert_pool(time_t expiry_time,
-            publiqpp::detail::node_internals& impl);
+revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl);
 
 //  this has opposite bool logic - true means error :)
 bool check_headers(BlockchainMessage::BlockHeaderExtended const& next_header,
                    BlockchainMessage::BlockHeaderExtended const& header);
+
 bool check_rewards(BlockchainMessage::Block const& block,
                    std::string const& authority,
                    publiqpp::detail::node_internals& impl);
-void broadcast_storage_info(publiqpp::detail::node_internals& impl);
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);
 }// end of namespace publiqpp

@@ -45,13 +45,19 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         node_type == NodeType::blockchain)
         return false;
 
-    for (auto const& item : service_statistics.stat_items)
+    for (auto const& item : service_statistics.file_items)
     {
-        NodeType item_node_type;
-        if (false == impl.m_state.get_role(item.peer_address, item_node_type) ||
-            item_node_type == NodeType::blockchain ||
-            item_node_type == node_type)
+        if (false == impl.m_documents.exist_file(item.file_uri))
             return false;
+
+        for (auto const& it : item.count_items)
+        {
+            NodeType item_node_type;
+            if (false == impl.m_state.get_role(it.peer_address, item_node_type) ||
+                item_node_type == NodeType::blockchain ||
+                item_node_type == node_type)
+                return false;
+        }
     }
 
     /* change to block number or something ...
@@ -70,13 +76,19 @@ void action_apply(publiqpp::detail::node_internals& impl,
         node_type == NodeType::blockchain)
         throw wrong_data_exception("process_stat_info -> wrong authority type : " + service_statistics.server_address);
 
-    for (auto const& item : service_statistics.stat_items)
+    for (auto const& item : service_statistics.file_items)
     {
-        NodeType item_node_type;
-        if (false == impl.m_state.get_role(item.peer_address, item_node_type) ||
-            item_node_type == NodeType::blockchain ||
-            item_node_type == node_type)
-            throw wrong_data_exception("wrong node type : " + item.peer_address);
+        if (false == impl.m_documents.exist_file(item.file_uri))
+            throw wrong_data_exception("file does not exists in documents");
+
+        for (auto const& it : item.count_items)
+        {
+            NodeType item_node_type;
+            if (false == impl.m_state.get_role(it.peer_address, item_node_type) ||
+                item_node_type == NodeType::blockchain ||
+                item_node_type == node_type)
+                throw wrong_data_exception("wrong node type : " + it.peer_address);
+        }
     }
 
     // TODO fix

@@ -59,37 +59,41 @@ namespace detail
 
 class stat_counter
 {
-/*public:
+public:
     void init()
     {
         ussage_map.clear();
     }
 
-    void update(string node_name, bool success)
+    void update(string file_uri, string peer_address)
     {
-        if (success)
-            ussage_map[node_name].first++;
-        else
-            ussage_map[node_name].second++;
+        ++ussage_map[file_uri][peer_address];
     }
 
-    void get_stat_info(StatInfo& stat_info)
+    void get_stat_info(ServiceStatistics& service_statistics)
     {
-        stat_info.items.clear();
+        service_statistics.file_items.clear();
 
-        for (auto& item : ussage_map)
+        for (auto const& item : ussage_map)
         {
-            StatItem stat_item;
-            stat_item.node_address = item.first;
-            stat_item.passed = item.second.first;
-            stat_item.failed = item.second.second;
+            ServiceStatisticsFile stat_file;
+            stat_file.file_uri = item.first;
 
-            stat_info.items.push_back(stat_item);
+            for (auto const& it : item.second)
+            {
+                ServiceStatisticsCount stat_count;
+                stat_count.count = it.second;
+                stat_count.peer_address = it.first;
+
+                stat_file.count_items.push_back(stat_count);
+            }
+
+            service_statistics.file_items.push_back(stat_file);
         }
     }
 
 private:
-    map<string, pair<uint64_t, uint64_t>> ussage_map;*/
+    map<string, map<string, uint64_t>> ussage_map;
 };
 
 class storage_node_internals
@@ -117,8 +121,6 @@ public:
             m_ptr_rpc_socket->listen(rpc_bind_to_address);
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
-
-        //m_stat_counter.init(meshpp::hash(signed_block.block_details.to_string()));
     }
 
     void writeln_node(string const& value)

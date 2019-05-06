@@ -140,28 +140,33 @@ bool storage_node::run()
 
                     break;
                 }
-                case ServiceStatistics::rtt:
-                {/*
-                    TaskRequest* p_task_request = nullptr;
-                    any_task.items[0]->get(p_task_request);
-                   
-                    assert(p_task_request);
-                    
-                    TaskRequest& task_request = *p_task_request;
-                    
-                    ServiceStatistics stat_info;
-                    
-                    m_pimpl->m_stat_counter.get_stat_info(stat_info);
-                    stat_info.reporter_address = m_pimpl->m_pv_key.get_public_key().to_string();
+                case StorageFileSize::rtt:
+                {
+                    StorageFileSize size_request;
+                    std::move(ref_packet).get(size_request);
 
-                    TaskResponse task_response;
-                    task_response.package = stat_info;
-                    task_response.task_id = task_request.task_id;
-                    
-                    psk->send(peerid, task_response);
+                    StorageFileSizeResponse size_response;
+                    size_response.uri = size_request.uri;
+                    size_response.size = 1; // TODO
 
+                    psk->send(peerid, beltpp::packet(std::move(size_response)));
+
+                    break;
+                }
+                case Statistics::rtt:
+                {
+                    ServiceStatistics service_statistics;
+                    
+                    m_pimpl->m_stat_counter.get_stat_info(service_statistics);
+                    service_statistics.server_address = m_pimpl->m_pv_key.get_public_key().to_string();
+
+                    Statistics statistics;
+                    statistics.data = std::move(service_statistics);
+
+                    psk->send(peerid, beltpp::packet(std::move(statistics)));
+                    
                     m_pimpl->m_stat_counter.init();
-                   */ 
+                    
                     break;
                 }
                 case Ping::rtt:

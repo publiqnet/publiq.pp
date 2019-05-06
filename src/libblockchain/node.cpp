@@ -230,8 +230,7 @@ bool node::run()
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
-                    if (m_pimpl->m_transfer_only &&
-                        ref_packet.type() != Transfer::rtt)
+                    if (m_pimpl->m_transfer_only && ref_packet.type() != Transfer::rtt)
                         throw std::runtime_error("this is coin only blockchain");
 
                     Broadcast* p_broadcast = nullptr;
@@ -252,7 +251,6 @@ bool node::run()
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
                                           it == interface_type::rpc,
-                                          //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
@@ -299,6 +297,46 @@ bool node::run()
                                                                                                     peerid,
                                                                                                     std::move(broadcast))));
                     }
+
+                    break;
+                }
+                case Statistics::rtt:
+                {
+                    if (NodeType::blockchain == m_pimpl->m_node_type || nullptr == m_pimpl->m_slave_node)
+                        throw wrong_request_exception("Do not distrub!");
+
+                    Statistics statistics;
+                    std::move(ref_packet).get(statistics);
+                    statistics.data.server_address = m_pimpl->m_pb_key.to_string();
+
+                    Transaction transaction;
+                    transaction.action = std::move(statistics.data);
+                    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+                    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
+
+                    Authority authority;
+                    authority.address = m_pimpl->m_pb_key.to_string();
+                    authority.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+
+                    SignedTransaction signed_tx;
+                    signed_tx.transaction_details = transaction;
+                    signed_tx.authorizations.push_back(authority);
+
+                    if (action_process_on_chain(signed_tx, *m_pimpl.get()))
+                    {
+                        Broadcast broadcast;
+                        broadcast.echoes = 2;
+                        broadcast.package = signed_tx;
+
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          true,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+                    }
+
 
                     break;
                 }
@@ -354,42 +392,6 @@ bool node::run()
 
                     break;
                 }
-                /*
-                case TaskResponse::rtt:
-                {
-                    if(peerid != m_pimpl->m_slave_peer)
-                        throw wrong_request_exception("Do not distrub!");
-
-                    TaskResponse task_response;
-                    std::move(ref_packet).get(task_response);
-
-                    if (task_response.package.type() == StorageFileAddress::rtt)
-                    {
-                        packet task_packet;
-                        m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet);
-                    }
-                    else if (task_response.package.type() == ServiceStatistics::rtt)
-                    {
-                        if (m_pimpl->m_node_type == NodeType::storage)
-                        {
-                            packet task_packet;
-
-                            if (m_pimpl->m_slave_tasks.remove(task_response.task_id, task_packet) &&
-                                task_packet.type() == ServiceStatistics::rtt)
-                            {
-                                ServiceStatistics stat_info;
-                                std::move(task_response.package).get(stat_info);
-
-                                broadcast_storage_stat(stat_info, m_pimpl);
-                            }
-                        }
-                        else
-                            throw wrong_request_exception("Do not distrub!");
-                    }
-
-                    break;
-                }
-                */
                 case LoggedTransactionsRequest::rtt:
                 {
                     if (it == interface_type::rpc)
@@ -741,9 +743,9 @@ bool node::run()
             m_pimpl->m_sessions.process("slave", std::move(ref_packet));
     }
 
+    m_pimpl->m_sessions.erase_all_pending();
     m_pimpl->m_sync_sessions.erase_all_pending();
     m_pimpl->m_nodeid_sessions.erase_all_pending();
-    m_pimpl->m_sessions.erase_all_pending();
 
     // broadcast own transactions to all peers for the case
     // when node could not do this when received it through rpc

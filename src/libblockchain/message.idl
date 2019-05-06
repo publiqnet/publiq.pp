@@ -180,26 +180,35 @@ module BlockchainMessage
     class StorageUpdate
     {
         UpdateType status
-        String uri
+        String file_uri
         String storage_address
     }
     enum UpdateType {store remove}
 
+    class Statistics
+    {
+        ServiceStatistics data
+    }
     class ServiceStatistics
     {
         String server_address
+
+        Array ServiceStatisticsFile file_items
+    }
+    class ServiceStatisticsFile
+    {
         String file_uri
 
-        Array ServiceStatisticsItem stat_items
+        Array ServiceStatisticsCount count_items
     }
-    class ServiceStatisticsItem
+    class ServiceStatisticsCount
     {
-        String peer_address
         UInt64 count
+        String peer_address
     }
 
-    class TransactionReserve6 {}
-    class TransactionReserve7 {}
+    //class TransactionReserve6 {}
+    //class TransactionReserve7 {}
     class TransactionReserve8 {}
     class TransactionReserve9 {}
     class TransactionReserve10 {}
@@ -435,7 +444,19 @@ module BlockchainMessage
     class StorageFileRequest
     {
         String uri
+        String unit_uri
         String channel_address
+    }
+
+    class StorageFileSize
+    {
+        String uri
+    }
+
+    class StorageFileSizeResponse
+    {
+        String uri
+        UInt64 size
     }
 
     class GenericModelReserve1 {}
