@@ -65,79 +65,22 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     action_revert(impl, signed_transaction.transaction_details.action, layer);
 }
 
-//void validate_delations(map<string, ServiceStatistics> const& right_delations,
-//                        map<string, ServiceStatistics> const& check_delations,
-//                        map<string, uint64_t>& penals)
-//{
-//    penals.clear();
-//    // to check an algorithm for now
-//
-//    for (auto const& right_item_it : right_delations)
-//    {
-//        for (auto const& right_info_item : right_item_it.second.stat_items)
-//        {
-//            bool compare_failed = true;
-//            auto check_item_it = check_delations.find(right_info_item.peer_address);
-//
-//            if(check_item_it != check_delations.end())
-//                for (auto const& check_info_item : check_item_it->second.stat_items)
-//                {
-//                    if (check_info_item.peer_address == right_item_it.first)
-//                    {
-//                        //  need to check for equality or inequality?
-//                        if (check_info_item.count == right_info_item.count)
-//                            compare_failed = false;
-//
-//                        break;
-//                    }
-//                }
-//
-//            if (compare_failed)
-//                ++penals[right_info_item.peer_address];
-//        }
-//    }
-//}
-
-void filter_penals(map<string, uint64_t> const& penals, set<string>& result)
+void validate_statistics(map<string, ServiceStatistics>& result,
+                         map<string, ServiceStatistics> const& channel_provided_statistics,
+                         map<string, ServiceStatistics> const& /*storage_provided_statistics*/)
 {
     result.clear();
-    // to check an algorithm for now
 
-    if (penals.empty())
-        return;
-
-    uint64_t total_count = penals.size();
-    uint64_t remove_count = total_count * 50 / 100; // 50%
-    remove_count = remove_count > 0 ? remove_count : 1;
-
-    map<uint64_t, uint64_t> filter_map;
-
-    for (auto const& it : penals)
-        ++filter_map[it.second];
-
-    uint64_t threshold = filter_map.cbegin()->first + 1;
-
-    if (filter_map.size() > 1)
-    {
-        threshold = filter_map.cbegin()->first;
-
-        while (remove_count > filter_map.cbegin()->second)
-        {
-            filter_map.erase(threshold);
-            threshold = filter_map.cbegin()->first;
-        }
-    }
-
-    for (auto const& it : penals)
-        if(it.second < threshold)
-            result.insert(it.first);
+    //TODO implement real validation
+    for (auto const& item : channel_provided_statistics)
+        result[item.first] = item.second;
 }
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    vector<Reward>& rewards,
                    string const& address,
                    uint64_t block_number,
-                   publiqpp::detail::node_internals& /*impl*/)
+                   publiqpp::detail::node_internals& impl)
 {
     rewards.clear();
 
@@ -151,32 +94,20 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         fee += it->transaction_details.fee;
 
-        //if (it->transaction_details.action.type() == ServiceStatistics::rtt)
-        //{
-        //    ServiceStatistics stat_info;
-        //    it->transaction_details.action.get(stat_info);
-        //
-        //    NodeType node_type;
-        //    if (impl.m_state.get_role(stat_info.server_address, node_type))
-        //    {
-        //        if (node_type == NodeType::channel)
-        //        {
-        //            for (auto const& item : stat_info.stat_items)
-        //            {
-        //                storage_penals[item.peer_address] = 0;
-        //                channel_delations[item.peer_address] = stat_info;
-        //            }
-        //        }
-        //        else if (node_type == NodeType::storage)
-        //        {
-        //            for (auto const& item : stat_info.stat_items)
-        //            {
-        //                channel_penals[item.peer_address] = 0;
-        //                storage_delations[item.peer_address] = stat_info;
-        //            }
-        //        }
-        //    }
-        //}
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
+        {
+            ServiceStatistics service_statistics;
+            it->transaction_details.action.get(service_statistics);
+        
+            NodeType node_type;
+            if (impl.m_state.get_role(service_statistics.server_address, node_type))
+            {
+                if (node_type == NodeType::channel)
+                    channel_provided_statistics[service_statistics.server_address] = service_statistics;
+                else 
+                    storage_provided_statistics[service_statistics.server_address] = service_statistics;
+            }
+        }
     }
 
     size_t year_index = block_number / 50000;
@@ -189,11 +120,12 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         storage_reward += BLOCK_REWARD_ARRAY[year_index] - miner_reward - channel_reward;
     }
 
+    map<string, ServiceStatistics> valid_statistics;
+    validate_statistics(valid_statistics, channel_provided_statistics, storage_provided_statistics);
+
     // grant channel rewards
     set<string> channels;
-    //validate_delations(channel_delations, storage_delations, storage_penals);
-    filter_penals(channel_penals, channels);
-
+    
     if (channels.size() && !channel_reward.empty())
     {
         Reward reward;
@@ -215,8 +147,6 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     // grant storage rewards
     set<string> storages;
-    //validate_delations(storage_delations, channel_delations, channel_penals);
-    filter_penals(storage_penals, storages);
 
     if (storages.size() && !storage_reward.empty())
     {
