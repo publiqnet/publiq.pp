@@ -129,6 +129,17 @@ bool storage_node::run()
                     if (m_pimpl->m_storage.get(file_info.uri, file))
                     {
                         psk->send(peerid, beltpp::packet(std::move(file)));
+
+                        {
+                            std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
+                            Served msg;
+                            msg.file_uri = file_info.uri;
+                            msg.peer_address = file_info.channel_address;
+                            m_pimpl->m_messages.push_back(std::make_pair(beltpp::packet(), packet(std::move(msg))));
+
+                            //  may also wake, but seems not necessary
+                            //  m_pimpl->m_master_node->wake();
+                        }
                     }
                     else
                     {
@@ -153,7 +164,7 @@ bool storage_node::run()
 
                     break;
                 }
-                case Statistics::rtt:
+                /*case Statistics::rtt:
                 {
                     ServiceStatistics service_statistics;
                     
@@ -168,7 +179,7 @@ bool storage_node::run()
                     m_pimpl->m_stat_counter.init();
                     
                     break;
-                }
+                }*/
                 case Ping::rtt:
                 {
                     Pong msg_pong;

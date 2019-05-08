@@ -185,7 +185,7 @@ module BlockchainMessage
     }
     enum UpdateType {store remove}
 
-    class Statistics
+    class Statistics_del
     {
         ServiceStatistics data
     }
@@ -304,28 +304,15 @@ module BlockchainMessage
         Transaction transaction_details
         String private_key
     }
-    class SignedTransactionBroadcastRequest
-    {
-        SignedTransaction signed_transaction
-        String private_key
-    }
     class TransactionDone
     {
         String transaction_hash
     }
 
-    class IncompleteTransactionsRequest
-    {
-        String address
-    }
-    class IncompleteTransactions
-    {
-        Array IncompleteTransactionItem incomplete_signed_transactions
-    }
-    class IncompleteTransactionItem
-    {
-        SignedTransaction signed_transaction
-    }
+    class ApiReserve1 {}
+    class ApiReserve2 {}
+    class ApiReserve3 {}
+    class ApiReserve4 {}
 
     class SyncRequest {}
 
@@ -372,16 +359,29 @@ module BlockchainMessage
         UInt64 seconds_since_checked
     }
 
-    class ApiReserve1 {}
-    class ApiReserve2 {}
-    class ApiReserve3 {}
-    class ApiReserve4 {}
+    class IncompleteTransactionsRequest
+    {
+        String address
+    }
+    class IncompleteTransactions
+    {
+        Array SignedTransaction incomplete_signed_transactions
+    }
+
+    class Served
+    {
+        String file_uri
+        String content_unit_uri
+        String peer_address
+    }
+
     class ApiReserve5 {}
     class ApiReserve6 {}
     class ApiReserve7 {}
     class ApiReserve8 {}
     class ApiReserve9 {}
     class ApiReserve10 {}
+    class ApiReserve11 {}
 
     ///
     //  response codes
@@ -446,7 +446,6 @@ module BlockchainMessage
     class StorageFileRequest
     {
         String uri
-        String unit_uri
         String channel_address
     }
 

@@ -57,45 +57,6 @@ namespace publiqpp
 namespace detail
 {
 
-class stat_counter
-{
-public:
-    void init()
-    {
-        ussage_map.clear();
-    }
-
-    void update(string file_uri, string peer_address)
-    {
-        ++ussage_map[file_uri][peer_address];
-    }
-
-    void get_stat_info(ServiceStatistics& service_statistics)
-    {
-        service_statistics.file_items.clear();
-
-        for (auto const& item : ussage_map)
-        {
-            ServiceStatisticsFile stat_file;
-            stat_file.file_uri = item.first;
-
-            for (auto const& it : item.second)
-            {
-                ServiceStatisticsCount stat_count;
-                stat_count.count = it.second;
-                stat_count.peer_address = it.first;
-
-                stat_file.count_items.push_back(stat_count);
-            }
-
-            service_statistics.file_items.push_back(stat_file);
-        }
-    }
-
-private:
-    map<string, map<string, uint64_t>> ussage_map;
-};
-
 class storage_node_internals
 {
 public:
@@ -143,8 +104,6 @@ public:
     beltpp::ip_address m_rpc_bind_to_address;
     publiqpp::storage m_storage;
     meshpp::private_key m_pv_key;
-
-    stat_counter m_stat_counter;
 
     std::mutex m_messages_mutex;
     list<pair<beltpp::packet, beltpp::packet>> m_messages;

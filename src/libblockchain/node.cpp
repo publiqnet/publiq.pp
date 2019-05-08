@@ -300,7 +300,7 @@ bool node::run()
 
                     break;
                 }
-                case Statistics::rtt:
+                /*case Statistics::rtt:
                 {
                     if (NodeType::blockchain == m_pimpl->m_node_type || nullptr == m_pimpl->m_slave_node)
                         throw wrong_request_exception("Do not distrub!");
@@ -340,7 +340,7 @@ bool node::run()
 
 
                     break;
-                }
+                }*/
                 case StorageFile::rtt:
                 {
                     if (NodeType::blockchain == m_pimpl->m_node_type||
@@ -538,6 +538,13 @@ bool node::run()
 
                     msg_pong.signature = std::move(signed_message.base58);
                     psk->send(peerid, beltpp::packet(std::move(msg_pong)));
+                    break;
+                }
+                case Served::rtt:
+                {
+                    Served msg;
+                    std::move(ref_packet).get(msg);
+                    m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
                     break;
                 }
                 default:
@@ -741,7 +748,20 @@ bool node::run()
         beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
 
         for (auto& ref_packet : received_packets)
-            m_pimpl->m_sessions.process("slave", std::move(ref_packet));
+        {
+            if (m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
+                continue;
+            switch (ref_packet.type())
+            {
+            case Served::rtt:
+            {
+                Served msg;
+                std::move(ref_packet).get(msg);
+                m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+                break;
+            }
+            }
+        }
     }
 
     m_pimpl->m_sessions.erase_all_pending();

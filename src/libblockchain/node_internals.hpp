@@ -24,8 +24,8 @@
 #include <mesh.pp/sessionutility.hpp>
 
 #include <boost/filesystem/path.hpp>
+#include <boost/functional/hash.hpp>
 
-#include <map>
 #include <chrono>
 #include <memory>
 
@@ -38,7 +38,6 @@ using beltpp::socket;
 using beltpp::packet;
 using peer_id = socket::peer_id;
 
-using std::map;
 using std::pair;
 using std::string;
 using std::vector;
@@ -107,6 +106,100 @@ public:
 private:
     map<uint64_t, pair<system_clock::time_point, packet>> task_map;
 };*/
+
+class service_counter
+{
+    class service_unit
+    {
+    public:
+        string file_uri;
+        string content_unit_uri;
+        string peer_address;
+
+        bool operator == (service_unit const& other) const
+        {
+            return (file_uri == other.file_uri &&
+                    content_unit_uri == other.content_unit_uri &&
+                    peer_address == other.peer_address);
+        }
+    };
+
+    struct hash
+    {
+        size_t operator()(service_unit const& value) const noexcept
+        {
+            size_t hash_value = 0xdeadbeef;
+            boost::hash_combine(hash_value, value.file_uri);
+            boost::hash_combine(hash_value, value.content_unit_uri);
+            boost::hash_combine(hash_value, value.peer_address);
+            return hash_value;
+        }
+    };
+public:
+    void served(string const& content_unit_uri,
+                string const& file_uri,
+                string const& peer_address)
+    {
+        service_unit unit;
+        unit.content_unit_uri = content_unit_uri;
+        unit.file_uri = file_uri;
+        unit.peer_address = peer_address;
+
+        ++m_served[unit];
+    }
+
+    ServiceStatistics take_statistics_info()
+    {
+        ServiceStatistics service_statistics;
+
+        unordered_map<service_unit, size_t, hash> index;
+
+        for (auto const& item : m_served)
+        {
+            auto const& file_uri = item.first.file_uri;
+            auto const& content_unit_uri = item.first.content_unit_uri;
+
+            ServiceStatisticsFile* pstat_file = nullptr;
+
+            service_unit index_key;
+            index_key.content_unit_uri = content_unit_uri;
+            index_key.file_uri = file_uri;
+
+            auto insert_result = index.insert(std::make_pair(
+                                       index_key,
+                                       service_statistics.file_items.size()));
+            if (false == insert_result.second)
+            {
+                auto it = insert_result.first;
+                pstat_file = &service_statistics.file_items[it->second];
+            }
+            else
+            {
+                ServiceStatisticsFile stat_file_local;
+                stat_file_local.file_uri = file_uri;
+                stat_file_local.unit_uri = content_unit_uri;
+                service_statistics.file_items.push_back(stat_file_local);
+
+                pstat_file = &service_statistics.file_items.back();
+            }
+
+            ServiceStatisticsFile& stat_file = *pstat_file;
+
+            ServiceStatisticsCount stat_count;
+            stat_count.peer_address = item.first.peer_address;
+            stat_count.count = item.second;
+
+            stat_file.count_items.push_back(stat_count);
+        }
+
+        m_served.clear();
+
+        return service_statistics;
+    }
+
+private:
+    unordered_map<service_unit, uint64_t, hash> m_served;
+};
 
 class transaction_cache
 {
@@ -471,6 +564,7 @@ public:
     publiqpp::documents m_documents;
 
     node_synchronization all_sync_info;
+    detail::service_counter service_counter;
 
     publiqpp::nodeid_service m_nodeid_service;
     meshpp::session_manager<meshpp::nodeid_session_header> m_sync_sessions;
