@@ -65,15 +65,29 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     action_revert(impl, signed_transaction.transaction_details.action, layer);
 }
 
-void validate_statistics(map<string, ServiceStatistics>& result,
-                         map<string, ServiceStatistics> const& channel_provided_statistics,
-                         map<string, ServiceStatistics> const& /*storage_provided_statistics*/)
+void validate_statistics(map<string, ServiceStatistics> const& channel_provided_statistics,
+                         map<string, ServiceStatistics> const& storage_provided_statistics,
+                         map<pair<string, uint64_t>, uint64_t>& channel_result,
+                         map<string, uint64_t>& storage_result,
+                         publiqpp::detail::node_internals& impl)
 {
-    result.clear();
+    channel_result.clear();
+    storage_result.clear();
 
-    //TODO implement real validation
+    return; // stop work
+
+    //TODO implement real validation and result generation
+
     for (auto const& item : channel_provided_statistics)
-        result[item.first] = item.second;
+        for (auto const& it : item.second.file_items)
+        {
+            uint64_t content_id = impl.m_documents.get_unit(it.unit_uri).content_id;
+
+            channel_result[make_pair(item.first, content_id)] = 1;
+        }
+
+    for (auto const& item : storage_provided_statistics)
+        storage_result[item.first] = 1;
 }
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions,
@@ -85,8 +99,6 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     rewards.clear();
 
     coin fee = coin(0, 0);
-    map<string, uint64_t> channel_penals;
-    map<string, uint64_t> storage_penals;
     map<string, ServiceStatistics> channel_provided_statistics;
     map<string, ServiceStatistics> storage_provided_statistics;
 
@@ -120,49 +132,64 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         storage_reward += BLOCK_REWARD_ARRAY[year_index] - miner_reward - channel_reward;
     }
 
-    map<string, ServiceStatistics> valid_statistics;
-    validate_statistics(valid_statistics, channel_provided_statistics, storage_provided_statistics);
+    map<pair<string, uint64_t>, uint64_t> channel_result;
+    map<string, uint64_t> storage_result;
+    validate_statistics(channel_provided_statistics, 
+                        storage_provided_statistics, 
+                        channel_result, 
+                        storage_result,
+                        impl);
 
     // grant channel rewards
-    set<string> channels;
-    
-    if (channels.size() && !channel_reward.empty())
+    if (channel_result.size() && !channel_reward.empty())
     {
+        uint64_t channel_total = 0;
+        for (auto const& item : channel_result)
+            channel_total += item.second;
+
         Reward reward;
         reward.reward_type = RewardType::channel;
-        coin channel_portion = channel_reward / channels.size();
+        coin channel_portion = channel_reward / channel_total;
 
-        for (auto const& item : channels)
+        for (auto const& item : channel_result)
         {
-            reward.to = item;
-            channel_portion.to_Coin(reward.amount);
+            reward.to = item.first.first;
+            (channel_portion * item.second).to_Coin(reward.amount);
 
             rewards.push_back(reward);
+
+            channel_reward -= reward.amount;
         }
 
-        (channel_reward - channel_portion * (channels.size() - 1)).to_Coin(rewards.back().amount);
+        // rounding error fix
+        (channel_reward + rewards.back().amount).to_Coin(rewards.back().amount);
     }
     else
         miner_reward += channel_reward;
 
     // grant storage rewards
-    set<string> storages;
-
-    if (storages.size() && !storage_reward.empty())
+    if (storage_result.size() && !storage_reward.empty())
     {
+        uint64_t storage_total = 0;
+        for (auto const& item : storage_result)
+            storage_total += item.second;
+
         Reward reward;
         reward.reward_type = RewardType::storage;
-        coin storage_portion = storage_reward / storages.size();
+        coin storage_portion = storage_reward / storage_total;
 
-        for (auto const& item : storages)
+        for (auto const& item : storage_result)
         {
-            reward.to = item;
-            storage_portion.to_Coin(reward.amount);
+            reward.to = item.first;
+            (storage_portion * item.second).to_Coin(reward.amount);
 
             rewards.push_back(reward);
+
+            storage_reward -= reward.amount;
         }
 
-        (storage_reward - storage_portion * (storages.size() - 1)).to_Coin(rewards.back().amount);
+        // rounding error fix
+        (storage_reward + rewards.back().amount).to_Coin(rewards.back().amount);
     }
     else
         miner_reward += storage_reward;
