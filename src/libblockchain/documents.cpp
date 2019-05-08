@@ -66,6 +66,9 @@ void documents::discard()
 
 bool documents::exist_file(string const& uri) const
 {
+    if (uri.empty())
+        return false;
+
     return m_pimpl->m_files.contains(uri);
 }
 
@@ -91,6 +94,9 @@ BlockchainMessage::File const& documents::get_file(std::string const& uri) const
 
 bool documents::exist_unit(string const& uri) const
 {
+    if (uri.empty())
+        return false;
+
     return m_pimpl->m_units.contains(uri);
 }
 

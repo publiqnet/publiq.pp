@@ -144,8 +144,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     coin fee = coin(0, 0);
     map<string, uint64_t> channel_penals;
     map<string, uint64_t> storage_penals;
-    map<string, ServiceStatistics> channel_delations;
-    map<string, ServiceStatistics> storage_delations;
+    map<string, ServiceStatistics> channel_provided_statistics;
+    map<string, ServiceStatistics> storage_provided_statistics;
 
     for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
     {
@@ -540,6 +540,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
             }
         }
 
+        //TODO block transactions must be collected after some sorting
         if (false == not_found &&
             transactions_count < size_t(BLOCK_MAX_TRANSACTIONS) &&
             apply_transaction(signed_transaction, impl, own_key) &&
@@ -600,7 +601,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     impl.save(guard);
 
-    impl.writeln_node("NEW block mined : " + std::to_string(block_header.block_number));
+    impl.writeln_node("I did it ! " + std::to_string(block_header.block_number) + " block mined :)");
 }
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)

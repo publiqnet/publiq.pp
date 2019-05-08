@@ -191,6 +191,7 @@ module BlockchainMessage
     }
     class ServiceStatistics
     {
+        UInt64 block_number
         String server_address
 
         Array ServiceStatisticsFile file_items
@@ -198,6 +199,7 @@ module BlockchainMessage
     class ServiceStatisticsFile
     {
         String file_uri
+        String unit_uri
 
         Array ServiceStatisticsCount count_items
     }

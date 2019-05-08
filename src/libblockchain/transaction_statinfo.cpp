@@ -40,6 +40,9 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       ServiceStatistics const& service_statistics)
 {
+    if (service_statistics.block_number != impl.m_blockchain.length())
+        return false;
+
     NodeType node_type;
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
         node_type == NodeType::blockchain)
@@ -48,6 +51,10 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     for (auto const& item : service_statistics.file_items)
     {
         if (false == impl.m_documents.exist_file(item.file_uri))
+            return false;
+
+        if (node_type == NodeType::channel &&
+            false == impl.m_documents.exist_unit(item.unit_uri))
             return false;
 
         for (auto const& it : item.count_items)
@@ -60,10 +67,6 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         }
     }
 
-    /* change to block number or something ...
-    if (stat_info.hash != impl.m_blockchain.last_hash())
-        return false;*/
-
     return true;
 }
 
@@ -71,6 +74,9 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   ServiceStatistics const& service_statistics,
                   state_layer/* layer*/)
 {
+    if (service_statistics.block_number != impl.m_blockchain.length())
+        throw wrong_data_exception("servicestatistics does not correspond to current block");
+
     NodeType node_type;
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
         node_type == NodeType::blockchain)
@@ -81,6 +87,10 @@ void action_apply(publiqpp::detail::node_internals& impl,
         if (false == impl.m_documents.exist_file(item.file_uri))
             throw wrong_data_exception("file does not exists in documents");
 
+        if (node_type == NodeType::channel &&
+            false == impl.m_documents.exist_unit(item.unit_uri))
+            throw wrong_data_exception("contentunit does not exists in documents");
+
         for (auto const& it : item.count_items)
         {
             NodeType item_node_type;
@@ -90,10 +100,6 @@ void action_apply(publiqpp::detail::node_internals& impl,
                 throw wrong_data_exception("wrong node type : " + it.peer_address);
         }
     }
-
-    // TODO fix
-    //if (stat_info.hash != impl.m_blockchain.last_hash())
-    //    throw std::runtime_error("stat_info.hash != impl.m_blockchain.last_hash()");
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,

@@ -307,6 +307,7 @@ bool node::run()
 
                     Statistics statistics;
                     std::move(ref_packet).get(statistics);
+                    statistics.data.block_number = m_pimpl->m_blockchain.length();
                     statistics.data.server_address = m_pimpl->m_pb_key.to_string();
 
                     Transaction transaction;
