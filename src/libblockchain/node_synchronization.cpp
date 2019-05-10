@@ -41,7 +41,7 @@ BlockHeaderExtended node_synchronization::net_sync_info() const
 
 BlockHeaderExtended node_synchronization::own_sync_info() const
 {
-    BlockHeaderExtended result = pimpl->m_blockchain.header_ex_at(pimpl->m_blockchain.length() - 1);
+    BlockHeaderExtended result = pimpl->m_blockchain.last_header_ex();
 
     // calculate delta for next block for the case if I will mine it
     if (pimpl->is_miner())

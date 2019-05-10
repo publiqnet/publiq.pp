@@ -859,7 +859,7 @@ void block_worker(detail::node_internals& impl)
     if (impl.all_sync_info.blockchain_sync_in_progress)
         return;
 
-    uint64_t additional_delay_threshhold = 60;
+    uint64_t additional_delay_threshhold = 120;
 
     auto const blockchain_length = impl.m_blockchain.length();
     auto const last_header = impl.m_blockchain.last_header();
@@ -1008,6 +1008,8 @@ double header_worker(detail::node_internals& impl)
     BlockHeaderExtended head_block_header = impl.m_blockchain.last_header_ex();
 
     BlockHeaderExtended scan_block_header = head_block_header;
+    scan_block_header.c_sum = 0;
+
     beltpp::isocket::peer_id scan_peer;
 
     double revert_coefficient = 0;
@@ -1024,7 +1026,8 @@ double header_worker(detail::node_internals& impl)
             continue; // don't consider this peer during header action is active
         }
 
-        if (scan_block_header.c_sum < item.second.own_header.c_sum &&
+        if (head_block_header.block_hash != item.second.own_header.block_hash &&
+            scan_block_header.c_sum < item.second.own_header.c_sum &&
             scan_block_header.block_number <= item.second.own_header.block_number)
         {
             scan_block_header = item.second.own_header;
@@ -1052,8 +1055,9 @@ double header_worker(detail::node_internals& impl)
 
         if (head_block_header.block_number + 1 < scan_block_header.block_number)
         {
-            // network is far behind and I have to sync first
-            sync_now = true;
+            // network is far ahead and I have to sync first
+            if (head_block_header.c_sum < scan_block_header.c_sum)
+                sync_now = true;
         }
         else if (head_block_header.c_sum < scan_block_header.c_sum &&
                  head_block_header.block_number == scan_block_header.block_number)
@@ -1088,12 +1092,21 @@ double header_worker(detail::node_internals& impl)
         else// if (own_sum >= scan_block_header.c_sum)
         {
             //  I can mine better block and don't need received data
-            //  I can wait until it is
-            //  either past BLOCK_MINE_DELAY and I can mine better than scan_consensus_sum
-            //  or it is past BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY and I can mine better than net_sum
-            if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) <= since_head_block ||
-                (chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block && own_sum >= net_sum))
+            //  or I have something better
+
+            //  wait until
+            if (chrono::seconds(BLOCK_MINE_DELAY - BLOCK_WAIT_DELAY) <= since_head_block &&
+                since_head_block < chrono::seconds(BLOCK_MINE_DELAY))
             {
+                //  last two minutes before another block will be added
+                if (false == scan_peer.empty())
+                    sync_now = true;
+            }
+            else if (chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) <= since_head_block ||
+                     (chrono::seconds(BLOCK_MINE_DELAY) <= since_head_block && own_sum >= net_sum))
+            {
+                //  either BLOCK_MINE_DELAY has passed and I can mine better than scan_consensus_sum
+                //  or BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY has passed and I can mine better than net_sum
                 mine_now = true;
                 assert(false == sync_now);
             }
