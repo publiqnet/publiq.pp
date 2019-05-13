@@ -53,10 +53,14 @@
 
 #define DIST_MAX    4294967296ull
 
+// Service statistics acceptable discreancy
+#define STAT_ERROR_LIMIT 1.1
+
 // Reward coins percents
-#define MINER_REWARD_PERCENT    10
-#define STORAGE_REWARD_PERCENT  30
-#define CHANNEL_REWARD_PERCENT  60
+#define MINER_REWARD_PERCENT    25
+#define STORAGE_REWARD_PERCENT  25
+#define CHANNEL_REWARD_PERCENT  25
+#define AUTHOR_REWARD_PERCENT   25
 
 using coin = publiqpp::coin;
 
