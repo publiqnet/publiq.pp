@@ -2,6 +2,8 @@
 
 #include "node_internals.hpp"
 
+#include <map>
+
 namespace publiqpp
 {
 void mine_block(publiqpp::detail::node_internals& impl);

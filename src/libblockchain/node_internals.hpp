@@ -28,6 +28,10 @@
 
 #include <chrono>
 #include <memory>
+#include <utility>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
