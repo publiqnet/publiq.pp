@@ -209,14 +209,14 @@ bool node::run()
                 {
                     beltpp::isocket_open_refused msg;
                     ref_packet.get(msg);
-                    m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
+                    //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
                 case beltpp::isocket_open_error::rtt:
                 {
                     beltpp::isocket_open_error msg;
                     ref_packet.get(msg);
-                    m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
+                    //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
                 case Transfer::rtt:
