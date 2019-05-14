@@ -113,6 +113,9 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                         pair<uint64_t, uint64_t>& value = content_group[index];
                         value.first += i.count;
                         value.second += 1;
+
+                        for (auto const& author : content_unit.author_addresses)
+                            author_result[author] += i.count;
                     }
 
                     storage_result[i.peer_address] += i.count;
