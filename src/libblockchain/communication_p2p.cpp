@@ -72,9 +72,9 @@ bool stat_mismatch(uint64_t first, uint64_t second)
 
 void validate_statistics(map<string, ServiceStatistics> const& channel_provided_statistics,
                          map<string, ServiceStatistics> const& storage_provided_statistics,
+                         map<string, uint64_t>& author_result,
                          map<string, uint64_t>& channel_result,
                          map<string, uint64_t>& storage_result,
-                         map<string, uint64_t>& author_result,
                          publiqpp::detail::node_internals& impl)
 {
     channel_result.clear();
@@ -84,7 +84,6 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     return; // stop work
 
     map<string, map<string, map<string, uint64_t>>> channel_stat;
-    map<string, map<string, map<string, uint64_t>>> storage_stat;
     map<pair<string, uint64_t>, pair<uint64_t, uint64_t>> content_group;
 
     for (auto const& item : channel_provided_statistics)
@@ -114,9 +113,9 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                         pair<uint64_t, uint64_t>& value = content_group[index];
                         value.first += i.count;
                         value.second += 1;
-
-                        storage_result[i.peer_address] += i.count;
                     }
+
+                    storage_result[i.peer_address] += i.count;
                 }
 
     for (auto const& item : content_group)
@@ -128,7 +127,7 @@ coin distribute_rewards(vector<Reward>& rewards,
                             coin total_amount,
                             RewardType reward_type)
 {
-    // total_amount will go to miner
+    // total_amount will go to miner if no stat distribution
     if (stat_distribution.size() == 0 || total_amount.empty())
         return total_amount;
 
@@ -194,29 +193,25 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     if (year_index < 60)
     {
         miner_reward += BLOCK_REWARD_ARRAY[year_index] * MINER_REWARD_PERCENT / 100;
+        author_reward += BLOCK_REWARD_ARRAY[year_index] * AUTHOR_REWARD_PERCENT / 100;
         channel_reward += BLOCK_REWARD_ARRAY[year_index] * CHANNEL_REWARD_PERCENT / 100;
-        storage_reward += BLOCK_REWARD_ARRAY[year_index] * STORAGE_REWARD_PERCENT / 100;
-        author_reward += BLOCK_REWARD_ARRAY[year_index] - miner_reward - channel_reward - storage_reward;
+        storage_reward += BLOCK_REWARD_ARRAY[year_index] - miner_reward - author_reward - channel_reward;
     }
 
+    map<string, uint64_t> author_result;
     map<string, uint64_t> channel_result;
     map<string, uint64_t> storage_result;
-    map<string, uint64_t> author_result;
     validate_statistics(channel_provided_statistics, 
                         storage_provided_statistics, 
-                        channel_result, 
-                        storage_result,
                         author_result,
+                        channel_result,
+                        storage_result,
                         impl);
 
-    // grant channel rewards
-    miner_reward += distribute_rewards(rewards, channel_result, channel_reward, RewardType::channel);
-
-    // grant storage rewards
-    miner_reward += distribute_rewards(rewards, storage_result, storage_reward, RewardType::storage);
-
-    // grant author rewards
+    // grant rewards to authors, channels and storages
     miner_reward += distribute_rewards(rewards, author_result, author_reward, RewardType::author);
+    miner_reward += distribute_rewards(rewards, channel_result, channel_reward, RewardType::channel);
+    miner_reward += distribute_rewards(rewards, storage_result, storage_reward, RewardType::storage);
 
     // grant miner reward himself
     if (!miner_reward.empty())
