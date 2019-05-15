@@ -460,8 +460,10 @@ void session_action_header::process_response(meshpp::nodeid_session_header& head
                         header_response.block_headers.end());
 
     //  sync_headers.front() has the highest index
-    if (sync_headers.front() != promised_header ||
-        sync_headers.front().block_number != sync_headers.back().block_number + sync_headers.size() - 1 ||
+    if (sync_headers.front() != promised_header)
+        return set_errored("probably the peer updated his blockchain after promised", false);
+
+    if (sync_headers.front().block_number != sync_headers.back().block_number + sync_headers.size() - 1 ||
         sync_headers.front().block_number < sync_headers.back().block_number)
         return set_errored("blockheader response. wrong data received!", throw_for_debugging_only);
 
