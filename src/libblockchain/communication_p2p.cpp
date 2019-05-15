@@ -23,6 +23,7 @@ using std::set;
 using std::multimap;
 using std::unordered_map;
 using std::unordered_set;
+using std::make_pair;
 namespace chrono = std::chrono;
 using chrono::system_clock;
 
@@ -72,19 +73,21 @@ bool stat_mismatch(uint64_t first, uint64_t second)
 
 void validate_statistics(map<string, ServiceStatistics> const& channel_provided_statistics,
                          map<string, ServiceStatistics> const& storage_provided_statistics,
-                         map<string, uint64_t>& author_result,
-                         map<string, uint64_t>& channel_result,
-                         map<string, uint64_t>& storage_result,
+                         multimap<string, pair<uint64_t, uint64_t>>& author_result,
+                         multimap<string, pair<uint64_t, uint64_t>>& channel_result,
+                         multimap<string, pair<uint64_t, uint64_t>>& storage_result,
                          publiqpp::detail::node_internals& impl)
 {
+    author_result.clear();
     channel_result.clear();
     storage_result.clear();
-    author_result.clear();
 
     return; // stop work
 
+    map<string, uint64_t> temp_result;
+    map<string, map<string, uint64_t>> author_dist_group;
+    map<pair<string, uint64_t>, uint64_t> content_dist_group;
     map<string, map<string, map<string, uint64_t>>> channel_stat;
-    map<pair<string, uint64_t>, pair<uint64_t, uint64_t>> content_group;
 
     for (auto const& item : channel_provided_statistics)
         for (auto const& it : item.second.file_items)
@@ -108,48 +111,69 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                 {
                     if (impl.m_documents.exist_unit(it.unit_uri))
                     {
-                        ContentUnit content_unit = impl.m_documents.get_unit(it.unit_uri);
-                        pair<string, uint64_t> index = make_pair(content_unit.channel_address, content_unit.content_id);
-                        pair<uint64_t, uint64_t>& value = content_group[index];
-                        value.first += i.count;
-                        value.second += 1;
+                        author_dist_group[it.unit_uri][it.file_uri] += i.count;
 
-                        for (auto const& author : content_unit.author_addresses)
-                            author_result[author] += i.count;
+                        ContentUnit content_unit = impl.m_documents.get_unit(it.unit_uri);
+                        auto index = make_pair(content_unit.channel_address, content_unit.content_id);
+                        content_dist_group[index] = std::max(content_dist_group[index], i.count);
                     }
 
-                    storage_result[i.peer_address] += i.count;
+                    temp_result[i.peer_address] += i.count;
                 }
 
-    for (auto const& item : content_group)
-        channel_result[item.first.first] = item.second.first / item.second.second;
+    for (auto const& item : temp_result)
+        storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
+
+    temp_result.clear();
+    for (auto const& item : content_dist_group)
+        temp_result[item.first.first] += item.second;
+
+    for (auto const& item : temp_result)
+        channel_result.insert(make_pair(item.first, make_pair(item.second, 1)));
+
+    for (auto const& item : author_dist_group)
+    {
+        uint64_t total = 0;
+        uint64_t count = item.second.size();
+        for (auto const& it : item.second)
+            total += it.second;
+
+        for (auto const& it : item.second)
+            author_result.insert(make_pair(it.first, std::make_pair(total, count)));
+    }
 }
 
 coin distribute_rewards(vector<Reward>& rewards,
-                            map<string, uint64_t> const& stat_distribution,
-                            coin total_amount,
-                            RewardType reward_type)
+                        multimap<string, pair<uint64_t, uint64_t>> const& stat_distribution,
+                        coin total_amount,
+                        RewardType reward_type)
 {
     // total_amount will go to miner if no stat distribution
     if (stat_distribution.size() == 0 || total_amount.empty())
         return total_amount;
 
     uint64_t total_points = 0;
+    map<string, coin> coin_distribution;
     for (auto const& item : stat_distribution)
-        total_points += item.second;
-
-    Reward reward;
-    reward.reward_type = reward_type;
-    coin single_portion = total_amount / total_points;
+        total_points += item.second.first;
 
     for (auto const& item : stat_distribution)
     {
+        coin amount = (total_amount * item.second.first) / (total_points + item.second.second);
+
+        total_amount -= amount;
+        coin_distribution[item.first] += amount;
+    }
+
+    Reward reward;
+    reward.reward_type = reward_type;
+
+    for (auto const& item : coin_distribution)
+    {
         reward.to = item.first;
-        (single_portion * item.second).to_Coin(reward.amount);
+        item.second.to_Coin(reward.amount);
 
         rewards.push_back(reward);
-
-        total_amount -= reward.amount;
     }
 
     // rounding error fix
@@ -201,9 +225,9 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         storage_reward += BLOCK_REWARD_ARRAY[year_index] - miner_reward - author_reward - channel_reward;
     }
 
-    map<string, uint64_t> author_result;
-    map<string, uint64_t> channel_result;
-    map<string, uint64_t> storage_result;
+    multimap<string, pair<uint64_t, uint64_t>> author_result;
+    multimap<string, pair<uint64_t, uint64_t>> channel_result;
+    multimap<string, pair<uint64_t, uint64_t>> storage_result;
     validate_statistics(channel_provided_statistics, 
                         storage_provided_statistics, 
                         author_result,
