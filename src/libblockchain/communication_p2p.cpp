@@ -84,16 +84,15 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
     return; // stop work
 
-    map<string, uint64_t> temp_result;
-    map<string, map<string, uint64_t>> author_dist_group;
-    map<pair<string, uint64_t>, uint64_t> content_dist_group;
     map<string, map<string, map<string, uint64_t>>> channel_stat;
 
+    // group channel provided data
     for (auto const& item : channel_provided_statistics)
         for (auto const& it : item.second.file_items)
             for (auto const& i : it.count_items)
                 channel_stat[item.first][it.file_uri][i.peer_address] += i.count;
 
+    // cross compare channel and storage provided data
     for (auto const& item : storage_provided_statistics)
         for (auto const& it : item.second.file_items)
             for (auto const& i : it.count_items)
@@ -104,6 +103,10 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                     stat_value = 0;
             }
 
+    map<string, uint64_t> temp_result;
+    map<string, map<string, uint64_t>> author_dist_group;
+    // channel     owner       content_id   view
+    map<string, map<string, map<uint64_t, uint64_t>>> content_dist_group;
     for (auto const& item : channel_provided_statistics)
         for (auto const& it : item.second.file_items)
             for (auto const& i : it.count_items)
@@ -114,32 +117,55 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                         author_dist_group[it.unit_uri][it.file_uri] += i.count;
 
                         ContentUnit content_unit = impl.m_documents.get_unit(it.unit_uri);
-                        auto index = make_pair(content_unit.channel_address, content_unit.content_id);
-                        content_dist_group[index] = std::max(content_dist_group[index], i.count);
+                        auto& value = content_dist_group[item.first][content_unit.channel_address][content_unit.content_id];
+                        value = std::max(value, i.count);
                     }
 
                     temp_result[i.peer_address] += i.count;
                 }
 
+    // collect storages final result
     for (auto const& item : temp_result)
         storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
 
-    temp_result.clear();
+    // collect channels final result
     for (auto const& item : content_dist_group)
-        temp_result[item.first.first] += item.second;
+    {
+        for (auto const& it : item.second)
+        {
+            uint64_t count = 0;
+            for (auto const& i : it.second)
+                count += i.second;
 
-    for (auto const& item : temp_result)
-        channel_result.insert(make_pair(item.first, make_pair(item.second, 1)));
+            if (item.first == it.first)
+                channel_result.insert(make_pair(item.first, make_pair(count, 1)));
+            else
+            {
+                channel_result.insert(make_pair(it.first, make_pair(count, 2)));
+                channel_result.insert(make_pair(item.first, make_pair(count, 2)));
+            }
+        }
+    }
 
+    // collect authors final result
     for (auto const& item : author_dist_group)
     {
         uint64_t total = 0;
-        uint64_t count = item.second.size();
+        uint64_t file_count = item.second.size();
         for (auto const& it : item.second)
             total += it.second;
 
         for (auto const& it : item.second)
-            author_result.insert(make_pair(it.first, std::make_pair(total, count)));
+        {
+            if (impl.m_documents.exist_file(it.first))
+            {
+                File file = impl.m_documents.get_file(item.first);
+                uint64_t author_count = file.author_addresses.size();
+
+                for (auto const& i : file.author_addresses)
+                    author_result.insert(make_pair(i, make_pair(total, file_count * author_count)));
+            }
+        }
     }
 }
 
