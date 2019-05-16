@@ -84,33 +84,36 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
     return; // stop work
 
-    map<string, map<string, map<string, uint64_t>>> channel_stat;
+    map<string, map<string, map<string, uint64_t>>> channel_verified_statistics;
 
-    // group channel provided data
+    // group channel provided data to verify in comming steps
     for (auto const& item : channel_provided_statistics)
         for (auto const& it : item.second.file_items)
             for (auto const& i : it.count_items)
-                channel_stat[item.first][it.file_uri][i.peer_address] += i.count;
+                channel_verified_statistics[item.first][it.file_uri][i.peer_address] += i.count;
 
     // cross compare channel and storage provided data
     for (auto const& item : storage_provided_statistics)
         for (auto const& it : item.second.file_items)
             for (auto const& i : it.count_items)
             {
-                uint64_t& stat_value = channel_stat[i.peer_address][it.file_uri][item.first];
+                uint64_t& stat_value = channel_verified_statistics[i.peer_address][it.file_uri][item.first];
 
                 if (stat_mismatch(stat_value, i.count))
                     stat_value = 0;
             }
 
-    map<string, uint64_t> temp_result;
+    // storage     view
+    map<string, uint64_t> storage_dist_group;
+    // unit_uri    file_uri   view
     map<string, map<string, uint64_t>> author_dist_group;
     // channel     owner       content_id   view
     map<string, map<string, map<uint64_t, uint64_t>>> content_dist_group;
+
     for (auto const& item : channel_provided_statistics)
         for (auto const& it : item.second.file_items)
             for (auto const& i : it.count_items)
-                if (channel_stat[item.first][it.file_uri][i.peer_address] > 0)
+                if (channel_verified_statistics[item.first][it.file_uri][i.peer_address] > 0)
                 {
                     if (impl.m_documents.exist_unit(it.unit_uri))
                     {
@@ -121,11 +124,11 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                         value = std::max(value, i.count);
                     }
 
-                    temp_result[i.peer_address] += i.count;
+                    storage_dist_group[i.peer_address] += i.count;
                 }
 
     // collect storages final result
-    for (auto const& item : temp_result)
+    for (auto const& item : storage_dist_group)
         storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
 
     // collect channels final result
@@ -154,6 +157,9 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
         uint64_t file_count = item.second.size();
         for (auto const& it : item.second)
             total += it.second;
+
+        // get middle value as a unit usage
+        total = total / file_count;
 
         for (auto const& it : item.second)
         {
