@@ -1,6 +1,7 @@
 #include "transaction_pool.hpp"
 #include "node_internals.hpp"
 #include "transaction_handler.hpp"
+#include "message.tmpl.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
