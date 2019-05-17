@@ -635,6 +635,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     impl.save(guard);
 
+    broadcast_service_statistics(impl);
+
     impl.writeln_node("I did it ! " + std::to_string(block_header.block_number) + " block mined :)");
 }
 
@@ -762,5 +764,46 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     guard.dismiss();
 
     return true;
+}
+
+void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
+{
+    if (impl.m_node_type == NodeType::blockchain)
+        return; // error case should never happen
+
+    ServiceStatistics service_statistics = impl.service_counter.take_statistics_info();
+
+    if (service_statistics.file_items.empty())
+        return; // nothing to broadcast
+
+    service_statistics.server_address = impl.m_pb_key.to_string();
+
+    Transaction transaction;
+    transaction.action = std::move(service_statistics);
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(BLOCK_MINE_DELAY));
+
+    Authority authorization;
+    authorization.address = impl.m_pb_key.to_string();
+    authorization.signature = impl.m_pv_key.sign(transaction.to_string()).base58;
+
+    SignedTransaction signed_transaction;
+    signed_transaction.authorizations.push_back(authorization);
+    signed_transaction.transaction_details = transaction;
+
+    if (action_process_on_chain(signed_transaction, impl))
+    {
+        Broadcast broadcast;
+        broadcast.echoes = 2;
+        broadcast.package = signed_transaction;
+
+        broadcast_message(std::move(broadcast),
+            impl.m_ptr_p2p_socket->name(),
+            impl.m_ptr_p2p_socket->name(),
+            true, // broadcast to all peers
+            nullptr, // log disabled
+            impl.m_p2p_peers,
+            impl.m_ptr_p2p_socket.get());
+    }
 }
 }// end of namespace publiqpp

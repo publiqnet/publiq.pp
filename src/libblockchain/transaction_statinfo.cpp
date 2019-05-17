@@ -40,9 +40,6 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       ServiceStatistics const& service_statistics)
 {
-    if (service_statistics.block_number != impl.m_blockchain.length())
-        return false;
-
     NodeType node_type;
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
         node_type == NodeType::blockchain)
@@ -74,9 +71,6 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   ServiceStatistics const& service_statistics,
                   state_layer/* layer*/)
 {
-    if (service_statistics.block_number != impl.m_blockchain.length())
-        throw wrong_data_exception("servicestatistics does not correspond to current block");
-
     NodeType node_type;
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
         node_type == NodeType::blockchain)

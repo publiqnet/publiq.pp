@@ -191,7 +191,6 @@ module BlockchainMessage
     }
     class ServiceStatistics
     {
-        UInt64 block_number
         String server_address
 
         Array ServiceStatisticsFile file_items

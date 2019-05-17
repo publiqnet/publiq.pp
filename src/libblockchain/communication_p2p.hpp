@@ -16,6 +16,8 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+void broadcast_service_statistics(publiqpp::detail::node_internals& impl);
+
 bool apply_transaction(BlockchainMessage::SignedTransaction const& signed_transaction,
                        publiqpp::detail::node_internals& impl,
                        std::string const& key = std::string());

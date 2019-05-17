@@ -765,8 +765,6 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         return; // will wait for new chain
     }
 
-    //pimpl->writeln_node("inserting " + std::to_string(sync_blocks.size()) + " validated blocks");
-
     //3. all needed blocks received, start to check
     pimpl->m_transaction_cache.backup();
 
@@ -935,31 +933,9 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         completed = true;
         expected_next_package_type = size_t(-1);
 
-        /*if (pimpl->m_node_type == NodeType::channel)
-            broadcast_storage_info(*pimpl);
-
-
-        if (pimpl->m_node_type == NodeType::storage && !pimpl->m_slave_peer.empty())
-        {
-            ServiceStatistics service_statistics;
-            TaskRequest task_request;
-            task_request.task_id = ++pimpl->m_slave_taskid;
-            ::detail::assign_packet(task_request.package, service_statistics);
-            task_request.time_signed.tm = system_clock::to_time_t(now);
-            meshpp::signature signed_msg = pimpl->m_pv_key.sign(std::to_string(task_request.task_id) +
-                                                                meshpp::hash(service_statistics.to_string()) +
-                                                                std::to_string(task_request.time_signed.tm));
-            task_request.signature = signed_msg.base58;
-
-            // send task to slave
-            pimpl->m_ptr_rpc_socket->send(pimpl->m_slave_peer, task_request);
-
-            beltpp::packet task_packet;
-            task_packet.set(service_statistics);
-
-            pimpl->m_slave_tasks.add(task_request.task_id, task_packet);
-        }
-        */
+        // when all blocks are synced it's time to share service statistics for last period
+        if (pimpl->m_node_type == NodeType::channel || pimpl->m_node_type == NodeType::storage)
+            broadcast_service_statistics(*pimpl);
     }
 }
 
