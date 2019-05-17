@@ -635,8 +635,6 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     impl.save(guard);
 
-    broadcast_service_statistics(impl);
-
     impl.writeln_node("I did it ! " + std::to_string(block_header.block_number) + " block mined :)");
 }
 
