@@ -8,9 +8,8 @@ target_link_libraries(genesis_creator PRIVATE
     mesh.pp
     belt.pp
     utility
+    blockchain
     cryptoutility)
-
-add_dependencies(genesis_creator blockchain)
 
 # what to do on make install
 install(TARGETS genesis_creator

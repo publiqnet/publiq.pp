@@ -2,6 +2,7 @@
 #include "common.hpp"
 #include "exception.hpp"
 #include "node_internals.hpp"
+#include "message.tmpl.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 

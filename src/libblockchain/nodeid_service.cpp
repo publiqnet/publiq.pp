@@ -1,6 +1,7 @@
 #include "nodeid_service.hpp"
 #include "common.hpp"
 #include "sessions.hpp"
+#include "message.tmpl.hpp"
 
 #include <boost/multi_index/ordered_index.hpp>
 #include <boost/multi_index/hashed_index.hpp>

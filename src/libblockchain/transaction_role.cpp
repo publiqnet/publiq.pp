@@ -59,7 +59,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
     NodeType node_type;
     if (impl.m_state.get_role(role.node_address, node_type))
         throw std::runtime_error("role: " +
-                                 BlockchainMessage::detail::saver(role.node_type) +
+                                 BlockchainMessage::to_string(role.node_type) +
                                  " is already stored for: " +
                                  role.node_address);
     if (impl.m_pb_key.to_string() == role.node_address &&
@@ -67,7 +67,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
         throw std::runtime_error("the node: " +
                                  role.node_address +
                                  " can have only the following role: " +
-                                 BlockchainMessage::detail::saver(impl.m_node_type));
+                                 BlockchainMessage::to_string(impl.m_node_type));
     impl.m_state.insert_role(role);
 }
 

@@ -1,4 +1,5 @@
-﻿#include "../libblockchain/message.hpp"
+﻿#include <publiq.pp/message.hpp>
+#include <publiq.pp/message.tmpl.hpp>
 
 #include <belt.pp/socket.hpp>
 
@@ -91,9 +92,9 @@ int main( int argc, char** argv )
 
             std::cout << "\t\t\t    Difference\n" << std::endl;
             std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~First~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-            std::cout << "{\"rtt\":" << it1->rtt << ",\"logging_type\":" << BlockchainMessage::detail::saver(it1->logging_type) << ",\"index\":" << it1->index << ",\"action\": " << it1->action.to_string() << "}" << std::endl;
+            std::cout << "{\"rtt\":" << it1->rtt << ",\"logging_type\":" << BlockchainMessage::to_string(it1->logging_type) << ",\"index\":" << it1->index << ",\"action\": " << it1->action.to_string() << "}" << std::endl;
             std::cout << "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Second~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" <<std::endl;
-            std::cout << "{\"rtt\":" << it2->rtt << ",\"logging_type\":" << BlockchainMessage::detail::saver(it1->logging_type) << ",\"index\":" << it2->index << ",\"action\": " << it2->action.to_string() << "}" << std::endl;
+            std::cout << "{\"rtt\":" << it2->rtt << ",\"logging_type\":" << BlockchainMessage::to_string(it1->logging_type) << ",\"index\":" << it2->index << ",\"action\": " << it2->action.to_string() << "}" << std::endl;
             std::cout << std::endl;
             return 0;
         }

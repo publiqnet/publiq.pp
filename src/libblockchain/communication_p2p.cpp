@@ -5,6 +5,7 @@
 #include "coin.hpp"
 #include "common.hpp"
 #include "exception.hpp"
+#include "message.tmpl.hpp"
 
 #include <mesh.pp/cryptoutility.hpp>
 

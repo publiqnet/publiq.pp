@@ -9,9 +9,8 @@ target_link_libraries(blockchain_client PRIVATE
     mesh.pp
     belt.pp
     utility
+    blockchain
     Boost::filesystem)
-
-add_dependencies(blockchain_client blockchain)
 
 # what to do on make install
 install(TARGETS blockchain_client

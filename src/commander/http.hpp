@@ -271,7 +271,7 @@ beltpp::detail::pmsg_all message_list_load(
         {
             ssd.session_specal_handler = nullptr;
 
-            ssd.autoreply = beltpp::http::http_response(ssd, CommanderMessage::detail::storage<>::json_schema);
+            ssd.autoreply = beltpp::http::http_response(ssd, CommanderMessage::detail::storage_json_schema());
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
@@ -299,7 +299,7 @@ beltpp::detail::pmsg_all message_list_load(
 
             ssd.autoreply = beltpp::http::http_not_found(ssd,
                                                          message +
-                                                         CommanderMessage::detail::storage<>::json_schema);
+                                                         CommanderMessage::detail::storage_json_schema());
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 

@@ -1,8 +1,8 @@
 # generate message.gen.hpp from message.idl
 add_custom_command (
-  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
+  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.tmpl.hpp ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.cpp.hpp
   MAIN_DEPENDENCY message.idl
-  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen.hpp
+  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen splitting BLOCKCHAINSHARED_EXPORT
 )
 
 add_definitions(-DBLOCKCHAIN_LIBRARY)
@@ -26,6 +26,10 @@ add_library(blockchain
     exception.hpp
     exception.cpp
     http.hpp
+    message.cpp
+    message.gen.cpp.hpp
+    message.tmpl.hpp
+    message.gen.tmpl.hpp
     message.hpp
     message.gen.hpp
     node.cpp

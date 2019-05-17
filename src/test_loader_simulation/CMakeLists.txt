@@ -8,9 +8,8 @@ target_link_libraries(test_loader_simulation PRIVATE
     mesh.pp
     belt.pp
     utility
-    systemutility)
-
-add_dependencies(test_loader_simulation blockchain)
+    systemutility
+    blockchain)
 
 # what to do on make install
 install(TARGETS test_loader_simulation

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <publiq.pp/message.hpp>
+#include <publiq.pp/message.tmpl.hpp>
 
 class TransactionInfo
 {

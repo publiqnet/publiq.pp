@@ -8,7 +8,8 @@ target_link_libraries(test_parser_performance PRIVATE
     mesh.pp
     belt.pp
     utility
-    systemutility)
+    systemutility
+    blockchain)
 
 add_dependencies(test_parser_performance blockchain)
 

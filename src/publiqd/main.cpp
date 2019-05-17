@@ -463,7 +463,7 @@ bool process_command_line(int argc, char** argv,
 
         n_type = BlockchainMessage::NodeType::blockchain;
         if (false == str_n_type.empty())
-            BlockchainMessage::detail::from_string(str_n_type, n_type);
+            BlockchainMessage::from_string(str_n_type, n_type);
 
         if (n_type == BlockchainMessage::NodeType::blockchain &&
             false == str_public_address.empty() &&

@@ -2,7 +2,7 @@
 add_custom_command (
   OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.gen.hpp
   MAIN_DEPENDENCY commander_message.idl
-  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.idl ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.gen.hpp
+  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.idl ${CMAKE_CURRENT_SOURCE_DIR}/commander_message.gen
 )
 
 # define the executable

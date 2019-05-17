@@ -1,4 +1,5 @@
-#include "../libblockchain/message.hpp"
+#include <publiq.pp/message.hpp>
+#include <publiq.pp/message.tmpl.hpp>
 
 #include <belt.pp/global.hpp>
 

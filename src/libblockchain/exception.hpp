@@ -9,7 +9,7 @@
 
 namespace publiqpp
 {
-class wrong_data_exception : public std::runtime_error
+class BLOCKCHAINSHARED_EXPORT wrong_data_exception : public std::runtime_error
 {
 public:
     explicit wrong_data_exception(std::string const& _message);
@@ -22,7 +22,7 @@ public:
     std::string message;
 };
 
-class authority_exception : public std::runtime_error
+class BLOCKCHAINSHARED_EXPORT authority_exception : public std::runtime_error
 {
 public:
     explicit authority_exception(std::string const& authority_provided, std::string const& authority_required);
@@ -36,7 +36,7 @@ public:
     std::string authority_required;
 };
 
-class wrong_request_exception : public std::runtime_error
+class BLOCKCHAINSHARED_EXPORT wrong_request_exception : public std::runtime_error
 {
 public:
     explicit wrong_request_exception(std::string const& _message);
@@ -49,7 +49,7 @@ public:
     std::string message;
 };
 
-class wrong_document_exception : public std::runtime_error
+class BLOCKCHAINSHARED_EXPORT wrong_document_exception : public std::runtime_error
 {
 public:
     explicit wrong_document_exception(std::string const& _message);
@@ -62,7 +62,7 @@ public:
     std::string message;
 };
 
-class not_enough_balance_exception : public std::runtime_error
+class BLOCKCHAINSHARED_EXPORT not_enough_balance_exception : public std::runtime_error
 {
 public:
     explicit not_enough_balance_exception(coin const& balance, coin const& spending);
@@ -76,7 +76,7 @@ public:
     coin spending;
 };
 
-class too_long_string_exception : public std::runtime_error
+class BLOCKCHAINSHARED_EXPORT too_long_string_exception : public std::runtime_error
 {
 public:
     explicit too_long_string_exception(std::string const& used_string, size_t max_length);
@@ -90,7 +90,7 @@ public:
     size_t max_length;
 };
 
-class uri_exception : public std::runtime_error
+class BLOCKCHAINSHARED_EXPORT uri_exception : public std::runtime_error
 {
 public:
     enum Type { missing, duplicate, invalid };

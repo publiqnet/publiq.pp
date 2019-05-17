@@ -20,6 +20,7 @@ set(SRC_FILES
     coin.hpp
     global.hpp
     message.hpp
+    message.tmpl.hpp
     node.hpp
     storage_node.hpp)
 

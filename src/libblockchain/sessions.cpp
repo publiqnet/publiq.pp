@@ -1,6 +1,6 @@
 #include "sessions.hpp"
 #include "common.hpp"
-#include "message.hpp"
+#include "message.tmpl.hpp"
 #include "communication_rpc.hpp"
 #include "communication_p2p.hpp"
 #include "node_internals.hpp"

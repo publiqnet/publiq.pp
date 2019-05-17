@@ -10,6 +10,7 @@ target_link_libraries(test_actionlog_diff PRIVATE
     processor
     packet
     utility
+    blockchain
     Boost::filesystem
     )
 

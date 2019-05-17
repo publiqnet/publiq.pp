@@ -8,6 +8,7 @@
 
 #include "open_container_packet.hpp"
 #include "sessions.hpp"
+#include "message.tmpl.hpp"
 
 #include <vector>
 #include <string>

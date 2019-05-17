@@ -2,6 +2,7 @@
 
 #include "common.hpp"
 #include "exception.hpp"
+#include "message.tmpl.hpp"
 
 #include <stack>
 
