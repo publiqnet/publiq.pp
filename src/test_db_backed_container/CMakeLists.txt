@@ -10,9 +10,8 @@ if(TARGET rocksdb)
         belt.pp
         utility
         systemutility
-        rocksdb)
-
-    add_dependencies(test_db_backed_container blockchain)
+        rocksdb
+        blockchain)
 
     # what to do on make install
     install(TARGETS test_db_backed_container
