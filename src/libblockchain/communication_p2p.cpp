@@ -805,4 +805,43 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
             impl.m_ptr_p2p_socket.get());
     }
 }
+
+
+void broadcast_storage_update(publiqpp::detail::node_internals& impl,
+                              string const& uri,
+                              UpdateType const& update_type)
+{
+    StorageUpdate storage_update;
+    storage_update.storage_address = impl.m_pb_key.to_string();
+    storage_update.file_uri = uri;
+    storage_update.status = update_type;
+
+    Transaction transaction;
+    transaction.action = std::move(storage_update);
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
+
+    Authority authorization;
+    authorization.address = impl.m_pb_key.to_string();
+    authorization.signature = impl.m_pv_key.sign(transaction.to_string()).base58;
+
+    SignedTransaction signed_transaction;
+    signed_transaction.authorizations.push_back(authorization);
+    signed_transaction.transaction_details = transaction;
+
+    if (action_process_on_chain(signed_transaction, impl))
+    {
+        Broadcast broadcast;
+        broadcast.echoes = 2;
+        broadcast.package = signed_transaction;
+
+        broadcast_message(std::move(broadcast),
+            impl.m_ptr_p2p_socket->name(),
+            impl.m_ptr_p2p_socket->name(),
+            true, // broadcast to all peers
+            nullptr, // log disabled
+            impl.m_p2p_peers,
+            impl.m_ptr_p2p_socket.get());
+    }
+}
 }// end of namespace publiqpp

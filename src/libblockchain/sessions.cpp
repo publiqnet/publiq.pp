@@ -1010,6 +1010,7 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
         psk->send(peerid, std::move(package));
         completed = true;
         expected_next_package_type = size_t(-1);
+        errored = true;
     }
 
     guard.dismiss();
@@ -1085,6 +1086,7 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
         psk->send(peerid, std::move(package));
         completed = true;
         expected_next_package_type = size_t(-1);
+        errored = true;
     }
 
     guard.dismiss();
