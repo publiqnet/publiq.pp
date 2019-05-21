@@ -44,6 +44,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     if (false == impl.m_state.get_role(storage_update.storage_address, node_type) ||
         node_type != NodeType::storage)
         return false;
+
+    if (storage_update.status == UpdateType::store &&
+        impl.m_state.storage_has_uri(storage_update.file_uri, storage_update.storage_address))
+        return false;
+    else if (storage_update.status == UpdateType::remove &&
+             false == impl.m_state.storage_has_uri(storage_update.file_uri, storage_update.storage_address))
+        return false;
+
     return true;
 }
 
@@ -55,11 +63,25 @@ void action_apply(publiqpp::detail::node_internals& impl,
     if (false == impl.m_state.get_role(storage_update.storage_address, node_type) ||
         node_type != NodeType::storage)
         throw wrong_data_exception("action_apply(StorageUpdate) -> wrong authority type : " + storage_update.storage_address);
+
+    if (storage_update.status == UpdateType::store &&
+        impl.m_state.storage_has_uri(storage_update.file_uri, storage_update.storage_address))
+        throw uri_exception(storage_update.file_uri, uri_exception::duplicate);
+    else if (storage_update.status == UpdateType::remove &&
+             false == impl.m_state.storage_has_uri(storage_update.file_uri, storage_update.storage_address))
+        throw uri_exception(storage_update.file_uri, uri_exception::missing);
+
+    impl.m_state.storage_update(storage_update.file_uri,
+                                storage_update.storage_address,
+                                storage_update.status);
 }
 
-void action_revert(publiqpp::detail::node_internals& /*impl*/,
-                   StorageUpdate const& /*storage_update*/,
+void action_revert(publiqpp::detail::node_internals& impl,
+                   StorageUpdate const& storage_update,
                    state_layer/* layer*/)
 {
+    impl.m_state.storage_update(storage_update.file_uri,
+                                storage_update.storage_address,
+                                storage_update.status == UpdateType::remove ? UpdateType::store : UpdateType::remove);
 }
 }

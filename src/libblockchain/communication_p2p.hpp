@@ -20,7 +20,7 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl);
 
 void broadcast_storage_update(publiqpp::detail::node_internals& impl,
                               std::string const& uri,
-                              BlockchainMessage::UpdateType const& update_type);
+                              BlockchainMessage::UpdateType const& status);
 
 bool apply_transaction(BlockchainMessage::SignedTransaction const& signed_transaction,
                        publiqpp::detail::node_internals& impl,

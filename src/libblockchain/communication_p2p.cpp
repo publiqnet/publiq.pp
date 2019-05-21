@@ -809,12 +809,12 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
 
 void broadcast_storage_update(publiqpp::detail::node_internals& impl,
                               string const& uri,
-                              UpdateType const& update_type)
+                              UpdateType const& status)
 {
     StorageUpdate storage_update;
     storage_update.storage_address = impl.m_pb_key.to_string();
     storage_update.file_uri = uri;
-    storage_update.status = update_type;
+    storage_update.status = status;
 
     Transaction transaction;
     transaction.action = std::move(storage_update);

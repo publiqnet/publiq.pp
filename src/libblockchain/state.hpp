@@ -2,7 +2,6 @@
 
 #include "coin.hpp"
 #include "message.hpp"
-
 #include <boost/filesystem/path.hpp>
 
 #include <vector>
@@ -40,6 +39,9 @@ public:
     bool get_role(std::string const& nodeid, BlockchainMessage::NodeType& node_type) const;
     void insert_role(BlockchainMessage::Role const& role);
     void remove_role(std::string const& nodeid);
+
+    void storage_update(std::string const& uri, std::string const& address, BlockchainMessage::UpdateType status);
+    bool storage_has_uri(std::string const& uri, std::string const& address) const;
 
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;

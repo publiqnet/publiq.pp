@@ -75,6 +75,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
         if (unit.channel_address != content.channel_address ||
             unit.content_id != content.content_id)
             throw wrong_data_exception("the content and the content unit do not correspond to each other");
+
+        //  initiate a process to retreive the file from channel if this is a storage
     }
 }
 

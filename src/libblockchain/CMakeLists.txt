@@ -4,6 +4,12 @@ add_custom_command (
   MAIN_DEPENDENCY message.idl
   COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/message.idl ${CMAKE_CURRENT_SOURCE_DIR}/message.gen splitting BLOCKCHAINSHARED_EXPORT
 )
+# generate types.gen.hpp from types.idl
+add_custom_command (
+  OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/types.gen.hpp
+  MAIN_DEPENDENCY types.idl
+  COMMAND idl ${CMAKE_CURRENT_SOURCE_DIR}/types.idl ${CMAKE_CURRENT_SOURCE_DIR}/types.gen
+)
 
 add_definitions(-DBLOCKCHAIN_LIBRARY)
 
@@ -66,7 +72,9 @@ add_library(blockchain
     transaction_statinfo.cpp
     transaction_statinfo.hpp
     transaction_transfer.cpp
-    transaction_transfer.hpp)
+    transaction_transfer.hpp
+    types.hpp
+    types.gen.hpp)
 
 # libraries this module links to
 target_link_libraries(blockchain
