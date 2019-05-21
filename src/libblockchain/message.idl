@@ -185,10 +185,6 @@ module BlockchainMessage
     }
     enum UpdateType {store remove}
 
-    class Statistics_del
-    {
-        ServiceStatistics data
-    }
     class ServiceStatistics
     {
         String server_address
@@ -209,7 +205,7 @@ module BlockchainMessage
     }
 
     //class TransactionReserve6 {}
-    //class TransactionReserve7 {}
+    class TransactionReserve7 {}
     class TransactionReserve8 {}
     class TransactionReserve9 {}
     class TransactionReserve10 {}

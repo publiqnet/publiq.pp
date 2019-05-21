@@ -164,22 +164,6 @@ bool storage_node::run()
 
                     break;
                 }
-                /*case Statistics::rtt:
-                {
-                    ServiceStatistics service_statistics;
-                    
-                    m_pimpl->m_stat_counter.get_stat_info(service_statistics);
-                    service_statistics.server_address = m_pimpl->m_pv_key.get_public_key().to_string();
-
-                    Statistics statistics;
-                    statistics.data = std::move(service_statistics);
-
-                    psk->send(peerid, beltpp::packet(std::move(statistics)));
-                    
-                    m_pimpl->m_stat_counter.init();
-                    
-                    break;
-                }*/
                 case Ping::rtt:
                 {
                     Pong msg_pong;

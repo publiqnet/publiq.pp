@@ -301,47 +301,6 @@ bool node::run()
 
                     break;
                 }
-                /*case Statistics::rtt:
-                {
-                    if (NodeType::blockchain == m_pimpl->m_node_type || nullptr == m_pimpl->m_slave_node)
-                        throw wrong_request_exception("Do not distrub!");
-
-                    Statistics statistics;
-                    std::move(ref_packet).get(statistics);
-                    statistics.data.block_number = m_pimpl->m_blockchain.length();
-                    statistics.data.server_address = m_pimpl->m_pb_key.to_string();
-
-                    Transaction transaction;
-                    transaction.action = std::move(statistics.data);
-                    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-                    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(10));
-
-                    Authority authority;
-                    authority.address = m_pimpl->m_pb_key.to_string();
-                    authority.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
-
-                    SignedTransaction signed_tx;
-                    signed_tx.transaction_details = transaction;
-                    signed_tx.authorizations.push_back(authority);
-
-                    if (action_process_on_chain(signed_tx, *m_pimpl.get()))
-                    {
-                        Broadcast broadcast;
-                        broadcast.echoes = 2;
-                        broadcast.package = signed_tx;
-
-                        broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          true,
-                                          nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
-                    }
-
-
-                    break;
-                }*/
                 case StorageFile::rtt:
                 {
                     if (NodeType::blockchain == m_pimpl->m_node_type||
