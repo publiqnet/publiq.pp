@@ -70,6 +70,7 @@ void state::commit()
     m_pimpl->m_accounts.commit();
     m_pimpl->m_node_accounts.commit();
     m_pimpl->m_roles.commit();
+    m_pimpl->m_storages.commit();
 }
 
 void state::discard()
@@ -77,6 +78,7 @@ void state::discard()
     m_pimpl->m_accounts.discard();
     m_pimpl->m_node_accounts.discard();
     m_pimpl->m_roles.discard();
+    m_pimpl->m_storages.discard();
 }
 
 Coin state::get_balance(string const& key, state_layer layer) const
