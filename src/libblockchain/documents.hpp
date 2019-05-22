@@ -17,7 +17,8 @@ class documents_internals;
 class documents
 {
 public:
-    documents(boost::filesystem::path const& fs_state);
+    documents(boost::filesystem::path const& path_documents,
+              boost::filesystem::path const& path_storages);
     ~documents();
 
     void save();
@@ -33,6 +34,9 @@ public:
     bool insert_unit(BlockchainMessage::ContentUnit const& content_unit);
     void remove_unit(std::string const& uri);
     BlockchainMessage::ContentUnit const& get_unit(std::string const& uri) const;
+
+    void storage_update(std::string const& uri, std::string const& address, BlockchainMessage::UpdateType status);
+    bool storage_has_uri(std::string const& uri, std::string const& address) const;
 
 private:
     std::unique_ptr<detail::documents_internals> m_pimpl;

@@ -352,6 +352,7 @@ public:
                    filesystem::path const& fs_transaction_pool,
                    filesystem::path const& fs_state,
                    filesystem::path const& fs_documents,
+                   filesystem::path const& fs_storages,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
@@ -383,7 +384,7 @@ public:
         , m_action_log(fs_action_log, log_enabled)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state, *this)
-        , m_documents(fs_documents)
+        , m_documents(fs_documents, fs_storages)
         , all_sync_info(*this)
         , m_node_type(n_type)
         , m_pv_key(pv_key)

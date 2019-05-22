@@ -14,11 +14,13 @@
 
 #include <algorithm>
 #include <map>
+#include <vector>
 
 namespace chrono = std::chrono;
 using chrono::system_clock;
 using chrono::steady_clock;
 using std::string;
+using std::vector;
 using std::multimap;
 
 namespace publiqpp
@@ -946,17 +948,125 @@ void session_action_block::set_errored(string const& message, bool throw_for_deb
     errored = true;
 }
 
+// --------------------------- session_action_request_file ---------------------------
+
+session_action_request_file::session_action_request_file(detail::node_internals& impl,
+                                                         vector<string> const& _file_uris)
+    : meshpp::session_action<meshpp::nodeid_session_header>()
+    , pimpl(&impl)
+    , file_uris(_file_uris)
+{}
+
+session_action_request_file::~session_action_request_file()
+{}
+
+void session_action_request_file::initiate(meshpp::nodeid_session_header& header)
+{
+    if (file_uris.empty())
+    {
+        assert(false);
+        throw std::logic_error("file_uris.empty()");
+    }
+
+    StorageFileRequest msg;
+    expected_uri = file_uris.back();
+    msg.uri = expected_uri;
+    pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
+
+    file_uris.resize(file_uris.size() - 1);
+
+    expected_next_package_type = BlockchainMessage::StorageFile::rtt;
+}
+
+bool session_action_request_file::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
+{
+    bool code = true;
+
+    beltpp::on_failure guard([this]{ errored = true; });
+
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
+    {
+        switch (package.type())
+        {
+        case BlockchainMessage::StorageFile::rtt:
+        {
+            BlockchainMessage::StorageFile storage_file;
+            std::move(package).get(storage_file);
+
+            if (expected_uri != meshpp::hash(storage_file.data))
+            {
+                errored = true;
+                break;
+            }
+
+            vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+            actions.emplace_back(new session_action_save_file(*pimpl,
+                                                              std::move(storage_file),
+                                                              [this](beltpp::packet&& package)
+            {
+                if (package.type() == StorageFileAddress::rtt)
+                {
+                    StorageFileAddress* pfile_address;
+                    package.get(pfile_address);
+                    broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
+                }
+            }));
+
+            meshpp::session_header header;
+            header.peerid = "slave";
+            pimpl->m_sessions.add(header,
+                                  std::move(actions),
+                                  chrono::minutes(1));
+
+            if (file_uris.empty())
+            {
+                completed = true;
+                expected_next_package_type = size_t(-1);
+            }
+            else
+            {
+                StorageFileRequest msg;
+                expected_uri = file_uris.back();
+                msg.uri = expected_uri;
+                pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
+
+                file_uris.resize(file_uris.size() - 1);
+
+                expected_next_package_type = BlockchainMessage::StorageFile::rtt;
+            }
+
+            break;
+        }
+        default:
+            assert(false);
+            break;
+        }
+    }
+    else
+    {
+        code = false;
+    }
+
+    guard.dismiss();
+
+    return code;
+}
+
+bool session_action_request_file::permanent() const
+{
+    return false;
+}
+
 // --------------------------- session_action_save_file ---------------------------
 
 session_action_save_file::session_action_save_file(detail::node_internals& impl,
                                                    StorageFile&& _file,
-                                                   beltpp::isocket& sk,
-                                                   beltpp::isocket::peer_id const& _peerid)
+                                                   std::function<void(beltpp::packet&&)> const& _callback)
     : meshpp::session_action<meshpp::session_header>()
     , pimpl(&impl)
     , file(_file)
-    , psk(&sk)
-    , peerid(_peerid)
+    , callback(_callback)
 {}
 
 session_action_save_file::~session_action_save_file()
@@ -966,7 +1076,7 @@ session_action_save_file::~session_action_save_file()
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error uploading the file";
-        psk->send(peerid, beltpp::packet(std::move(msg)));
+        callback(beltpp::packet(std::move(msg)));
     }
 }
 
@@ -993,7 +1103,7 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
             BlockchainMessage::StorageFileAddress msg;
             std::move(package).get(msg);
 
-            psk->send(peerid, beltpp::packet(std::move(msg)));
+            callback(beltpp::packet(std::move(msg)));
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1007,7 +1117,7 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
     }
     else
     {
-        psk->send(peerid, std::move(package));
+        callback(std::move(package));
         completed = true;
         expected_next_package_type = size_t(-1);
         errored = true;
@@ -1027,13 +1137,11 @@ bool session_action_save_file::permanent() const
 
 session_action_delete_file::session_action_delete_file(detail::node_internals& impl,
                                                        string const& _uri,
-                                                       beltpp::isocket& sk,
-                                                       beltpp::isocket::peer_id const& _peerid)
+                                                       std::function<void(beltpp::packet&&)> const& _callback)
     : meshpp::session_action<meshpp::session_header>()
     , pimpl(&impl)
-    , psk(&sk)
-    , peerid(_peerid)
     , uri(_uri)
+    , callback(_callback)
 {}
 
 session_action_delete_file::~session_action_delete_file()
@@ -1043,7 +1151,7 @@ session_action_delete_file::~session_action_delete_file()
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error deleting the file";
-        psk->send(peerid, beltpp::packet(std::move(msg)));
+        callback(beltpp::packet(std::move(msg)));
     }
 }
 
@@ -1069,7 +1177,7 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
         {
         case BlockchainMessage::Done::rtt:
         {
-            psk->send(peerid, beltpp::packet(BlockchainMessage::Done()));
+            callback(beltpp::packet(BlockchainMessage::Done()));
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1083,7 +1191,7 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
     }
     else
     {
-        psk->send(peerid, std::move(package));
+        callback(std::move(package));
         completed = true;
         expected_next_package_type = size_t(-1);
         errored = true;

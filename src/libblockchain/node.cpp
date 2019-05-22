@@ -47,11 +47,12 @@ node::node(string const& genesis_signed_block,
            ip_address const& rpc_bind_to_address,
            ip_address const& p2p_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
-           boost::filesystem::path const& fs_blockchain,
-           boost::filesystem::path const& fs_action_log,
-           boost::filesystem::path const& fs_transaction_pool,
-           boost::filesystem::path const& fs_state,
-           boost::filesystem::path const& fs_documents,
+           filesystem::path const& fs_blockchain,
+           filesystem::path const& fs_action_log,
+           filesystem::path const& fs_transaction_pool,
+           filesystem::path const& fs_state,
+           filesystem::path const& fs_documents,
+           filesystem::path const& fs_storages,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
@@ -69,6 +70,7 @@ node::node(string const& genesis_signed_block,
                                          fs_transaction_pool,
                                          fs_state,
                                          fs_documents,
+                                         fs_storages,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
@@ -303,53 +305,65 @@ bool node::run()
                 }
                 case StorageFile::rtt:
                 {
-                    if (NodeType::blockchain == m_pimpl->m_node_type||
+                    //  need to fix the security hole here
+                    if (NodeType::blockchain == m_pimpl->m_node_type ||
                         nullptr == m_pimpl->m_slave_node)
                         throw wrong_request_exception("Do not distrub!");
 
-                    if (m_pimpl->m_slave_node)
+                    StorageFile storage_file;
+                    std::move(ref_packet).get(storage_file);
+
+                    vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                    actions.emplace_back(new session_action_save_file(*m_pimpl.get(),
+                                                                      std::move(storage_file),
+                                                                      [psk, &peerid, this](beltpp::packet&& package)
                     {
-                        StorageFile storage_file;
-                        std::move(ref_packet).get(storage_file);
+                        if (NodeType::storage == m_pimpl->m_node_type &&
+                            package.type() == StorageFileAddress::rtt)
+                        {
+                            StorageFileAddress* pfile_address;
+                            package.get(pfile_address);
+                            broadcast_storage_update(*m_pimpl.get(), pfile_address->uri, UpdateType::store);
+                        }
+                        psk->send(peerid, std::move(package));
+                    }));
 
-                        vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
-                        actions.emplace_back(new session_action_save_file(*m_pimpl.get(),
-                                                                          std::move(storage_file),
-                                                                          *psk,
-                                                                          peerid));
-
-                        meshpp::session_header header;
-                        header.peerid = "slave";
-                        m_pimpl->m_sessions.add(header,
-                                                std::move(actions),
-                                                chrono::minutes(1));
-                    }
+                    meshpp::session_header header;
+                    header.peerid = "slave";
+                    m_pimpl->m_sessions.add(header,
+                                            std::move(actions),
+                                            chrono::minutes(1));
                     
                     break;
                 }
                 case StorageFileDelete::rtt:
                 {
+                    //  need to fix the security hole here
                     if (NodeType::blockchain == m_pimpl->m_node_type ||
                         nullptr == m_pimpl->m_slave_node)
                         throw wrong_request_exception("Do not distrub!");
 
-                    if (m_pimpl->m_slave_node)
+                    StorageFileDelete storage_file_delete;
+                    std::move(ref_packet).get(storage_file_delete);
+
+                    vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                    actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
+                                                                        storage_file_delete.uri,
+                                                                        [psk, &peerid, &storage_file_delete, this](beltpp::packet&& package)
                     {
-                        StorageFileDelete storage_file_delete;
-                        std::move(ref_packet).get(storage_file_delete);
+                        if (NodeType::storage == m_pimpl->m_node_type &&
+                            package.type() == Done::rtt)
+                        {
+                            broadcast_storage_update(*m_pimpl.get(), storage_file_delete.uri, UpdateType::remove);
+                        }
+                        psk->send(peerid, std::move(package));
+                    }));
 
-                        vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
-                        actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
-                                                                            std::move(storage_file_delete.uri),
-                                                                            *psk,
-                                                                            peerid));
-
-                        meshpp::session_header header;
-                        header.peerid = "slave";
-                        m_pimpl->m_sessions.add(header,
-                                                std::move(actions),
-                                                chrono::minutes(1));
-                    }
+                    meshpp::session_header header;
+                    header.peerid = "slave";
+                    m_pimpl->m_sessions.add(header,
+                                            std::move(actions),
+                                            chrono::minutes(1));
 
                     break;
                 }
@@ -502,6 +516,9 @@ bool node::run()
                 }
                 case Served::rtt:
                 {
+                    if (NodeType::channel != m_pimpl->m_node_type)
+                        throw wrong_request_exception("Do not distrub!");
+
                     Served msg;
                     std::move(ref_packet).get(msg);
                     m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);

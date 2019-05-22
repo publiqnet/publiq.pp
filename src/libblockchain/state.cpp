@@ -3,7 +3,6 @@
 #include "exception.hpp"
 #include "node_internals.hpp"
 #include "message.tmpl.hpp"
-#include "types.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 
@@ -18,18 +17,6 @@ namespace publiqpp
 namespace detail
 {
 
-inline
-beltpp::void_unique_ptr get_putl_types()
-{
-    beltpp::message_loader_utility utl;
-    StorageTypes::detail::extension_helper(utl);
-
-    auto ptr_utl =
-        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
-
-    return ptr_utl;
-}
-
 class state_internals
 {
 public:
@@ -38,14 +25,12 @@ public:
         : m_accounts("account", path, 10000, detail::get_putl())
         , m_node_accounts("node_account", path, 10000, detail::get_putl())
         , m_roles("role", path, 10, detail::get_putl())
-        , m_storages("storages", path, 10000, get_putl_types())
         , pimpl_node(&impl)
     {}
 
     meshpp::map_loader<Coin> m_accounts;
     meshpp::map_loader<Coin> m_node_accounts;
     meshpp::map_loader<Role> m_roles;
-    meshpp::map_loader<StorageTypes::FileUriHolders> m_storages;
     node_internals const* pimpl_node;
 };
 }
@@ -70,7 +55,6 @@ void state::commit()
     m_pimpl->m_accounts.commit();
     m_pimpl->m_node_accounts.commit();
     m_pimpl->m_roles.commit();
-    m_pimpl->m_storages.commit();
 }
 
 void state::discard()
@@ -78,7 +62,6 @@ void state::discard()
     m_pimpl->m_accounts.discard();
     m_pimpl->m_node_accounts.discard();
     m_pimpl->m_roles.discard();
-    m_pimpl->m_storages.discard();
 }
 
 Coin state::get_balance(string const& key, state_layer layer) const
@@ -146,21 +129,6 @@ void state::decrease_balance(string const& key, coin const& amount, state_layer 
     set_balance(key, balance - amount, layer);
 }
 
-std::vector<std::string> state::get_nodes_by_type(NodeType const& node_type) const
-{
-    std::vector<std::string> nodeids;
-
-    for (auto& key : m_pimpl->m_roles.as_const().keys())
-    {
-        Role role = m_pimpl->m_roles.as_const().at(key);
-        
-        if (node_type == role.node_type)
-            nodeids.push_back(role.node_address);
-    }
-
-    return nodeids;
-}
-
 bool state::get_role(string const& nodeid, NodeType& node_type) const
 {
     if (m_pimpl->m_roles.as_const().contains(nodeid))
@@ -183,44 +151,6 @@ void state::insert_role(Role const& role)
 void state::remove_role(string const& nodeid)
 {
     m_pimpl->m_roles.erase(nodeid);
-}
-
-void state::storage_update(std::string const& uri, std::string const& address, UpdateType status)
-{
-    if (UpdateType::store == status)
-    {
-        if (false == m_pimpl->m_storages.contains(uri))
-        {
-            StorageTypes::FileUriHolders holders;
-            holders.addresses.insert(address);
-            m_pimpl->m_storages.insert(uri, holders);
-        }
-        else
-        {
-            StorageTypes::FileUriHolders& holders = m_pimpl->m_storages.at(uri);
-            holders.addresses.insert(address);
-        }
-    }
-    else
-    {
-        if (m_pimpl->m_storages.contains(uri))
-        {
-            StorageTypes::FileUriHolders& holders = m_pimpl->m_storages.at(uri);
-            holders.addresses.erase(address);
-
-            if (holders.addresses.empty())
-                m_pimpl->m_storages.erase(uri);
-        }
-    }
-}
-
-bool state::storage_has_uri(std::string const& uri, std::string const& address) const
-{
-    if (false == m_pimpl->m_storages.contains(uri))
-        return false;
-
-    StorageTypes::FileUriHolders const& holders = m_pimpl->m_storages.as_const().at(uri);
-    return 0 != holders.addresses.count(address);
 }
 
 }

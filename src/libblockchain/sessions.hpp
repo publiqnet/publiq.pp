@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
 namespace publiqpp
 {
@@ -154,13 +155,28 @@ public:
     std::vector<BlockchainMessage::BlockHeaderExtended> sync_headers;
 };
 
+class session_action_request_file : public meshpp::session_action<meshpp::nodeid_session_header>
+{
+public:
+    session_action_request_file(detail::node_internals& impl,
+                                std::vector<std::string> const& file_uris);
+    ~session_action_request_file() override;
+
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
+    bool permanent() const override;
+
+    detail::node_internals* pimpl;
+    std::vector<std::string> file_uris;
+    std::string expected_uri;
+};
+
 class session_action_save_file : public meshpp::session_action<meshpp::session_header>
 {
 public:
     session_action_save_file(detail::node_internals& impl,
                              BlockchainMessage::StorageFile&& file,
-                             beltpp::isocket& sk,
-                             beltpp::isocket::peer_id const& peerid);
+                             std::function<void(beltpp::packet&&)> const& callback);
     ~session_action_save_file() override;
 
     void initiate(meshpp::session_header& header) override;
@@ -169,8 +185,7 @@ public:
 
     detail::node_internals* pimpl;
     BlockchainMessage::StorageFile file;
-    beltpp::isocket* psk;
-    beltpp::isocket::peer_id peerid;
+    std::function<void(beltpp::packet&&)> const& callback;
 };
 
 class session_action_delete_file : public meshpp::session_action<meshpp::session_header>
@@ -178,8 +193,7 @@ class session_action_delete_file : public meshpp::session_action<meshpp::session
 public:
     session_action_delete_file(detail::node_internals& impl,
                                std::string const& uri,
-                               beltpp::isocket& sk,
-                               beltpp::isocket::peer_id const& peerid);
+                               std::function<void(beltpp::packet&&)> const& callback);
     ~session_action_delete_file() override;
 
     void initiate(meshpp::session_header& header) override;
@@ -187,9 +201,8 @@ public:
     bool permanent() const override;
 
     detail::node_internals* pimpl;
-    beltpp::isocket* psk;
-    beltpp::isocket::peer_id peerid;
     std::string uri;
+    std::function<void(beltpp::packet&&)> const& callback;
 };
 
 }

@@ -35,13 +35,9 @@ public:
     void increase_balance(std::string const& key, coin const& amount, state_layer layer);
     void decrease_balance(std::string const& key, coin const& amount, state_layer layer);
 
-    std::vector<std::string> get_nodes_by_type(BlockchainMessage::NodeType const& node_type) const;
     bool get_role(std::string const& nodeid, BlockchainMessage::NodeType& node_type) const;
     void insert_role(BlockchainMessage::Role const& role);
     void remove_role(std::string const& nodeid);
-
-    void storage_update(std::string const& uri, std::string const& address, BlockchainMessage::UpdateType status);
-    bool storage_has_uri(std::string const& uri, std::string const& address) const;
 
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;
