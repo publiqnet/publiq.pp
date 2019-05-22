@@ -1,0 +1,7 @@
+module StorageTypes
+{
+    class FileUriHolders
+    {
+        Set String addresses
+    }
+}

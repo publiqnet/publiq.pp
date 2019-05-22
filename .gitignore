@@ -5,7 +5,7 @@ CMakeLists.txt.user
 /src/libblockchain/message.gen.tmpl.hpp
 /src/commander/commander_message.gen.hpp
 /src/commander/message.gen.hpp
-/src/libblockchain/storage_message.gen.hpp
+/src/libblockchain/types.gen.hpp
 /.vs
 /.vscode
 /build
