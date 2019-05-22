@@ -207,6 +207,9 @@ void state::storage_update(std::string const& uri, std::string const& address, U
         {
             StorageTypes::FileUriHolders& holders = m_pimpl->m_storages.at(uri);
             holders.addresses.erase(address);
+
+            if (holders.addresses.empty())
+                m_pimpl->m_storages.erase(uri);
         }
     }
 }
