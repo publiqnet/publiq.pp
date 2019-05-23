@@ -130,18 +130,21 @@ void action_apply(publiqpp::detail::node_internals& impl,
         }
     }
 
-    vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-    actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
-    actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
-                                                       impl.m_nodeid_service));
-    actions.emplace_back(new session_action_request_file(impl, file_uris));
+    if (false == file_uris.empty())
+    {
+        vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+        actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
+        actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
+                                                           impl.m_nodeid_service));
+        actions.emplace_back(new session_action_request_file(impl, file_uris));
 
-    meshpp::nodeid_session_header header;
-    header.nodeid = content.channel_address;
-    header.address = channel_ip_address;
-    impl.m_nodeid_sessions.add(header,
-                               std::move(actions),
-                               chrono::minutes(3));
+        meshpp::nodeid_session_header header;
+        header.nodeid = content.channel_address;
+        header.address = channel_ip_address;
+        impl.m_nodeid_sessions.add(header,
+                                   std::move(actions),
+                                   chrono::minutes(3));
+    }
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,
