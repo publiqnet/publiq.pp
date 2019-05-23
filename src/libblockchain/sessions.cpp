@@ -978,7 +978,7 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
 }
 
-bool session_action_request_file::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
+bool session_action_request_file::process(beltpp::packet&& package, meshpp::nodeid_session_header& /*header*/)
 {
     bool code = true;
 

@@ -105,11 +105,11 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
             }
 
     // storage     view
-    map<string, uint64_t> storage_dist_group;
+    map<string, uint64_t> storage_group;
     // unit_uri    file_uri   view
-    map<string, map<string, uint64_t>> author_dist_group;
+    map<string, map<string, uint64_t>> author_group;
     // channel     owner       content_id   view
-    map<string, map<string, map<uint64_t, uint64_t>>> content_dist_group;
+    map<string, map<string, map<uint64_t, uint64_t>>> content_group;
 
     for (auto const& item : channel_provided_statistics)
         for (auto const& it : item.second.file_items)
@@ -118,22 +118,22 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                 {
                     if (impl.m_documents.exist_unit(it.unit_uri))
                     {
-                        author_dist_group[it.unit_uri][it.file_uri] += i.count;
+                        author_group[it.unit_uri][it.file_uri] += i.count;
 
                         ContentUnit content_unit = impl.m_documents.get_unit(it.unit_uri);
-                        auto& value = content_dist_group[item.first][content_unit.channel_address][content_unit.content_id];
+                        auto& value = content_group[item.first][content_unit.channel_address][content_unit.content_id];
                         value = std::max(value, i.count);
                     }
 
-                    storage_dist_group[i.peer_address] += i.count;
+                    storage_group[i.peer_address] += i.count;
                 }
 
     // collect storages final result
-    for (auto const& item : storage_dist_group)
+    for (auto const& item : storage_group)
         storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
 
     // collect channels final result
-    for (auto const& item : content_dist_group)
+    for (auto const& item : content_group)
     {
         for (auto const& it : item.second)
         {
@@ -152,7 +152,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     }
 
     // collect authors final result
-    for (auto const& item : author_dist_group)
+    for (auto const& item : author_group)
     {
         uint64_t total = 0;
         uint64_t file_count = item.second.size();
@@ -231,17 +231,19 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         fee += it->transaction_details.fee;
 
-        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
+        // only servicestatistics corresponding to current block will be taken
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt &&
+            (unsigned)chrono::seconds(it->transaction_details.creation.tm).count() / BLOCK_MINE_DELAY == block_number)
         {
             ServiceStatistics service_statistics;
             it->transaction_details.action.get(service_statistics);
-        
+
             NodeType node_type;
             if (impl.m_state.get_role(service_statistics.server_address, node_type))
             {
                 if (node_type == NodeType::channel)
                     channel_provided_statistics[service_statistics.server_address] = service_statistics;
-                else 
+                else
                     storage_provided_statistics[service_statistics.server_address] = service_statistics;
             }
         }
