@@ -83,7 +83,9 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     channel_result.clear();
     storage_result.clear();
 
-    return; // stop work
+    // stop work in mainnet for now
+    if(false == impl.m_testnet)
+        return;
 
     map<string, map<string, map<string, uint64_t>>> channel_verified_statistics;
 
