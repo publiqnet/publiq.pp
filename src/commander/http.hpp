@@ -236,6 +236,25 @@ beltpp::detail::pmsg_all message_list_load(
                                               &CommanderMessage::BlockInfoRequest::pvoid_saver);
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 3 &&
+                 pss->resource.path.front() == "miners")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::MinersRequest>();
+            CommanderMessage::MinersRequest& ref = *reinterpret_cast<CommanderMessage::MinersRequest*>(p.get());
+
+            size_t pos;
+            ref.start_block_index = beltpp::stoui64(pss->resource.path[1], pos);
+            ref.end_block_index = beltpp::stoui64(pss->resource.path[2], pos);
+
+            if (ref.start_block_index > ref.end_block_index)
+                return request_failed("invalid arguments: ", ssd);
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::MinersRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::MinersRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 2 &&
                  pss->resource.path.front() == "send")
         {

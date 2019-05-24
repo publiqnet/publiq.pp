@@ -137,6 +137,23 @@ module CommanderMessage
         TimePoint time_signed
     }
 
+    class MinersRequest
+    {
+        UInt64 start_block_index
+        UInt64 end_block_index
+    }
+
+    class MinersResponse
+    {
+        Array MinersResponseItem miners
+    }
+
+    class MinersResponseItem
+    {
+        String miner_address
+        Array UInt64 block_number
+    }
+
     class Send
     {
         String private_key

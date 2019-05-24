@@ -13,6 +13,7 @@
 #include <chrono>
 #include <unordered_set>
 #include <set>
+#include <map>
 
 using std::unordered_set;
 using std::set;
@@ -530,6 +531,34 @@ void rpc::run()
 
                 rpc_socket.send(peerid, beltpp::packet(response));
 
+                break;
+            }
+            case MinersRequest::rtt:
+            {
+                MinersRequest msg;
+                std::move(ref_packet).get(msg);
+
+                uint64_t end_block_index = msg.end_block_index;
+                if (end_block_index > blocks.size())
+                    end_block_index = blocks.size();
+
+                std::map<string, std::vector<uint64_t>> miner_items;
+                for (size_t index = msg.start_block_index; index != end_block_index; index++)
+                    miner_items[blocks.at(index).authority].push_back(blocks.at(index).block_number);
+
+                std::vector<MinersResponseItem> miners;
+                for(auto & map_item : miner_items)
+                {
+                    MinersResponseItem item;
+                    item.miner_address = map_item.first;
+                    item.block_number = map_item.second;
+                    miners.push_back(item);
+                }
+
+                MinersResponse response;
+                response.miners = miners;
+
+                rpc_socket.send(peerid, beltpp::packet(response));
                 break;
             }
             case Send::rtt:
