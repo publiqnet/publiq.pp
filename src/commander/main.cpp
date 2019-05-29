@@ -10,6 +10,7 @@
 #include <mesh.pp/pid.hpp>
 
 #include <publiq.pp/message.hpp>
+#include <publiq.pp/message.tmpl.hpp>
 
 #include <boost/locale.hpp>
 #include <boost/filesystem/path.hpp>
