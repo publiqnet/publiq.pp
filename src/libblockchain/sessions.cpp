@@ -1071,8 +1071,9 @@ session_action_save_file::session_action_save_file(detail::node_internals& impl,
 
 session_action_save_file::~session_action_save_file()
 {
-    if (size_t(-1) != expected_next_package_type ||
-        errored)
+    if ((size_t(-1) != expected_next_package_type ||
+         errored) &&
+        callback)
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error uploading the file";
@@ -1090,7 +1091,6 @@ void session_action_save_file::initiate(meshpp::session_header&/* header*/)
 bool session_action_save_file::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
 {
     bool code = true;
-
     beltpp::on_failure guard([this]{ errored = true; });
 
     if (expected_next_package_type == package.type() &&
@@ -1103,7 +1103,12 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
             BlockchainMessage::StorageFileAddress msg;
             std::move(package).get(msg);
 
-            callback(beltpp::packet(std::move(msg)));
+            if (callback)
+            {
+                beltpp::on_failure guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+                callback(beltpp::packet(std::move(msg)));
+                guard2.dismiss();
+            }
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1117,7 +1122,9 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
     }
     else
     {
-        callback(std::move(package));
+        beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+        if (callback)
+            callback(std::move(package));
         completed = true;
         expected_next_package_type = size_t(-1);
         errored = true;
@@ -1146,8 +1153,9 @@ session_action_delete_file::session_action_delete_file(detail::node_internals& i
 
 session_action_delete_file::~session_action_delete_file()
 {
-    if (size_t(-1) != expected_next_package_type ||
-        errored)
+    if ((size_t(-1) != expected_next_package_type ||
+         errored) &&
+        callback)
     {
         BlockchainMessage::RemoteError msg;
         msg.message = "unknown error deleting the file";
@@ -1167,7 +1175,6 @@ void session_action_delete_file::initiate(meshpp::session_header&/* header*/)
 bool session_action_delete_file::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
 {
     bool code = true;
-
     beltpp::on_failure guard([this]{ errored = true; });
 
     if (expected_next_package_type == package.type() &&
@@ -1177,7 +1184,12 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
         {
         case BlockchainMessage::Done::rtt:
         {
-            callback(beltpp::packet(BlockchainMessage::Done()));
+            if (callback)
+            {
+                beltpp::on_failure guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+                callback(beltpp::packet(BlockchainMessage::Done()));
+                guard2.dismiss();
+            }
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1191,7 +1203,10 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
     }
     else
     {
-        callback(std::move(package));
+        beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+        if (callback)
+            callback(std::move(package));
+        callback = std::function<void(beltpp::packet&&)>();
         completed = true;
         expected_next_package_type = size_t(-1);
         errored = true;
