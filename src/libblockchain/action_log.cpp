@@ -1,5 +1,6 @@
 #include "action_log.hpp"
 #include "common.hpp"
+#include "message.tmpl.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
