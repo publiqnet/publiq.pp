@@ -137,6 +137,16 @@ module CommanderMessage
         TimePoint time_signed
     }
 
+    class Send
+    {
+        String private_key
+        String to
+        Coin amount
+        Coin fee
+        String message
+        UInt64 seconds_to_expire
+    }
+
     class MinersRequest
     {
         UInt64 start_block_index
@@ -151,17 +161,7 @@ module CommanderMessage
     class MinersResponseItem
     {
         String miner_address
-        Array UInt64 block_number
-    }
-
-    class Send
-    {
-        String private_key
-        String to
-        Coin amount
-        Coin fee
-        String message
-        UInt64 seconds_to_expire
+        Array UInt64 block_numbers
     }
 
 }
