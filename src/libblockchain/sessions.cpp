@@ -841,7 +841,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             return set_errored("blockchain response. consensus delta!", throw_for_debugging_only);
 
         // verify miner balance at mining time
-        if (coin(amount) < MINE_AMOUNT_THRESHOLD)
+        if (coin(amount) < pimpl->m_mine_amount_threshhold)
             return set_errored("blockchain response. miner balance!", throw_for_debugging_only);
 
         // verify block transactions
@@ -1122,12 +1122,17 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
     }
     else
     {
-        beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
-        if (callback)
-            callback(std::move(package));
-        completed = true;
-        expected_next_package_type = size_t(-1);
-        errored = true;
+        if (package.type() == BlockchainMessage::UriError::rtt)
+        {
+            beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+            if (callback)
+                callback(std::move(package));
+            completed = true;
+            expected_next_package_type = size_t(-1);
+            errored = true;
+        }
+        else
+            code = false;
     }
 
     guard.dismiss();
@@ -1203,13 +1208,18 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
     }
     else
     {
-        beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
-        if (callback)
-            callback(std::move(package));
-        callback = std::function<void(beltpp::packet&&)>();
-        completed = true;
-        expected_next_package_type = size_t(-1);
-        errored = true;
+        if (package.type() == BlockchainMessage::UriError::rtt)
+        {
+            beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+            if (callback)
+                callback(std::move(package));
+            callback = std::function<void(beltpp::packet&&)>();
+            completed = true;
+            expected_next_package_type = size_t(-1);
+            errored = true;
+        }
+        else
+            code = false;
     }
 
     guard.dismiss();

@@ -59,7 +59,9 @@ node::node(string const& genesis_signed_block,
            NodeType& n_type,
            bool log_enabled,
            bool transfer_only,
-           bool testnet)
+           bool testnet,
+           coin const& mine_amount_threshhold,
+           std::vector<coin> const& block_reward_array)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          rpc_bind_to_address,
@@ -77,7 +79,9 @@ node::node(string const& genesis_signed_block,
                                          n_type,
                                          log_enabled,
                                          transfer_only,
-                                         testnet))
+                                         testnet,
+                                         mine_amount_threshhold,
+                                         block_reward_array))
 {}
 
 node::node(node&&) noexcept = default;
@@ -741,8 +745,14 @@ bool node::run()
             case Served::rtt:
             {
                 Served msg;
+
+                NodeType peer_node_type;
                 std::move(ref_packet).get(msg);
-                m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+                if (m_pimpl->m_node_type == NodeType::storage &&
+                    m_pimpl->m_state.get_role(msg.peer_address, peer_node_type) &&
+                    peer_node_type == NodeType::channel &&
+                    m_pimpl->m_documents.exist_file(msg.file_uri))
+                    m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
                 break;
             }
             }
@@ -1153,6 +1163,9 @@ void sync_worker(detail::node_internals& impl)
             if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
                 break;
             if (impl.m_p2p_peers.count(item.node_address))
+                continue;
+            NodeType node_type;
+            if (impl.m_state.get_role(item.node_address, node_type))
                 continue;
 
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
