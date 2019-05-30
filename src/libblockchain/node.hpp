@@ -16,6 +16,7 @@
 namespace publiqpp
 {
 class storage_node;
+class coin;
 namespace detail
 {
     class node_internals;
@@ -41,7 +42,9 @@ public:
          BlockchainMessage::NodeType& n_type,
          bool log_enabled,
          bool transfer_only,
-         bool testnet);
+         bool testnet,
+         coin const& mine_amount_threshhold,
+         std::vector<coin> const& block_reward_array);
     node(node&& other) noexcept;
     ~node();
 

@@ -841,7 +841,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             return set_errored("blockchain response. consensus delta!", throw_for_debugging_only);
 
         // verify miner balance at mining time
-        if (coin(amount) < MINE_AMOUNT_THRESHOLD)
+        if (coin(amount) < pimpl->m_mine_amount_threshhold)
             return set_errored("blockchain response. miner balance!", throw_for_debugging_only);
 
         // verify block transactions

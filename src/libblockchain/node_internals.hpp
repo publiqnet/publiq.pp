@@ -359,7 +359,9 @@ public:
                    NodeType& n_type,
                    bool log_enabled,
                    bool transfer_only,
-                   bool testnet)
+                   bool testnet,
+                   coin const& mine_amount_threshhold,
+                   std::vector<coin> const& block_reward_array)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
@@ -391,6 +393,8 @@ public:
         , m_pb_key(pv_key.get_public_key())
         , m_transfer_only(transfer_only)
         , m_testnet(testnet)
+        , m_mine_amount_threshhold(mine_amount_threshhold)
+        , m_block_reward_array(block_reward_array)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -519,7 +523,7 @@ public:
     bool is_miner() const
     {
         bool result = (m_node_type == NodeType::blockchain) &&
-                      (coin(get_balance()) >= MINE_AMOUNT_THRESHOLD);
+                      (coin(get_balance()) >= m_mine_amount_threshhold);
 
         return result;
     }
@@ -585,6 +589,9 @@ public:
 
     bool m_transfer_only;
     bool m_testnet;
+
+    coin const m_mine_amount_threshhold;
+    std::vector<coin> const m_block_reward_array;
 };
 
 }

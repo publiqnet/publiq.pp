@@ -255,12 +255,12 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     size_t year_index = block_number / 50000;
     coin miner_reward, channel_reward, storage_reward, author_reward;
 
-    if (year_index < BLOCK_REWARD_ARRAY.size())
+    if (year_index < impl.m_block_reward_array.size())
     {
-        miner_reward += BLOCK_REWARD_ARRAY[year_index] * MINER_REWARD_PERCENT / 100;
-        author_reward += BLOCK_REWARD_ARRAY[year_index] * AUTHOR_REWARD_PERCENT / 100;
-        channel_reward += BLOCK_REWARD_ARRAY[year_index] * CHANNEL_REWARD_PERCENT / 100;
-        storage_reward += BLOCK_REWARD_ARRAY[year_index] - miner_reward - author_reward - channel_reward;
+        miner_reward += impl.m_block_reward_array[year_index] * MINER_REWARD_PERCENT / 100;
+        author_reward += impl.m_block_reward_array[year_index] * AUTHOR_REWARD_PERCENT / 100;
+        channel_reward += impl.m_block_reward_array[year_index] * CHANNEL_REWARD_PERCENT / 100;
+        storage_reward += impl.m_block_reward_array[year_index] - miner_reward - author_reward - channel_reward;
     }
 
     multimap<string, pair<uint64_t, uint64_t>> author_result;
