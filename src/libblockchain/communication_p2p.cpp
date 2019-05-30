@@ -84,7 +84,8 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     storage_result.clear();
 
     // stop work in mainnet for now
-    if(false == impl.m_testnet)
+    if (false == impl.m_testnet ||
+        impl.m_transfer_only)
         return;
 
     map<string, map<string, map<string, uint64_t>>> channel_verified_statistics;
@@ -254,7 +255,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     size_t year_index = block_number / 50000;
     coin miner_reward, channel_reward, storage_reward, author_reward;
 
-    if (year_index < 60)
+    if (year_index < BLOCK_REWARD_ARRAY.size())
     {
         miner_reward += BLOCK_REWARD_ARRAY[year_index] * MINER_REWARD_PERCENT / 100;
         author_reward += BLOCK_REWARD_ARRAY[year_index] * AUTHOR_REWARD_PERCENT / 100;

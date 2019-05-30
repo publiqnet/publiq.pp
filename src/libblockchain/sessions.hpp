@@ -185,7 +185,7 @@ public:
 
     detail::node_internals* pimpl;
     BlockchainMessage::StorageFile file;
-    std::function<void(beltpp::packet&&)> const& callback;
+    std::function<void(beltpp::packet&&)> callback;
 };
 
 class session_action_delete_file : public meshpp::session_action<meshpp::session_header>
@@ -202,7 +202,7 @@ public:
 
     detail::node_internals* pimpl;
     std::string uri;
-    std::function<void(beltpp::packet&&)> const& callback;
+    std::function<void(beltpp::packet&&)> callback;
 };
 
 }

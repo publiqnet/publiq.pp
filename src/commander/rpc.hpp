@@ -1,7 +1,8 @@
 #pragma once
 
 #include "commander_message.hpp"
-#include "publiq.pp/message.hpp"
+#include <publiq.pp/message.hpp>
+#include <publiq.pp/message.tmpl.hpp>
 #include <belt.pp/socket.hpp>
 #include <mesh.pp/fileutility.hpp>
 
