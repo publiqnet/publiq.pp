@@ -108,7 +108,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
     vector<string> file_uris;
 
     if (impl.m_node_type == NodeType::storage &&
-        false == channel_ip_address.remote.empty() &&
+        false == channel_ip_address.local.empty() &&
         state_layer::chain == layer)
     {
         unordered_set<string> set_file_uris;

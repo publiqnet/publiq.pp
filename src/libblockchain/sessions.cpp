@@ -968,6 +968,10 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
         throw std::logic_error("file_uris.empty()");
     }
 
+    beltpp::detail::session_special_data& ssd =
+            pimpl->m_ptr_rpc_socket->session_data(header.peerid);
+    ssd.parser_unrecognized_limit = 1024 * 1024 * 10;
+
     StorageFileRequest msg;
     expected_uri = file_uris.back();
     msg.uri = expected_uri;
@@ -978,7 +982,7 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
 }
 
-bool session_action_request_file::process(beltpp::packet&& package, meshpp::nodeid_session_header& /*header*/)
+bool session_action_request_file::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
 
@@ -1013,9 +1017,9 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
                 }
             }));
 
-            meshpp::session_header header;
-            header.peerid = "slave";
-            pimpl->m_sessions.add(header,
+            meshpp::session_header slave_header;
+            slave_header.peerid = "slave";
+            pimpl->m_sessions.add(slave_header,
                                   std::move(actions),
                                   chrono::minutes(1));
 

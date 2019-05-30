@@ -6,7 +6,7 @@
 #include "transaction_contentunit.hpp"
 #include "transaction_content.hpp"
 #include "transaction_role.hpp"
-#include "transaction_contentinfo.hpp"
+#include "transaction_storageupdate.hpp"
 #include "transaction_statinfo.hpp"
 
 #include <unordered_set>
