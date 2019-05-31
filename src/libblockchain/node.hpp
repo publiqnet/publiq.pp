@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <string>
+#include <chrono>
 
 namespace publiqpp
 {
@@ -44,7 +45,8 @@ public:
          bool transfer_only,
          bool testnet,
          coin const& mine_amount_threshhold,
-         std::vector<coin> const& block_reward_array);
+         std::vector<coin> const& block_reward_array,
+         std::chrono::steady_clock::duration const& sync_delay);
     node(node&& other) noexcept;
     ~node();
 

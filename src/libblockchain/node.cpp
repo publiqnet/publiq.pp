@@ -61,7 +61,8 @@ node::node(string const& genesis_signed_block,
            bool transfer_only,
            bool testnet,
            coin const& mine_amount_threshhold,
-           std::vector<coin> const& block_reward_array)
+           std::vector<coin> const& block_reward_array,
+           std::chrono::steady_clock::duration const& sync_delay)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          rpc_bind_to_address,
@@ -81,7 +82,8 @@ node::node(string const& genesis_signed_block,
                                          transfer_only,
                                          testnet,
                                          mine_amount_threshhold,
-                                         block_reward_array))
+                                         block_reward_array,
+                                         sync_delay))
 {}
 
 node::node(node&&) noexcept = default;
@@ -836,7 +838,9 @@ bool node::run()
     if (m_pimpl->m_check_timer.expired())
     {
         m_pimpl->m_check_timer.update();
-        sync_worker(*m_pimpl.get());
+
+        if (m_pimpl->m_sync_delay.expired())
+            sync_worker(*m_pimpl.get());
     }
 
     return code;

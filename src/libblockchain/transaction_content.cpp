@@ -118,9 +118,6 @@ void action_apply(publiqpp::detail::node_internals& impl,
 
             for (auto const& file_uri : unit.file_uris)
             {
-                if (impl.m_documents.storage_has_uri(file_uri, impl.m_pb_key.to_string()))
-                    continue;
-
                 if (set_file_uris.count(file_uri))
                     continue;
 
