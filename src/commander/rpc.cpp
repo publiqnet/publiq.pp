@@ -8,7 +8,7 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <publiq.pp/coin.hpp>
-
+#include <algorithm>
 #include <memory>
 #include <chrono>
 #include <unordered_set>
@@ -564,13 +564,29 @@ void rpc::run()
                 for (size_t index = start_block_index; index != end_block_index; index++)
                     miner_items[blocks.at(index).authority].push_back(blocks.at(index).block_number);
 
+                std::vector<uint64_t> mined_block_counts;
+
+                for ( auto const& miner : miner_items)
+                    mined_block_counts.push_back(miner.second.size());
+
+                std::sort(mined_block_counts.begin(), mined_block_counts.end());
+                std::reverse(mined_block_counts.begin(), mined_block_counts.end());
+
+                std::vector<string> sorted_miners;
+
+                for (auto const& size : mined_block_counts)
+                    for ( auto const& miner : miner_items)
+                        if (std::find(sorted_miners.begin(), sorted_miners.end(), miner.first) == sorted_miners.end() &&
+                             size == miner.second.size())
+                            sorted_miners.push_back(miner.first);
+
                 std::vector<MinersResponseItem> miners;
 
-                for (auto const& map_item : miner_items)
+                for (auto const& miner : sorted_miners)
                 {
                     MinersResponseItem item;
-                    item.miner_address = map_item.first;
-                    item.block_numbers = map_item.second;
+                    item.miner_address = miner;
+                    item.block_numbers = miner_items[miner];
                     miners.push_back(item);
                 }
 
