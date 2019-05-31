@@ -1004,17 +1004,19 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
                 break;
             }
 
+            auto& impl = *pimpl;
+
             vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
-            actions.emplace_back(new session_action_save_file(*pimpl,
+            actions.emplace_back(new session_action_save_file(impl,
                                                               std::move(storage_file),
-                                                              [this](beltpp::packet&& package)
+                                                              [&impl](beltpp::packet&& package)
             {
                 if (package.type() == StorageFileAddress::rtt)
                 {
                     StorageFileAddress* pfile_address;
                     package.get(pfile_address);
-                    if (false == pimpl->m_documents.storage_has_uri(pfile_address->uri, pimpl->m_pb_key.to_string()))
-                        broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
+                    if (false == impl.m_documents.storage_has_uri(pfile_address->uri, impl.m_pb_key.to_string()))
+                        broadcast_storage_update(impl, pfile_address->uri, UpdateType::store);
                 }
             }));
 
