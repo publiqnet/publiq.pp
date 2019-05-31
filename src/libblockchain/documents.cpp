@@ -61,6 +61,7 @@ void documents::save()
     m_pimpl->m_files.save();
     m_pimpl->m_units.save();
     m_pimpl->m_contents.save();
+    m_pimpl->m_storages.save();
 }
 
 void documents::commit()

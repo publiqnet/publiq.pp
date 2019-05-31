@@ -49,6 +49,7 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
+                          std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet);
 
@@ -166,6 +167,7 @@ int main(int argc, char** argv)
     bool testnet;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
+    std::chrono::steady_clock::duration sync_delay;
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
@@ -176,6 +178,7 @@ int main(int argc, char** argv)
                                       data_directory,
                                       pv_key,
                                       n_type,
+                                      sync_delay,
                                       log_enabled,
                                       testnet))
         return 1;
@@ -263,7 +266,8 @@ int main(int argc, char** argv)
                             testnet ? false : true,
                             testnet,
                             mine_amount_threshhold(),
-                            block_reward_array());
+                            block_reward_array(),
+                            sync_delay);
 
         cout << endl;
         cout << "Node: " << node.name() << endl;
@@ -379,6 +383,7 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
+                          std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet)
 {
@@ -388,6 +393,7 @@ bool process_command_line(int argc, char** argv,
     string str_public_address;
     string str_pv_key;
     string str_n_type;
+    size_t seconds_sync_delay = 0;
     vector<string> hosts;
     program_options::options_description options_description;
     try
@@ -410,6 +416,8 @@ bool process_command_line(int argc, char** argv,
             ("node_private_key,k", program_options::value<string>(&str_pv_key),
                             "Node private key to start with")
             ("node_type,t", program_options::value<string>(&str_n_type),
+                            "Node start mode")
+            ("sync_after_seconds", program_options::value<size_t>(&seconds_sync_delay),
                             "Node start mode")
             ("testnet", "Work in testnet blockchain");
         (void)(desc_init);
@@ -482,6 +490,8 @@ bool process_command_line(int argc, char** argv,
         if (n_type != BlockchainMessage::NodeType::blockchain &&
             slave_local_interface.empty())
             throw std::runtime_error("slave_local_interface is not specified");
+
+        sync_delay = std::chrono::seconds(seconds_sync_delay);
     }
     catch (std::exception const& ex)
     {

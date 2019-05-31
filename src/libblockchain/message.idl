@@ -133,6 +133,16 @@ module BlockchainMessage
     class TransactionReserve3 {}
     class TransactionReserve4 {}
     class TransactionReserve5 {}
+    class TransactionReserve6 {}
+    class TransactionReserve7 {}
+    class TransactionReserve8 {}
+    class TransactionReserve9 {}
+    class TransactionReserve10 {}
+    class TransactionReserve11 {}
+    class TransactionReserve12 {}
+    class TransactionReserve13 {}
+    class TransactionReserve14 {}
+    class TransactionReserve15 {}
 
     class File
     {
@@ -204,16 +214,16 @@ module BlockchainMessage
         String peer_address
     }
 
-    //class TransactionReserve6 {}
-    class TransactionReserve7 {}
-    class TransactionReserve8 {}
-    class TransactionReserve9 {}
-    class TransactionReserve10 {}
-    class TransactionReserve11 {}
-    class TransactionReserve12 {}
-    class TransactionReserve13 {}
-    class TransactionReserve14 {}
-    class TransactionReserve15 {}
+    class TransactionReserve16 {}
+    class TransactionReserve17 {}
+    class TransactionReserve18 {}
+    class TransactionReserve19 {}
+    class TransactionReserve20 {}
+    class TransactionReserve21 {}
+    class TransactionReserve22 {}
+    class TransactionReserve23 {}
+    class TransactionReserve24 {}
+    class TransactionReserve25 {}
 
     //  ip address information
     class IPDestination

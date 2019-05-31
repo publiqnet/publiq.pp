@@ -361,7 +361,8 @@ public:
                    bool transfer_only,
                    bool testnet,
                    coin const& mine_amount_threshhold,
-                   std::vector<coin> const& block_reward_array)
+                   std::vector<coin> const& block_reward_array,
+                   std::chrono::steady_clock::duration const& sync_delay)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
@@ -380,6 +381,7 @@ public:
         , m_sync_timer()
         , m_check_timer()
         , m_summary_report_timer()
+        , m_sync_delay()
         , m_public_address(public_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_blockchain(fs_blockchain)
@@ -401,6 +403,8 @@ public:
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
+        m_sync_delay.set(sync_delay, true);
+
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
         m_broadcast_timer.update();
@@ -562,6 +566,7 @@ public:
     beltpp::timer m_broadcast_timer;
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
+    beltpp::timer m_sync_delay;
 
     beltpp::ip_address m_public_address;
     beltpp::ip_address m_rpc_bind_to_address;
