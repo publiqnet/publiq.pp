@@ -836,7 +836,6 @@ bool node::run()
     if (m_pimpl->m_check_timer.expired())
     {
         m_pimpl->m_check_timer.update();
-
         sync_worker(*m_pimpl.get());
     }
 

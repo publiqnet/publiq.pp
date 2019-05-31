@@ -57,8 +57,8 @@ add_library(blockchain
     storage_node_internals.hpp
     transaction_content.cpp
     transaction_content.hpp
-    transaction_contentinfo.cpp
-    transaction_contentinfo.hpp
+    transaction_storageupdate.cpp
+    transaction_storageupdate.hpp
     transaction_contentunit.cpp
     transaction_contentunit.hpp
     transaction_file.cpp
