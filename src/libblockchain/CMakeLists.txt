@@ -105,5 +105,7 @@ install(FILES
     node.hpp
     message.hpp
     message.gen.hpp
+    message.tmpl.hpp
+    message.gen.tmpl.hpp
     storage_node.hpp
     DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/libblockchain)
