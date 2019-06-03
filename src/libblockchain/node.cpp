@@ -841,6 +841,46 @@ bool node::run()
 
         if (m_pimpl->m_sync_delay.expired())
             sync_worker(*m_pimpl.get());
+
+        for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
+        {
+            auto& channel_address = channel_file_uris.first;
+            auto& set_file_uris = channel_file_uris.second;
+
+            beltpp::ip_address channel_ip_address;
+            PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
+            for (auto const& item : public_addresses.addresses_info)
+            {
+                if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                    break;
+
+                if (item.node_address == channel_address)
+                {
+                    beltpp::assign(channel_ip_address, item.ip_address);
+                    break;
+                }
+            }
+
+            if (false == set_file_uris.empty() &&
+                false == channel_ip_address.local.empty())
+            {
+                vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+                actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
+                actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
+                                                                   m_pimpl->m_nodeid_service));
+                actions.emplace_back(new session_action_request_file(*m_pimpl.get(), set_file_uris));
+
+                meshpp::nodeid_session_header header;
+                header.nodeid = channel_address;
+                header.address = channel_ip_address;
+                m_pimpl->m_nodeid_sessions.add(header,
+                                               std::move(actions),
+                                               chrono::minutes(3));
+            }
+
+            set_file_uris.clear();
+        }
+        m_pimpl->map_channel_to_file_uris.clear();
     }
 
     return code;

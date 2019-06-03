@@ -951,7 +951,7 @@ void session_action_block::set_errored(string const& message, bool throw_for_deb
 // --------------------------- session_action_request_file ---------------------------
 
 session_action_request_file::session_action_request_file(detail::node_internals& impl,
-                                                         vector<string> const& _file_uris)
+                                                         unordered_set<string> const& _file_uris)
     : meshpp::session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
     , file_uris(_file_uris)
@@ -973,11 +973,11 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
     ssd.parser_unrecognized_limit = 1024 * 1024 * 10;
 
     StorageFileRequest msg;
-    expected_uri = file_uris.back();
+    expected_uri = *file_uris.begin();
     msg.uri = expected_uri;
     pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
 
-    file_uris.resize(file_uris.size() - 1);
+    file_uris.erase(file_uris.begin());
 
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
 }
@@ -1034,11 +1034,11 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             else
             {
                 StorageFileRequest msg;
-                expected_uri = file_uris.back();
+                expected_uri = *file_uris.begin();
                 msg.uri = expected_uri;
                 pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
 
-                file_uris.resize(file_uris.size() - 1);
+                file_uris.erase(file_uris.begin());
 
                 expected_next_package_type = BlockchainMessage::StorageFile::rtt;
             }

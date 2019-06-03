@@ -9,6 +9,7 @@
 #include <vector>
 #include <string>
 #include <functional>
+#include <unordered_set>
 
 namespace publiqpp
 {
@@ -159,7 +160,7 @@ class session_action_request_file : public meshpp::session_action<meshpp::nodeid
 {
 public:
     session_action_request_file(detail::node_internals& impl,
-                                std::vector<std::string> const& file_uris);
+                                std::unordered_set<std::string> const& file_uris);
     ~session_action_request_file() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -167,7 +168,7 @@ public:
     bool permanent() const override;
 
     detail::node_internals* pimpl;
-    std::vector<std::string> file_uris;
+    std::unordered_set<std::string> file_uris;
     std::string expected_uri;
 };
 

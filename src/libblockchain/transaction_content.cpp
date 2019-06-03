@@ -91,57 +91,24 @@ void action_apply(publiqpp::detail::node_internals& impl,
             throw wrong_data_exception("the content and the content unit do not correspond to each other");
     }
 
-    beltpp::ip_address channel_ip_address;
-    PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
-    for (auto const& item : public_addresses.addresses_info)
-    {
-        if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
-            break;
-
-        if (item.node_address == content.channel_address)
-        {
-            beltpp::assign(channel_ip_address, item.ip_address);
-            break;
-        }
-    }
-
-    vector<string> file_uris;
-
     if (impl.m_node_type == NodeType::storage &&
-        false == channel_ip_address.local.empty() &&
         state_layer::chain == layer)
     {
-        unordered_set<string> set_file_uris;
         for (auto const& unit_uri : content.content_unit_uris)
         {
             auto const& unit = impl.m_documents.get_unit(unit_uri);
 
             for (auto const& file_uri : unit.file_uris)
             {
-                if (set_file_uris.count(file_uri))
+                auto& value = impl.map_channel_to_file_uris[content.channel_address];
+                if (value.count(file_uri))
                     continue;
 
-                set_file_uris.insert(file_uri);
-                file_uris.push_back(file_uri);
+                value.insert(file_uri);
             }
         }
     }
 
-    if (false == file_uris.empty())
-    {
-        vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-        actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
-        actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
-                                                           impl.m_nodeid_service));
-        actions.emplace_back(new session_action_request_file(impl, file_uris));
-
-        meshpp::nodeid_session_header header;
-        header.nodeid = content.channel_address;
-        header.address = channel_ip_address;
-        impl.m_nodeid_sessions.add(header,
-                                   std::move(actions),
-                                   chrono::minutes(3));
-    }
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,
