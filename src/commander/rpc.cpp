@@ -564,29 +564,26 @@ void rpc::run()
                 for (size_t index = start_block_index; index != end_block_index; index++)
                     miner_items[blocks.at(index).authority].push_back(blocks.at(index).block_number);
 
-                std::vector<uint64_t> mined_block_counts;
+                std::vector<std::pair<string, std::vector<uint64_t>>> sorted_miners;
 
                 for ( auto const& miner : miner_items)
-                    mined_block_counts.push_back(miner.second.size());
+                    sorted_miners.push_back(std::make_pair(miner.first, miner.second));
 
-                std::sort(mined_block_counts.begin(), mined_block_counts.end());
-                std::reverse(mined_block_counts.begin(), mined_block_counts.end());
+                auto miners_comparator = [] (std::pair<string, std::vector<uint64_t>> const& first,
+                                             std::pair<string, std::vector<uint64_t>> const& second)
+                {
+                    return first.second.size() > second.second.size();
+                };
 
-                std::vector<string> sorted_miners;
-
-                for (auto const& size : mined_block_counts)
-                    for ( auto const& miner : miner_items)
-                        if (std::find(sorted_miners.begin(), sorted_miners.end(), miner.first) == sorted_miners.end() &&
-                             size == miner.second.size())
-                            sorted_miners.push_back(miner.first);
+                std::sort(sorted_miners.begin(), sorted_miners.end(), miners_comparator);
 
                 std::vector<MinersResponseItem> miners;
 
                 for (auto const& miner : sorted_miners)
                 {
                     MinersResponseItem item;
-                    item.miner_address = miner;
-                    item.block_numbers = miner_items[miner];
+                    item.miner_address = miner.first;
+                    item.block_numbers = miner.second;
                     miners.push_back(item);
                 }
 
