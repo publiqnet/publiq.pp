@@ -842,10 +842,14 @@ bool node::run()
         if (m_pimpl->m_sync_delay.expired())
             sync_worker(*m_pimpl.get());
 
+        unordered_set<string> unresolved_channels;
         for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
         {
             auto& channel_address = channel_file_uris.first;
             auto& set_file_uris = channel_file_uris.second;
+            assert(false == set_file_uris.empty());
+            if (set_file_uris.empty())
+                throw std::logic_error("set_file_uris.empty()");
 
             beltpp::ip_address channel_ip_address;
             PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
@@ -861,14 +865,15 @@ bool node::run()
                 }
             }
 
-            if (false == set_file_uris.empty() &&
-                false == channel_ip_address.local.empty())
+            if (channel_ip_address.local.empty())
+                unresolved_channels.insert(channel_address);
+            else
             {
                 vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
                 actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
                 actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
                                                                    m_pimpl->m_nodeid_service));
-                actions.emplace_back(new session_action_request_file(*m_pimpl.get(), set_file_uris));
+                actions.emplace_back(new session_action_request_file(*m_pimpl.get()));
 
                 meshpp::nodeid_session_header header;
                 header.nodeid = channel_address;
@@ -877,10 +882,10 @@ bool node::run()
                                                std::move(actions),
                                                chrono::minutes(3));
             }
-
-            set_file_uris.clear();
         }
-        m_pimpl->map_channel_to_file_uris.clear();
+
+        while (unresolved_channels.size() > 10)
+            m_pimpl->map_channel_to_file_uris.erase(*unresolved_channels.begin());
     }
 
     return code;

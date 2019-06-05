@@ -950,11 +950,9 @@ void session_action_block::set_errored(string const& message, bool throw_for_deb
 
 // --------------------------- session_action_request_file ---------------------------
 
-session_action_request_file::session_action_request_file(detail::node_internals& impl,
-                                                         unordered_set<string> const& _file_uris)
+session_action_request_file::session_action_request_file(detail::node_internals& impl)
     : meshpp::session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
-    , file_uris(_file_uris)
 {}
 
 session_action_request_file::~session_action_request_file()
@@ -962,7 +960,9 @@ session_action_request_file::~session_action_request_file()
 
 void session_action_request_file::initiate(meshpp::nodeid_session_header& header)
 {
-    if (file_uris.empty())
+    auto it = pimpl->map_channel_to_file_uris.find(header.nodeid);
+    if (it == pimpl->map_channel_to_file_uris.end() ||
+        it->second.empty())
     {
         assert(false);
         throw std::logic_error("file_uris.empty()");
@@ -973,11 +973,13 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
     ssd.parser_unrecognized_limit = 1024 * 1024 * 10;
 
     StorageFileRequest msg;
-    expected_uri = *file_uris.begin();
+    expected_uri = *it->second.begin();
+    it->second.erase(expected_uri);
+    if (it->second.empty())
+        pimpl->map_channel_to_file_uris.erase(it);
+
     msg.uri = expected_uri;
     pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
-
-    file_uris.erase(file_uris.begin());
 
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
 }
@@ -1026,19 +1028,28 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
                                   std::move(actions),
                                   chrono::minutes(1));
 
-            if (file_uris.empty())
+            auto it = pimpl->map_channel_to_file_uris.find(header.nodeid);
+            if (it == pimpl->map_channel_to_file_uris.end())
             {
                 completed = true;
                 expected_next_package_type = size_t(-1);
             }
             else
             {
+                if (it->second.empty())
+                {
+                    assert(false);
+                    throw std::logic_error("file_uris.empty()");
+                }
+
                 StorageFileRequest msg;
-                expected_uri = *file_uris.begin();
+                expected_uri = *it->second.begin();
+                it->second.erase(expected_uri);
+                if (it->second.empty())
+                    pimpl->map_channel_to_file_uris.erase(it);
+
                 msg.uri = expected_uri;
                 pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
-
-                file_uris.erase(file_uris.begin());
 
                 expected_next_package_type = BlockchainMessage::StorageFile::rtt;
             }
