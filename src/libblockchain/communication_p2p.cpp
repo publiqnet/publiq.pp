@@ -778,7 +778,64 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     ServiceStatistics service_statistics = impl.service_counter.take_statistics_info();
 
     if (service_statistics.file_items.empty())
+    {
         return; // nothing to broadcast
+
+        if (impl.m_node_type == NodeType::channel)
+        {
+            vector<string> unit_uris;
+            impl.m_documents.get_unit_uris(unit_uris);
+            vector<string> storages;
+            impl.m_state.get_nodes(NodeType::storage, storages);
+
+            for (auto const& unit_uri : unit_uris)
+            {
+                ContentUnit unit = impl.m_documents.get_unit(unit_uri);
+
+                for (auto const& file_uri : unit.file_uris)
+                {
+                    ServiceStatisticsFile stat_file;
+                    stat_file.file_uri = file_uri;
+                    stat_file.unit_uri = unit_uri;
+
+                    for (auto const& storage : storages)
+                    {
+                        ServiceStatisticsCount stat_count;
+                        stat_count.count = 1;
+                        stat_count.peer_address = storage;
+
+                        stat_file.count_items.push_back(stat_count);
+                    }
+
+                    service_statistics.file_items.push_back(stat_file);
+                }
+            }
+        }
+        else
+        {
+            vector<string> file_uris;
+            impl.m_documents.get_file_uris(file_uris);
+            vector<string> channels;
+            impl.m_state.get_nodes(NodeType::channel, channels);
+
+            for (auto const& file_uri : file_uris)
+            {
+                ServiceStatisticsFile stat_file;
+                stat_file.file_uri = file_uri;
+
+                for (auto const& channel : channels)
+                {
+                    ServiceStatisticsCount stat_count;
+                    stat_count.count = 1;
+                    stat_count.peer_address = channel;
+
+                    stat_file.count_items.push_back(stat_count);
+                }
+
+                service_statistics.file_items.push_back(stat_file);
+            }
+        }
+    }
 
     service_statistics.server_address = impl.m_pb_key.to_string();
 

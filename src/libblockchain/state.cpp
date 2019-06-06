@@ -153,5 +153,15 @@ void state::remove_role(string const& nodeid)
     m_pimpl->m_roles.erase(nodeid);
 }
 
+void state::get_nodes(BlockchainMessage::NodeType node_type, vector<string>& nodes) const
+{
+    nodes.clear();
+    unordered_set<string> keys = m_pimpl->m_roles.as_const().keys();
+
+    for (auto node_id : keys)
+        if (get_role(node_id, node_type))
+            nodes.push_back(node_id);
+}
+
 }
 

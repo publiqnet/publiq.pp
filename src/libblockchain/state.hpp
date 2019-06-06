@@ -38,6 +38,7 @@ public:
     bool get_role(std::string const& nodeid, BlockchainMessage::NodeType& node_type) const;
     void insert_role(BlockchainMessage::Role const& role);
     void remove_role(std::string const& nodeid);
+    void get_nodes(BlockchainMessage::NodeType node_type, std::vector<std::string>& nodes) const;
 
 private:
     std::unique_ptr<detail::state_internals> m_pimpl;

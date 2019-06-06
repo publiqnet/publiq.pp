@@ -112,6 +112,14 @@ BlockchainMessage::File const& documents::get_file(std::string const& uri) const
     return m_pimpl->m_files.as_const().at(uri);
 }
 
+void documents::get_file_uris(vector<string>& file_uris) const
+{
+    file_uris.clear();
+
+    for (auto it : m_pimpl->m_files.as_const().keys())
+        file_uris.push_back(it);
+}
+
 bool documents::exist_unit(string const& uri) const
 {
     if (uri.empty())
@@ -138,6 +146,14 @@ void documents::remove_unit(string const& uri)
 BlockchainMessage::ContentUnit const& documents::get_unit(std::string const& uri) const
 {
     return m_pimpl->m_units.as_const().at(uri);
+}
+
+void documents::get_unit_uris(vector<string>& unit_uris) const
+{
+    unit_uris.clear();
+
+    for (auto it : m_pimpl->m_units.as_const().keys())
+        unit_uris.push_back(it);
 }
 
 void documents::storage_update(std::string const& uri,
