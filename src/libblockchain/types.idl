@@ -4,4 +4,23 @@ module StorageTypes
     {
         Set String addresses
     }
+
+    class ContentUnitSponsoredInformation
+    {
+        String uri
+        Array SponsoredInformation sponsored_informations
+    }
+
+    class SponsoredInformation
+    {
+        TimePoint start_time_point
+        TimePoint end_time_point
+        Coin amount
+    }
+
+    class Coin
+    {
+        UInt64 whole
+        UInt64 fraction
+    }
 }

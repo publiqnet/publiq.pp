@@ -3,6 +3,7 @@
 #include "exception.hpp"
 #include "node_internals.hpp"
 #include "message.tmpl.hpp"
+#include "types.hpp"
 
 #include <mesh.pp/fileutility.hpp>
 
@@ -16,6 +17,17 @@ namespace publiqpp
 {
 namespace detail
 {
+inline
+beltpp::void_unique_ptr get_putl_types()
+{
+    beltpp::message_loader_utility utl;
+    StorageTypes::detail::extension_helper(utl);
+
+    auto ptr_utl =
+        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+
+    return ptr_utl;
+}
 
 class state_internals
 {
@@ -25,12 +37,14 @@ public:
         : m_accounts("account", path, 10000, detail::get_putl())
         , m_node_accounts("node_account", path, 10000, detail::get_putl())
         , m_roles("role", path, 10, detail::get_putl())
+        , m_content_unit_sponsored_information("content_unit_info", path, 10000, detail::get_putl_types())
         , pimpl_node(&impl)
     {}
 
     meshpp::map_loader<Coin> m_accounts;
     meshpp::map_loader<Coin> m_node_accounts;
     meshpp::map_loader<Role> m_roles;
+    meshpp::map_loader<StorageTypes::ContentUnitSponsoredInformation> m_content_unit_sponsored_information;
     node_internals const* pimpl_node;
 };
 }
