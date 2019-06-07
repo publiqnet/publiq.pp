@@ -88,23 +88,34 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
         impl.m_transfer_only)
         return;
 
+    map<string, map<string, map<string, uint64_t>>> channel_statistics;
     map<string, map<string, map<string, uint64_t>>> channel_verified_statistics;
 
     // group channel provided data to verify in comming steps
-    for (auto const& item : channel_provided_statistics)
-        for (auto const& it : item.second.file_items)
-            for (auto const& i : it.count_items)
-                channel_verified_statistics[item.first][it.file_uri][i.peer_address] += i.count;
+    for (auto const& stat_item : channel_provided_statistics)
+        for (auto const& file_item : stat_item.second.file_items)
+            for (auto const& count_item : file_item.count_items)
+            {
+                string channel_id = stat_item.first;
+                string file_uri = file_item.file_uri;
+                string storage_id = count_item.peer_address;
+
+                channel_statistics[channel_id][file_uri][storage_id] += count_item.count;
+            }
 
     // cross compare channel and storage provided data
-    for (auto const& item : storage_provided_statistics)
-        for (auto const& it : item.second.file_items)
-            for (auto const& i : it.count_items)
+    for (auto const& stat_item : storage_provided_statistics)
+        for (auto const& file_item : stat_item.second.file_items)
+            for (auto const& count_item : file_item.count_items)
             {
-                uint64_t& stat_value = channel_verified_statistics[i.peer_address][it.file_uri][item.first];
+                string channel_id = count_item.peer_address;
+                string file_uri = file_item.file_uri;
+                string storage_id = stat_item.first;
 
-                if (stat_mismatch(stat_value, i.count))
-                    stat_value = 0;
+                uint64_t& stat_value = channel_statistics[channel_id][file_uri][storage_id];
+
+                if (false == stat_mismatch(stat_value, count_item.count))
+                    channel_verified_statistics[channel_id][file_uri][storage_id] = stat_value;
             }
 
     // storage     view
@@ -114,22 +125,30 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     // channel     owner       content_id   view
     map<string, map<string, map<uint64_t, uint64_t>>> content_group;
 
-    for (auto const& item : channel_provided_statistics)
-        for (auto const& it : item.second.file_items)
-            for (auto const& i : it.count_items)
-                if (channel_verified_statistics[item.first][it.file_uri][i.peer_address] > 0)
-                {
-                    if (impl.m_documents.exist_unit(it.unit_uri))
-                    {
-                        author_group[it.unit_uri][it.file_uri] += i.count;
+    for (auto const& stat_item : channel_provided_statistics)
+        for (auto const& file_item : stat_item.second.file_items)
+            for (auto const& count_item : file_item.count_items)
+            {
+                string channel_id = stat_item.first;
+                string file_uri = file_item.file_uri;
+                string unit_uri = file_item.unit_uri;
+                string storage_id = count_item.peer_address;
+                uint64_t view_count = count_item.count;
 
-                        ContentUnit content_unit = impl.m_documents.get_unit(it.unit_uri);
-                        auto& value = content_group[item.first][content_unit.channel_address][content_unit.content_id];
-                        value = std::max(value, i.count);
+                if (channel_verified_statistics[channel_id][file_uri][storage_id] > 0)
+                {
+                    if (impl.m_documents.exist_unit(unit_uri))
+                    {
+                        author_group[unit_uri][file_uri] += view_count;
+
+                        ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
+                        auto& value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
+                        value = std::max(value, view_count);
                     }
 
-                    storage_group[i.peer_address] += i.count;
+                    storage_group[storage_id] += count_item.count;
                 }
+            }
 
     // collect storages final result
     for (auto const& item : storage_group)
@@ -169,7 +188,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
         {
             if (impl.m_documents.exist_file(it.first))
             {
-                File file = impl.m_documents.get_file(item.first);
+                File file = impl.m_documents.get_file(it.first);
                 uint64_t author_count = file.author_addresses.size();
 
                 for (auto const& i : file.author_addresses)
@@ -188,16 +207,27 @@ coin distribute_rewards(vector<Reward>& rewards,
     if (stat_distribution.size() == 0 || total_amount.empty())
         return total_amount;
 
+    map<uint64_t, uint64_t> points_map;
+    for (auto const& item : stat_distribution)
+        points_map[item.second.second] += item.second.first;
+
+    uint64_t denominator = 1;
+    for (auto const& item : points_map)
+        denominator *= item.first;
+
     uint64_t total_points = 0;
+    for (auto const& item : points_map)
+        total_points += (denominator / item.first) * item.second;
+
+    total_points /= denominator;
+
+    coin rest_amount = total_amount;
     map<string, coin> coin_distribution;
     for (auto const& item : stat_distribution)
-        total_points += item.second.first;
-
-    for (auto const& item : stat_distribution)
     {
-        coin amount = (total_amount * item.second.first) / (total_points + item.second.second);
+        coin amount = (total_amount * item.second.first) / (total_points * item.second.second);
 
-        total_amount -= amount;
+        rest_amount -= amount;
         coin_distribution[item.first] += amount;
     }
 
@@ -213,7 +243,8 @@ coin distribute_rewards(vector<Reward>& rewards,
     }
 
     // rounding error fix
-    (total_amount + rewards.back().amount).to_Coin(rewards.back().amount);
+    if(rest_amount > coin(0,0))
+        (rest_amount + rewards.back().amount).to_Coin(rewards.back().amount);
 
     return coin();
 }
@@ -236,7 +267,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
         // only servicestatistics corresponding to current block will be taken
         if (it->transaction_details.action.type() == ServiceStatistics::rtt &&
-            (unsigned)chrono::seconds(it->transaction_details.creation.tm).count() / BLOCK_MINE_DELAY == block_number)
+            ((unsigned)chrono::seconds(it->transaction_details.creation.tm).count() - 1554076800) / BLOCK_MINE_DELAY == block_number - 1)
         {
             ServiceStatistics service_statistics;
             it->transaction_details.action.get(service_statistics);
@@ -781,60 +812,61 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     {
         return; // nothing to broadcast
 
-        if (impl.m_node_type == NodeType::channel)
-        {
-            vector<string> unit_uris;
-            impl.m_documents.get_unit_uris(unit_uris);
-            vector<string> storages;
-            impl.m_state.get_nodes(NodeType::storage, storages);
-
-            for (auto const& unit_uri : unit_uris)
-            {
-                ContentUnit unit = impl.m_documents.get_unit(unit_uri);
-
-                for (auto const& file_uri : unit.file_uris)
-                {
-                    ServiceStatisticsFile stat_file;
-                    stat_file.file_uri = file_uri;
-                    stat_file.unit_uri = unit_uri;
-
-                    for (auto const& storage : storages)
-                    {
-                        ServiceStatisticsCount stat_count;
-                        stat_count.count = 1;
-                        stat_count.peer_address = storage;
-
-                        stat_file.count_items.push_back(stat_count);
-                    }
-
-                    service_statistics.file_items.push_back(stat_file);
-                }
-            }
-        }
-        else
-        {
-            vector<string> file_uris;
-            impl.m_documents.get_file_uris(file_uris);
-            vector<string> channels;
-            impl.m_state.get_nodes(NodeType::channel, channels);
-
-            for (auto const& file_uri : file_uris)
-            {
-                ServiceStatisticsFile stat_file;
-                stat_file.file_uri = file_uri;
-
-                for (auto const& channel : channels)
-                {
-                    ServiceStatisticsCount stat_count;
-                    stat_count.count = 1;
-                    stat_count.peer_address = channel;
-
-                    stat_file.count_items.push_back(stat_count);
-                }
-
-                service_statistics.file_items.push_back(stat_file);
-            }
-        }
+        // test statistics generation
+        //if (impl.m_node_type == NodeType::channel)
+        //{
+        //    vector<string> unit_uris;
+        //    impl.m_documents.get_unit_uris(unit_uris);
+        //    vector<string> storages;
+        //    impl.m_state.get_nodes(NodeType::storage, storages);
+        //
+        //    for (auto const& unit_uri : unit_uris)
+        //    {
+        //        ContentUnit unit = impl.m_documents.get_unit(unit_uri);
+        //
+        //        for (auto const& file_uri : unit.file_uris)
+        //        {
+        //            ServiceStatisticsFile stat_file;
+        //            stat_file.file_uri = file_uri;
+        //            stat_file.unit_uri = unit_uri;
+        //
+        //            for (auto const& storage : storages)
+        //            {
+        //                ServiceStatisticsCount stat_count;
+        //                stat_count.count = 10;
+        //                stat_count.peer_address = storage;
+        //
+        //                stat_file.count_items.push_back(stat_count);
+        //            }
+        //
+        //            service_statistics.file_items.push_back(stat_file);
+        //        }
+        //    }
+        //}
+        //else
+        //{
+        //    vector<string> file_uris;
+        //    impl.m_documents.get_file_uris(file_uris);
+        //    vector<string> channels;
+        //    impl.m_state.get_nodes(NodeType::channel, channels);
+        //
+        //    for (auto const& file_uri : file_uris)
+        //    {
+        //        ServiceStatisticsFile stat_file;
+        //        stat_file.file_uri = file_uri;
+        //
+        //        for (auto const& channel : channels)
+        //        {
+        //            ServiceStatisticsCount stat_count;
+        //            stat_count.count = 10;
+        //            stat_count.peer_address = channel;
+        //
+        //            stat_file.count_items.push_back(stat_count);
+        //        }
+        //
+        //        service_statistics.file_items.push_back(stat_file);
+        //    }
+        //}
     }
 
     service_statistics.server_address = impl.m_pb_key.to_string();
