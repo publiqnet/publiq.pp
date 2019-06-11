@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <string>
+#include <chrono>
 
 namespace publiqpp
 {
@@ -39,6 +40,10 @@ public:
 
     void storage_update(std::string const& uri, std::string const& address, BlockchainMessage::UpdateType status);
     bool storage_has_uri(std::string const& uri, std::string const& address) const;
+
+    void sponsor_content_unit_apply(std::chrono::system_clock::time_point const& tp,
+                                    BlockchainMessage::SponsorContentUnit const& spi);
+    void sponsor_content_unit_revert(BlockchainMessage::SponsorContentUnit const& spi);
 
 private:
     std::unique_ptr<detail::documents_internals> m_pimpl;

@@ -214,7 +214,14 @@ module BlockchainMessage
         String peer_address
     }
 
-    class TransactionReserve16 {}
+    class SponsorContentUnit
+    {
+        String sponsor_address
+        String uri
+        UInt64 days
+        Coin amount
+    }
+
     class TransactionReserve17 {}
     class TransactionReserve18 {}
     class TransactionReserve19 {}

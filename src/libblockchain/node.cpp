@@ -235,6 +235,7 @@ bool node::run()
                 case Role::rtt:
                 case StorageUpdate::rtt:
                 case ServiceStatistics::rtt:
+                case SponsorContentUnit::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
@@ -1096,11 +1097,12 @@ double header_worker(detail::node_internals& impl)
         auto net_sum = impl.all_sync_info.net_sync_info().c_sum;
         auto own_sum = impl.all_sync_info.own_sync_info().c_sum;
 
-        if (head_block_header.block_number + 1 < scan_block_header.block_number)
+        if (head_block_header.block_number + 1 < scan_block_header.block_number &&
+            // maybe need to move the following check right inside sync responce handler?
+            chrono::seconds(BLOCK_MINE_DELAY + BLOCK_WAIT_DELAY) <= since_head_block)
         {
             // network is far ahead and I have to sync first
-            if (head_block_header.c_sum < scan_block_header.c_sum)
-                sync_now = true;
+            sync_now = true;
         }
         else if (head_block_header.c_sum < scan_block_header.c_sum &&
                  head_block_header.block_number == scan_block_header.block_number)
@@ -1142,6 +1144,7 @@ double header_worker(detail::node_internals& impl)
                 since_head_block < chrono::seconds(BLOCK_MINE_DELAY))
             {
                 //  last two minutes before another block will be added
+                //  check if there is a fork
                 if (false == scan_peer.empty())
                     sync_now = true;
             }

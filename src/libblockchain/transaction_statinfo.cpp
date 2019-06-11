@@ -79,11 +79,11 @@ void action_apply(publiqpp::detail::node_internals& impl,
     for (auto const& item : service_statistics.file_items)
     {
         if (false == impl.m_documents.exist_file(item.file_uri))
-            throw wrong_data_exception("file does not exists in documents");
+            throw uri_exception(item.file_uri, uri_exception::missing);
 
         if (node_type == NodeType::channel &&
             false == impl.m_documents.exist_unit(item.unit_uri))
-            throw wrong_data_exception("contentunit does not exists in documents");
+            throw uri_exception(item.unit_uri, uri_exception::missing);
 
         for (auto const& it : item.count_items)
         {

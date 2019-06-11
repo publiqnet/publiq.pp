@@ -8,6 +8,7 @@
 #include "transaction_role.hpp"
 #include "transaction_storageupdate.hpp"
 #include "transaction_statinfo.hpp"
+#include "transaction_sponsoring.hpp"
 
 #include <unordered_set>
 
@@ -126,6 +127,13 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
         code = action_process_on_chain_t(signed_transaction, *paction, impl);
         break;
     }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
+        package.get(paction);
+        code = action_process_on_chain_t(signed_transaction, *paction, impl);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -185,6 +193,13 @@ vector<string> action_owners(SignedTransaction const& signed_transaction)
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
         package.get(paction);
         result = action_owners(*paction);
         break;
@@ -256,6 +271,13 @@ void action_validate(publiqpp::detail::node_internals& impl,
         action_validate(signed_transaction, *paction, check_complete);
         break;
     }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
+        package.get(paction);
+        action_validate(signed_transaction, *paction, check_complete);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -317,6 +339,13 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
+        package.get(paction);
+        complete = action_is_complete(signed_transaction, *paction);
+        break;
+    }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
         package.get(paction);
         complete = action_is_complete(signed_transaction, *paction);
         break;
@@ -387,6 +416,13 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         code = action_can_apply(impl, *paction);
         break;
     }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
+        package.get(paction);
+        code = action_can_apply(impl, *paction);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -453,6 +489,13 @@ void action_apply(publiqpp::detail::node_internals& impl,
         action_apply(impl, *paction, layer);
         break;
     }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
+        package.get(paction);
+        action_apply(impl, *paction, layer);
+        break;
+    }
     default:
         throw wrong_data_exception("unknown transaction action type!");
     }
@@ -513,6 +556,13 @@ void action_revert(publiqpp::detail::node_internals& impl,
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
+        package.get(paction);
+        action_revert(impl, *paction, layer);
+        break;
+    }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
         package.get(paction);
         action_revert(impl, *paction, layer);
         break;
