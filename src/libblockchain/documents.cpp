@@ -201,13 +201,13 @@ bool documents::storage_has_uri(std::string const& uri,
     return 0 != holders.addresses.count(address);
 }
 
-void documents::sponsor_content_unit_apply(std::chrono::system_clock::time_point const& tp,
-                                           BlockchainMessage::SponsorContentUnit const& spi)
+void documents::sponsor_content_unit_apply(BlockchainMessage::SponsorContentUnit const& spi)
 {
     StorageTypes::SponsoredInformation si;
     si.amount = spi.amount;
+    auto tp = std::chrono::system_clock::from_time_t(spi.start_time_point.tm);
     si.start_time_point.tm = std::chrono::system_clock::to_time_t(tp);
-    si.end_time_point.tm = std::chrono::system_clock::to_time_t(tp + std::chrono::hours(spi.days * 24));
+    si.end_time_point.tm = std::chrono::system_clock::to_time_t(tp + std::chrono::hours(spi.hours));
 
     if (m_pimpl->m_content_unit_sponsored_information.contains(spi.uri))
     {

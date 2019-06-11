@@ -218,7 +218,8 @@ module BlockchainMessage
     {
         String sponsor_address
         String uri
-        UInt64 days
+        TimePoint start_time_point
+        UInt64 hours
         Coin amount
     }
 

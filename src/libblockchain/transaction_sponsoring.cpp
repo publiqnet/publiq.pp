@@ -30,7 +30,7 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_authority != sponsor_content_unit.sponsor_address)
         throw authority_exception(signed_authority, sponsor_content_unit.sponsor_address);
 
-    if (sponsor_content_unit.days == 0)
+    if (sponsor_content_unit.hours == 0)
         throw wrong_data_exception("sponsor duration");
     if (sponsor_content_unit.amount == Coin())
         throw wrong_data_exception("sponsor amount");
@@ -79,9 +79,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                                   sponsor_content_unit.amount,
                                   layer);
 
-    std::chrono::system_clock::time_point tp;
-    std::chrono::system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
-    impl.m_documents.sponsor_content_unit_apply(tp, sponsor_content_unit);
+    impl.m_documents.sponsor_content_unit_apply(sponsor_content_unit);
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
