@@ -45,6 +45,7 @@ rpc::rpc(beltpp::ip_address const& rpc_address,
     , head_block_index(meshpp::data_file_path("head_block_index.txt"))
     , accounts("accounts", meshpp::data_directory_path("accounts"), 100, get_putl())
     , blocks("block", meshpp::data_directory_path("blocks"), 1000, 1, get_putl())
+    , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(10));
@@ -592,6 +593,16 @@ void rpc::run()
 
                 rpc_socket.send(peerid, beltpp::packet(response));
 
+                break;
+            }
+            case StoragesRequest::rtt:
+            {
+                StoragesResponse response;
+
+                for (auto const& storage : storages.keys())
+                     response.storages.push_back(storages.as_const().at(storage));
+
+                rpc_socket.send(peerid, beltpp::packet(response));
                 break;
             }
             case Failed::rtt:

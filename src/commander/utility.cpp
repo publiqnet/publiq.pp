@@ -73,6 +73,15 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
 
         break;
     }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit sponsor_content_unit;
+        transaction_log.action.get(sponsor_content_unit);
+
+        from = sponsor_content_unit.sponsor_address;
+
+        break;
+    }
     default:
     {
         assert(false);

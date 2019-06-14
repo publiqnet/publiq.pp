@@ -164,5 +164,20 @@ module CommanderMessage
         Array UInt64 block_numbers
     }
 
+    class StoragesRequest
+    {
+    }
+
+    class StoragesResponse
+    {
+        Array StoragesResponseItem storages
+    }
+
+    class StoragesResponseItem
+    {
+        String storage_address
+        Array String files_uri
+    }
+
 }
 ////1

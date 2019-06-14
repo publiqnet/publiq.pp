@@ -255,6 +255,18 @@ beltpp::detail::pmsg_all message_list_load(
                                               &CommanderMessage::MinersRequest::pvoid_saver);
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "storages")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::StoragesRequest>();
+            //CommanderMessage::StoragesRequest& ref = *reinterpret_cast<CommanderMessage::StoragesRequest*>(p.get());
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::StoragesRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::StoragesRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 2 &&
                  pss->resource.path.front() == "send")
         {

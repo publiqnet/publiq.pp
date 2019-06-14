@@ -444,6 +444,43 @@ void process_transactions(uint64_t block_index,
                             type);
 }
 
+void process_storage_transactions(BlockchainMessage::TransactionLog const& transaction_log,
+                                 rpc& rpc_server,
+                                 LoggingType type)
+{
+    if (StorageUpdate::rtt == transaction_log.action.type())
+    {
+
+        StorageUpdate update;
+        std::move(transaction_log.action).get(update);
+
+//        if (rpc_server.accounts.contains(update.storage_address))
+//        {
+            if ((UpdateType::store == update.status && LoggingType::revert == type) ||
+                (UpdateType::remove == update.status && LoggingType::apply == type))
+                    rpc_server.storages.erase(update.file_uri);
+
+            if ((UpdateType::store == update.status && LoggingType::apply == type) ||
+                (UpdateType::remove == update.status && LoggingType::revert == type))
+            {
+                CommanderMessage::StoragesResponseItem item;
+
+                if (rpc_server.storages.contains(update.storage_address))
+                {
+                    item = rpc_server.storages.at(update.storage_address);
+                    item.files_uri.push_back(update.file_uri);
+                }
+                else
+                {
+                    item.storage_address = update.storage_address;
+                    item.files_uri.push_back(update.file_uri);
+                    rpc_server.storages.insert(item.storage_address, item);
+                }
+            }
+//        }
+    }
+}
+
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
                                 rpc& rpc_server)
 {
@@ -565,6 +602,7 @@ void daemon_rpc::sync(rpc& rpc_server,
         log_index.discard();
         rpc_server.accounts.discard();
         rpc_server.blocks.discard();
+        rpc_server.storages.discard();
         rpc_server.head_block_index.discard();
 
         for (auto& tr : transactions)
@@ -663,6 +701,7 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                             auto action_type = action_info.action.type();
 
+
                             if (action_info.logging_type == LoggingType::apply)
                             {
                                 if (action_type == BlockLog::rtt)
@@ -692,6 +731,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     for (auto& transaction_log: block_log.transactions)
                                     {
                                         ++count;
+
+                                        process_storage_transactions(transaction_log,
+                                                                    rpc_server,
+                                                                    LoggingType::apply);
 
                                         update_balances(set_accounts,
                                                        rpc_server,
@@ -735,6 +778,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     TransactionLog transaction_log;
                                     std::move(action_info.action).get(transaction_log);
 
+                                    process_storage_transactions(transaction_log,
+                                                                rpc_server,
+                                                                LoggingType::apply);
+
                                     update_balances(set_accounts,
                                                    rpc_server,
                                                    transaction_log,
@@ -764,6 +811,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     for (auto& transaction_log : block_log.transactions)
                                     {
                                         ++count;
+
+                                        process_storage_transactions(transaction_log,
+                                                                    rpc_server,
+                                                                    LoggingType::revert);
 
                                         update_balances(set_accounts,
                                                        rpc_server,
@@ -810,6 +861,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     TransactionLog transaction_log;
                                     std::move(action_info.action).get(transaction_log);
 
+                                    process_storage_transactions(transaction_log,
+                                                                rpc_server,
+                                                                LoggingType::revert);
+
                                     uint64_t block_index = head_block_index() + 1;
 
                                     update_balances(set_accounts,
@@ -852,6 +907,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.head_block_index.save();
     rpc_server.accounts.save();
     rpc_server.blocks.save();
+    rpc_server.storages.save();
     log_index.save();
 
     for (auto& tr : transactions)
@@ -868,6 +924,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.head_block_index.commit();
     rpc_server.accounts.commit();
     rpc_server.blocks.commit();
+    rpc_server.storages.commit();
     log_index.commit();
 
     for (auto& tr : transactions)

@@ -21,7 +21,6 @@ public:
     using TransactionLogLoader = meshpp::vector_loader<BlockchainMessage::TransactionLog>;
     using RewardLogLoader = meshpp::vector_loader<BlockchainMessage::RewardLog>;
     using LogIndexLoader = meshpp::map_loader<CommanderMessage::NumberPair>;
-
     daemon_rpc();
 
     void open(beltpp::ip_address const& connect_to_address);
