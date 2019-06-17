@@ -503,9 +503,9 @@ void process_storage_transactions(BlockchainMessage::TransactionLog const& trans
     }
 }
 
-void process_channel_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                 rpc& rpc_server,
-                                 LoggingType type)
+void process_channel_transactions(BlockchainMessage::TransactionLog const& /*transaction_log*/,
+                                 rpc& /*rpc_server*/,
+                                 LoggingType /*type*/)
 {
 
 }
