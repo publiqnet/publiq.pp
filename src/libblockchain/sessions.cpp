@@ -811,6 +811,8 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         Block const& block = signed_block.block_details;
 
+        //  check_rewards opposite
+
         // decrease all reward amounts from balances and revert reward
         for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
             pimpl->m_state.decrease_balance(it->to, it->amount, state_layer::chain);

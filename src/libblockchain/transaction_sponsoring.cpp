@@ -90,7 +90,6 @@ void action_revert(publiqpp::detail::node_internals& impl,
                                   sponsor_content_unit.amount,
                                   layer);
 
-    std::chrono::system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
     impl.m_documents.sponsor_content_unit_revert(sponsor_content_unit);
 }
 }

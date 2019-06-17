@@ -9,6 +9,8 @@ module StorageTypes
     {
         String uri
         Array SponsoredInformation sponsored_informations
+        Array TimePoint time_points_used
+        Array UInt64 index_si
     }
 
     class SponsoredInformation
@@ -16,6 +18,7 @@ module StorageTypes
         TimePoint start_time_point
         TimePoint end_time_point
         Coin amount
+        UInt64 time_points_used_before
     }
 
     class Coin

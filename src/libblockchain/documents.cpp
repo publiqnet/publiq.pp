@@ -6,11 +6,19 @@
 
 #include <mesh.pp/fileutility.hpp>
 
+#include <chrono>
+#include <utility>
+#include <algorithm>
+
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 using std::string;
 using std::vector;
+using std::pair;
+namespace chrono = std::chrono;
+using chrono::system_clock;
+using time_point = system_clock::time_point;
 
 namespace publiqpp
 {
@@ -201,48 +209,269 @@ bool documents::storage_has_uri(std::string const& uri,
     return 0 != holders.addresses.count(address);
 }
 
+namespace
+{
+void refresh_index(StorageTypes::ContentUnitSponsoredInformation& cusi)
+{
+    assert(false == cusi.time_points_used.empty());
+
+    system_clock::time_point tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
+
+    vector<pair<size_t, system_clock::duration>> arr_index;
+    for (auto index : cusi.index_si)
+    {
+        if (cusi.sponsored_informations.size() <= index)
+            continue;
+
+        auto const& item = cusi.sponsored_informations[index];
+
+        auto item_start_tp = system_clock::from_time_t(item.start_time_point.tm);
+        auto item_end_tp = system_clock::from_time_t(item.end_time_point.tm);
+
+        assert(item.time_points_used_before <= cusi.time_points_used.size());
+        if (item.time_points_used_before > cusi.time_points_used.size())
+            throw std::logic_error("item.time_points_used_before > cusi.time_points_used.size()");
+
+        if (tp >= item_end_tp &&
+            cusi.time_points_used.size() > item.time_points_used_before)
+            continue;
+
+        system_clock::duration duration = chrono::seconds(0);
+        if (item_start_tp > tp)
+            duration = item_start_tp - tp;
+
+        arr_index.push_back(std::make_pair(index, duration));
+    }
+
+    std::sort(arr_index.begin(), arr_index.end(),
+              [](pair<size_t, system_clock::duration> const& lhs,
+              pair<size_t, system_clock::duration> const& rhs)
+    {
+        return lhs.second < rhs.second;
+    });
+
+    cusi.index_si.clear();
+    for (auto const& arr_index_item : arr_index)
+        cusi.index_si.push_back(arr_index_item.first);
+}
+}
+
 void documents::sponsor_content_unit_apply(BlockchainMessage::SponsorContentUnit const& spi)
 {
     StorageTypes::SponsoredInformation si;
     si.amount = spi.amount;
-    auto tp = std::chrono::system_clock::from_time_t(spi.start_time_point.tm);
-    si.start_time_point.tm = std::chrono::system_clock::to_time_t(tp);
-    si.end_time_point.tm = std::chrono::system_clock::to_time_t(tp + std::chrono::hours(spi.hours));
+    auto start_tp = chrono::time_point_cast<chrono::minutes>
+                    (system_clock::from_time_t(spi.start_time_point.tm));
+    auto end_tp = chrono::time_point_cast<chrono::minutes>
+                  (start_tp + chrono::hours(spi.hours));
+
+    if (end_tp <= start_tp)
+        throw std::runtime_error("end_tp <= start_tp");
+
+    si.start_time_point.tm = system_clock::to_time_t(start_tp);
+    si.end_time_point.tm = system_clock::to_time_t(end_tp);
 
     if (m_pimpl->m_content_unit_sponsored_information.contains(spi.uri))
     {
         StorageTypes::ContentUnitSponsoredInformation& cusi =
                 m_pimpl->m_content_unit_sponsored_information.at(spi.uri);
+
+        assert(false == cusi.sponsored_informations.empty());
+        assert(false == cusi.time_points_used.empty());
+
+        if (cusi.sponsored_informations.empty())
+            throw std::logic_error("cusi.sponsored_informations.empty()");
+        if (cusi.time_points_used.empty())
+            throw std::logic_error("cusi.time_points_used.empty()");
+
+        si.time_points_used_before = cusi.time_points_used.size();
+
+        //  the index will be sorted below inside refresh index
+        cusi.index_si.push_back(cusi.sponsored_informations.size());
         cusi.sponsored_informations.push_back(si);
+
+        refresh_index(cusi);
     }
     else
     {
         StorageTypes::ContentUnitSponsoredInformation cusi;
         cusi.uri = spi.uri;
+
+        cusi.time_points_used.push_back(si.start_time_point);
+
+        si.time_points_used_before = cusi.time_points_used.size();  // 1
+
+        //  the index will be sorted below inside refresh index
+        cusi.index_si.push_back(cusi.sponsored_informations.size());
         cusi.sponsored_informations.push_back(si);
+
+        refresh_index(cusi);
 
         m_pimpl->m_content_unit_sponsored_information.insert(spi.uri, cusi);
     }
 }
+
 void documents::sponsor_content_unit_revert(BlockchainMessage::SponsorContentUnit const& spi)
 {
-    StorageTypes::SponsoredInformation si;
-    si.amount = spi.amount;
-
     StorageTypes::ContentUnitSponsoredInformation& cusi =
             m_pimpl->m_content_unit_sponsored_information.at(spi.uri);
 
+    assert(false == cusi.sponsored_informations.empty());
+    assert(cusi.sponsored_informations.back().amount == StorageTypes::Coin(spi.amount));
+    assert(false == cusi.time_points_used.empty());
+    assert(cusi.time_points_used.size() == cusi.sponsored_informations.back().time_points_used_before);
+
     if (cusi.sponsored_informations.empty() ||
-        cusi.sponsored_informations.back().amount != si.amount)
-    {
-        assert(false);
-        throw std::logic_error("cusi.sponsored_informations.back() != si");
-    }
+        cusi.sponsored_informations.back().amount != StorageTypes::Coin(spi.amount))
+        throw std::logic_error("cusi.sponsored_informations.back().amount != si");
+    if (cusi.time_points_used.empty())
+        throw std::logic_error("cusi.time_points_used.empty()");
+    if (cusi.time_points_used.size() != cusi.sponsored_informations.back().time_points_used_before)
+        throw std::logic_error("cusi.time_points_used.size() != cusi.sponsored_informations.back().time_points_used_before");
 
     cusi.sponsored_informations.resize(cusi.sponsored_informations.size() - 1);
 
     if (cusi.sponsored_informations.empty())
         m_pimpl->m_content_unit_sponsored_information.erase(spi.uri);
+    else
+        refresh_index(cusi);
 }
+
+coin documents::sponsored_content_unit_set_used_apply(string const& content_unit_uri,
+                                                      time_point const& tp)
+{
+    coin result;
+
+    if (m_pimpl->m_content_unit_sponsored_information.contains(content_unit_uri))
+    {
+        StorageTypes::ContentUnitSponsoredInformation& cusi =
+                m_pimpl->m_content_unit_sponsored_information.at(content_unit_uri);
+
+        assert(false == cusi.sponsored_informations.empty());
+        assert(false == cusi.time_points_used.empty());
+
+        if (cusi.sponsored_informations.empty())
+            throw std::logic_error("cusi.sponsored_informations.empty()");
+        if (cusi.time_points_used.empty())
+            throw std::logic_error("cusi.time_points_used.empty()");
+
+        auto end_tp = tp;
+        end_tp = chrono::time_point_cast<chrono::minutes>(end_tp);
+        auto start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
+
+        if (end_tp > start_tp)
+        {
+            for (auto const& index_si_item : cusi.index_si)
+            {
+                auto const& item = cusi.sponsored_informations[index_si_item];
+
+                auto item_start_tp = system_clock::from_time_t(item.start_time_point.tm);
+                auto item_end_tp = system_clock::from_time_t(item.end_time_point.tm);
+
+                if (item_start_tp >= end_tp)
+                    break;
+
+                coin whole = item.amount;
+                auto whole_duration = item_end_tp - item_start_tp;
+
+                auto part_start_tp = std::max(start_tp, item_start_tp);
+                auto part_end_tp = std::min(end_tp, item_end_tp);
+
+                if (item.time_points_used_before == cusi.time_points_used.size())
+                    part_start_tp = item_start_tp;
+
+                auto part_duration = part_end_tp - part_start_tp;
+
+                coin part = whole / uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count())
+                                  * uint64_t(chrono::duration_cast<chrono::minutes>(part_duration).count());
+
+                if (part_end_tp == item_end_tp)
+                    part += whole % uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count());
+
+                result += part;
+            };
+        }
+
+        StorageTypes::ctime ct;
+        ct.tm = system_clock::to_time_t(end_tp);
+        cusi.time_points_used.push_back(ct);
+
+        refresh_index(cusi);
+    }
+
+    return result;
+}
+coin documents::sponsored_content_unit_set_used_revert(string const& content_unit_uri,
+                                                       time_point const& tp)
+{
+    coin result;
+
+    if (m_pimpl->m_content_unit_sponsored_information.contains(content_unit_uri))
+    {
+        StorageTypes::ContentUnitSponsoredInformation& cusi =
+                m_pimpl->m_content_unit_sponsored_information.at(content_unit_uri);
+
+        assert(false == cusi.sponsored_informations.empty());
+        assert(false == cusi.time_points_used.empty());
+
+        if (cusi.sponsored_informations.empty())
+            throw std::logic_error("cusi.sponsored_informations.empty()");
+        if (cusi.time_points_used.empty())
+            throw std::logic_error("cusi.time_points_used.empty()");
+
+        auto end_tp = tp;
+        end_tp = chrono::time_point_cast<chrono::minutes>(end_tp);
+        auto start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
+
+        if (end_tp == start_tp)
+        {
+            cusi.time_points_used.resize(cusi.time_points_used.size());
+            assert(false == cusi.time_points_used.empty());
+            if (cusi.time_points_used.empty())
+                throw std::logic_error("cusi.time_points_used.empty()");
+            start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
+
+            for (auto const& index_si_item : cusi.index_si)
+            {
+                auto const& item = cusi.sponsored_informations[index_si_item];
+
+                auto item_start_tp = system_clock::from_time_t(item.start_time_point.tm);
+                auto item_end_tp = system_clock::from_time_t(item.end_time_point.tm);
+
+                if (item_start_tp >= end_tp)
+                    break;
+
+                coin whole = item.amount;
+                auto whole_duration = item_end_tp - item_start_tp;
+
+                auto part_start_tp = std::max(start_tp, item_start_tp);
+                auto part_end_tp = std::min(end_tp, item_end_tp);
+
+                if (item.time_points_used_before == cusi.time_points_used.size())
+                    part_start_tp = item_start_tp;
+
+                auto part_duration = part_end_tp - part_start_tp;
+
+                coin part = whole / uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count())
+                                  * uint64_t(chrono::duration_cast<chrono::minutes>(part_duration).count());
+
+                if (part_end_tp == item_end_tp)
+                    part += whole % uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count());
+
+                result += part;
+            };
+        }
+
+        //  the index will be sorted below inside refresh index
+        cusi.index_si.clear();
+        for (size_t index = 0; index < cusi.sponsored_informations.size(); ++index)
+            cusi.index_si.push_back(index);
+
+        refresh_index(cusi);
+    }
+
+    return result;
+}
+
 }
 

@@ -283,6 +283,16 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         }
     }
 
+    multimap<string, pair<uint64_t, uint64_t>> author_result;
+    multimap<string, pair<uint64_t, uint64_t>> channel_result;
+    multimap<string, pair<uint64_t, uint64_t>> storage_result;
+    validate_statistics(channel_provided_statistics,
+                        storage_provided_statistics,
+                        author_result,
+                        channel_result,
+                        storage_result,
+                        impl);
+
     size_t year_index = block_number / 50000;
     coin miner_reward, channel_reward, storage_reward, author_reward;
 
@@ -293,16 +303,6 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         channel_reward += impl.m_block_reward_array[year_index] * CHANNEL_REWARD_PERCENT / 100;
         storage_reward += impl.m_block_reward_array[year_index] - miner_reward - author_reward - channel_reward;
     }
-
-    multimap<string, pair<uint64_t, uint64_t>> author_result;
-    multimap<string, pair<uint64_t, uint64_t>> channel_result;
-    multimap<string, pair<uint64_t, uint64_t>> storage_result;
-    validate_statistics(channel_provided_statistics, 
-                        storage_provided_statistics, 
-                        author_result,
-                        channel_result,
-                        storage_result,
-                        impl);
 
     // grant rewards to authors, channels and storages
     miner_reward += distribute_rewards(rewards, author_result, author_reward, RewardType::author);
@@ -339,7 +339,8 @@ bool check_headers(BlockHeaderExtended const& next_header, BlockHeaderExtended c
     return t || time_point1 > time_point2 || diff_seconds.count() != BLOCK_MINE_DELAY;
 }
 
-bool check_rewards(Block const& block, string const& authority,
+bool check_rewards(Block const& block,
+                   string const& authority,
                    publiqpp::detail::node_internals& impl)
 {
     vector<Reward> rewards;
