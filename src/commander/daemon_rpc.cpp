@@ -454,31 +454,60 @@ void process_storage_transactions(BlockchainMessage::TransactionLog const& trans
         StorageUpdate update;
         std::move(transaction_log.action).get(update);
 
-//        if (rpc_server.accounts.contains(update.storage_address))
-//        {
-            if ((UpdateType::store == update.status && LoggingType::revert == type) ||
-                (UpdateType::remove == update.status && LoggingType::apply == type))
-                    rpc_server.storages.erase(update.file_uri);
+        if ((UpdateType::store == update.status && LoggingType::revert == type) ||
+            (UpdateType::remove == update.status && LoggingType::apply == type))
+        {
+                std::vector<CommanderMessage::FlagedFile> &files = rpc_server.storages.at(update.storage_address).files_uri;
 
-            if ((UpdateType::store == update.status && LoggingType::apply == type) ||
-                (UpdateType::remove == update.status && LoggingType::revert == type))
+                for (auto & file : files)
+                    if (update.file_uri == file.file_uri)
+                        CommanderMessage::from_string("off", file.flag);
+        }
+
+        if ((UpdateType::store == update.status && LoggingType::apply == type) ||
+            (UpdateType::remove == update.status && LoggingType::revert == type))
+        {
+            if (rpc_server.storages.contains(update.storage_address))
             {
-                CommanderMessage::StoragesResponseItem item;
+                 CommanderMessage::FilesResponseItem &item = rpc_server.storages.at(update.storage_address);
 
-                if (rpc_server.storages.contains(update.storage_address))
+                 bool flag = false;
+
+                for (auto & file : item.files_uri)
+                    if (update.file_uri == file.file_uri)
+                    {
+                        flag = true;
+                        CommanderMessage::from_string("on", file.flag);
+                    }
+
+                if (!flag)
                 {
-                    item = rpc_server.storages.at(update.storage_address);
-                    item.files_uri.push_back(update.file_uri);
+                    CommanderMessage::FlagedFile file;
+                    CommanderMessage::from_string("on", file.flag);
+                    file.file_uri = update.file_uri;
+                    item.files_uri.push_back(file);
                 }
-                else
-                {
-                    item.storage_address = update.storage_address;
-                    item.files_uri.push_back(update.file_uri);
-                    rpc_server.storages.insert(item.storage_address, item);
-                }
+
             }
-//        }
+            else
+            {
+                CommanderMessage::FilesResponseItem item;
+                item.address = update.storage_address;
+                CommanderMessage::FlagedFile file;
+                CommanderMessage::from_string("on", file.flag);
+                file.file_uri = update.file_uri;
+                item.files_uri.push_back(file);
+                rpc_server.storages.insert(item.address, item);
+            }
+        }
     }
+}
+
+void process_channel_transactions(BlockchainMessage::TransactionLog const& transaction_log,
+                                 rpc& rpc_server,
+                                 LoggingType type)
+{
+
 }
 
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
@@ -603,6 +632,7 @@ void daemon_rpc::sync(rpc& rpc_server,
         rpc_server.accounts.discard();
         rpc_server.blocks.discard();
         rpc_server.storages.discard();
+        rpc_server.channels.discard();
         rpc_server.head_block_index.discard();
 
         for (auto& tr : transactions)
@@ -736,6 +766,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     rpc_server,
                                                                     LoggingType::apply);
 
+                                        process_channel_transactions(transaction_log,
+                                                                    rpc_server,
+                                                                    LoggingType::apply);
+
                                         update_balances(set_accounts,
                                                        rpc_server,
                                                        transaction_log,
@@ -782,6 +816,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 rpc_server,
                                                                 LoggingType::apply);
 
+                                    process_channel_transactions(transaction_log,
+                                                                rpc_server,
+                                                                LoggingType::apply);
+
                                     update_balances(set_accounts,
                                                    rpc_server,
                                                    transaction_log,
@@ -815,6 +853,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         process_storage_transactions(transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::revert);
+
+                                        process_channel_transactions(transaction_log,
+                                                                    rpc_server,
+                                                                    LoggingType::apply);
 
                                         update_balances(set_accounts,
                                                        rpc_server,
@@ -865,6 +907,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 rpc_server,
                                                                 LoggingType::revert);
 
+                                    process_channel_transactions(transaction_log,
+                                                                rpc_server,
+                                                                LoggingType::apply);
+
                                     uint64_t block_index = head_block_index() + 1;
 
                                     update_balances(set_accounts,
@@ -908,6 +954,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.save();
     rpc_server.blocks.save();
     rpc_server.storages.save();
+    rpc_server.channels.save();
     log_index.save();
 
     for (auto& tr : transactions)
@@ -925,6 +972,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.commit();
     rpc_server.blocks.commit();
     rpc_server.storages.commit();
+    rpc_server.channels.commit();
     log_index.commit();
 
     for (auto& tr : transactions)
