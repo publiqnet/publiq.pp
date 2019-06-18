@@ -811,7 +811,12 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         Block const& block = signed_block.block_details;
 
-        //  check_rewards opposite
+        // verify block rewards before reverting, this also reclaims advertisement coins
+        if (check_rewards(block,
+                          signed_block.authorization.address,
+                          rewards_type::revert,
+                          *pimpl))
+            return set_errored("blockchain response. block rewards reverting error!", throw_for_debugging_only);
 
         // decrease all reward amounts from balances and revert reward
         for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
@@ -863,7 +868,10 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         }
 
         // verify block rewards
-        if (check_rewards(block, signed_block.authorization.address, *pimpl))
+        if (check_rewards(block,
+                          signed_block.authorization.address,
+                          rewards_type::apply,
+                          *pimpl))
             return set_errored("blockchain response. block rewards!", throw_for_debugging_only);
 
         // increase all reward amounts to balances

@@ -37,8 +37,10 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl);
 bool check_headers(BlockchainMessage::BlockHeaderExtended const& next_header,
                    BlockchainMessage::BlockHeaderExtended const& header);
 
+enum class rewards_type {apply, revert};
 bool check_rewards(BlockchainMessage::Block const& block,
                    std::string const& authority,
+                   rewards_type type,
                    publiqpp::detail::node_internals& impl);
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);

@@ -5,6 +5,8 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
+#include <algorithm>
+
 using namespace BlockchainMessage;
 using std::string;
 using std::vector;
@@ -61,9 +63,23 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         if (false == impl.m_documents.exist_file(item.file_uri))
             return false;
 
-        if (node_type == NodeType::channel &&
-            false == impl.m_documents.exist_unit(item.unit_uri))
-            return false;
+        if (node_type == NodeType::storage)
+        {
+            if (false == item.unit_uri.empty())
+                return false;
+        }
+        else if (node_type == NodeType::channel)
+        {
+            if (false == impl.m_documents.exist_unit(item.unit_uri))
+                return false;
+
+            auto content_unit = impl.m_documents.get_unit(item.unit_uri);
+            if (content_unit.file_uris.end() ==
+                std::find(content_unit.file_uris.begin(),
+                          content_unit.file_uris.end(),
+                          item.file_uri))
+                return false;
+        }
 
         for (auto const& it : item.count_items)
         {
@@ -102,9 +118,23 @@ void action_apply(publiqpp::detail::node_internals& impl,
         if (false == impl.m_documents.exist_file(item.file_uri))
             throw uri_exception(item.file_uri, uri_exception::missing);
 
-        if (node_type == NodeType::channel &&
-            false == impl.m_documents.exist_unit(item.unit_uri))
-            throw uri_exception(item.unit_uri, uri_exception::missing);
+        if (node_type == NodeType::storage)
+        {
+            if (false == item.unit_uri.empty())
+                throw uri_exception(item.unit_uri, uri_exception::invalid);
+        }
+        else if (node_type == NodeType::channel)
+        {
+            if (false == impl.m_documents.exist_unit(item.unit_uri))
+                throw uri_exception(item.unit_uri, uri_exception::missing);
+
+            auto content_unit = impl.m_documents.get_unit(item.unit_uri);
+            if (content_unit.file_uris.end() ==
+                std::find(content_unit.file_uris.begin(),
+                          content_unit.file_uris.end(),
+                          item.file_uri))
+                throw uri_exception(item.unit_uri, uri_exception::invalid);
+        }
 
         for (auto const& it : item.count_items)
         {

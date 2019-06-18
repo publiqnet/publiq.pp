@@ -79,11 +79,14 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                          multimap<string, pair<uint64_t, uint64_t>>& author_result,
                          multimap<string, pair<uint64_t, uint64_t>>& channel_result,
                          multimap<string, pair<uint64_t, uint64_t>>& storage_result,
+                         unordered_set<string>& set_unit_uris,
                          publiqpp::detail::node_internals& impl)
 {
     author_result.clear();
     channel_result.clear();
     storage_result.clear();
+
+    set_unit_uris.clear();
 
     // stop work in mainnet for now
     if (false == impl.m_testnet ||
@@ -146,6 +149,8 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                         ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
                         auto& value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
                         value = std::max(value, view_count);
+
+                        set_unit_uris.insert(unit_uri);
                     }
 
                     storage_group[storage_id] += count_item.count;
@@ -254,7 +259,8 @@ coin distribute_rewards(vector<Reward>& rewards,
 void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    vector<Reward>& rewards,
                    string const& address,
-                   uint64_t block_number,
+                   BlockHeader const& block_header,
+                   rewards_type type,
                    publiqpp::detail::node_internals& impl)
 {
     rewards.clear();
@@ -291,22 +297,42 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     multimap<string, pair<uint64_t, uint64_t>> author_result;
     multimap<string, pair<uint64_t, uint64_t>> channel_result;
     multimap<string, pair<uint64_t, uint64_t>> storage_result;
+    unordered_set<string> set_unit_uris;
     validate_statistics(channel_provided_statistics,
                         storage_provided_statistics,
                         author_result,
                         channel_result,
                         storage_result,
+                        set_unit_uris,
                         impl);
 
-    size_t year_index = block_number / 50000;
+    size_t year_index = block_header.block_number / 50000;
     coin miner_reward, channel_reward, storage_reward, author_reward;
+
+    coin available_reward = impl.m_block_reward_array[year_index];
+
+    for (auto const& unit_uri : set_unit_uris)
+    {
+        if (rewards_type::apply == type)
+        {
+            available_reward +=
+            impl.m_documents.sponsored_content_unit_set_used_apply(unit_uri,
+                                                                   system_clock::from_time_t(block_header.time_signed.tm));
+        }
+        else
+        {
+            available_reward +=
+            impl.m_documents.sponsored_content_unit_set_used_revert(unit_uri,
+                                                                    system_clock::from_time_t(block_header.time_signed.tm));
+        }
+    }
 
     if (year_index < impl.m_block_reward_array.size())
     {
-        miner_reward += impl.m_block_reward_array[year_index] * MINER_REWARD_PERCENT / 100;
-        author_reward += impl.m_block_reward_array[year_index] * AUTHOR_REWARD_PERCENT / 100;
-        channel_reward += impl.m_block_reward_array[year_index] * CHANNEL_REWARD_PERCENT / 100;
-        storage_reward += impl.m_block_reward_array[year_index] - miner_reward - author_reward - channel_reward;
+        miner_reward += available_reward * MINER_REWARD_PERCENT / 100;
+        author_reward += available_reward * AUTHOR_REWARD_PERCENT / 100;
+        channel_reward += available_reward * CHANNEL_REWARD_PERCENT / 100;
+        storage_reward += available_reward - miner_reward - author_reward - channel_reward;
     }
 
     // grant rewards to authors, channels and storages
@@ -346,10 +372,16 @@ bool check_headers(BlockHeaderExtended const& next_header, BlockHeaderExtended c
 
 bool check_rewards(Block const& block,
                    string const& authority,
+                   rewards_type type,
                    publiqpp::detail::node_internals& impl)
 {
     vector<Reward> rewards;
-    grant_rewards(block.signed_transactions, rewards, authority, block.header.block_number, impl);
+    grant_rewards(block.signed_transactions,
+                  rewards,
+                  authority,
+                  block.header,
+                  type,
+                  impl);
 
     auto it1 = rewards.begin();
     auto it2 = block.rewards.begin();
@@ -646,7 +678,12 @@ void mine_block(publiqpp::detail::node_internals& impl)
     }
 
     // grant rewards and move to block
-    grant_rewards(block.signed_transactions, block.rewards, own_key, block.header.block_number, impl);
+    grant_rewards(block.signed_transactions,
+                  block.rewards,
+                  own_key,
+                  block.header,
+                  rewards_type::apply,
+                  impl);
 
     meshpp::signature sgn = impl.m_pv_key.sign(block.to_string());
 
