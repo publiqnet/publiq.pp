@@ -16,7 +16,6 @@
 #include <unordered_set>
 #include <chrono>
 
-
 using namespace BlockchainMessage;
 
 using std::map;
@@ -34,12 +33,15 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
                        publiqpp::detail::node_internals& impl,
                        string const& key/* = string()*/)
 {
-    if (false == action_can_apply(impl, signed_transaction.transaction_details.action))
-        return false;
-
     state_layer layer = state_layer::pool;
     if (false == key.empty())
         layer = state_layer::chain;
+
+    if (false == action_can_apply(impl,
+                                  signed_transaction.transaction_details.action,
+                                  layer))
+        return false;
+
 
     action_apply(impl, signed_transaction.transaction_details.action, layer);
 
@@ -266,8 +268,11 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         fee += it->transaction_details.fee;
 
         // only servicestatistics corresponding to current block will be taken
-        if (it->transaction_details.action.type() == ServiceStatistics::rtt &&
-            ((unsigned)chrono::seconds(it->transaction_details.creation.tm).count() - 1554076800) / BLOCK_MINE_DELAY == block_number - 1)
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt
+            /*
+            &&
+            ((unsigned)chrono::seconds(it->transaction_details.creation.tm).count() - 1554076800) / BLOCK_MINE_DELAY == block_number - 1
+            */)
         {
             ServiceStatistics service_statistics;
             it->transaction_details.action.get(service_statistics);
@@ -479,6 +484,15 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
 
 void mine_block(publiqpp::detail::node_internals& impl)
 {
+    //  TODO:
+    //  take care to include only those service statistics transactions
+    //  that corresponds to the current block only, otherwise other nodes
+    //  will not accept this block
+
+    //  change the logic to check for highest fee transactions
+    //  give high fee transactions preference, but also be careful
+    //  to be able to detect necessary transactions, as good as possible
+
     auto now = system_clock::now();
 
     impl.m_transaction_cache.backup();
@@ -657,7 +671,9 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
         bool ok_logic = true;
         if (complete ||
-            false == action_can_apply(impl, signed_transaction.transaction_details.action))
+            false == action_can_apply(impl,
+                                      signed_transaction.transaction_details.action,
+                                      state_layer::pool))
         {
             ok_logic = apply_transaction(signed_transaction, impl);
             if (ok_logic)
@@ -871,6 +887,10 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     }
 
     service_statistics.server_address = impl.m_pb_key.to_string();
+    auto tp_end = system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
+    auto tp_start = tp_end - chrono::seconds(BLOCK_MINE_DELAY);
+    service_statistics.start_time_point.tm = system_clock::to_time_t(tp_start);
+    service_statistics.end_time_point.tm = system_clock::to_time_t(tp_end);
 
     Transaction transaction;
     transaction.action = std::move(service_statistics);

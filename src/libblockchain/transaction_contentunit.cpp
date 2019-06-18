@@ -85,7 +85,8 @@ bool action_is_complete(SignedTransaction const& signed_transaction,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      ContentUnit const& content_unit)
+                      ContentUnit const& content_unit,
+                      state_layer/* layer*/)
 {
     if (impl.m_documents.exist_unit(content_unit.uri))
         return false;

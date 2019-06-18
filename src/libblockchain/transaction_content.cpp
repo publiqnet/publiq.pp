@@ -51,7 +51,8 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      Content const& content)
+                      Content const& content,
+                      state_layer/* layer*/)
 {
     NodeType node_type;
     if (false == impl.m_state.get_role(content.channel_address, node_type) ||

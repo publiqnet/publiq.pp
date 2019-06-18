@@ -21,7 +21,8 @@ bool action_is_complete(BlockchainMessage::SignedTransaction const& signed_trans
                         BlockchainMessage::ContentUnit const& content_unit);
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      BlockchainMessage::ContentUnit const& content_unit);
+                      BlockchainMessage::ContentUnit const& content_unit,
+                      state_layer layer);
 
 void action_apply(publiqpp::detail::node_internals& impl,
                   BlockchainMessage::ContentUnit const& content_unit,

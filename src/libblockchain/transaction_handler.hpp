@@ -31,7 +31,8 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
                         BlockchainMessage::SignedTransaction const& signed_transaction);
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      beltpp::packet const& package);
+                      beltpp::packet const& package,
+                      state_layer layer);
 
 void action_apply(publiqpp::detail::node_internals& impl,
                   beltpp::packet const& package,

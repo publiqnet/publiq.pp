@@ -48,7 +48,8 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      Transfer const& transfer)
+                      Transfer const& transfer,
+                      state_layer/* layer*/)
 {
     Coin balance = impl.m_state.get_balance(transfer.from, state_layer::pool);
     if (coin(balance) < transfer.amount)

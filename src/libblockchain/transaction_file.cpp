@@ -77,7 +77,8 @@ bool action_is_complete(SignedTransaction const& signed_transaction,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      File const& file)
+                      File const& file,
+                      state_layer/* layer*/)
 {
     if (impl.m_documents.exist_file(file.uri))
         return false;

@@ -38,7 +38,8 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      StorageUpdate const& storage_update)
+                      StorageUpdate const& storage_update,
+                      state_layer/* layer*/)
 {
     NodeType node_type;
     if (false == impl.m_state.get_role(storage_update.storage_address, node_type) ||

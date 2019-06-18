@@ -38,12 +38,23 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      ServiceStatistics const& service_statistics)
+                      ServiceStatistics const& service_statistics,
+                      state_layer layer)
 {
     NodeType node_type;
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
         node_type == NodeType::blockchain)
         return false;
+
+    if (state_layer::chain == layer)
+    {
+        auto tp_end = system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
+        auto tp_start = tp_end - chrono::seconds(BLOCK_MINE_DELAY);
+
+        if (service_statistics.start_time_point.tm != system_clock::to_time_t(tp_start) ||
+            service_statistics.end_time_point.tm != system_clock::to_time_t(tp_end))
+            throw wrong_data_exception("service statistics time range is incorrect");
+    }
 
     for (auto const& item : service_statistics.file_items)
     {
@@ -69,12 +80,22 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 
 void action_apply(publiqpp::detail::node_internals& impl,
                   ServiceStatistics const& service_statistics,
-                  state_layer/* layer*/)
+                  state_layer layer)
 {
     NodeType node_type;
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
         node_type == NodeType::blockchain)
         throw wrong_data_exception("process_stat_info -> wrong authority type : " + service_statistics.server_address);
+
+    if (state_layer::chain == layer)
+    {
+        auto tp_end = system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
+        auto tp_start = tp_end - chrono::seconds(BLOCK_MINE_DELAY);
+
+        if (service_statistics.start_time_point.tm != system_clock::to_time_t(tp_start) ||
+            service_statistics.end_time_point.tm != system_clock::to_time_t(tp_end))
+            throw wrong_data_exception("service statistics time range is incorrect");
+    }
 
     for (auto const& item : service_statistics.file_items)
     {

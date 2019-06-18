@@ -198,6 +198,8 @@ module BlockchainMessage
     class ServiceStatistics
     {
         String server_address
+        TimePoint start_time_point
+        TimePoint end_time_point
 
         Array ServiceStatisticsFile file_items
     }
