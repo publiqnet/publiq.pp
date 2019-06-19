@@ -265,20 +265,13 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 {
     rewards.clear();
 
-    coin fee = coin(0, 0);
     map<string, ServiceStatistics> channel_provided_statistics;
     map<string, ServiceStatistics> storage_provided_statistics;
 
     for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
     {
-        fee += it->transaction_details.fee;
-
         // only servicestatistics corresponding to current block will be taken
-        if (it->transaction_details.action.type() == ServiceStatistics::rtt
-            /*
-            &&
-            ((unsigned)chrono::seconds(it->transaction_details.creation.tm).count() - 1554076800) / BLOCK_MINE_DELAY == block_number - 1
-            */)
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
         {
             ServiceStatistics service_statistics;
             it->transaction_details.action.get(service_statistics);
@@ -306,46 +299,61 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                         set_unit_uris,
                         impl);
 
-    size_t year_index = block_header.block_number / 50000;
-    coin miner_reward, channel_reward, storage_reward, author_reward;
+    assert(set_unit_uris.empty() || (false == set_unit_uris.empty() && 
+                                     false == author_result.empty() &&
+                                     false == channel_result.empty() &&
+                                     false == storage_result.empty()));
 
-    coin available_reward = impl.m_block_reward_array[year_index];
+    if(false == set_unit_uris.empty() && (author_result.empty() || channel_result.empty() || storage_result.empty()))
+        throw std::logic_error("wrong result from validate_statistics(...)");
+
+    size_t year_index = block_header.block_number / 50000;
+    coin miner_emission_reward, author_emission_reward, channel_emission_reward, storage_emission_reward;
+    coin channel_sponsored_reward, storage_sponsored_reward, author_sponsored_reward;
+
+    coin sponsored_reward = coin(0, 0);
 
     for (auto const& unit_uri : set_unit_uris)
     {
         if (rewards_type::apply == type)
         {
-            available_reward +=
+            sponsored_reward +=
             impl.m_documents.sponsored_content_unit_set_used_apply(unit_uri,
                                                                    system_clock::from_time_t(block_header.time_signed.tm));
         }
         else
         {
-            available_reward +=
+            sponsored_reward +=
             impl.m_documents.sponsored_content_unit_set_used_revert(unit_uri,
                                                                     system_clock::from_time_t(block_header.time_signed.tm));
         }
     }
 
+    coin emission_reward = impl.m_block_reward_array[year_index];
+
     if (year_index < impl.m_block_reward_array.size())
     {
-        miner_reward += available_reward * MINER_REWARD_PERCENT / 100;
-        author_reward += available_reward * AUTHOR_REWARD_PERCENT / 100;
-        channel_reward += available_reward * CHANNEL_REWARD_PERCENT / 100;
-        storage_reward += available_reward - miner_reward - author_reward - channel_reward;
+        miner_emission_reward = emission_reward * MINER_EMISSION_REWARD_PERCENT / 100;
+        author_emission_reward = emission_reward * AUTHOR_EMISSION_REWARD_PERCENT / 100;
+        channel_emission_reward = emission_reward * CHANNEL_EMISSION_REWARD_PERCENT / 100;
+        storage_emission_reward = emission_reward - miner_emission_reward - author_emission_reward - channel_emission_reward;
     }
 
+    author_sponsored_reward = sponsored_reward * AUTHOR_SPONSORED_REWARD_PERCENT / 100;
+    channel_sponsored_reward = sponsored_reward * CHANNEL_SPONSORED_REWARD_PERCENT / 100;
+    storage_sponsored_reward = sponsored_reward - author_sponsored_reward - channel_sponsored_reward;
+
     // grant rewards to authors, channels and storages
-    miner_reward += distribute_rewards(rewards, author_result, author_reward, RewardType::author);
-    miner_reward += distribute_rewards(rewards, channel_result, channel_reward, RewardType::channel);
-    miner_reward += distribute_rewards(rewards, storage_result, storage_reward, RewardType::storage);
+    miner_emission_reward += distribute_rewards(rewards, author_result, author_emission_reward + author_sponsored_reward, RewardType::author);
+    miner_emission_reward += distribute_rewards(rewards, channel_result, channel_emission_reward + channel_sponsored_reward, RewardType::channel);
+    miner_emission_reward += distribute_rewards(rewards, storage_result, storage_emission_reward + storage_sponsored_reward, RewardType::storage);
 
     // grant miner reward himself
-    if (!miner_reward.empty())
+    if (!miner_emission_reward.empty())
     {
         Reward reward;
         reward.to = address;
-        miner_reward.to_Coin(reward.amount);
+        miner_emission_reward.to_Coin(reward.amount);
         reward.reward_type = RewardType::miner;
 
         rewards.push_back(reward);
