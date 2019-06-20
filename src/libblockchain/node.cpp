@@ -329,7 +329,9 @@ bool node::run()
                         {
                             StorageFileAddress* pfile_address;
                             package.get(pfile_address);
-                            broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
+                            if (false == pimpl->m_documents.storage_has_uri(pfile_address->uri,
+                                                                              pimpl->m_pb_key.to_string()))
+                                broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
                         }
                         psk->send(peerid, std::move(package));
                     };
@@ -537,6 +539,8 @@ bool node::run()
                     Served msg;
                     std::move(ref_packet).get(msg);
                     m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+
+                    psk->send(peerid, beltpp::packet(Done()));
                     break;
                 }
                 default:
