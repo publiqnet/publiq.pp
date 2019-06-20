@@ -843,11 +843,18 @@ bool node::run()
         if (m_pimpl->m_sync_delay.expired())
             sync_worker(*m_pimpl.get());
 
-        unordered_set<string> unresolved_channels;
+        vector<string> channel_file_uris_backup;
         for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
+            channel_file_uris_backup.push_back(channel_file_uris.first);
+
+        unordered_set<string> unresolved_channels;
+        for (auto const& channel_address : channel_file_uris_backup)
         {
-            auto& channel_address = channel_file_uris.first;
-            auto& map_file_uris = channel_file_uris.second;
+            auto channel_it = m_pimpl->map_channel_to_file_uris.find(channel_address);
+            if (channel_it == m_pimpl->map_channel_to_file_uris.end())
+                continue;
+
+            auto& map_file_uris = channel_it->second;
             assert(false == map_file_uris.empty());
             if (map_file_uris.empty())
                 throw std::logic_error("map_file_uris.empty()");
@@ -905,7 +912,11 @@ bool node::run()
         }
 
         while (unresolved_channels.size() > 10)
-            m_pimpl->map_channel_to_file_uris.erase(*unresolved_channels.begin());
+        {
+            auto const& first_unresolved_channel = *unresolved_channels.begin();
+            m_pimpl->map_channel_to_file_uris.erase(first_unresolved_channel);
+            unresolved_channels.erase(first_unresolved_channel);
+        }
     }
 
     return code;
