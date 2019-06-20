@@ -1023,10 +1023,35 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
             actions.emplace_back(new session_action_save_file(impl,
                                                               std::move(storage_file),
-                                                              [&impl](beltpp::packet&& package)
+                                                              [&impl, this, header](beltpp::packet&& package)
             {
                 if (package.type() == StorageFileAddress::rtt)
                 {
+                    auto it = pimpl->map_channel_to_file_uris.find(header.nodeid);
+                    if (it == pimpl->map_channel_to_file_uris.end())
+                    {
+                        completed = true;
+                        expected_next_package_type = size_t(-1);
+                    }
+                    else
+                    {
+                        if (it->second.empty())
+                        {
+                            assert(false);
+                            throw std::logic_error("file_uris.empty()");
+                        }
+
+                        StorageFileRequest msg;
+                        expected_uri = *it->second.begin();
+                        it->second.erase(expected_uri);
+                        if (it->second.empty())
+                            pimpl->map_channel_to_file_uris.erase(it);
+
+                        msg.uri = expected_uri;
+                        pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
+                        expected_next_package_type = BlockchainMessage::StorageFile::rtt;
+                    }
+
                     StorageFileAddress* pfile_address;
                     package.get(pfile_address);
                     if (false == impl.m_documents.storage_has_uri(pfile_address->uri, impl.m_pb_key.to_string()))
@@ -1039,32 +1064,6 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             pimpl->m_sessions.add(slave_header,
                                   std::move(actions),
                                   chrono::minutes(1));
-
-            auto it = pimpl->map_channel_to_file_uris.find(header.nodeid);
-            if (it == pimpl->map_channel_to_file_uris.end())
-            {
-                completed = true;
-                expected_next_package_type = size_t(-1);
-            }
-            else
-            {
-                if (it->second.empty())
-                {
-                    assert(false);
-                    throw std::logic_error("file_uris.empty()");
-                }
-
-                StorageFileRequest msg;
-                expected_uri = *it->second.begin();
-                it->second.erase(expected_uri);
-                if (it->second.empty())
-                    pimpl->map_channel_to_file_uris.erase(it);
-
-                msg.uri = expected_uri;
-                pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
-
-                expected_next_package_type = BlockchainMessage::StorageFile::rtt;
-            }
 
             break;
         }
