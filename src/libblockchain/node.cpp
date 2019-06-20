@@ -847,10 +847,10 @@ bool node::run()
         for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
         {
             auto& channel_address = channel_file_uris.first;
-            auto& set_file_uris = channel_file_uris.second;
-            assert(false == set_file_uris.empty());
-            if (set_file_uris.empty())
-                throw std::logic_error("set_file_uris.empty()");
+            auto& map_file_uris = channel_file_uris.second;
+            assert(false == map_file_uris.empty());
+            if (map_file_uris.empty())
+                throw std::logic_error("map_file_uris.empty()");
 
             beltpp::ip_address channel_ip_address;
             PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
@@ -870,18 +870,37 @@ bool node::run()
                 unresolved_channels.insert(channel_address);
             else
             {
-                vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-                actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
-                actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                   m_pimpl->m_nodeid_service));
-                actions.emplace_back(new session_action_request_file(*m_pimpl.get()));
+                //  session_action_request_file is allowed to modify this map
+                //  that's why we need this tricks here
+                auto map_file_uris_backup = map_file_uris;
+                for (auto const& file_uri_item_bak : map_file_uris_backup)
+                {
+                    auto it = map_file_uris.find(file_uri_item_bak.first);
+                    if (it == map_file_uris.end())
+                        continue;
 
-                meshpp::nodeid_session_header header;
-                header.nodeid = channel_address;
-                header.address = channel_ip_address;
-                m_pimpl->m_nodeid_sessions.add(header,
-                                               std::move(actions),
-                                               chrono::minutes(3));
+                    bool& requested = it->second;
+                    string const& file_uri = it->first;
+
+                    if (requested)
+                        continue;
+
+                    vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
+                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
+                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
+                                                                       m_pimpl->m_nodeid_service));
+                    actions.emplace_back(new session_action_request_file(file_uri,
+                                                                         channel_address,
+                                                                         *m_pimpl.get()));
+
+                    meshpp::nodeid_session_header header;
+                    header.nodeid = channel_address;
+                    header.address = channel_ip_address;
+                    m_pimpl->m_nodeid_sessions.add(header,
+                                                   std::move(actions),
+                                                   chrono::minutes(3));
+                    requested = true;
+                }
             }
         }
 

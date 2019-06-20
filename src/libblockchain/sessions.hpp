@@ -159,7 +159,9 @@ public:
 class session_action_request_file : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
-    session_action_request_file(detail::node_internals& impl);
+    session_action_request_file(std::string const& file_uri,
+                                std::string const& nodeid,
+                                detail::node_internals& impl);
     ~session_action_request_file() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -167,7 +169,8 @@ public:
     bool permanent() const override;
 
     detail::node_internals* pimpl;
-    std::string expected_uri;
+    std::string file_uri;
+    std::string nodeid;
 };
 
 class session_action_save_file : public meshpp::session_action<meshpp::session_header>

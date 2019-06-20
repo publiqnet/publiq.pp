@@ -105,7 +105,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                 if (value.count(file_uri))
                     continue;
 
-                value.insert(file_uri);
+                value.insert(std::make_pair(file_uri, false));
             }
         }
     }

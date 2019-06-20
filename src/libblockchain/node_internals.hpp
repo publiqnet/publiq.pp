@@ -597,7 +597,7 @@ public:
 
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;
-    unordered_map<string, unordered_set<string>> map_channel_to_file_uris;
+    unordered_map<string, unordered_map<string, bool>> map_channel_to_file_uris;
 };
 
 }
