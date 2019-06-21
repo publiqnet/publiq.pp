@@ -66,6 +66,9 @@ void action_validate(SignedTransaction const& signed_transaction,
     }
     meshpp::public_key pb_key_channel(content_unit.channel_address);
 
+    if (content_unit.file_uris.empty())
+        throw uri_exception(string(), uri_exception::missing);
+
     string unit_hash = meshpp::from_base58(content_unit.uri);
     if (unit_hash.length() != 32)
         throw uri_exception(content_unit.uri, uri_exception::invalid);
