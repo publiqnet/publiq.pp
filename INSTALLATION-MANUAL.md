@@ -19,7 +19,7 @@ but it failed for me, so we'll have to build it manually below.
 
 Exit the root console, from now on, just the simple user is needed
 
-RHEL has the philosophy to love all the aging software and *cmake* that comes with it is old, we'll build a fresh one now
+RHEL has the philosophy to stick to aging software and *cmake* that comes with it is old, we'll build a fresh one now
 
 ```console
 [user@localhost ~]$ wget https://cmake.org/files/v3.7/cmake-3.7.2.tar.gz
