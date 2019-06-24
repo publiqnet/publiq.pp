@@ -164,37 +164,31 @@ module CommanderMessage
         Array UInt64 block_numbers
     }
 
-    class FilesRequest
+    class StoragesRequest
     {
-        RequestMode request_mode
     }
 
-    enum RequestMode
+    class StoragesResponse
     {
-        channel
-        storage
+        Array StoragesResponseItem storages
     }
 
-    class FilesResponse
+    class StoragesResponseItem
     {
-        Array FilesResponseItem items
+        String storage_address
+        Array StoredFile file_uris
     }
 
-    class FilesResponseItem
+    enum Stored
     {
-        String address
-        Array FlagedFile files_uri
+        yes
+        no
     }
 
-    enum Flag
+    class StoredFile
     {
-        on
-        off
-    }
-
-    class FlagedFile
-    {
-        Flag flag
+        String channel_address
+        Stored stored
         String file_uri
     }
 

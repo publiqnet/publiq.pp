@@ -19,8 +19,7 @@ public:
     meshpp::file_loader<CommanderMessage::NumberValue, &CommanderMessage::NumberValue::from_string, &CommanderMessage::NumberValue::to_string> head_block_index;
     meshpp::map_loader<CommanderMessage::Account> accounts;
     meshpp::vector_loader<CommanderMessage::BlockInfo> blocks;
-    meshpp::map_loader<CommanderMessage::FilesResponseItem> storages;
-    meshpp::map_loader<CommanderMessage::FilesResponseItem> channels;
+    meshpp::map_loader<CommanderMessage::StoragesResponseItem> storages;
     beltpp::ip_address const& connect_to_address;
 };
 

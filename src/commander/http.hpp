@@ -256,20 +256,6 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 2 &&
-                 pss->resource.path.front() == "files")
-        {
-            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::FilesRequest>();
-            CommanderMessage::FilesRequest& ref = *reinterpret_cast<CommanderMessage::FilesRequest*>(p.get());
-
-            CommanderMessage::from_string(pss->resource.path[1], ref.request_mode);
-
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-            return ::beltpp::detail::pmsg_all(CommanderMessage::FilesRequest::rtt,
-                                              std::move(p),
-                                              &CommanderMessage::FilesRequest::pvoid_saver);
-        }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 2 &&
                  pss->resource.path.front() == "send")
         {
             const std::set<string> all_arguments = {"to", "whole", "fraction", "fee_whole", "fee_fraction", "message", "seconds"};
@@ -297,6 +283,17 @@ beltpp::detail::pmsg_all message_list_load(
             return ::beltpp::detail::pmsg_all(CommanderMessage::Send::rtt,
                                               std::move(p),
                                               &CommanderMessage::Send::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "storages")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::StoragesRequest>();
+            //CommanderMessage::StoragesRequest& ref = *reinterpret_cast<CommanderMessage::StoragesRequest*>(p.get());
+
+            return ::beltpp::detail::pmsg_all(CommanderMessage::StoragesRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::StoragesRequest::pvoid_saver);
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 1 &&

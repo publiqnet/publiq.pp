@@ -49,6 +49,9 @@ beltpp::void_unique_ptr cm_get_putl()
 
 using TransactionLogLoader = daemon_rpc::TransactionLogLoader;
 using RewardLogLoader = daemon_rpc::RewardLogLoader;
+using StorageUpdateLogLoader = daemon_rpc::StorageUpdateLogLoader;
+using ContentUnitLogLoader = daemon_rpc::ContentUnitLogLoader;
+using ContentLogLoader = daemon_rpc::ContentLogLoader;
 using LogIndexLoader = daemon_rpc::LogIndexLoader;
 
 TransactionLogLoader daemon_rpc::get_transaction_log(std::string const& address)
@@ -69,6 +72,33 @@ RewardLogLoader daemon_rpc::get_reward_log(std::string const& address)
                     10,
                     bm_get_putl());
 }
+StorageUpdateLogLoader daemon_rpc::get_storage_update_log(std::string const& address)
+{
+    return
+    StorageUpdateLogLoader("st",
+                    meshpp::data_directory_path("storages_log", address),
+                    1000,
+                    10,
+                    bm_get_putl());
+}
+ContentUnitLogLoader daemon_rpc::get_content_unit_log()
+{
+    return
+    ContentUnitLogLoader("cu",
+                    meshpp::data_directory_path("storages_log", "content_unit"),
+                    1000,
+                    10,
+                    bm_get_putl());
+}
+ContentLogLoader daemon_rpc::get_content_log()
+{
+    return
+    ContentLogLoader("cn",
+                    meshpp::data_directory_path("storages_log", "content"),
+                    1000,
+                    10,
+                    bm_get_putl());
+}
 LogIndexLoader daemon_rpc::get_transaction_log_index(std::string const& address)
 {
     return
@@ -82,6 +112,30 @@ LogIndexLoader daemon_rpc::get_reward_log_index(std::string const& address)
     return
     LogIndexLoader("index_rw",
                    meshpp::data_directory_path("accounts_log", address),
+                   1000,
+                   cm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_storage_update_log_index(std::string const& address)
+{
+    return
+    LogIndexLoader("index_st",
+                   meshpp::data_directory_path("storages_log", address),
+                   1000,
+                   cm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_content_unit_log_index()
+{
+    return
+    LogIndexLoader("index_cu",
+                   meshpp::data_directory_path("storages_log", "content_unit"),
+                   1000,
+                   cm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_content_log_index()
+{
+    return
+    LogIndexLoader("index_cn",
+                   meshpp::data_directory_path("storages_log", "content"),
                    1000,
                    cm_get_putl());
 }
@@ -444,70 +498,244 @@ void process_transactions(uint64_t block_index,
                             type);
 }
 
-void process_storage_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                 rpc& rpc_server,
-                                 LoggingType type)
+void save_StorageUpdate_transactions(uint64_t block_index,
+                                    BlockchainMessage::TransactionLog const& transaction_log,
+                                    unordered_set<string> const& set_accounts,
+                                    unordered_map<string, StorageUpdateLogLoader>& storage_updates,
+                                    unordered_map<string, LogIndexLoader>& index_storage_updates,
+                                    LoggingType type)
 {
-    if (StorageUpdate::rtt == transaction_log.action.type())
+    StorageUpdate storage_update;
+    std::move(transaction_log.action).get(storage_update);
+    string const& str_account = storage_update.storage_address;
+
+    auto it = set_accounts.find(str_account);
+    if (it != set_accounts.end())
     {
+        if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
+            (UpdateType::remove == storage_update.status && LoggingType::revert == type))
+            storage_update.status = UpdateType::store;
+        else
+            storage_update.status = UpdateType::remove;
 
-        StorageUpdate update;
-        std::move(transaction_log.action).get(update);
+        auto sl_insert_res = storage_updates.emplace(std::make_pair(str_account,
+                                                    daemon_rpc::get_storage_update_log(str_account)));
 
-        if ((UpdateType::store == update.status && LoggingType::revert == type) ||
-            (UpdateType::remove == update.status && LoggingType::apply == type))
+        StorageUpdateLogLoader& slogloader = sl_insert_res.first->second;
+
+        slogloader.push_back(storage_update);
+
+        auto idx_insert_res = index_storage_updates.emplace(std::make_pair(str_account,
+                                                    daemon_rpc::get_storage_update_log_index(str_account)));
+
+        string str_block_index = std::to_string(block_index);
+        LogIndexLoader& idxlogloader = idx_insert_res.first->second;
+        size_t current_st_index = slogloader.size() - 1;
+        CommanderMessage::NumberPair value;
+        value.first = current_st_index;
+        value.second = 1;
+
+        if (false == idxlogloader.insert(str_block_index, value))
         {
-                std::vector<CommanderMessage::FlagedFile> &files = rpc_server.storages.at(update.storage_address).files_uri;
+            auto& stored_value = idxlogloader.at(str_block_index);
+            bool verify = stored_value.first + stored_value.second == current_st_index;
+            assert(verify);
+            ++stored_value.second;
 
-                for (auto & file : files)
-                    if (update.file_uri == file.file_uri)
-                        CommanderMessage::from_string("off", file.flag);
+            if (false == verify)
+                throw std::logic_error("cannot add to storage update index");
         }
+    }
 
-        if ((UpdateType::store == update.status && LoggingType::apply == type) ||
-            (UpdateType::remove == update.status && LoggingType::revert == type))
+}
+
+void save_Content_transactions(     uint64_t block_index,
+                                    BlockchainMessage::TransactionLog const& transaction_log,
+                                    unordered_map<string, ContentLogLoader>& contents,
+                                    unordered_map<string, LogIndexLoader>& index_contents,
+                                    bool const new_import,
+                                    LoggingType type)
+{
+    if (!new_import)
+    {
+        Content content;
+        std::move(transaction_log.action).get(content);
+        string const& str_account = content.channel_address;
+
+        auto cl_insert_res = contents.emplace(std::make_pair(str_account,
+                                                                 daemon_rpc::get_content_log()));
+
+        ContentLogLoader& clogloader = cl_insert_res.first->second;
+
+        if (LoggingType::apply == type)
+            clogloader.push_back(content);
+        else
+            clogloader.pop_back();
+
+        auto idx_insert_res = index_contents.emplace(std::make_pair(str_account,
+                                                                        daemon_rpc::get_content_log_index()));
+
+        string str_block_index = std::to_string(block_index);
+        LogIndexLoader& idxlogloader = idx_insert_res.first->second;
+        if (LoggingType::apply == type)
         {
-            if (rpc_server.storages.contains(update.storage_address))
+            size_t current_tx_index = clogloader.size() - 1;
+            CommanderMessage::NumberPair value;
+            value.first = current_tx_index;
+            value.second = 1;
+
+            if (false == idxlogloader.insert(str_block_index, value))
             {
-                 CommanderMessage::FilesResponseItem &item = rpc_server.storages.at(update.storage_address);
+                auto& stored_value = idxlogloader.at(str_block_index);
+                bool verify = stored_value.first + stored_value.second == current_tx_index;
+                assert(verify);
+                ++stored_value.second;
 
-                 bool flag = false;
-
-                for (auto & file : item.files_uri)
-                    if (update.file_uri == file.file_uri)
-                    {
-                        flag = true;
-                        CommanderMessage::from_string("on", file.flag);
-                    }
-
-                if (!flag)
-                {
-                    CommanderMessage::FlagedFile file;
-                    CommanderMessage::from_string("on", file.flag);
-                    file.file_uri = update.file_uri;
-                    item.files_uri.push_back(file);
-                }
-
+                if (false == verify)
+                    throw std::logic_error("cannot add to content index");
             }
+        }
+        else
+        {
+            size_t current_cn_index = clogloader.size();
+
+            bool verify = idxlogloader.contains(str_block_index);
+            assert(verify);
+
+            if (false == verify)
+                throw std::logic_error("cannot remove from content index");
+
+            auto& stored_value = idxlogloader.at(str_block_index);
+
+            verify = stored_value.first + stored_value.second == current_cn_index + 1;
+            assert(verify);
+            if (false == verify)
+                throw std::logic_error("cannot remove from content index - check error");
+
+            if (stored_value.second == 1)
+                idxlogloader.erase(str_block_index);
             else
-            {
-                CommanderMessage::FilesResponseItem item;
-                item.address = update.storage_address;
-                CommanderMessage::FlagedFile file;
-                CommanderMessage::from_string("on", file.flag);
-                file.file_uri = update.file_uri;
-                item.files_uri.push_back(file);
-                rpc_server.storages.insert(item.address, item);
-            }
+                --stored_value.second;
         }
     }
 }
 
-void process_channel_transactions(BlockchainMessage::TransactionLog const& /*transaction_log*/,
-                                 rpc& /*rpc_server*/,
-                                 LoggingType /*type*/)
+void save_ContentUnit_transactions( uint64_t block_index,
+                                    BlockchainMessage::TransactionLog const& transaction_log,
+                                    unordered_map<string, ContentUnitLogLoader>& content_units,
+                                    unordered_map<string, LogIndexLoader>& index_content_units,
+                                    bool const new_import,
+                                    LoggingType type)
 {
 
+        if (!new_import)
+        {
+            ContentUnit content_unit;
+            std::move(transaction_log.action).get(content_unit);
+            string const& str_account = content_unit.channel_address;
+
+            auto cul_insert_res = content_units.emplace(std::make_pair(str_account,
+                                                                     daemon_rpc::get_content_unit_log()));
+
+            ContentUnitLogLoader& culogloader = cul_insert_res.first->second;
+
+            if (LoggingType::apply == type)
+                culogloader.push_back(content_unit);
+            else
+                culogloader.pop_back();
+
+            auto idx_insert_res = index_content_units.emplace(std::make_pair(str_account,
+                                                                            daemon_rpc::get_content_unit_log_index()));
+
+            string str_block_index = std::to_string(block_index);
+            LogIndexLoader& idxlogloader = idx_insert_res.first->second;
+            if (LoggingType::apply == type)
+            {
+                size_t current_cu_index = culogloader.size() - 1;
+                CommanderMessage::NumberPair value;
+                value.first = current_cu_index;
+                value.second = 1;
+
+                if (false == idxlogloader.insert(str_block_index, value))
+                {
+                    auto& stored_value = idxlogloader.at(str_block_index);
+                    bool verify = stored_value.first + stored_value.second == current_cu_index;
+                    assert(verify);
+                    ++stored_value.second;
+
+                    if (false == verify)
+                        throw std::logic_error("cannot add to content unit index");
+                }
+            }
+            else
+            {
+                size_t current_cu_index = culogloader.size();
+
+                bool verify = idxlogloader.contains(str_block_index);
+                assert(verify);
+
+                if (false == verify)
+                    throw std::logic_error("cannot remove from content unit index");
+
+                auto& stored_value = idxlogloader.at(str_block_index);
+
+                verify = stored_value.first + stored_value.second == current_cu_index + 1;
+                assert(verify);
+                if (false == verify)
+                    throw std::logic_error("cannot remove from content unit index - check error");
+
+                if (stored_value.second == 1)
+                    idxlogloader.erase(str_block_index);
+                else
+                    --stored_value.second;
+            }
+        }
+}
+
+void save_storage_related_transactions( uint64_t block_index,
+                                        unordered_map<string, StorageUpdateLogLoader>& storage_updates,
+                                        unordered_map<string, LogIndexLoader>& index_storage_updates,
+                                        unordered_map<string, ContentUnitLogLoader>& content_units,
+                                        unordered_map<string, LogIndexLoader>& index_content_units,
+                                        unordered_map<string, ContentLogLoader>& contents,
+                                        unordered_map<string, LogIndexLoader>& index_contents,
+                                        BlockchainMessage::TransactionLog const& transaction_log,
+                                        unordered_set<string> const& set_accounts,
+                                        bool const new_import,
+                                        LoggingType type)
+{
+    switch (transaction_log.action.type())
+    {
+    case StorageUpdate::rtt:
+        save_StorageUpdate_transactions(block_index,
+                                        transaction_log,
+                                        set_accounts,
+                                        storage_updates,
+                                        index_storage_updates,
+                                        type);
+        break;
+    case Content::rtt:
+        save_Content_transactions(      block_index,
+                                        transaction_log,
+                                        contents,
+                                        index_contents,
+                                        new_import,
+                                        type);
+        break;
+    case ContentUnit::rtt:
+        save_ContentUnit_transactions(  block_index,
+                                        transaction_log,
+                                        content_units,
+                                        index_content_units,
+                                        new_import,
+                                        type);
+        break;
+    }
+}
+
+void complete_storage(rpc& /*rpc_server*/)
+{
+    //TO DO
 }
 
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
@@ -617,32 +845,54 @@ void daemon_rpc::sync(rpc& rpc_server,
 
     unordered_map<string, TransactionLogLoader> transactions;
     unordered_map<string, RewardLogLoader> rewards;
+    unordered_map<string, StorageUpdateLogLoader> storage_updates;
+    unordered_map<string, ContentUnitLogLoader> content_units;
+    unordered_map<string, ContentLogLoader> contents;
     unordered_map<string, LogIndexLoader> index_transactions;
     unordered_map<string, LogIndexLoader> index_rewards;
-
+    unordered_map<string, LogIndexLoader> index_storage_updates;
+    unordered_map<string, LogIndexLoader> index_content_units;
+    unordered_map<string, LogIndexLoader> index_contents;
 
     beltpp::on_failure discard([this,
                                &rpc_server,
                                &transactions,
                                &rewards,
+                               &storage_updates,
+                               &content_units,
+                               &contents,
                                &index_transactions,
-                               &index_rewards]()
+                               &index_rewards,
+                               &index_storage_updates,
+                               &index_content_units,
+                               &index_contents]()
     {
         log_index.discard();
         rpc_server.accounts.discard();
         rpc_server.blocks.discard();
         rpc_server.storages.discard();
-        rpc_server.channels.discard();
         rpc_server.head_block_index.discard();
 
         for (auto& tr : transactions)
             tr.second.discard();
         for (auto& rw : rewards)
             rw.second.discard();
+        for (auto& st : storage_updates)
+            st.second.discard();
+        for (auto& cu : content_units)
+            cu.second.discard();
+        for (auto& cn : contents)
+            cn.second.discard();
         for (auto& tr : index_transactions)
             tr.second.discard();
         for (auto& rw : index_rewards)
             rw.second.discard();
+        for (auto& st : index_storage_updates)
+            st.second.discard();
+        for (auto& cu : index_content_units)
+            cu.second.discard();
+        for (auto& cn : index_contents)
+            cn.second.discard();
     });
 
     uint64_t local_start_index = 0;
@@ -762,13 +1012,17 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     {
                                         ++count;
 
-                                        process_storage_transactions(transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::apply);
-
-                                        process_channel_transactions(transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::apply);
+                                        save_storage_related_transactions(  block_index,
+                                                                            storage_updates,
+                                                                            index_storage_updates,
+                                                                            content_units,
+                                                                            index_content_units,
+                                                                            contents,
+                                                                            index_contents,
+                                                                            transaction_log,
+                                                                            set_accounts,
+                                                                            new_import,
+                                                                            LoggingType::apply);
 
                                         update_balances(set_accounts,
                                                        rpc_server,
@@ -812,14 +1066,17 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     TransactionLog transaction_log;
                                     std::move(action_info.action).get(transaction_log);
 
-                                    process_storage_transactions(transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::apply);
-
-                                    process_channel_transactions(transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::apply);
-
+                                    save_storage_related_transactions(  block_index,
+                                                                        storage_updates,
+                                                                        index_storage_updates,
+                                                                        content_units,
+                                                                        index_content_units,
+                                                                        contents,
+                                                                        index_contents,
+                                                                        transaction_log,
+                                                                        set_accounts,
+                                                                        new_import,
+                                                                        LoggingType::apply);
                                     update_balances(set_accounts,
                                                    rpc_server,
                                                    transaction_log,
@@ -850,14 +1107,17 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     {
                                         ++count;
 
-                                        process_storage_transactions(transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::revert);
-
-                                        process_channel_transactions(transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::apply);
-
+                                        save_storage_related_transactions(  block_index,
+                                                                            storage_updates,
+                                                                            index_storage_updates,
+                                                                            content_units,
+                                                                            index_content_units,
+                                                                            contents,
+                                                                            index_contents,
+                                                                            transaction_log,
+                                                                            set_accounts,
+                                                                            new_import,
+                                                                            LoggingType::revert);
                                         update_balances(set_accounts,
                                                        rpc_server,
                                                        transaction_log,
@@ -903,15 +1163,19 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     TransactionLog transaction_log;
                                     std::move(action_info.action).get(transaction_log);
 
-                                    process_storage_transactions(transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::revert);
-
-                                    process_channel_transactions(transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::apply);
-
                                     uint64_t block_index = head_block_index() + 1;
+
+                                    save_storage_related_transactions(  block_index,
+                                                                        storage_updates,
+                                                                        index_storage_updates,
+                                                                        content_units,
+                                                                        index_content_units,
+                                                                        contents,
+                                                                        index_contents,
+                                                                        transaction_log,
+                                                                        set_accounts,
+                                                                        new_import,
+                                                                        LoggingType::revert);
 
                                     update_balances(set_accounts,
                                                    rpc_server,
@@ -950,21 +1214,34 @@ void daemon_rpc::sync(rpc& rpc_server,
             break;
     }
 
+    complete_storage(rpc_server);
+
     rpc_server.head_block_index.save();
     rpc_server.accounts.save();
     rpc_server.blocks.save();
     rpc_server.storages.save();
-    rpc_server.channels.save();
     log_index.save();
 
     for (auto& tr : transactions)
         tr.second.save();
     for (auto& rw : rewards)
         rw.second.save();
+    for (auto& st : storage_updates)
+        st.second.save();
+    for (auto& cu : content_units)
+        cu.second.save();
+    for (auto& cn : contents)
+        cn.second.save();
     for (auto& tr : index_transactions)
         tr.second.save();
     for (auto& rw : index_rewards)
         rw.second.save();
+    for (auto& st : index_storage_updates)
+        st.second.save();
+    for (auto& cu : index_content_units)
+        cu.second.save();
+    for (auto& cn : index_contents)
+        cn.second.save();
 
     discard.dismiss();
 
@@ -972,15 +1249,26 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.commit();
     rpc_server.blocks.commit();
     rpc_server.storages.commit();
-    rpc_server.channels.commit();
     log_index.commit();
 
     for (auto& tr : transactions)
         tr.second.commit();
     for (auto& rw : rewards)
-        rw.second.commit();
+        rw.second.save();
+    for (auto& st : storage_updates)
+        st.second.commit();
+    for (auto& cu : content_units)
+        cu.second.commit();
+    for (auto& cn : contents)
+        cn.second.commit();
     for (auto& tr : index_transactions)
         tr.second.commit();
     for (auto& rw : index_rewards)
         rw.second.commit();
+    for (auto& st : index_storage_updates)
+        st.second.commit();
+    for (auto& cn : index_content_units)
+        cn.second.commit();
+    for (auto& cn : index_contents)
+        cn.second.commit();
 }
