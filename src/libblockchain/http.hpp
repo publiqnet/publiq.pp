@@ -43,6 +43,7 @@ string file_response(beltpp::detail::session_special_data& ssd,
         str_result += "HTTP/1.1 200 OK\r\n";
         if (false == pFile->mime_type.empty())
             str_result += "Content-Type: " + pFile->mime_type + "\r\n";
+        str_result += "Access-Control-Allow-Origin: *\r\n";
         str_result += "Content-Length: ";
         str_result += std::to_string(pFile->data.length());
         str_result += "\r\n\r\n";
@@ -68,6 +69,7 @@ string file_response(beltpp::detail::session_special_data& ssd,
 
         str_result += "HTTP/1.1 404 Not Found\r\n";
         str_result += "Content-Type: text/plain\r\n";
+        str_result += "Access-Control-Allow-Origin: *\r\n";
         str_result += "Content-Length: " + std::to_string(message.length()) + "\r\n\r\n";
         str_result += message;
         return str_result;
