@@ -464,14 +464,15 @@ module BlockchainMessage
         String channel_address
     }
 
-    class StorageFileSize
+    class StorageFileDetails
     {
         String uri
     }
 
-    class StorageFileSizeResponse
+    class StorageFileDetailsResponse
     {
         String uri
+        String mime_type
         UInt64 size
     }
 

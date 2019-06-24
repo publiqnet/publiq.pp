@@ -151,16 +151,28 @@ bool storage_node::run()
 
                     break;
                 }
-                case StorageFileSize::rtt:
+                case StorageFileDetails::rtt:
                 {
-                    StorageFileSize size_request;
-                    std::move(ref_packet).get(size_request);
+                    StorageFileDetails details_request;
+                    std::move(ref_packet).get(details_request);
 
-                    StorageFileSizeResponse size_response;
-                    size_response.uri = size_request.uri;
-                    size_response.size = 1; // TODO
+                    StorageFile file;
+                    if (m_pimpl->m_storage.get(details_request.uri, file))
+                    {
+                        StorageFileDetailsResponse details_response;
+                        details_response.uri = details_request.uri;
+                        details_response.size = file.data.length();
+                        details_response.mime_type = file.mime_type;
 
-                    psk->send(peerid, beltpp::packet(std::move(size_response)));
+                        psk->send(peerid, beltpp::packet(std::move(details_response)));
+                    }
+                    else
+                    {
+                        UriError error;
+                        error.uri = details_request.uri;
+                        error.uri_problem_type = UriProblemType::missing;
+                        psk->send(peerid, beltpp::packet(std::move(error)));
+                    }
 
                     break;
                 }
