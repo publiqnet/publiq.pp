@@ -185,6 +185,7 @@ module BlockchainMessage
     {
         String node_address
         IPAddress ip_address
+        IPAddress ssl_ip_address
     }
 
     class StorageUpdate
@@ -370,6 +371,7 @@ module BlockchainMessage
     class PublicAddressInfo
     {
         IPAddress ip_address
+        IPAddress ssl_ip_address
         String node_address
         UInt64 seconds_since_checked
     }

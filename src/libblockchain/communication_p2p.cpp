@@ -476,10 +476,10 @@ uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector
     return expected_c_const;
 }
 
-multimap<BlockchainMessage::ctime, SignedTransaction>
+vector<SignedTransaction>
 revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
 {
-    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions;
+    vector<SignedTransaction> pool_transactions;
 
     //  collect transactions to be reverted from pool
     //
@@ -491,8 +491,7 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
 
         if (expiry_time <= signed_transaction.transaction_details.expiry.tm)
         {
-            pool_transactions.insert(
-                        std::make_pair(signed_transaction.transaction_details.creation, signed_transaction));
+            pool_transactions.push_back(signed_transaction);
         }
     }
 
@@ -544,19 +543,19 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions =
+    vector<SignedTransaction> reverted_transactions =
             revert_pool(system_clock::to_time_t(now), impl);
 
     uint64_t block_number = impl.m_blockchain.length() - 1;
 
     //  calculate consensus_const
     vector<pair<uint64_t, uint64_t>> delta_vector;
-    size_t index = 0;
+    size_t block_index = 0;
     if (block_number + 1 >= DELTA_STEP)
-        index = block_number + 1 - DELTA_STEP;
-    for (; index <= block_number; ++index)
+        block_index = block_number + 1 - DELTA_STEP;
+    for (; block_index <= block_number; ++block_index)
     {
-        BlockHeader const& tmp_header = impl.m_blockchain.header_at(index);
+        BlockHeader const& tmp_header = impl.m_blockchain.header_at(block_index);
         delta_vector.push_back(std::make_pair(tmp_header.delta, tmp_header.c_const));
     }
 
@@ -590,44 +589,45 @@ void mine_block(publiqpp::detail::node_internals& impl)
     Block block;
     block.header = block_header;
 
+    vector<SignedTransaction> block_transactions;
+    vector<SignedTransaction> pool_transactions;
+
+    auto reverted_transactions_it_end =
+            std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
+                           [&block_header,
+                           &pool_transactions](SignedTransaction& signed_transaction)
+    {
+        if (signed_transaction.transaction_details.creation >= block_header.time_signed)
+        {
+            pool_transactions.push_back(std::move(signed_transaction));
+            return true;
+        }
+        return false;
+    });
+    reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
+
     //  here we collect incomplete transactions and try to find
     //  if they form a complete transaction already
     unordered_map<string, vector<SignedTransaction>> map_incomplete_transactions;
 
-    // check and copy transactions to block
-    size_t transactions_count = 0;
-    auto it = pool_transactions.begin();
-    while (it != pool_transactions.end() && transactions_count < size_t(BLOCK_MAX_TRANSACTIONS))
+    reverted_transactions_it_end =
+            std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
+                           [&impl,
+                           &map_incomplete_transactions](SignedTransaction& signed_transaction)
     {
-        auto& signed_transaction = it->second;
-        bool complete = action_is_complete(impl, signed_transaction);
-
-        if (signed_transaction.transaction_details.creation < block_header.time_signed &&
-            false == complete)
+        if (false == action_is_complete(impl, signed_transaction))
         {
             string incomplete_key = signed_transaction.transaction_details.to_string();
             vector<SignedTransaction>& transactions = map_incomplete_transactions[incomplete_key];
 
-            transactions.emplace_back(std::move(it->second));
+            transactions.emplace_back(std::move(signed_transaction));
 
-            it = pool_transactions.erase(it);
+            return true;
         }
-        else if (signed_transaction.transaction_details.creation < block_header.time_signed &&
-                 apply_transaction(signed_transaction, impl, own_key) &&
-                 impl.m_transaction_cache.add_chain(signed_transaction))
-        {
-            block.signed_transactions.push_back(std::move(signed_transaction));
-            ++transactions_count;
-            it = pool_transactions.erase(it);
-        }
-        else
-        {
-            //  either transaction time corresponds to a future block
-            //  or it couldn't be applied because of the order
-            //  or it will not even be possible to apply at all
-            ++it;
-        }
-    }
+        return false;
+    });
+    reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
+
 
     for (auto& key_stxs : map_incomplete_transactions)
     {
@@ -666,24 +666,144 @@ void mine_block(publiqpp::detail::node_internals& impl)
             }
         }
 
-        //TODO block transactions must be collected after some sorting
-        if (false == not_found &&
-            transactions_count < size_t(BLOCK_MAX_TRANSACTIONS) &&
-            apply_transaction(signed_transaction, impl, own_key) &&
-            impl.m_transaction_cache.add_chain(signed_transaction))
+        if (false == not_found)
         {
-            block.signed_transactions.push_back(std::move(signed_transaction));
-            ++transactions_count;
+            reverted_transactions.push_back(std::move(signed_transaction));
         }
         else
         {
             for (auto& stx : stxs)
             {
-                pool_transactions.insert(
-                            std::make_pair(stx.transaction_details.creation, std::move(stx)));
+                pool_transactions.push_back(std::move(stx));
             }
         }
     }
+
+    struct extented_info
+    {
+        coin value;
+        size_t size;
+        SignedTransaction stx;
+    };
+
+    unordered_map<string, unordered_set<size_t>> index_participants;
+    vector<extented_info> reverted_transactions_ex;
+    reverted_transactions_ex.reserve(reverted_transactions.size());
+    for (size_t index = 0; index != reverted_transactions.size(); ++index)
+    {
+        auto& reverted_transaction = reverted_transactions[index];
+        vector<string> participants = action_participants(reverted_transaction);
+        for (auto const& participant : participants)
+        {
+            if (false == participant.empty())
+            {
+                index_participants[participant].insert(index);
+            }
+        }
+
+        extented_info temp;
+        temp.stx = std::move(reverted_transaction);
+        reverted_transactions_ex.push_back(std::move(temp));
+    }
+    reverted_transactions.clear();
+
+    for (size_t index = 0; index != reverted_transactions_ex.size(); ++index)
+    {
+        coin& value = reverted_transactions_ex[index].value;
+        size_t& size = reverted_transactions_ex[index].size;
+
+
+        unordered_set<size_t> used_indices;
+        unordered_set<size_t> next_indices = {index};
+
+        while (false == next_indices.empty())
+        {
+            vector<string> participants;
+            for (auto next_index : next_indices)
+            {
+                auto& reverted_transaction = reverted_transactions_ex[next_index].stx;
+                value += reverted_transaction.transaction_details.fee;
+                size += reverted_transaction.to_string().size();
+
+                auto local_participants = action_participants(reverted_transaction);
+
+                participants.insert(participants.end(),
+                                    local_participants.begin(),
+                                    local_participants.end());
+            }
+
+            used_indices.insert(next_indices.begin(), next_indices.end());
+            next_indices.clear();
+
+            for (auto const& participant : participants)
+            {
+                auto index_it = index_participants.find(participant);
+                if (index_it != index_participants.end())
+                {
+                    for (size_t participant_index : index_it->second)
+                    {
+                        if (0 == used_indices.count(participant_index))
+                            next_indices.insert(participant_index);
+                    }
+                }
+            }
+        }
+    }
+
+    std::sort(reverted_transactions_ex.begin(), reverted_transactions_ex.end(),
+              [](extented_info const& lhs, extented_info const& rhs)
+    {
+        return (lhs.value / lhs.size) > (rhs.value / rhs.size);
+    });
+
+    for (size_t index = 0; index != reverted_transactions_ex.size(); ++index)
+    {
+        auto& signed_transaction = reverted_transactions_ex[index].stx;
+        if (index < size_t(10))
+            block_transactions.push_back(std::move(signed_transaction));
+        else
+            pool_transactions.push_back(std::move(signed_transaction));
+    }
+
+    std::sort(block_transactions.begin(), block_transactions.end(),
+              [](SignedTransaction const& lhs, SignedTransaction const& rhs)
+    {
+        return lhs.transaction_details.creation.tm < rhs.transaction_details.creation.tm;
+    });
+
+    // check and copy transactions to block
+    for (auto& signed_transaction : block_transactions)
+    {
+        beltpp::on_failure guard([]{});
+        bool chain_added = impl.m_transaction_cache.add_chain(signed_transaction);
+        if (chain_added)
+        {
+            guard = beltpp::on_failure([&impl, &signed_transaction]
+            {
+                impl.m_transaction_cache.erase_chain(signed_transaction);
+            });
+        }
+
+        if (chain_added &&
+            apply_transaction(signed_transaction, impl, own_key))
+        {
+            block.signed_transactions.push_back(std::move(signed_transaction));
+            guard.dismiss();
+        }
+        else
+        {
+            //  either transaction time corresponds to a future block
+            //  or it couldn't be applied because of the order
+            //  or it will not even be possible to apply at all
+            pool_transactions.push_back(std::move(signed_transaction));
+        }
+    }
+
+    std::sort(pool_transactions.begin(), pool_transactions.end(),
+              [](SignedTransaction const& lhs, SignedTransaction const& rhs)
+    {
+        return lhs.transaction_details.creation.tm < rhs.transaction_details.creation.tm;
+    });
 
     // grant rewards and move to block
     grant_rewards(block.signed_transactions,
@@ -709,9 +829,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
     impl.m_action_log.log_block(signed_block);
 
     // apply back rest of the pool content to the state and action_log
-    for (auto& item : pool_transactions)
+    for (auto& signed_transaction : pool_transactions)
     {
-        auto& signed_transaction = item.second;
         bool complete = action_is_complete(impl, signed_transaction);
 
         bool ok_logic = true;
@@ -798,6 +917,7 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     AddressInfo address_info;
     address_info.node_address = m_pimpl->m_pb_key.to_string();
     beltpp::assign(address_info.ip_address, m_pimpl->m_public_address);
+    beltpp::assign(address_info.ssl_ip_address, m_pimpl->m_public_ssl_address);
 
     Transaction transaction;
     transaction.action = address_info;
@@ -834,6 +954,17 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     if (beltpp_ip_address.remote.empty() &&
         beltpp_ip_address.local.empty())
         return false;
+
+    beltpp::ip_address beltpp_ssl_ip_address;
+    beltpp::assign(beltpp_ssl_ip_address, address_info.ssl_ip_address);
+
+    bool ssl_empty = beltpp_ssl_ip_address.local.empty() && beltpp_ssl_ip_address.remote.empty();
+    bool ssl_same = beltpp_ip_address.remote.address == beltpp_ssl_ip_address.remote.address &&
+                    beltpp_ip_address.local.address == beltpp_ssl_ip_address.local.address;
+
+    if (false == ssl_same && false == ssl_empty)
+        return false;
+
     // Check data and authority
     if (signed_transaction.authorizations.size() != 1)
         throw wrong_data_exception("transaction authorizations error");

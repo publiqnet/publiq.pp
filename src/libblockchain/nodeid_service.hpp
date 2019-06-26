@@ -26,6 +26,7 @@ public:
 
     void add(std::string const& node_address,
              beltpp::ip_address const& address,
+             beltpp::ip_address const& ssl_address,
              std::unique_ptr<session_action_broadcast_address_info>&& ptr_action);
 
     void keep_successful(std::string const& node_address,

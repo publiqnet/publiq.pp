@@ -15,6 +15,14 @@ vector<string> action_owners(ContentUnit const& content_unit)
 {
     return content_unit.author_addresses;
 }
+vector<string> action_participants(ContentUnit const& content_unit)
+{
+    vector<string> result = content_unit.author_addresses;
+    result.push_back(content_unit.uri);
+    result.insert(result.end(), content_unit.file_uris.begin(), content_unit.file_uris.end());
+    result.push_back(content_unit.channel_address);
+    return result;
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      ContentUnit const& content_unit,

@@ -43,7 +43,8 @@ void sync_worker(detail::node_internals& impl);
  * node
  */
 node::node(string const& genesis_signed_block,
-           ip_address const & public_address,
+           ip_address const& public_address,
+           beltpp::ip_address const& public_ssl_address,
            ip_address const& rpc_bind_to_address,
            ip_address const& p2p_bind_to_address,
            std::vector<ip_address> const& p2p_connect_to_addresses,
@@ -65,6 +66,7 @@ node::node(string const& genesis_signed_block,
            std::chrono::steady_clock::duration const& sync_delay)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
+                                         public_ssl_address,
                                          rpc_bind_to_address,
                                          p2p_bind_to_address,
                                          p2p_connect_to_addresses,
@@ -299,9 +301,12 @@ bool node::run()
                     {
                         beltpp::ip_address beltpp_ip_address;
                         beltpp::assign(beltpp_ip_address, address_info.ip_address);
+                        beltpp::ip_address beltpp_ssl_ip_address;
+                        beltpp::assign(beltpp_ssl_ip_address, address_info.ssl_ip_address);
 
                         m_pimpl->m_nodeid_service.add(address_info.node_address,
                                                       beltpp_ip_address,
+                                                      beltpp_ssl_ip_address,
                                                       unique_ptr<session_action_broadcast_address_info>(
                                                           new session_action_broadcast_address_info(*m_pimpl.get(),
                                                                                                     peerid,

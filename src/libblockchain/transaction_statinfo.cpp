@@ -17,6 +17,24 @@ vector<string> action_owners(ServiceStatistics const& service_statistics)
 {
     return {service_statistics.server_address};
 }
+vector<string> action_participants(ServiceStatistics const& service_statistics)
+{
+    vector<string> result;
+    for (auto const& item : service_statistics.file_items)
+    {
+        for (auto const& item2 : item.count_items)
+        {
+            result.push_back(item2.peer_address);
+        }
+
+        result.push_back(item.file_uri);
+        result.push_back(item.unit_uri);
+    }
+
+    result.push_back(service_statistics.server_address);
+
+    return result;
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      ServiceStatistics const& service_statistics,

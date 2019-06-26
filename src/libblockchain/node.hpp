@@ -27,7 +27,8 @@ class BLOCKCHAINSHARED_EXPORT node
 {
 public:
     node(std::string const& genesis_signed_block,
-         beltpp::ip_address const & public_address,
+         beltpp::ip_address const& public_address,
+         beltpp::ip_address const& public_ssl_address,
          beltpp::ip_address const& rpc_bind_to_address,
          beltpp::ip_address const& p2p_bind_to_address,
          std::vector<beltpp::ip_address> const& p2p_connect_to_addresses,

@@ -19,6 +19,13 @@ vector<string> action_owners(Content const& content)
 {
     return {content.channel_address};
 }
+vector<string> action_participants(Content const& content)
+{
+    vector<string> result = content.content_unit_uris;
+    result.push_back(content.channel_address);
+
+    return result;
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      Content const& content,

@@ -15,6 +15,10 @@ vector<string> action_owners(StorageUpdate const& storage_update)
 {
     return {storage_update.storage_address};
 }
+vector<string> action_participants(StorageUpdate const& storage_update)
+{
+    return {storage_update.storage_address, storage_update.file_uri};
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      StorageUpdate const& storage_update,

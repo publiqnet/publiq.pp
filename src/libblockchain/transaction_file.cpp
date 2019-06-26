@@ -15,6 +15,13 @@ vector<string> action_owners(File const& file)
 {
     return file.author_addresses;
 }
+vector<string> action_participants(File const& file)
+{
+    vector<string> result = file.author_addresses;
+    result.push_back(file.uri);
+
+    return result;
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      File const& file,

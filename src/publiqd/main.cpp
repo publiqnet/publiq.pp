@@ -46,6 +46,7 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& rpc_bind_to_address,
                           beltpp::ip_address& slave_bind_to_address,
                           beltpp::ip_address& public_address,
+                          beltpp::ip_address& public_ssl_address,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
@@ -160,6 +161,7 @@ int main(int argc, char** argv)
     beltpp::ip_address rpc_bind_to_address;
     beltpp::ip_address slave_bind_to_address;
     beltpp::ip_address public_address;
+    beltpp::ip_address public_ssl_address;
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
     NodeType n_type;
@@ -175,6 +177,7 @@ int main(int argc, char** argv)
                                       rpc_bind_to_address,
                                       slave_bind_to_address,
                                       public_address,
+                                      public_ssl_address,
                                       data_directory,
                                       pv_key,
                                       n_type,
@@ -249,6 +252,7 @@ int main(int argc, char** argv)
         
         publiqpp::node node(genesis_signed_block(testnet),
                             public_address,
+                            public_ssl_address,
                             rpc_bind_to_address,
                             p2p_bind_to_address,
                             p2p_connect_to_addresses,
@@ -380,6 +384,7 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& rpc_bind_to_address,
                           beltpp::ip_address& slave_bind_to_address,
                           beltpp::ip_address& public_address,
+                          beltpp::ip_address& public_ssl_address,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
@@ -391,6 +396,7 @@ bool process_command_line(int argc, char** argv,
     string rpc_local_interface;
     string slave_local_interface;
     string str_public_address;
+    string str_public_ssl_address;
     string str_pv_key;
     string str_n_type;
     size_t seconds_sync_delay = 0;
@@ -411,6 +417,8 @@ bool process_command_line(int argc, char** argv,
                             "(rpc) The local network interface and port the slave will bind to")
             ("public_address,a", program_options::value<string>(&str_public_address),
                             "(rpc) The public IP address that will be broadcasted")
+             ("public_ssl_address,A", program_options::value<string>(&str_public_ssl_address),
+                             "(rpc) The public SSL IP address that will be broadcasted")
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
             ("node_private_key,k", program_options::value<string>(&str_pv_key),
@@ -443,6 +451,8 @@ bool process_command_line(int argc, char** argv,
             slave_bind_to_address.from_string(slave_local_interface);
         if (false == str_public_address.empty())
             public_address.from_string(str_public_address);
+        if (false == str_public_ssl_address.empty())
+            public_ssl_address.from_string(str_public_ssl_address);
 
         for (auto const& item : hosts)
         {

@@ -211,6 +211,76 @@ vector<string> action_owners(SignedTransaction const& signed_transaction)
     return result;
 }
 
+vector<string> action_participants(SignedTransaction const& signed_transaction)
+{
+    vector<string> result;
+    auto const& package = signed_transaction.transaction_details.action;
+
+    switch (package.type())
+    {
+    case Transfer::rtt:
+    {
+        Transfer const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case File::rtt:
+    {
+        File const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case ContentUnit::rtt:
+    {
+        ContentUnit const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case Content::rtt:
+    {
+        Content const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case Role::rtt:
+    {
+        Role const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case StorageUpdate::rtt:
+    {
+        StorageUpdate const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case ServiceStatistics::rtt:
+    {
+        ServiceStatistics const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case SponsorContentUnit::rtt:
+    {
+        SponsorContentUnit const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    default:
+        throw wrong_data_exception("unknown transaction action type!");
+    }
+
+    return result;
+}
+
 void action_validate(publiqpp::detail::node_internals& impl,
                      SignedTransaction const& signed_transaction,
                      bool check_complete)

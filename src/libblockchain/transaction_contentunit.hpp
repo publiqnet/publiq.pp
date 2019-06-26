@@ -12,6 +12,7 @@
 namespace publiqpp
 {
 std::vector<std::string> action_owners(BlockchainMessage::ContentUnit const& content_unit);
+std::vector<std::string> action_participants(BlockchainMessage::ContentUnit const& content_unit);
 
 void action_validate(BlockchainMessage::SignedTransaction const& signed_transaction,
                      BlockchainMessage::ContentUnit const& content_unit,

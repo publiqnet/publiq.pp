@@ -30,7 +30,7 @@ void revert_transaction(BlockchainMessage::SignedTransaction const& signed_trans
                         publiqpp::detail::node_internals& impl,
                         std::string const& key = std::string());
 
-std::multimap<BlockchainMessage::ctime, BlockchainMessage::SignedTransaction>
+std::vector<BlockchainMessage::SignedTransaction>
 revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl);
 
 //  this has opposite bool logic - true means error :)

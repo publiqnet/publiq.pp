@@ -15,6 +15,10 @@ vector<string> action_owners(Transfer const& transfer)
 {
     return {transfer.from};
 }
+vector<string> action_participants(Transfer const& transfer)
+{
+    return {transfer.from, transfer.to};
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      Transfer const& transfer,

@@ -15,6 +15,10 @@ vector<string> action_owners(Role const& role)
 {
     return {role.node_address};
 }
+vector<string> action_participants(Role const& role)
+{
+    return {role.node_address};
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      Role const& role,

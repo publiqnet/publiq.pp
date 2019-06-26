@@ -44,6 +44,7 @@ public:
     nodeid_address_unit& operator = (nodeid_address_unit&&);
 
     nodeid_address_header header;
+    beltpp::ip_address ssl_address;
     std::unique_ptr<session_action_broadcast_address_info> ptr_action;
     verified_type verified = verified_type::never;
 };
@@ -117,12 +118,14 @@ nodeid_service::~nodeid_service() = default;
 
 void nodeid_service::add(std::string const& node_address,
                          beltpp::ip_address const& address,
+                         beltpp::ip_address const& ssl_address,
                          std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)
 {
     nodeid_address_unit nodeid_item;
     nodeid_item.header.address = address;
     nodeid_item.header.node_address = node_address;
     nodeid_item.verified = nodeid_address_unit::verified_type::never;
+    nodeid_item.ssl_address = ssl_address;
 
     auto it_find = m_pimpl->nodeids.find(nodeid_item.header.node_address);
     if (it_find != m_pimpl->nodeids.end() &&
@@ -146,9 +149,10 @@ void nodeid_service::add(std::string const& node_address,
     {
         bool modified;
         B_UNUSED(modified);
-        modified = m_pimpl->nodeids.modify(it_nodeid, [&ptr_action](nodeid_address_unit& item)
+        modified = m_pimpl->nodeids.modify(it_nodeid, [&ptr_action, &ssl_address](nodeid_address_unit& item)
         {
             item.ptr_action = std::move(ptr_action);
+            item.ssl_address = ssl_address;
         });
         assert(modified);
     }
@@ -296,7 +300,7 @@ void nodeid_service::erase_failed(std::string const& node_address,
 }
 
 void nodeid_service::take_actions(std::function<void (std::string const& node_address,
-                                                      beltpp::ip_address const& address,
+                                                      beltpp::ip_address const& /*address*/,    // appears this was unused
                                                       std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)> const& callback)
 {
     std::unordered_set<string> prev_node_addresses;
@@ -343,6 +347,8 @@ BlockchainMessage::PublicAddressesInfo nodeid_service::get_addresses() const
         BlockchainMessage::PublicAddressInfo address_info;
         beltpp::assign(address_info.ip_address, it->header.address);
         address_info.node_address = it->header.node_address;
+
+        beltpp::assign(address_info.ssl_ip_address, it->ssl_address);
 
         if (it->verified == nodeid_address_unit::verified_type::current)
         {

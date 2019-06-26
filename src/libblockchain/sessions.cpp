@@ -796,7 +796,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    multimap<BlockchainMessage::ctime, SignedTransaction> pool_transactions =
+    vector<SignedTransaction> pool_transactions =
             revert_pool(system_clock::to_time_t(now), *pimpl);
 
     //  revert blocks
@@ -888,8 +888,9 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     size_t chain_reverted_count = reverted_transactions.size();
     if (false == clear_pool)
     {
-        for(auto&& item : pool_transactions)
-            reverted_transactions.push_back(std::move(item.second));
+        reverted_transactions.insert(reverted_transactions.end(),
+                                     pool_transactions.begin(),
+                                     pool_transactions.end());
     }
 
     // apply back the rest of the transaction pool

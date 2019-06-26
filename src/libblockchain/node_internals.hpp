@@ -343,7 +343,8 @@ class node_internals
 {
 public:
     node_internals(string const& genesis_signed_block,
-                   ip_address const & public_address,
+                   ip_address const& public_address,
+                   ip_address const& public_ssl_address,
                    ip_address const& rpc_bind_to_address,
                    ip_address const& p2p_bind_to_address,
                    std::vector<ip_address> const& p2p_connect_to_addresses,
@@ -383,6 +384,7 @@ public:
         , m_summary_report_timer()
         , m_sync_delay()
         , m_public_address(public_address)
+        , m_public_ssl_address(public_ssl_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_blockchain(fs_blockchain)
         , m_action_log(fs_action_log, log_enabled)
@@ -569,6 +571,7 @@ public:
     beltpp::timer m_sync_delay;
 
     beltpp::ip_address m_public_address;
+    beltpp::ip_address m_public_ssl_address;
     beltpp::ip_address m_rpc_bind_to_address;
 
     publiqpp::blockchain m_blockchain;

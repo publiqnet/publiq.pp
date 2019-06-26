@@ -15,6 +15,10 @@ vector<string> action_owners(SponsorContentUnit const& sponsor_content_unit)
 {
     return {sponsor_content_unit.sponsor_address};
 }
+vector<string> action_participants(SponsorContentUnit const& sponsor_content_unit)
+{
+    return {sponsor_content_unit.uri, sponsor_content_unit.sponsor_address};
+}
 
 void action_validate(SignedTransaction const& signed_transaction,
                      SponsorContentUnit const& sponsor_content_unit,

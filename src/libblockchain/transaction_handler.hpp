@@ -22,6 +22,7 @@ bool action_process_on_chain(BlockchainMessage::SignedTransaction const& signed_
                              publiqpp::detail::node_internals& impl);
 
 std::vector<std::string> action_owners(BlockchainMessage::SignedTransaction const& signed_transaction);
+std::vector<std::string> action_participants(BlockchainMessage::SignedTransaction const& signed_transaction);
 
 void action_validate(publiqpp::detail::node_internals& impl,
                      BlockchainMessage::SignedTransaction const& signed_transaction,
