@@ -621,7 +621,6 @@ void mine_block(publiqpp::detail::node_internals& impl)
             vector<SignedTransaction>& transactions = map_incomplete_transactions[incomplete_key];
 
             transactions.emplace_back(std::move(signed_transaction));
-
             return true;
         }
         return false;
@@ -759,7 +758,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
     for (size_t index = 0; index != reverted_transactions_ex.size(); ++index)
     {
         auto& signed_transaction = reverted_transactions_ex[index].stx;
-        if (index < size_t(10))
+        if (index < size_t(BLOCK_MAX_TRANSACTIONS))
             block_transactions.push_back(std::move(signed_transaction));
         else
             pool_transactions.push_back(std::move(signed_transaction));
@@ -774,11 +773,11 @@ void mine_block(publiqpp::detail::node_internals& impl)
     // check and copy transactions to block
     for (auto& signed_transaction : block_transactions)
     {
-        beltpp::on_failure guard([]{});
+        beltpp::on_failure guard1([]{});
         bool chain_added = impl.m_transaction_cache.add_chain(signed_transaction);
         if (chain_added)
         {
-            guard = beltpp::on_failure([&impl, &signed_transaction]
+            guard1 = beltpp::on_failure([&impl, &signed_transaction]
             {
                 impl.m_transaction_cache.erase_chain(signed_transaction);
             });
@@ -788,7 +787,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
             apply_transaction(signed_transaction, impl, own_key))
         {
             block.signed_transactions.push_back(std::move(signed_transaction));
-            guard.dismiss();
+            guard1.dismiss();
         }
         else
         {
