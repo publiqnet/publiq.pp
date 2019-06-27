@@ -136,9 +136,7 @@ bool storage_node::run()
                             msg.file_uri = file_info.uri;
                             msg.peer_address = file_info.channel_address;
                             m_pimpl->m_messages.push_back(std::make_pair(beltpp::packet(), packet(std::move(msg))));
-
-                            //  may also wake, but seems not necessary
-                            //  m_pimpl->m_master_node->wake();
+                            m_pimpl->m_master_node->wake();
                         }
                     }
                     else
