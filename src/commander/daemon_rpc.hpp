@@ -20,9 +20,6 @@ class daemon_rpc
 public:
     using TransactionLogLoader = meshpp::vector_loader<BlockchainMessage::TransactionLog>;
     using RewardLogLoader = meshpp::vector_loader<BlockchainMessage::RewardLog>;
-    using StorageUpdateLogLoader = meshpp::vector_loader<BlockchainMessage::StorageUpdate>;
-    using ContentUnitLogLoader = meshpp::vector_loader<BlockchainMessage::ContentUnit>;
-    using ContentLogLoader = meshpp::vector_loader<BlockchainMessage::Content>;
     using LogIndexLoader = meshpp::map_loader<CommanderMessage::NumberPair>;
     daemon_rpc();
 
@@ -40,21 +37,9 @@ public:
     static
     RewardLogLoader get_reward_log(std::string const& address);
     static
-    StorageUpdateLogLoader get_storage_update_log(std::string const& address);
-    static
-    ContentUnitLogLoader get_content_unit_log();
-    static
-    ContentLogLoader get_content_log();
-    static
     LogIndexLoader get_transaction_log_index(std::string const& address);
     static
     LogIndexLoader get_reward_log_index(std::string const& address);
-    static
-    LogIndexLoader get_storage_update_log_index(std::string const& address);
-    static
-    LogIndexLoader get_content_unit_log_index();
-    static
-    LogIndexLoader get_content_log_index();
 
     beltpp::event_handler eh;
     beltpp::socket socket;

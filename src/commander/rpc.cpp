@@ -46,6 +46,7 @@ rpc::rpc(beltpp::ip_address const& rpc_address,
     , accounts("accounts", meshpp::data_directory_path("accounts"), 100, get_putl())
     , blocks("block", meshpp::data_directory_path("blocks"), 1000, 1, get_putl())
     , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
+    , channels("channels", meshpp::data_directory_path("channels"), 100, get_putl())
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(10));
@@ -597,7 +598,6 @@ void rpc::run()
             }
             case StoragesRequest::rtt:
             {
-
                 StoragesResponse response;
                 for (auto const& storage : storages.keys())
                          response.storages.push_back(storages.as_const().at(storage));

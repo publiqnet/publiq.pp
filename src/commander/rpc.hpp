@@ -20,6 +20,8 @@ public:
     meshpp::map_loader<CommanderMessage::Account> accounts;
     meshpp::vector_loader<CommanderMessage::BlockInfo> blocks;
     meshpp::map_loader<CommanderMessage::StoragesResponseItem> storages;
+    meshpp::map_loader<CommanderMessage::Channel> channels;
+
     beltpp::ip_address const& connect_to_address;
 };
 
