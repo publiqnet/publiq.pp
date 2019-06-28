@@ -48,5 +48,5 @@ Then build the PUBLIQ.
 
 Done, now there is ~/publiq/install/bin/publiq.pp/publiqd executable ready to use
 
-Note that with some really old linux kernels the *publiqd* executable will crash with Segmentation Fault. Most probably with 4.x and 5.x versions there will be no problems.
+Make sure before running publiqd executable  you have a ~/.config directory.
 
