@@ -26,6 +26,8 @@ public:
     void open(beltpp::ip_address const& connect_to_address);
     void close();
 
+    beltpp::packet process_storage_update_request(CommanderMessage::StorageUpdateRequest const& update,
+                                                  rpc& rpc_server);
     beltpp::packet send(CommanderMessage::Send const& send,
                         rpc& rpc_server);
     void sync(rpc& rpc_server,

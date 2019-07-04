@@ -296,6 +296,36 @@ beltpp::detail::pmsg_all message_list_load(
                                               &CommanderMessage::StoragesRequest::pvoid_saver);
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 2 &&
+                 pss->resource.path.front() == "file")
+        {
+            const std::set<string> all_arguments = {"private_key", "status", "file_uri", "storage_address", "fee_whole", "fee_fraction", "message", "seconds"};
+            const std::set<string> ui64_arguments = {"fee_whole", "fee_fraction", "seconds"};
+
+            string check_result = check_arguments(pss->resource.arguments, all_arguments, ui64_arguments);
+            if (!check_result.empty())
+                return request_failed(check_result, ssd);
+
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::StorageUpdateRequest>();
+            CommanderMessage::StorageUpdateRequest& ref = *reinterpret_cast<CommanderMessage::StorageUpdateRequest*>(p.get());
+
+            size_t pos;
+
+            ref.private_key = pss->resource.path.back();
+            ref.status = pss->resource.arguments["status"];
+            ref.file_uri = pss->resource.arguments["file_uri"];
+            ref.storage_address = pss->resource.arguments["storage_address"];
+            ref.fee.whole = beltpp::stoui64(pss->resource.arguments["fee_whole"], pos);
+            ref.fee.fraction = beltpp::stoui64(pss->resource.arguments["fee_fraction"], pos);
+            ref.message = pss->resource.arguments["message"];
+            ref.seconds_to_expire = beltpp::stoui64(pss->resource.arguments["seconds"], pos);
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(CommanderMessage::StorageUpdateRequest::rtt,
+                                              std::move(p),
+                                              &CommanderMessage::StorageUpdateRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "protocol")
         {

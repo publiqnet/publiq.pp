@@ -216,5 +216,16 @@ module CommanderMessage
         Checked checked
     }
 
+    class StorageUpdateRequest
+    {
+        String private_key
+        String status
+        String file_uri
+        String storage_address
+        Coin fee
+        String message
+        UInt64 seconds_to_expire
+    }
+
 }
 ////1

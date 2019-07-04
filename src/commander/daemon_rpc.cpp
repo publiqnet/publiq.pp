@@ -604,6 +604,99 @@ void complete_storage(rpc& rpc_server)
 
 }
 
+beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::StorageUpdateRequest const& update,
+                                rpc& rpc_server)
+{
+    B_UNUSED(rpc_server);
+
+    if (peerid.empty())
+        throw std::runtime_error("no daemon_rpc connection to work");
+
+    beltpp::packet result;
+    string transaction_hash;
+
+    BlockchainMessage::StorageUpdate su;
+    BlockchainMessage::from_string(update.status, su.status);
+    su.file_uri = update.file_uri;
+    su.storage_address = update.storage_address;
+
+    BlockchainMessage::Transaction tx;
+    tx.action = std::move(su);
+    tx.fee = update.fee;
+    tx.creation.tm = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    tx.expiry.tm =  chrono::system_clock::to_time_t(chrono::system_clock::now() + chrono::seconds(update.seconds_to_expire));
+
+    transaction_hash = meshpp::hash(tx.to_string());
+
+    BlockchainMessage::TransactionBroadcastRequest bc;
+    bc.private_key = update.private_key;
+    bc.transaction_details = tx;
+
+    socket.send(peerid, beltpp::packet(std::move(bc)));
+
+    bool keep_trying = true;
+    while (keep_trying)
+    {
+        unordered_set<beltpp::ievent_item const*> wait_sockets;
+        auto wait_result = eh.wait(wait_sockets);
+        B_UNUSED(wait_sockets);
+
+        if (wait_result & beltpp::event_handler::event)
+        {
+            peer_id _peerid;
+
+            auto received_packets = socket.receive(_peerid);
+
+            for (auto& received_packet : received_packets)
+            {
+                packet& ref_packet = received_packet;
+
+                switch (ref_packet.type())
+                {
+                case BlockchainMessage::TransactionDone::rtt:
+                {
+                    BlockchainMessage::TransactionDone done;
+                    std::move(ref_packet).get(done);
+                    result = std::move(done);
+                    peerid = _peerid;
+                    keep_trying = false;
+                    break;
+                }
+                case BlockchainMessage::Done::rtt:
+                {
+                    CommanderMessage::StringValue response;
+                    response.value = transaction_hash;
+                    result = std::move(response);
+                    peerid = _peerid;
+                    keep_trying = false;
+                    break;
+                }
+                case beltpp::isocket_drop::rtt:
+                {
+                    CommanderMessage::Failed response;
+                    response.message = "server disconnected";
+                    response.reason = std::move(ref_packet);
+                    result = std::move(response);
+                    keep_trying = false;
+                    break;
+                }
+                default:
+                {
+                    CommanderMessage::Failed response;
+                    response.message = "error";
+                    response.reason = std::move(ref_packet);
+                    result = std::move(response);
+                    keep_trying = false;
+                }
+                if (false == keep_trying)
+                    break;
+                }
+            }
+        }
+    }
+    return result;
+}
+
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
                                 rpc& rpc_server)
 {

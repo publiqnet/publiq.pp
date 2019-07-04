@@ -427,6 +427,17 @@ beltpp::packet send(Send const& send,
     return dm.send(send, rpc_server);
 }
 
+beltpp::packet process_storage_update_request(StorageUpdateRequest const& update,
+            rpc& rpc_server,
+            beltpp::ip_address const& connect_to_address)
+{
+    daemon_rpc dm;
+    dm.open(connect_to_address);
+    beltpp::finally finally_close([&dm]{ dm.close(); });
+
+    return dm.process_storage_update_request(update, rpc_server);
+}
+
 void rpc::run()
 {
     unordered_set<beltpp::ievent_item const*> wait_sockets;
@@ -603,6 +614,15 @@ void rpc::run()
                          response.storages.push_back(storages.as_const().at(storage));
 
                 rpc_socket.send(peerid, beltpp::packet(response));
+                break;
+            }
+            case StorageUpdateRequest::rtt:
+            {
+                StorageUpdateRequest msg;
+                std::move(ref_packet).get(msg);
+
+                rpc_socket.send(peerid, process_storage_update_request(msg, *this, connect_to_address));
+
                 break;
             }
             case Failed::rtt:
