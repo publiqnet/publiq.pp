@@ -523,15 +523,6 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
 
 void mine_block(publiqpp::detail::node_internals& impl)
 {
-    //  TODO:
-    //  take care to include only those service statistics transactions
-    //  that corresponds to the current block only, otherwise other nodes
-    //  will not accept this block
-
-    //  change the logic to check for highest fee transactions
-    //  give high fee transactions preference, but also be careful
-    //  to be able to detect necessary transactions, as good as possible
-
     auto now = system_clock::now();
 
     impl.m_transaction_cache.backup();
@@ -758,7 +749,22 @@ void mine_block(publiqpp::detail::node_internals& impl)
     for (size_t index = 0; index != reverted_transactions_ex.size(); ++index)
     {
         auto& signed_transaction = reverted_transactions_ex[index].stx;
-        if (index < size_t(BLOCK_MAX_TRANSACTIONS))
+        bool can_put_in_block = true;
+        if (signed_transaction.transaction_details.action.type() ==
+            ServiceStatistics::rtt)
+        {
+            ServiceStatistics* paction;
+            signed_transaction.transaction_details.action.get(paction);
+
+            auto tp_end = system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
+            auto tp_start = tp_end - chrono::seconds(BLOCK_MINE_DELAY);
+
+            if (paction->start_time_point.tm != system_clock::to_time_t(tp_start) ||
+                paction->end_time_point.tm != system_clock::to_time_t(tp_end))
+                can_put_in_block = false;
+        }
+        if (index < size_t(BLOCK_MAX_TRANSACTIONS) &&
+            can_put_in_block)
             block_transactions.push_back(std::move(signed_transaction));
         else
             pool_transactions.push_back(std::move(signed_transaction));
@@ -817,10 +823,10 @@ void mine_block(publiqpp::detail::node_internals& impl)
     SignedBlock signed_block;
     signed_block.authorization.address = sgn.pb_key.to_string();
     signed_block.authorization.signature = sgn.base58;
-    signed_block.block_details = block;
+    signed_block.block_details = std::move(block);
 
-    // apply rewards to state and action_log
-    for (auto& reward : block.rewards)
+    // apply rewards to state
+    for (auto& reward : signed_block.block_details.rewards)
         impl.m_state.increase_balance(reward.to, reward.amount, state_layer::chain);
 
     // insert to blockchain and action_log

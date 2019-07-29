@@ -73,7 +73,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 
         if (service_statistics.start_time_point.tm != system_clock::to_time_t(tp_start) ||
             service_statistics.end_time_point.tm != system_clock::to_time_t(tp_end))
-            throw wrong_data_exception("service statistics time range is incorrect");
+            return false;
     }
 
     for (auto const& item : service_statistics.file_items)
