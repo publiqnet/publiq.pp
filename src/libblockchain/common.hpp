@@ -31,8 +31,8 @@
 
 // Timers in seconds
 #define CHECK_TIMER 1
-#define SYNC_TIMER  15
-#define EVENT_TIMER 12
+#define SYNC_TIMER  30
+#define EVENT_TIMER 20
 #define BROADCAST_TIMER 1800
 #define CACHE_CLEANUP_TIMER 300
 #define SUMMARY_REPORT_TIMER 1800
