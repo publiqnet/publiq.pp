@@ -7,8 +7,8 @@
 #include <mesh.pp/fileutility.hpp>
 
 #include <chrono>
-#include <utility>
 #include <algorithm>
+#include <utility>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -16,6 +16,8 @@ namespace filesystem = boost::filesystem;
 using std::string;
 using std::vector;
 using std::pair;
+using std::set;
+using std::map;
 namespace chrono = std::chrono;
 using chrono::system_clock;
 using time_point = system_clock::time_point;
@@ -271,6 +273,8 @@ void documents::sponsor_content_unit_apply(BlockchainMessage::SponsorContentUnit
     si.start_time_point.tm = system_clock::to_time_t(start_tp);
     si.end_time_point.tm = system_clock::to_time_t(end_tp);
 
+    si.sponsor_address = spi.sponsor_address;
+
     if (m_pimpl->m_content_unit_sponsored_information.contains(spi.uri))
     {
         StorageTypes::ContentUnitSponsoredInformation& cusi =
@@ -337,10 +341,11 @@ void documents::sponsor_content_unit_revert(BlockchainMessage::SponsorContentUni
         refresh_index(cusi);
 }
 
-coin documents::sponsored_content_unit_set_used_apply(string const& content_unit_uri,
-                                                      time_point const& tp)
+map<string, coin> documents::sponsored_content_unit_set_used(string const& content_unit_uri,
+                                                             time_point const& tp,
+                                                             documents::e_sponsored_content_unit_set_used type)
 {
-    coin result;
+    map<string, coin> result;
 
     if (m_pimpl->m_content_unit_sponsored_information.contains(content_unit_uri))
     {
@@ -359,8 +364,18 @@ coin documents::sponsored_content_unit_set_used_apply(string const& content_unit
         end_tp = chrono::time_point_cast<chrono::minutes>(end_tp);
         auto start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
 
-        if (end_tp > start_tp)
+        if ((sponsored_content_unit_set_used_apply == type && end_tp > start_tp) ||
+            (sponsored_content_unit_set_used_revert == type && end_tp == start_tp))
         {
+            if (sponsored_content_unit_set_used_revert == type)
+            {
+                cusi.time_points_used.resize(cusi.time_points_used.size());
+                assert(false == cusi.time_points_used.empty());
+                if (cusi.time_points_used.empty())
+                    throw std::logic_error("cusi.time_points_used.empty()");
+                start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
+            }
+
             for (auto const& index_si_item : cusi.index_si)
             {
                 auto const& item = cusi.sponsored_informations[index_si_item];
@@ -388,86 +403,60 @@ coin documents::sponsored_content_unit_set_used_apply(string const& content_unit
                 if (part_end_tp == item_end_tp)
                     part += whole % uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count());
 
-                result += part;
+                coin& temp_result = result[item.sponsor_address];
+                temp_result += part;
             };
         }
 
-        StorageTypes::ctime ct;
-        ct.tm = system_clock::to_time_t(end_tp);
-        cusi.time_points_used.push_back(ct);
+        if (sponsored_content_unit_set_used_apply == type)
+        {
+            StorageTypes::ctime ct;
+            ct.tm = system_clock::to_time_t(end_tp);
+            cusi.time_points_used.push_back(ct);
+        }
+        else
+        {
+            //  the index will be sorted below inside refresh index
+            cusi.index_si.clear();
+            for (size_t index = 0; index < cusi.sponsored_informations.size(); ++index)
+                cusi.index_si.push_back(index);
+        }
 
         refresh_index(cusi);
     }
 
     return result;
 }
-coin documents::sponsored_content_unit_set_used_revert(string const& content_unit_uri,
-                                                       time_point const& tp)
+
+set<std::string> documents::content_unit_uri_sponsor_expiring(time_point const& tp) const
 {
-    coin result;
+    set<std::string> result;
 
-    if (m_pimpl->m_content_unit_sponsored_information.contains(content_unit_uri))
+    auto end_tp = tp;
+    end_tp = chrono::time_point_cast<chrono::minutes>(end_tp);
+    auto start_tp = end_tp - std::chrono::seconds(BLOCK_MINE_DELAY);
+
+    auto content_unit_uris = m_pimpl->m_content_unit_sponsored_information.keys();
+    //  scanning over all sponsored infos is not the best idea.
+    //  will have to have an optimal index for this
+    for (auto const& content_unit : content_unit_uris)
     {
-        StorageTypes::ContentUnitSponsoredInformation& cusi =
-                m_pimpl->m_content_unit_sponsored_information.at(content_unit_uri);
+        StorageTypes::ContentUnitSponsoredInformation const& cusi =
+                m_pimpl->m_content_unit_sponsored_information.as_const().at(content_unit);
 
-        assert(false == cusi.sponsored_informations.empty());
-        assert(false == cusi.time_points_used.empty());
-
-        if (cusi.sponsored_informations.empty())
-            throw std::logic_error("cusi.sponsored_informations.empty()");
-        if (cusi.time_points_used.empty())
-            throw std::logic_error("cusi.time_points_used.empty()");
-
-        auto end_tp = tp;
-        end_tp = chrono::time_point_cast<chrono::minutes>(end_tp);
-        auto start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
-
-        if (end_tp == start_tp)
+        set<string> sponsor_addresses;
+        for (auto const& item : cusi.sponsored_informations)
         {
-            cusi.time_points_used.resize(cusi.time_points_used.size());
-            assert(false == cusi.time_points_used.empty());
-            if (cusi.time_points_used.empty())
-                throw std::logic_error("cusi.time_points_used.empty()");
-            start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
+            //auto item_start_tp = system_clock::from_time_t(item.start_time_point.tm);
+            auto item_end_tp = system_clock::from_time_t(item.end_time_point.tm);
 
-            for (auto const& index_si_item : cusi.index_si)
+            if (item_end_tp <= end_tp &&
+                item_end_tp > start_tp)
             {
-                auto const& item = cusi.sponsored_informations[index_si_item];
-
-                auto item_start_tp = system_clock::from_time_t(item.start_time_point.tm);
-                auto item_end_tp = system_clock::from_time_t(item.end_time_point.tm);
-
-                if (item_start_tp >= end_tp)
-                    break;
-
-                coin whole = item.amount;
-                auto whole_duration = item_end_tp - item_start_tp;
-
-                auto part_start_tp = std::max(start_tp, item_start_tp);
-                auto part_end_tp = std::min(end_tp, item_end_tp);
-
-                if (item.time_points_used_before == cusi.time_points_used.size())
-                    part_start_tp = item_start_tp;
-
-                auto part_duration = part_end_tp - part_start_tp;
-
-                coin part = whole / uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count())
-                                  * uint64_t(chrono::duration_cast<chrono::minutes>(part_duration).count());
-
-                if (part_end_tp == item_end_tp)
-                    part += whole % uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count());
-
-                result += part;
-            };
+                result.insert(cusi.uri);
+                break;
+            }
         }
-
-        //  the index will be sorted below inside refresh index
-        cusi.index_si.clear();
-        for (size_t index = 0; index < cusi.sponsored_informations.size(); ++index)
-            cusi.index_si.push_back(index);
-
-        refresh_index(cusi);
     }
 
     return result;

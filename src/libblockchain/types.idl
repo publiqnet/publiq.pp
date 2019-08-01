@@ -19,6 +19,7 @@ module StorageTypes
         TimePoint end_time_point
         Coin amount
         UInt64 time_points_used_before
+        String sponsor_address
     }
 
     class Coin

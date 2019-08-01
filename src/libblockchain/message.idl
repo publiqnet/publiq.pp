@@ -78,6 +78,7 @@ module BlockchainMessage
         author
         channel
         storage
+        sponsored_return
     }
 
     ///

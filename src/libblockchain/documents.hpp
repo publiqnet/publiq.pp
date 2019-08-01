@@ -8,6 +8,8 @@
 #include <vector>
 #include <string>
 #include <chrono>
+#include <map>
+#include <set>
 
 namespace publiqpp
 {
@@ -44,10 +46,19 @@ public:
     void sponsor_content_unit_apply(BlockchainMessage::SponsorContentUnit const& spi);
     void sponsor_content_unit_revert(BlockchainMessage::SponsorContentUnit const& spi);
 
-    coin sponsored_content_unit_set_used_apply(std::string const& content_unit_uri,
-                                               std::chrono::system_clock::time_point const& tp);
-    coin sponsored_content_unit_set_used_revert(std::string const& content_unit_uri,
-                                                std::chrono::system_clock::time_point const& tp);
+    enum e_sponsored_content_unit_set_used
+    {
+        sponsored_content_unit_set_used_apply,
+        sponsored_content_unit_set_used_revert
+    };
+
+    std::map<std::string, coin>
+    sponsored_content_unit_set_used(std::string const& content_unit_uri,
+                                    std::chrono::system_clock::time_point const& tp,
+                                    e_sponsored_content_unit_set_used type);
+
+    std::set<std::string>
+    content_unit_uri_sponsor_expiring(std::chrono::system_clock::time_point const& tp) const;
 
 private:
     std::unique_ptr<detail::documents_internals> m_pimpl;

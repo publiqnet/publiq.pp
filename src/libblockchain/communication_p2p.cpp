@@ -315,17 +315,37 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     for (auto const& unit_uri : set_unit_uris)
     {
-        if (rewards_type::apply == type)
+        map<string, coin> sponsored_rewards =
+        impl.m_documents.sponsored_content_unit_set_used(unit_uri,
+                                                         system_clock::from_time_t(block_header.time_signed.tm),
+                                                         rewards_type::apply == type ?
+                                                             documents::sponsored_content_unit_set_used_apply :
+                                                             documents::sponsored_content_unit_set_used_revert);
+        for (auto const& item : sponsored_rewards)
+            sponsored_reward += item.second;
+    }
+
+    map<string, coin> sponsored_rewards;
+    auto expirings = impl.m_documents.content_unit_uri_sponsor_expiring(system_clock::from_time_t(block_header.time_signed.tm));
+    for (auto const& expiring_item : expirings)
+    {
+        if (0 == set_unit_uris.count(expiring_item))
         {
-            sponsored_reward +=
-            impl.m_documents.sponsored_content_unit_set_used_apply(unit_uri,
-                                                                   system_clock::from_time_t(block_header.time_signed.tm));
-        }
-        else
-        {
-            sponsored_reward +=
-            impl.m_documents.sponsored_content_unit_set_used_revert(unit_uri,
-                                                                    system_clock::from_time_t(block_header.time_signed.tm));
+            map<string, coin> temp_sponsored_rewards =
+                                impl.m_documents.sponsored_content_unit_set_used(expiring_item,
+                                                                                 system_clock::from_time_t(block_header.time_signed.tm),
+                                                                                 rewards_type::apply == type ?
+                                                                                     documents::sponsored_content_unit_set_used_apply :
+                                                                                     documents::sponsored_content_unit_set_used_revert);
+
+            for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
+            {
+                if (temp_sponsored_reward.second == coin())
+                    continue;
+
+                auto& sponsored_reward = sponsored_rewards[temp_sponsored_reward.first];
+                sponsored_reward += temp_sponsored_reward.second;
+            }
         }
     }
 
@@ -347,6 +367,18 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     miner_emission_reward += distribute_rewards(rewards, author_result, author_emission_reward + author_sponsored_reward, RewardType::author);
     miner_emission_reward += distribute_rewards(rewards, channel_result, channel_emission_reward + channel_sponsored_reward, RewardType::channel);
     miner_emission_reward += distribute_rewards(rewards, storage_result, storage_emission_reward + storage_sponsored_reward, RewardType::storage);
+
+    // if sponsored items expired without service
+    // reward the coins back to sponsor
+    for (auto const& sponsored_reward : sponsored_rewards)
+    {
+        Reward reward;
+        reward.to = sponsored_reward.first;
+        sponsored_reward.second.to_Coin(reward.amount);
+        reward.reward_type = RewardType::sponsored_return;
+
+        rewards.push_back(reward);
+    }
 
     // grant miner reward himself
     if (!miner_emission_reward.empty())
