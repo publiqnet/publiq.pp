@@ -343,8 +343,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                 if (temp_sponsored_reward.second == coin())
                     continue;
 
-                auto& sponsored_reward = sponsored_rewards[temp_sponsored_reward.first];
-                sponsored_reward += temp_sponsored_reward.second;
+                auto& sponsored_reward_ref = sponsored_rewards[temp_sponsored_reward.first];
+                sponsored_reward_ref += temp_sponsored_reward.second;
             }
         }
     }
@@ -370,11 +370,11 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     // if sponsored items expired without service
     // reward the coins back to sponsor
-    for (auto const& sponsored_reward : sponsored_rewards)
+    for (auto const& sponsored_reward_ref : sponsored_rewards)
     {
         Reward reward;
-        reward.to = sponsored_reward.first;
-        sponsored_reward.second.to_Coin(reward.amount);
+        reward.to = sponsored_reward_ref.first;
+        sponsored_reward_ref.second.to_Coin(reward.amount);
         reward.reward_type = RewardType::sponsored_return;
 
         rewards.push_back(reward);
