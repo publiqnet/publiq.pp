@@ -369,11 +369,18 @@ map<string, coin> documents::sponsored_content_unit_set_used(string const& conte
         {
             if (sponsored_content_unit_set_used_revert == type)
             {
-                cusi.time_points_used.resize(cusi.time_points_used.size());
+                cusi.time_points_used.resize(cusi.time_points_used.size() - 1);
                 assert(false == cusi.time_points_used.empty());
                 if (cusi.time_points_used.empty())
                     throw std::logic_error("cusi.time_points_used.empty()");
                 start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
+
+                //  the index will be sorted below inside refresh index
+                cusi.index_si.clear();
+                for (size_t index = 0; index < cusi.sponsored_informations.size(); ++index)
+                    cusi.index_si.push_back(index);
+
+                refresh_index(cusi);
             }
 
             for (auto const& index_si_item : cusi.index_si)
@@ -413,16 +420,9 @@ map<string, coin> documents::sponsored_content_unit_set_used(string const& conte
             StorageTypes::ctime ct;
             ct.tm = system_clock::to_time_t(end_tp);
             cusi.time_points_used.push_back(ct);
-        }
-        else
-        {
-            //  the index will be sorted below inside refresh index
-            cusi.index_si.clear();
-            for (size_t index = 0; index < cusi.sponsored_informations.size(); ++index)
-                cusi.index_si.push_back(index);
-        }
 
-        refresh_index(cusi);
+            refresh_index(cusi);
+        }
     }
 
     return result;
