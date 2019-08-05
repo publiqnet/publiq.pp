@@ -662,15 +662,6 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
                     keep_trying = false;
                     break;
                 }
-                case BlockchainMessage::Done::rtt:
-                {
-                    CommanderMessage::StringValue response;
-                    response.value = transaction_hash;
-                    result = std::move(response);
-                    peerid = _peerid;
-                    keep_trying = false;
-                    break;
-                }
                 case beltpp::isocket_drop::rtt:
                 {
                     CommanderMessage::Failed response;
