@@ -472,7 +472,7 @@ uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector
     {
         bool have_enough_steps = true;
 
-        size_t delta_sum = 0;
+        uint64_t delta_sum = 0;
         size_t index2_end = index + DELTA_STEP;
         if (index2_end > delta_vector.size())
         {
