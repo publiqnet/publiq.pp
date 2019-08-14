@@ -13,7 +13,7 @@
 
 namespace publiqpp
 {
-void signed_transaction_validate(SignedTransaction& signed_transaction,
+void signed_transaction_validate(BlockchainMessage::SignedTransaction const& signed_transaction,
                                  std::chrono::system_clock::time_point const& now,
                                  std::chrono::seconds const& time_shift,
                                  publiqpp::detail::node_internals& impl);
@@ -32,14 +32,17 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
                         BlockchainMessage::SignedTransaction const& signed_transaction);
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
+                      BlockchainMessage::SignedTransaction const& signed_transaction,
                       beltpp::packet const& package,
                       state_layer layer);
 
 void action_apply(publiqpp::detail::node_internals& impl,
+                  BlockchainMessage::SignedTransaction const& signed_transaction,
                   beltpp::packet const& package,
                   state_layer layer);
 
 void action_revert(publiqpp::detail::node_internals& impl,
+                   BlockchainMessage::SignedTransaction const& signed_transaction,
                    beltpp::packet const& package,
                    state_layer layer);
 

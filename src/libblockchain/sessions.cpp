@@ -911,6 +911,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             bool ok_logic = true;
             if (complete ||
                 false == action_can_apply(*pimpl,
+                                          signed_transaction,
                                           signed_transaction.transaction_details.action,
                                           state_layer::pool))
             {

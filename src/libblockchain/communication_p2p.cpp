@@ -38,16 +38,23 @@ bool apply_transaction(SignedTransaction const& signed_transaction,
         layer = state_layer::chain;
 
     if (false == action_can_apply(impl,
+                                  signed_transaction,
                                   signed_transaction.transaction_details.action,
                                   layer))
         return false;
 
 
-    action_apply(impl, signed_transaction.transaction_details.action, layer);
+    action_apply(impl,
+                 signed_transaction,
+                 signed_transaction.transaction_details.action,
+                 layer);
 
     if (false == fee_can_apply(impl, signed_transaction))
     {
-        action_revert(impl, signed_transaction.transaction_details.action, layer);
+        action_revert(impl,
+                      signed_transaction,
+                      signed_transaction.transaction_details.action,
+                      layer);
         return false;
     }
 
@@ -66,7 +73,10 @@ void revert_transaction(SignedTransaction const& signed_transaction,
     if (false == key.empty())
         layer = state_layer::chain;
 
-    action_revert(impl, signed_transaction.transaction_details.action, layer);
+    action_revert(impl,
+                  signed_transaction,
+                  signed_transaction.transaction_details.action,
+                  layer);
 }
 
 bool stat_mismatch(uint64_t first, uint64_t second)
@@ -873,6 +883,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
         bool ok_logic = true;
         if (complete ||
             false == action_can_apply(impl,
+                                      signed_transaction,
                                       signed_transaction.transaction_details.action,
                                       state_layer::pool))
         {

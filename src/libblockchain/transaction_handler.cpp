@@ -20,7 +20,7 @@ using std::unordered_set;
 
 namespace publiqpp
 {
-void signed_transaction_validate(SignedTransaction& signed_transaction,
+void signed_transaction_validate(SignedTransaction const& signed_transaction,
                                  std::chrono::system_clock::time_point const& now,
                                  std::chrono::seconds const& time_shift,
                                  publiqpp::detail::node_internals& /*impl*/)
@@ -428,6 +428,7 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
+                      SignedTransaction const& signed_transaction,
                       beltpp::packet const& package,
                       state_layer layer)
 {
@@ -442,56 +443,56 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     {
         Transfer const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case Content::rtt:
     {
         Content const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case Role::rtt:
     {
         Role const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case StorageUpdate::rtt:
     {
         StorageUpdate const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case SponsorContentUnit::rtt:
     {
         SponsorContentUnit const* paction;
         package.get(paction);
-        code = action_can_apply(impl, *paction, layer);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     default:
@@ -502,6 +503,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
+                  SignedTransaction const& signed_transaction,
                   beltpp::packet const& package,
                   state_layer layer)
 {
@@ -515,56 +517,56 @@ void action_apply(publiqpp::detail::node_internals& impl,
     {
         Transfer const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case Content::rtt:
     {
         Content const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case Role::rtt:
     {
         Role const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case StorageUpdate::rtt:
     {
         StorageUpdate const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     case SponsorContentUnit::rtt:
     {
         SponsorContentUnit const* paction;
         package.get(paction);
-        action_apply(impl, *paction, layer);
+        action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
     default:
@@ -573,6 +575,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
+                   SignedTransaction const& signed_transaction,
                    beltpp::packet const& package,
                    state_layer layer)
 {
@@ -586,56 +589,56 @@ void action_revert(publiqpp::detail::node_internals& impl,
     {
         Transfer const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     case File::rtt:
     {
         File const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     case ContentUnit::rtt:
     {
         ContentUnit const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     case Content::rtt:
     {
         Content const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     case Role::rtt:
     {
         Role const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     case StorageUpdate::rtt:
     {
         StorageUpdate const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     case ServiceStatistics::rtt:
     {
         ServiceStatistics const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     case SponsorContentUnit::rtt:
     {
         SponsorContentUnit const* paction;
         package.get(paction);
-        action_revert(impl, *paction, layer);
+        action_revert(impl, signed_transaction, *paction, layer);
         break;
     }
     default:
@@ -727,10 +730,10 @@ bool action_process_on_chain_t(BlockchainMessage::SignedTransaction const& signe
     });
 
     if (complete ||
-        false == action_can_apply(impl, action, state_layer::pool))
+        false == action_can_apply(impl, signed_transaction, action, state_layer::pool))
     {
         //  validate and add to state
-        action_apply(impl, action, state_layer::pool);
+        action_apply(impl, signed_transaction, action, state_layer::pool);
 
         //  only validate the fee, but don't apply it
         fee_validate(impl, signed_transaction);
