@@ -68,7 +68,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  SignedTransaction const&/* signed_transaction*/,
+                  SignedTransaction const& signed_transaction,
                   SponsorContentUnit const& sponsor_content_unit,
                   state_layer layer)
 {
@@ -86,11 +86,13 @@ void action_apply(publiqpp::detail::node_internals& impl,
                                   sponsor_content_unit.amount,
                                   layer);
 
-    impl.m_documents.sponsor_content_unit_apply(sponsor_content_unit);
+    impl.m_documents.sponsor_content_unit_apply(impl,
+                                                sponsor_content_unit,
+                                                meshpp::hash(signed_transaction.to_string()));
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   SignedTransaction const&/* signed_transaction*/,
+                   SignedTransaction const& signed_transaction,
                    SponsorContentUnit const& sponsor_content_unit,
                    state_layer layer)
 {
@@ -98,6 +100,8 @@ void action_revert(publiqpp::detail::node_internals& impl,
                                   sponsor_content_unit.amount,
                                   layer);
 
-    impl.m_documents.sponsor_content_unit_revert(sponsor_content_unit);
+    impl.m_documents.sponsor_content_unit_revert(impl,
+                                                 sponsor_content_unit,
+                                                 meshpp::hash(signed_transaction.to_string()));
 }
 }

@@ -330,23 +330,29 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                          system_clock::from_time_t(block_header.time_signed.tm),
                                                          rewards_type::apply == type ?
                                                              documents::sponsored_content_unit_set_used_apply :
-                                                             documents::sponsored_content_unit_set_used_revert);
+                                                             documents::sponsored_content_unit_set_used_revert,
+                                                         string(),
+                                                         false);
         for (auto const& item : sponsored_rewards)
             sponsored_reward += item.second;
     }
 
     map<string, coin> sponsored_rewards;
-    auto expirings = impl.m_documents.content_unit_uri_sponsor_expiring(system_clock::from_time_t(block_header.time_signed.tm));
+    auto expirings = impl.m_documents.content_unit_uri_sponsor_expiring(block_header.block_number);
     for (auto const& expiring_item : expirings)
     {
-        if (0 == set_unit_uris.count(expiring_item))
+        auto const& expiring_item_uri = expiring_item.first;
+        auto const& expiring_item_transaction_hash = expiring_item.second;
+        if (0 == set_unit_uris.count(expiring_item_uri))
         {
             map<string, coin> temp_sponsored_rewards =
-                                impl.m_documents.sponsored_content_unit_set_used(expiring_item,
+                                impl.m_documents.sponsored_content_unit_set_used(expiring_item_uri,
                                                                                  system_clock::from_time_t(block_header.time_signed.tm),
                                                                                  rewards_type::apply == type ?
                                                                                      documents::sponsored_content_unit_set_used_apply :
-                                                                                     documents::sponsored_content_unit_set_used_revert);
+                                                                                     documents::sponsored_content_unit_set_used_revert,
+                                                                                 expiring_item_transaction_hash,
+                                                                                 false);
 
             for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
             {

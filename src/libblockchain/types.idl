@@ -20,6 +20,20 @@ module StorageTypes
         Coin amount
         UInt64 time_points_used_before
         String sponsor_address
+        String transaction_hash
+        Bool cancelled
+    }
+
+    class SponsoredInformationHeaders
+    {
+        Hash String SponsoredInformationHeader expirations
+    }
+    class SponsoredInformationHeader
+    {
+        String uri
+        String transaction_hash
+        UInt64 block_number
+        Bool manually_cancelled
     }
 
     class Coin
