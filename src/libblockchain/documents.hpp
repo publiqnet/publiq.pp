@@ -7,7 +7,6 @@
 
 #include <vector>
 #include <string>
-#include <chrono>
 #include <map>
 #include <utility>
 
@@ -58,11 +57,13 @@ public:
     };
 
     std::map<std::string, coin>
-    sponsored_content_unit_set_used(std::string const& content_unit_uri,
-                                    std::chrono::system_clock::time_point const& tp,
+    sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
+                                    std::string const& content_unit_uri,
+                                    size_t block_number,
                                     e_sponsored_content_unit_set_used type,
                                     std::string const& transaction_hash_to_cancel,
-                                    bool pretend);
+                                    bool pretend,
+                                    bool manual);
 
     std::vector<std::pair<std::string, std::string>>
     content_unit_uri_sponsor_expiring(size_t block_number) const;

@@ -227,7 +227,13 @@ module BlockchainMessage
         Coin amount
     }
 
-    class TransactionReserve17 {}
+    class CancelSponsorContentUnit
+    {
+        String sponsor_address
+        String uri
+        String transaction_hash
+    }
+
     class TransactionReserve18 {}
     class TransactionReserve19 {}
     class TransactionReserve20 {}

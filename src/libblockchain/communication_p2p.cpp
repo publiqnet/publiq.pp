@@ -326,12 +326,14 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     for (auto const& unit_uri : set_unit_uris)
     {
         map<string, coin> sponsored_rewards =
-        impl.m_documents.sponsored_content_unit_set_used(unit_uri,
-                                                         system_clock::from_time_t(block_header.time_signed.tm),
+        impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                         unit_uri,
+                                                         block_header.block_number,
                                                          rewards_type::apply == type ?
                                                              documents::sponsored_content_unit_set_used_apply :
                                                              documents::sponsored_content_unit_set_used_revert,
                                                          string(),
+                                                         false,
                                                          false);
         for (auto const& item : sponsored_rewards)
             sponsored_reward += item.second;
@@ -346,12 +348,14 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         if (0 == set_unit_uris.count(expiring_item_uri))
         {
             map<string, coin> temp_sponsored_rewards =
-                                impl.m_documents.sponsored_content_unit_set_used(expiring_item_uri,
-                                                                                 system_clock::from_time_t(block_header.time_signed.tm),
+                                impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                                                 expiring_item_uri,
+                                                                                 block_header.block_number,
                                                                                  rewards_type::apply == type ?
                                                                                      documents::sponsored_content_unit_set_used_apply :
                                                                                      documents::sponsored_content_unit_set_used_revert,
                                                                                  expiring_item_transaction_hash,
+                                                                                 false,
                                                                                  false);
 
             for (auto const& temp_sponsored_reward : temp_sponsored_rewards)

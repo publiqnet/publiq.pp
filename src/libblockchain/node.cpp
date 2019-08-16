@@ -238,6 +238,7 @@ bool node::run()
                 case StorageUpdate::rtt:
                 case ServiceStatistics::rtt:
                 case SponsorContentUnit::rtt:
+                case CancelSponsorContentUnit::rtt:
                 {
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
