@@ -430,6 +430,7 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
             m_pimpl->m_sponsored_informations_expiring.at(std::to_string(block_number));
 
     auto const& expiration_item = expirings.expirations[si.transaction_hash];
+    B_UNUSED(expiration_item);
     assert(expiration_item.uri == spi.uri);
     assert(expiration_item.block_number == block_number);
     assert(expiration_item.transaction_hash == si.transaction_hash);
@@ -469,7 +470,12 @@ map<string, coin> documents::sponsored_content_unit_set_used(string const& conte
         auto start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
 
         if ((sponsored_content_unit_set_used_apply == type && end_tp > start_tp) ||
-            (sponsored_content_unit_set_used_revert == type && end_tp == start_tp))
+            (sponsored_content_unit_set_used_revert == type &&
+             (
+                 (end_tp == start_tp && transaction_hash_to_cancel.empty()) ||
+                 (end_tp > start_tp && false == transaction_hash_to_cancel.empty())
+             )
+            ))
         {
             if (sponsored_content_unit_set_used_revert == type &&
                 transaction_hash_to_cancel.empty())
@@ -539,9 +545,9 @@ map<string, coin> documents::sponsored_content_unit_set_used(string const& conte
 
                 auto part_start_tp = std::max(start_tp, item_start_tp);
                 auto part_end_tp = std::min(end_tp, item_end_tp);
+
                 if (false == transaction_hash_to_cancel.empty())
                     part_end_tp = item_end_tp;
-
                 if (item.time_points_used_before == cusi.time_points_used.size())
                     part_start_tp = item_start_tp;
 
@@ -552,6 +558,10 @@ map<string, coin> documents::sponsored_content_unit_set_used(string const& conte
 
                 if (part_end_tp == item_end_tp)
                     part += whole % uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count());
+
+                assert(part != coin());
+                if (part == coin())
+                    throw std::logic_error("part == coin()");
 
                 coin& temp_result = result[item.sponsor_address];
                 temp_result += part;

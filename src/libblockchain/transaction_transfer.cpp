@@ -29,7 +29,7 @@ void action_validate(SignedTransaction const& signed_transaction,
 
     if (transfer.from == transfer.to ||
         transfer.amount == Coin())
-        throw std::runtime_error("dummy transfer");
+        throw wrong_data_exception("dummy transfer");
 
     if (signed_transaction.authorizations.size() != 1)
         throw authority_exception(signed_transaction.authorizations.back().address, string());

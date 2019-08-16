@@ -356,8 +356,9 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
             for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
             {
+                assert(temp_sponsored_reward.second != coin());
                 if (temp_sponsored_reward.second == coin())
-                    continue;
+                    throw std::logic_error("temp_sponsored_reward.second == coin()");
 
                 auto& sponsored_reward_ref = sponsored_rewards[temp_sponsored_reward.first];
                 sponsored_reward_ref += temp_sponsored_reward.second;
