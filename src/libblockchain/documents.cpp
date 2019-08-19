@@ -343,7 +343,7 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
     expiring.uri = spi.uri;
     expiring.transaction_hash = si.transaction_hash;
     expiring.block_number = expiring_block_number;
-    expiring.manually_cancelled = false;
+    expiring.manually_cancelled = StorageTypes::Coin();
 
     if (false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number)))
     {
@@ -416,25 +416,14 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
             expiring_block_number = expected_block_number;
     }
 
-    StorageTypes::SponsoredInformationHeader expiring;
-    expiring.uri = spi.uri;
-    expiring.transaction_hash = si.transaction_hash;
-    expiring.block_number = expiring_block_number;
-    expiring.manually_cancelled = false;
-
-    assert(m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number)));
-    if (false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number)))
-        throw std::logic_error("false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number))");
-
-    StorageTypes::SponsoredInformationHeaders& expirings =
-            m_pimpl->m_sponsored_informations_expiring.at(std::to_string(expiring_block_number));
+    StorageTypes::SponsoredInformationHeaders& expirings = expiration_entry_ref(expiring_block_number);
 
     auto const& expiration_item = expirings.expirations[si.transaction_hash];
     B_UNUSED(expiration_item);
     assert(expiration_item.uri == spi.uri);
     assert(expiration_item.block_number == expiring_block_number);
     assert(expiration_item.transaction_hash == si.transaction_hash);
-    assert(expiration_item.manually_cancelled == false);
+    assert(expiration_item.manually_cancelled == StorageTypes::Coin());
 
     expirings.expirations.erase(si.transaction_hash);
     if (expirings.expirations.empty())
@@ -446,14 +435,16 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
                                                              size_t block_number,
                                                              documents::e_sponsored_content_unit_set_used type,
                                                              string const& transaction_hash_to_cancel,
-                                                             bool pretend,
-                                                             bool manual)
+                                                             string const& manual_by_account,
+                                                             bool pretend)
 {
     map<string, coin> result;
 
     if (transaction_hash_to_cancel.empty() ||
         sponsored_content_unit_set_used_revert == type)
         pretend = false;
+
+    bool manual = (false == manual_by_account.empty());
 
     auto block_header = impl.m_blockchain.last_header();
     time_point tp = system_clock::from_time_t(block_header.time_signed.tm);
@@ -527,80 +518,6 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
                     item.transaction_hash != transaction_hash_to_cancel)
                     continue;   //  regardless if doing apply or revert - same
 
-                if (false == transaction_hash_to_cancel.empty())
-                {
-                    // calculate the block index which will take care of expiration
-                    auto genesis_tp =
-                            system_clock::from_time_t(impl.m_blockchain.header_at(0).time_signed.tm);
-
-                    size_t expiring_block_number = impl.m_blockchain.length();
-
-                    if (item_end_tp > genesis_tp)
-                    {
-                        uint64_t seconds = chrono::duration_cast<chrono::seconds>(end_tp - genesis_tp).count();
-                        size_t expected_block_number = seconds / BLOCK_MINE_DELAY;
-                        if (0 != seconds % BLOCK_MINE_DELAY)
-                            ++expected_block_number;
-
-                        if (expected_block_number > expiring_block_number)
-                            expiring_block_number = expected_block_number;
-                    }
-
-                    assert(m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number)));
-                    if (false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number)))
-                        throw std::logic_error("false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number))");
-
-                    auto& expirings =
-                            m_pimpl->m_sponsored_informations_expiring.at(std::to_string(expiring_block_number));
-
-                    assert(expirings.expirations.count(item.transaction_hash));
-                    if (0 == expirings.expirations.count(item.transaction_hash))
-                        throw std::logic_error("0 == expirings.expirations.count(item.transaction_hash)");
-
-                    auto& expiration_entry = expirings.expirations[item.transaction_hash];
-
-                    if (sponsored_content_unit_set_used_apply == type)
-                    {
-                        if (item.cancelled)
-                        {
-                            if (pretend)
-                                return result;
-                            if (manual)
-                                throw wrong_data_exception("already cancelled");
-                            else
-                                throw std::logic_error("already cancelled");
-                        }
-
-                        if (false == pretend)
-                            item.cancelled = true;
-
-                        assert(false == expiration_entry.manually_cancelled);
-                        if (expiration_entry.manually_cancelled)
-                            throw std::logic_error("expiration_entry.manually_cancelled");
-
-                        if (manual && false == pretend)
-                            expiration_entry.manually_cancelled = true;
-                    }
-
-                    if (sponsored_content_unit_set_used_revert == type)
-                    {
-                        //  pretend mode cannot enter this path
-                        //
-                        assert(item.cancelled);
-                        if (false == item.cancelled)
-                            throw std::logic_error("false == item.cancelled");
-
-                        item.cancelled = false;
-
-                        assert(manual == expiration_entry.manually_cancelled);
-                        if (manual != expiration_entry.manually_cancelled)
-                            throw std::logic_error("manual != expiration_entry.manually_cancelled");
-
-                        if (manual)
-                            expiration_entry.manually_cancelled = false;
-                    }
-                }
-
                 coin whole = item.amount;
                 auto whole_duration = item_end_tp - item_start_tp;
 
@@ -626,6 +543,88 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
 
                 coin& temp_result = result[item.sponsor_address];
                 temp_result += part;
+
+                if (false == manual_by_account.empty())
+                {
+                    if (item.sponsor_address != manual_by_account)
+                    {
+                        if (pretend)
+                        {
+                            result.clear();
+                            return result;
+                        }
+
+                        throw authority_exception(manual_by_account,
+                                                  item.sponsor_address);
+                    }
+                }
+
+                if (false == transaction_hash_to_cancel.empty())
+                {
+                    // calculate the block index which will take care of expiration
+                    auto genesis_tp =
+                            system_clock::from_time_t(impl.m_blockchain.header_at(0).time_signed.tm);
+
+                    size_t expiring_block_number = impl.m_blockchain.length();
+
+                    if (item_end_tp > genesis_tp)
+                    {
+                        uint64_t seconds = chrono::duration_cast<chrono::seconds>(end_tp - genesis_tp).count();
+                        size_t expected_block_number = seconds / BLOCK_MINE_DELAY;
+                        if (0 != seconds % BLOCK_MINE_DELAY)
+                            ++expected_block_number;
+
+                        if (expected_block_number > expiring_block_number)
+                            expiring_block_number = expected_block_number;
+                    }
+
+                    auto& expiration_entry = expiration_entry_ref(expiring_block_number,
+                                                                  item.transaction_hash);
+
+                    if (sponsored_content_unit_set_used_apply == type)
+                    {
+                        if (item.cancelled)
+                        {
+                            if (pretend)
+                            {
+                                result.clear();
+                                return result;
+                            }
+                            if (manual)
+                                throw wrong_data_exception("already cancelled");
+                            else
+                                throw std::logic_error("already cancelled");
+                        }
+
+                        if (false == pretend)
+                            item.cancelled = true;
+
+                        assert(StorageTypes::Coin() == expiration_entry.manually_cancelled);
+                        if (StorageTypes::Coin() != expiration_entry.manually_cancelled)
+                            throw std::logic_error("StorageTypes::Coin() != expiration_entry.manually_cancelled");
+
+                        if (manual && false == pretend)
+                            part.to_Coin(expiration_entry.manually_cancelled);
+                    }
+
+                    if (sponsored_content_unit_set_used_revert == type)
+                    {
+                        //  here logic errors are ok even for pretend
+                        assert(item.cancelled);
+                        if (false == item.cancelled)
+                            throw std::logic_error("false == item.cancelled");
+
+                        if (false == pretend)
+                            item.cancelled = false;
+
+                        assert(manual == (expiration_entry.manually_cancelled != StorageTypes::Coin()));
+                        if (manual != (expiration_entry.manually_cancelled != StorageTypes::Coin()))
+                            throw std::logic_error("manual != (expiration_entry.manually_cancelled != StorageTypes::Coin())");
+
+                        if (manual && false == pretend)
+                            expiration_entry.manually_cancelled = StorageTypes::Coin();
+                    }
+                }
             };
         }
 
@@ -657,7 +656,7 @@ vector<pair<string, string>> documents::content_unit_uri_sponsor_expiring(size_t
 
         for (auto const& expirations_item : expirings.expirations)
         {
-            if (false == expirations_item.second.manually_cancelled)
+            if (StorageTypes::Coin() == expirations_item.second.manually_cancelled)
             {
                 result.push_back(std::make_pair(expirations_item.second.uri,
                                                 expirations_item.second.transaction_hash));
@@ -666,6 +665,33 @@ vector<pair<string, string>> documents::content_unit_uri_sponsor_expiring(size_t
     }
 
     return result;
+}
+
+StorageTypes::SponsoredInformationHeaders&
+documents::expiration_entry_ref(uint64_t block_number)
+{
+    assert(m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(block_number)));
+    if (false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(block_number)))
+        throw std::logic_error("false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(block_number))");
+
+    auto& expirings =
+            m_pimpl->m_sponsored_informations_expiring.at(std::to_string(block_number));
+
+    return expirings;
+}
+
+StorageTypes::SponsoredInformationHeader&
+documents::expiration_entry_ref(uint64_t block_number, std::string const& transaction_hash)
+{
+    auto& expirings = expiration_entry_ref(block_number);
+
+    assert(expirings.expirations.count(transaction_hash));
+    if (0 == expirings.expirations.count(transaction_hash))
+        throw std::logic_error("0 == expirings.expirations.count(transaction_hash)");
+
+    auto& expiration_entry = expirings.expirations[transaction_hash];
+
+    return expiration_entry;
 }
 
 }

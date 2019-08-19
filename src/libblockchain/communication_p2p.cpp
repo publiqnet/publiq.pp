@@ -6,6 +6,7 @@
 #include "common.hpp"
 #include "exception.hpp"
 #include "message.tmpl.hpp"
+#include "types.hpp"
 
 #include <mesh.pp/cryptoutility.hpp>
 
@@ -278,22 +279,40 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     map<string, ServiceStatistics> channel_provided_statistics;
     map<string, ServiceStatistics> storage_provided_statistics;
 
+    map<string, coin> sponsored_rewards_returns;
+
     for (auto it = signed_transactions.begin(); it != signed_transactions.end(); ++it)
     {
         // only servicestatistics corresponding to current block will be taken
         if (it->transaction_details.action.type() == ServiceStatistics::rtt)
         {
-            ServiceStatistics service_statistics;
+            ServiceStatistics const* service_statistics;
             it->transaction_details.action.get(service_statistics);
 
             NodeType node_type;
-            if (impl.m_state.get_role(service_statistics.server_address, node_type))
+            if (impl.m_state.get_role(service_statistics->server_address, node_type))
             {
                 if (node_type == NodeType::channel)
-                    channel_provided_statistics[service_statistics.server_address] = service_statistics;
+                    channel_provided_statistics[service_statistics->server_address] = *service_statistics;
                 else
-                    storage_provided_statistics[service_statistics.server_address] = service_statistics;
+                    storage_provided_statistics[service_statistics->server_address] = *service_statistics;
             }
+        }
+        else if (it->transaction_details.action.type() == CancelSponsorContentUnit::rtt)
+        {
+            CancelSponsorContentUnit const* cancel_sponsor_content_unit;
+            it->transaction_details.action.get(cancel_sponsor_content_unit);
+
+            auto const& expiry_entry =
+                    impl.m_documents.expiration_entry_ref(block_header.block_number,
+                                                          cancel_sponsor_content_unit->transaction_hash);
+
+            assert(expiry_entry.manually_cancelled != StorageTypes::Coin());
+            if (expiry_entry.manually_cancelled == StorageTypes::Coin())
+                throw std::logic_error("expiry_entry.manually_cancelled == StorageTypes::Coin()");
+
+            auto& sponsored_reward_ref = sponsored_rewards_returns[cancel_sponsor_content_unit->sponsor_address];
+            sponsored_reward_ref += coin(expiry_entry.manually_cancelled);
         }
     }
 
@@ -332,14 +351,13 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                          rewards_type::apply == type ?
                                                              documents::sponsored_content_unit_set_used_apply :
                                                              documents::sponsored_content_unit_set_used_revert,
-                                                         string(),
-                                                         false,
+                                                         string(),  //  transaction_hash_to_validate
+                                                         string(),  //  manual_by_account
                                                          false);
         for (auto const& item : sponsored_rewards)
             sponsored_reward += item.second;
     }
 
-    map<string, coin> sponsored_rewards;
     auto expirings = impl.m_documents.content_unit_uri_sponsor_expiring(block_header.block_number);
     for (auto const& expiring_item : expirings)
     {
@@ -355,7 +373,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                                                      documents::sponsored_content_unit_set_used_apply :
                                                                                      documents::sponsored_content_unit_set_used_revert,
                                                                                  expiring_item_transaction_hash,
-                                                                                 false,
+                                                                                 string(),  //  manual_by_account
                                                                                  false);
 
             for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
@@ -364,7 +382,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                 if (temp_sponsored_reward.second == coin())
                     throw std::logic_error("temp_sponsored_reward.second == coin()");
 
-                auto& sponsored_reward_ref = sponsored_rewards[temp_sponsored_reward.first];
+                auto& sponsored_reward_ref = sponsored_rewards_returns[temp_sponsored_reward.first];
                 sponsored_reward_ref += temp_sponsored_reward.second;
             }
         }
@@ -389,9 +407,9 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     miner_emission_reward += distribute_rewards(rewards, channel_result, channel_emission_reward + channel_sponsored_reward, RewardType::channel);
     miner_emission_reward += distribute_rewards(rewards, storage_result, storage_emission_reward + storage_sponsored_reward, RewardType::storage);
 
-    // if sponsored items expired without service
+    // if sponsored items expired without service or have been cancelled
     // reward the coins back to sponsor
-    for (auto const& sponsored_reward_ref : sponsored_rewards)
+    for (auto const& sponsored_reward_ref : sponsored_rewards_returns)
     {
         Reward reward;
         reward.to = sponsored_reward_ref.first;

@@ -10,6 +10,11 @@
 #include <map>
 #include <utility>
 
+namespace StorageTypes
+{
+    class SponsoredInformationHeaders;
+    class SponsoredInformationHeader;
+}
 namespace publiqpp
 {
 namespace detail
@@ -62,11 +67,17 @@ public:
                                     size_t block_number,
                                     e_sponsored_content_unit_set_used type,
                                     std::string const& transaction_hash_to_cancel,
-                                    bool pretend,
-                                    bool manual);
+                                    std::string const& manual_by_account,
+                                    bool pretend);
 
     std::vector<std::pair<std::string, std::string>>
     content_unit_uri_sponsor_expiring(size_t block_number) const;
+
+    StorageTypes::SponsoredInformationHeaders&
+    expiration_entry_ref(uint64_t block_number);
+
+    StorageTypes::SponsoredInformationHeader&
+    expiration_entry_ref(uint64_t block_number, std::string const& transaction_hash);
 
 private:
     std::unique_ptr<detail::documents_internals> m_pimpl;

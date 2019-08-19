@@ -33,7 +33,7 @@ module StorageTypes
         String uri
         String transaction_hash
         UInt64 block_number
-        Bool manually_cancelled
+        Coin manually_cancelled
     }
 
     class Coin

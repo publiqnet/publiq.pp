@@ -172,8 +172,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                     impl.m_blockchain.length(),
                     documents::sponsored_content_unit_set_used_apply,
                     cancel_sponsor_content_unit.transaction_hash,
-                    true,
-                    true);
+                    cancel_sponsor_content_unit.sponsor_address,
+                    true);  //  pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
     {
@@ -199,18 +199,14 @@ void action_apply(publiqpp::detail::node_internals& impl,
                     impl.m_blockchain.length(),
                     documents::sponsored_content_unit_set_used_apply,
                     cancel_sponsor_content_unit.transaction_hash,
-                    false,
-                    true);
+                    cancel_sponsor_content_unit.sponsor_address,
+                    false);  //  pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
     {
         if (temp_sponsored_reward.second == coin())
             throw wrong_data_exception("invalid transaction hash: " +
                                        cancel_sponsor_content_unit.transaction_hash);
-
-        impl.m_state.increase_balance(cancel_sponsor_content_unit.sponsor_address,
-                                      temp_sponsored_reward.second,
-                                      layer);
     }
 }
 
@@ -226,8 +222,8 @@ void action_revert(publiqpp::detail::node_internals& impl,
                     impl.m_blockchain.length(),
                     documents::sponsored_content_unit_set_used_revert,
                     cancel_sponsor_content_unit.transaction_hash,
-                    false,
-                    true);
+                    cancel_sponsor_content_unit.sponsor_address,
+                    false);  // pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
     {
@@ -235,16 +231,6 @@ void action_revert(publiqpp::detail::node_internals& impl,
         if (temp_sponsored_reward.second == coin())
             throw std::logic_error("invalid transaction hash: " +
                                    cancel_sponsor_content_unit.transaction_hash);
-
-        /*  this is written already in decrease_balance
-        Coin balance = impl.m_state.get_balance(cancel_sponsor_content_unit.sponsor_address, state_layer::pool);
-        if (coin(balance) < temp_sponsored_reward.second)
-            throw not_enough_balance_exception(coin(balance),
-                                               temp_sponsored_reward.second);
-        */
-        impl.m_state.decrease_balance(cancel_sponsor_content_unit.sponsor_address,
-                                      temp_sponsored_reward.second,
-                                      layer);
     }
 }
 }
