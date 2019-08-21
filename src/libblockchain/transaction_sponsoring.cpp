@@ -187,7 +187,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 void action_apply(publiqpp::detail::node_internals& impl,
                   SignedTransaction const& /*signed_transaction*/,
                   CancelSponsorContentUnit const& cancel_sponsor_content_unit,
-                  state_layer layer)
+                  state_layer /*layer*/)
 {
     if (false == impl.m_documents.exist_unit(cancel_sponsor_content_unit.uri))
         throw uri_exception(cancel_sponsor_content_unit.uri, uri_exception::missing);
@@ -213,7 +213,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
 void action_revert(publiqpp::detail::node_internals& impl,
                    SignedTransaction const& /*signed_transaction*/,
                    CancelSponsorContentUnit const& cancel_sponsor_content_unit,
-                   state_layer layer)
+                   state_layer /*layer*/)
 {
     map<string, coin> temp_sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(
