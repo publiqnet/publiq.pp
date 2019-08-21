@@ -3,6 +3,7 @@
 #include "node_internals.hpp"
 
 #include <map>
+#include <string>
 
 namespace publiqpp
 {
@@ -41,7 +42,8 @@ enum class rewards_type {apply, revert};
 bool check_rewards(BlockchainMessage::Block const& block,
                    std::string const& authority,
                    rewards_type type,
-                   publiqpp::detail::node_internals& impl);
+                   publiqpp::detail::node_internals& impl,
+                   std::map<std::string, uint64_t>& unit_uri_view_counts);
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);
 }// end of namespace publiqpp

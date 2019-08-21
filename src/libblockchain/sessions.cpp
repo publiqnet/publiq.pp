@@ -811,12 +811,16 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         Block const& block = signed_block.block_details;
 
+        map<string, uint64_t> unit_uri_view_counts;
         // verify block rewards before reverting, this also reclaims advertisement coins
         if (check_rewards(block,
                           signed_block.authorization.address,
                           rewards_type::revert,
-                          *pimpl))
+                          *pimpl,
+                          unit_uri_view_counts))
             return set_errored("blockchain response. block rewards reverting error!", throw_for_debugging_only);
+
+        B_UNUSED(unit_uri_view_counts);
 
         // decrease all reward amounts from balances and revert reward
         for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
@@ -867,11 +871,13 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             prev_transaction_time = tr_item.transaction_details.creation.tm;
         }
 
+        map<string, uint64_t> unit_uri_view_counts;
         // verify block rewards
         if (check_rewards(block,
                           signed_block.authorization.address,
                           rewards_type::apply,
-                          *pimpl))
+                          *pimpl,
+                          unit_uri_view_counts))
             return set_errored("blockchain response. block rewards!", throw_for_debugging_only);
 
         // increase all reward amounts to balances
@@ -880,7 +886,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         // Insert to blockchain
         pimpl->m_blockchain.insert(signed_block);
-        pimpl->m_action_log.log_block(signed_block);
+        pimpl->m_action_log.log_block(signed_block, unit_uri_view_counts);
 
         c_const = block.header.c_const;
     }

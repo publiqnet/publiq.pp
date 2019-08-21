@@ -57,7 +57,8 @@ size_t action_log::length() const
     return m_pimpl->m_actions.as_const().size();
 }
 
-void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
+void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block,
+                           std::map<std::string, uint64_t> const& unit_uri_view_counts)
 {
     if (!m_pimpl->m_enabled)
         return;
@@ -94,6 +95,15 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block)
         reward_log.reward_type = item.reward_type;
 
         block_log.rewards.push_back(reward_log);
+    }
+
+    for (auto const& item : unit_uri_view_counts)
+    {
+        ContentUnitImpactLog impact_log;
+        impact_log.content_unit_uri = item.first;
+        impact_log.view_count = item.second;
+
+        block_log.unit_uri_impacts.push_back(impact_log);
     }
 
     insert(beltpp::packet(std::move(block_log)));

@@ -30,6 +30,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -45,6 +46,7 @@ using peer_id = socket::peer_id;
 using std::pair;
 using std::string;
 using std::vector;
+using std::map;
 using std::unique_ptr;
 using std::unordered_set;
 using std::unordered_map;
@@ -89,7 +91,7 @@ public:
         }
 
         return false;
-    }
+    }push_back
 
     void clean() 
     {
@@ -551,7 +553,7 @@ public:
 
         // insert to blockchain and action_log
         m_blockchain.insert(signed_block);
-        m_action_log.log_block(signed_block);
+        m_action_log.log_block(signed_block, map<string, uint64_t>());
 
         save(guard);
     }

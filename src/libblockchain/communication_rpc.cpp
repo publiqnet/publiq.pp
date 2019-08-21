@@ -17,7 +17,10 @@ size_t get_action_size(beltpp::packet const& package)
         BlockLog block_log;
         package.get(block_log);
 
-        return 1 + block_log.rewards.size() + block_log.transactions.size();
+        return 1 +
+               block_log.rewards.size() +
+               block_log.transactions.size() +
+               block_log.unit_uri_impacts.size();
     }
 
     return 1;

@@ -90,14 +90,14 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                          multimap<string, pair<uint64_t, uint64_t>>& author_result,
                          multimap<string, pair<uint64_t, uint64_t>>& channel_result,
                          multimap<string, pair<uint64_t, uint64_t>>& storage_result,
-                         unordered_set<string>& set_unit_uris,
+                         map<string, uint64_t>& map_unit_uri_view_counts,
                          publiqpp::detail::node_internals& impl)
 {
     author_result.clear();
     channel_result.clear();
     storage_result.clear();
 
-    set_unit_uris.clear();
+    map_unit_uri_view_counts.clear();
 
     // stop work in mainnet for now
     if (false == impl.m_testnet ||
@@ -161,7 +161,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                         auto& value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
                         value = std::max(value, view_count);
 
-                        set_unit_uris.insert(unit_uri);
+                        map_unit_uri_view_counts[unit_uri] = value;
                     }
 
                     storage_group[storage_id] += count_item.count;
@@ -272,7 +272,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    string const& address,
                    BlockHeader const& block_header,
                    rewards_type type,
-                   publiqpp::detail::node_internals& impl)
+                   publiqpp::detail::node_internals& impl,
+                   map<string, uint64_t>& unit_uri_view_counts)
 {
     rewards.clear();
 
@@ -319,13 +320,13 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     multimap<string, pair<uint64_t, uint64_t>> author_result;
     multimap<string, pair<uint64_t, uint64_t>> channel_result;
     multimap<string, pair<uint64_t, uint64_t>> storage_result;
-    unordered_set<string> set_unit_uris;
+
     validate_statistics(channel_provided_statistics,
                         storage_provided_statistics,
                         author_result,
                         channel_result,
                         storage_result,
-                        set_unit_uris,
+                        unit_uri_view_counts,
                         impl);
 
     assert(set_unit_uris.empty() || (false == set_unit_uris.empty() && 
@@ -333,7 +334,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                      false == channel_result.empty() &&
                                      false == storage_result.empty()));
 
-    if(false == set_unit_uris.empty() && (author_result.empty() || channel_result.empty() || storage_result.empty()))
+    if(false == unit_uri_view_counts.empty() && (author_result.empty() || channel_result.empty() || storage_result.empty()))
         throw std::logic_error("wrong result from validate_statistics(...)");
 
     size_t year_index = block_header.block_number / 50000;
@@ -342,11 +343,11 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     coin sponsored_reward = coin(0, 0);
 
-    for (auto const& unit_uri : set_unit_uris)
+    for (auto const& unit_uri : unit_uri_view_counts)
     {
         map<string, coin> sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         unit_uri,
+                                                         unit_uri.first,
                                                          block_header.block_number,
                                                          rewards_type::apply == type ?
                                                              documents::sponsored_content_unit_set_used_apply :
@@ -363,7 +364,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     {
         auto const& expiring_item_uri = expiring_item.first;
         auto const& expiring_item_transaction_hash = expiring_item.second;
-        if (0 == set_unit_uris.count(expiring_item_uri))
+        if (0 == unit_uri_view_counts.count(expiring_item_uri))
         {
             map<string, coin> temp_sponsored_rewards =
                                 impl.m_documents.sponsored_content_unit_set_used(impl,
@@ -452,7 +453,8 @@ bool check_headers(BlockHeaderExtended const& next_header, BlockHeaderExtended c
 bool check_rewards(Block const& block,
                    string const& authority,
                    rewards_type type,
-                   publiqpp::detail::node_internals& impl)
+                   publiqpp::detail::node_internals& impl,
+                   map<string, uint64_t>& unit_uri_view_counts)
 {
     vector<Reward> rewards;
     grant_rewards(block.signed_transactions,
@@ -460,7 +462,8 @@ bool check_rewards(Block const& block,
                   authority,
                   block.header,
                   type,
-                  impl);
+                  impl,
+                  unit_uri_view_counts);
 
     auto it1 = rewards.begin();
     auto it2 = block.rewards.begin();
@@ -881,13 +884,15 @@ void mine_block(publiqpp::detail::node_internals& impl)
         return lhs.transaction_details.creation.tm < rhs.transaction_details.creation.tm;
     });
 
+    map<string, uint64_t> unit_uri_view_counts;
     // grant rewards and move to block
     grant_rewards(block.signed_transactions,
                   block.rewards,
                   own_key,
                   block.header,
                   rewards_type::apply,
-                  impl);
+                  impl,
+                  unit_uri_view_counts);
 
     meshpp::signature sgn = impl.m_pv_key.sign(block.to_string());
 
@@ -902,7 +907,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     // insert to blockchain and action_log
     impl.m_blockchain.insert(signed_block);
-    impl.m_action_log.log_block(signed_block);
+    impl.m_action_log.log_block(signed_block, unit_uri_view_counts);
 
     // apply back rest of the pool content to the state and action_log
     for (auto& signed_transaction : pool_transactions)

@@ -109,6 +109,7 @@ module BlockchainMessage
         TimePoint time_signed
         Array RewardLog rewards
         Array TransactionLog transactions
+        Array ContentUnitImpactLog unit_uri_impacts
     }
 
     ///
@@ -399,7 +400,11 @@ module BlockchainMessage
         String peer_address
     }
 
-    class ApiReserve5 {}
+    class ContentUnitImpactLog
+    {
+        String content_unit_uri
+        UInt64 view_count
+    }
     class ApiReserve6 {}
     class ApiReserve7 {}
     class ApiReserve8 {}
