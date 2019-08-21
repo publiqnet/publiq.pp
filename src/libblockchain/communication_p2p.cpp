@@ -151,20 +151,19 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                 string storage_id = count_item.peer_address;
                 uint64_t view_count = count_item.count;
 
-                if (channel_verified_statistics[channel_id][file_uri][storage_id] > 0)
+                if (channel_verified_statistics[channel_id][file_uri][storage_id] > 0 &&
+                    impl.m_documents.exist_unit(unit_uri) && 
+                    view_count > 0)
                 {
-                    if (impl.m_documents.exist_unit(unit_uri))
-                    {
-                        author_group[unit_uri][file_uri] += view_count;
+                    storage_group[storage_id] += view_count;
+                    author_group[unit_uri][file_uri] += view_count;
+                    
+                    auto& unit_value = map_unit_uri_view_counts[unit_uri];
+                    unit_value = std::max(unit_value, view_count);
 
-                        ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
-                        auto& value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
-                        value = std::max(value, view_count);
-
-                        map_unit_uri_view_counts[unit_uri] = value;
-                    }
-
-                    storage_group[storage_id] += count_item.count;
+                    ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
+                    auto& content_value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
+                    content_value = std::max(content_value, view_count);
                 }
             }
 
