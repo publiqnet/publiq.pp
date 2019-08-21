@@ -329,10 +329,10 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                         unit_uri_view_counts,
                         impl);
 
-    assert(set_unit_uris.empty() || (false == set_unit_uris.empty() && 
-                                     false == author_result.empty() &&
-                                     false == channel_result.empty() &&
-                                     false == storage_result.empty()));
+    assert(unit_uri_view_counts.empty() || (false == unit_uri_view_counts.empty() &&
+                                            false == author_result.empty() &&
+                                            false == channel_result.empty() &&
+                                            false == storage_result.empty()));
 
     if(false == unit_uri_view_counts.empty() && (author_result.empty() || channel_result.empty() || storage_result.empty()))
         throw std::logic_error("wrong result from validate_statistics(...)");
