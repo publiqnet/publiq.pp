@@ -572,7 +572,8 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
     //
     for (size_t index = state_pool_size; index != 0; --index)
     {
-        SignedTransaction const& signed_transaction = impl.m_transaction_pool.at(index - 1);
+        SignedTransaction& ref_signed_transaction = impl.m_transaction_pool.ref_at(index - 1);
+        SignedTransaction signed_transaction = std::move(ref_signed_transaction);
 
         impl.m_transaction_pool.pop_back();
         bool complete = impl.m_transaction_cache.erase_pool(signed_transaction);

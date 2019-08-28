@@ -112,7 +112,7 @@ void load_transaction_cache(publiqpp::detail::node_internals& impl)
 
     for (size_t index = 0; index != impl.m_transaction_pool.length(); ++index)
     {
-        auto& item = impl.m_transaction_pool.ref_at(index);
+        auto const& item = impl.m_transaction_pool.at(index);
         bool complete = action_is_complete(impl, item);
 
         if (false == impl.m_transaction_cache.add_pool(item, complete))
