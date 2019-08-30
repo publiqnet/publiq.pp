@@ -766,6 +766,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
         }
 
         extented_info temp;
+        temp.size = 0;
         temp.stx = std::move(reverted_transaction);
         reverted_transactions_ex.push_back(std::move(temp));
     }
@@ -787,7 +788,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
             {
                 auto& reverted_transaction = reverted_transactions_ex[next_index].stx;
                 value += reverted_transaction.transaction_details.fee;
-                size += reverted_transaction.to_string().size();
+                size += 1; //reverted_transaction.to_string().size();
 
                 auto local_participants = action_participants(reverted_transaction);
 
