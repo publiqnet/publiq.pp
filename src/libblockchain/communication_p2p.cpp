@@ -783,7 +783,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
         while (false == next_indices.empty())
         {
-            vector<string> participants;
+            set<string> participants;
             for (auto next_index : next_indices)
             {
                 auto& reverted_transaction = reverted_transactions_ex[next_index].stx;
@@ -792,9 +792,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
                 auto local_participants = action_participants(reverted_transaction);
 
-                participants.insert(participants.end(),
-                                    local_participants.begin(),
-                                    local_participants.end());
+                participants.insert(local_participants.begin(), local_participants.end());
             }
 
             used_indices.insert(next_indices.begin(), next_indices.end());
