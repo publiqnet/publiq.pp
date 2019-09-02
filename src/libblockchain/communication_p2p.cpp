@@ -777,6 +777,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
         coin& value = reverted_transactions_ex[index].value;
         size_t& size = reverted_transactions_ex[index].size;
 
+        // skip already calculated transactions
+        if (size > 0) continue;
 
         unordered_set<size_t> used_indices;
         unordered_set<size_t> next_indices = {index};
@@ -787,8 +789,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
             for (auto next_index : next_indices)
             {
                 auto& reverted_transaction = reverted_transactions_ex[next_index].stx;
+                size += 1;
                 value += reverted_transaction.transaction_details.fee;
-                size += 1; //reverted_transaction.to_string().size();
 
                 auto local_participants = action_participants(reverted_transaction);
 
@@ -810,6 +812,13 @@ void mine_block(publiqpp::detail::node_internals& impl)
                     }
                 }
             }
+        }
+
+        // share calculated values with all participants
+        for (auto const& used_index : used_indices)
+        {
+            reverted_transactions_ex[used_index].size = size;
+            reverted_transactions_ex[used_index].value = value;
         }
     }
 
