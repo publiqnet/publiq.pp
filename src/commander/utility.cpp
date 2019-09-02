@@ -16,6 +16,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         from = transfer.from;
         to = transfer.to;
         amount = transfer.amount;
+        message = transfer.message;
 
         break;
     }
@@ -34,6 +35,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         transaction_log.action.get(content_unit);
 
         from = content_unit.author_addresses[0];
+        message = "content_unit";
 
         break;
     }
@@ -43,6 +45,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         transaction_log.action.get(content);
 
         from = content.channel_address;
+        message = "content";
 
         break;
     }
@@ -52,6 +55,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         transaction_log.action.get(role);
 
         from = role.node_address;
+        message = "role";
 
         break;
     }
@@ -61,6 +65,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         transaction_log.action.get(storage_update);
 
         from = storage_update.storage_address;
+        message = "storage_update";
 
         break;
     }
@@ -70,6 +75,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         transaction_log.action.get(service_statistics);
 
         from = service_statistics.server_address;
+        message = "service_statistics";
 
         break;
     }
@@ -79,6 +85,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         transaction_log.action.get(sponsor_content_unit);
 
         from = sponsor_content_unit.sponsor_address;
+        message = "sponsor_content_unit";
 
         break;
     }

@@ -1,6 +1,7 @@
 #include "rpc.hpp"
 #include "http.hpp"
 #include "daemon_rpc.hpp"
+#include "utility.hpp"
 
 #include <belt.pp/scope_helper.hpp>
 
@@ -102,15 +103,15 @@ void process_transactions(uint64_t head_block_index,
          ++index)
     {
         auto& transaction_log = transaction_logs.at(index);
-        BlockchainMessage::Transfer tf;
-        std::move(transaction_log.action).get(tf);
+
+        const TransactionInfo transaction_info = TransactionInfo(transaction_log);
 
         string authority;
 
         if (rpc_server.blocks.size() > block_index)
             authority = rpc_server.blocks.as_const().at(block_index).authority;
 
-        if (tf.to == address)
+        if (transaction_info.to == address)
         {
             AccountHistoryItem item;
             AccountHistoryReceived details;
@@ -118,17 +119,17 @@ void process_transactions(uint64_t head_block_index,
             item.confirmations = head_block_index - block_index + 1;
             item.item_type = AccountHistoryItemType::received;
             item.timestamp.tm = transaction_log.time_signed.tm;
-            item.amount = tf.amount;
-            //publiqpp::coin(tf.amount).to_Coin(item.amount);
+            item.amount = transaction_info.amount;
+            //publiqpp::coin(transaction_info.amount).to_Coin(item.amount);
 
-            details.from = tf.from;
-            details.message = tf.message;
+            details.from = transaction_info.from;
+            details.message = transaction_info.message;
             details.transaction_hash = transaction_log.transaction_hash;
             item.details = std::move(details);
 
             result.log.push_back(std::move(item));
         }
-        if (tf.from == address)
+        if (transaction_info.from == address)
         {
             {
                 AccountHistoryItem item;
@@ -137,11 +138,11 @@ void process_transactions(uint64_t head_block_index,
                 item.confirmations = head_block_index - block_index + 1;
                 item.item_type = AccountHistoryItemType::sent;
                 item.timestamp.tm = transaction_log.time_signed.tm;
-                item.amount = tf.amount;
-                //publiqpp::coin(tf.amount).to_Coin(item.amount);
+                item.amount = transaction_info.amount;
+                //publiqpp::coin(transaction_info.amount).to_Coin(item.amount);
 
-                details.to = tf.to;
-                details.message = tf.message;
+                details.to = transaction_info.to;
+                details.message = transaction_info.message;
                 details.transaction_hash = transaction_log.transaction_hash;
                 item.details = std::move(details);
 
@@ -177,7 +178,7 @@ void process_transactions(uint64_t head_block_index,
             item.amount = transaction_log.fee;
             //publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
 
-            details.from = tf.from;
+            details.from = transaction_info.from;
             details.transaction_hash = transaction_log.transaction_hash;
             item.details = std::move(details);
 

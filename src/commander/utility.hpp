@@ -10,6 +10,7 @@ public:
 public:
     std::string from;
     std::string to;
+    std::string message;
     BlockchainMessage::Coin amount;
     BlockchainMessage::Coin fee;
 };
