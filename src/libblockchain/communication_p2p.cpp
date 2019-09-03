@@ -99,11 +99,6 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
     map_unit_uri_view_counts.clear();
 
-    // stop work in mainnet for now
-    if (false == impl.m_testnet ||
-        impl.m_transfer_only)
-        return;
-
     map<string, map<string, map<string, uint64_t>>> channel_statistics;
     map<string, map<string, map<string, uint64_t>>> channel_verified_statistics;
 

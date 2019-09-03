@@ -260,6 +260,29 @@ void refresh_index(StorageTypes::ContentUnitSponsoredInformation& cusi)
     for (auto const& arr_index_item : arr_index)
         cusi.index_si.push_back(arr_index_item.first);
 }
+
+size_t get_expiring_block_number(publiqpp::detail::node_internals const& impl,
+                                 chrono::system_clock::time_point const& item_end_tp)
+{
+    // calculate the block index which will take care of expiration
+    auto genesis_tp =
+            system_clock::from_time_t(impl.m_blockchain.header_at(0).time_signed.tm);
+
+    size_t expiring_block_number = impl.m_blockchain.length();
+
+    if (item_end_tp > genesis_tp)
+    {
+        uint64_t seconds = chrono::duration_cast<chrono::seconds>(item_end_tp - genesis_tp).count();
+        size_t expected_block_number = seconds / BLOCK_MINE_DELAY;
+        if (0 != seconds % BLOCK_MINE_DELAY)
+            ++expected_block_number;
+
+        if (expected_block_number > expiring_block_number)
+            expiring_block_number = expected_block_number;
+    }
+
+    return expiring_block_number;
+}
 }
 
 void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& impl,
@@ -268,9 +291,9 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
 {
     StorageTypes::SponsoredInformation si;
     si.amount = spi.amount;
-    auto item_start_tp = chrono::time_point_cast<chrono::minutes>
+    auto item_start_tp = chrono::time_point_cast<chrono::seconds>
                          (system_clock::from_time_t(spi.start_time_point.tm));
-    auto item_end_tp = chrono::time_point_cast<chrono::minutes>
+    auto item_end_tp = chrono::time_point_cast<chrono::seconds>
                        (item_start_tp + chrono::hours(spi.hours));
 
     if (item_end_tp <= item_start_tp)
@@ -322,22 +345,7 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
         m_pimpl->m_content_unit_sponsored_information.insert(spi.uri, cusi);
     }
 
-    // calculate the block index which will take care of expiration
-    auto genesis_tp =
-            system_clock::from_time_t(impl.m_blockchain.header_at(0).time_signed.tm);
-
-    size_t expiring_block_number = impl.m_blockchain.length();
-
-    if (item_end_tp > genesis_tp)
-    {
-        uint64_t seconds = chrono::duration_cast<chrono::seconds>(item_end_tp - genesis_tp).count();
-        size_t expected_block_number = seconds / BLOCK_MINE_DELAY;
-        if (0 != seconds % BLOCK_MINE_DELAY)
-            ++expected_block_number;
-
-        if (expected_block_number > expiring_block_number)
-            expiring_block_number = expected_block_number;
-    }
+    size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 
     StorageTypes::SponsoredInformationHeader expiring;
     expiring.uri = spi.uri;
@@ -399,22 +407,7 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     else
         refresh_index(cusi);
 
-    // calculate the block index which will take care of expiration
-    auto genesis_tp =
-            system_clock::from_time_t(impl.m_blockchain.header_at(0).time_signed.tm);
-
-    size_t expiring_block_number = impl.m_blockchain.length();
-
-    if (item_end_tp > genesis_tp)
-    {
-        uint64_t seconds = chrono::duration_cast<chrono::seconds>(item_end_tp - genesis_tp).count();
-        size_t expected_block_number = seconds / BLOCK_MINE_DELAY;
-        if (0 != seconds % BLOCK_MINE_DELAY)
-            ++expected_block_number;
-
-        if (expected_block_number > expiring_block_number)
-            expiring_block_number = expected_block_number;
-    }
+    size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 
     StorageTypes::SponsoredInformationHeaders& expirings = expiration_entry_ref(expiring_block_number);
 
@@ -471,7 +464,7 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
             throw std::logic_error("cusi.time_points_used.empty()");
 
         auto end_tp = tp;
-        end_tp = chrono::time_point_cast<chrono::minutes>(end_tp);
+        end_tp = chrono::time_point_cast<chrono::seconds>(end_tp);
         auto start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
 
         if ((sponsored_content_unit_set_used_apply == type && end_tp > start_tp) ||
@@ -531,11 +524,11 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
 
                 auto part_duration = part_end_tp - part_start_tp;
 
-                coin part = whole / uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count())
-                                  * uint64_t(chrono::duration_cast<chrono::minutes>(part_duration).count());
+                coin part = whole / uint64_t(chrono::duration_cast<chrono::seconds>(whole_duration).count())
+                                  * uint64_t(chrono::duration_cast<chrono::seconds>(part_duration).count());
 
                 if (part_end_tp == item_end_tp)
-                    part += whole % uint64_t(chrono::duration_cast<chrono::minutes>(whole_duration).count());
+                    part += whole % uint64_t(chrono::duration_cast<chrono::seconds>(whole_duration).count());
 
                 assert(part != coin());
                 if (part == coin())
@@ -561,22 +554,7 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
 
                 if (false == transaction_hash_to_cancel.empty())
                 {
-                    // calculate the block index which will take care of expiration
-                    auto genesis_tp =
-                            system_clock::from_time_t(impl.m_blockchain.header_at(0).time_signed.tm);
-
-                    size_t expiring_block_number = impl.m_blockchain.length();
-
-                    if (item_end_tp > genesis_tp)
-                    {
-                        uint64_t seconds = chrono::duration_cast<chrono::seconds>(end_tp - genesis_tp).count();
-                        size_t expected_block_number = seconds / BLOCK_MINE_DELAY;
-                        if (0 != seconds % BLOCK_MINE_DELAY)
-                            ++expected_block_number;
-
-                        if (expected_block_number > expiring_block_number)
-                            expiring_block_number = expected_block_number;
-                    }
+                    size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 
                     auto& expiration_entry = expiration_entry_ref(expiring_block_number,
                                                                   item.transaction_hash);
@@ -646,7 +624,6 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
 
 vector<pair<string, string>> documents::content_unit_uri_sponsor_expiring(size_t block_number) const
 {
-    // calculate the block index which will take care of expiration
     vector<pair<string, string>> result;
 
     if (m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(block_number)))
