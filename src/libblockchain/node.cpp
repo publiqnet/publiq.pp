@@ -785,7 +785,7 @@ bool node::run()
         size_t pool_size = m_pimpl->m_transaction_pool.length();
         if (pool_size > 0)
         {
-            m_pimpl->writeln_node("broadcasting old stored transactions to all peers");
+            //m_pimpl->writeln_node("broadcasting old stored transactions to all peers");
 
             auto current_time = system_clock::now();
 
