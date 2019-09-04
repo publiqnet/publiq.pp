@@ -954,7 +954,7 @@ void block_worker(detail::node_internals& impl)
 
     double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
 
-    double revert_fraction = std::max(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
+    double revert_fraction = std::min(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
 
     auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
     auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
@@ -1062,7 +1062,6 @@ void block_worker(detail::node_internals& impl)
                  it_scan_least_revert->second.reverts_required > revert_coefficient)
             it_scan_least_revert = it;
     }
-
 
     auto it_chosen = impl.all_sync_info.headers_actions_data.end();
     if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
