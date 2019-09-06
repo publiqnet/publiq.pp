@@ -76,6 +76,33 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
             service_statistics.end_time_point.tm != system_clock::to_time_t(tp_end))
             return false;
     }
+    else
+    {
+        string server_address;
+        std::unordered_set<string> peers_set;
+        std::unordered_set<string> addresses_set;
+
+        for (auto const& file_item : service_statistics.file_items)
+            for (auto const& count_item : file_item.count_items)
+                peers_set.insert(count_item.peer_address);
+
+        PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
+
+        for (auto const& item : public_addresses.addresses_info)
+        {
+            if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                break;
+
+            if (item.node_address == service_statistics.server_address)
+                server_address = item.ip_address.local.address;
+            else if (peers_set.count(item.node_address) > 0)
+                addresses_set.insert(item.ip_address.local.address);
+        }
+
+        if (peers_set.size() != addresses_set.size() || 
+            addresses_set.count(server_address) > 0)
+            return false;
+    }
 
     for (auto const& item : service_statistics.file_items)
     {
@@ -131,6 +158,33 @@ void action_apply(publiqpp::detail::node_internals& impl,
         if (service_statistics.start_time_point.tm != system_clock::to_time_t(tp_start) ||
             service_statistics.end_time_point.tm != system_clock::to_time_t(tp_end))
             throw wrong_data_exception("service statistics time range is incorrect");
+    }
+    else
+    {
+        string server_address;
+        std::unordered_set<string> peers_set;
+        std::unordered_set<string> addresses_set;
+
+        for (auto const& file_item : service_statistics.file_items)
+            for (auto const& count_item : file_item.count_items)
+                peers_set.insert(count_item.peer_address);
+
+        PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
+
+        for (auto const& item : public_addresses.addresses_info)
+        {
+            if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                break;
+
+            if (item.node_address == service_statistics.server_address)
+                server_address = item.ip_address.local.address;
+            else if (peers_set.count(item.node_address) > 0)
+                addresses_set.insert(item.ip_address.local.address);
+        }
+
+        if (peers_set.size() != addresses_set.size() ||
+            addresses_set.count(server_address) > 0)
+            throw wrong_data_exception("service statistics contains channel and storage with same address");
     }
 
     for (auto const& item : service_statistics.file_items)
