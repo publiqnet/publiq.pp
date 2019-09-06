@@ -394,9 +394,9 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     if (si.transaction_hash != transaction_hash)
         throw std::logic_error("si.transaction_hash != transaction_hash");
 
-    assert(si.cancelled == true);
-    if (si.cancelled != true)
-        throw std::logic_error("si.cancelled != true");
+    assert(si.cancelled != true);
+    if (si.cancelled == true)
+        throw std::logic_error("si.cancelled == true");
 
     auto item_end_tp = system_clock::from_time_t(si.end_time_point.tm);
 
