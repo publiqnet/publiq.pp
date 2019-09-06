@@ -99,7 +99,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                 addresses_set.insert(item.ip_address.local.address);
         }
 
-        if (peers_set.size() != addresses_set.size() || 
+        if (server_address.empty() ||
+            peers_set.size() != addresses_set.size() ||
             addresses_set.count(server_address) > 0)
             return false;
     }
@@ -182,7 +183,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
                 addresses_set.insert(item.ip_address.local.address);
         }
 
-        if (peers_set.size() != addresses_set.size() ||
+        if (server_address.empty() || 
+            peers_set.size() != addresses_set.size() ||
             addresses_set.count(server_address) > 0)
             throw wrong_data_exception("service statistics contains channel and storage with same address");
     }
