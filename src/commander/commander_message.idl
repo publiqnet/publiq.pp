@@ -227,5 +227,15 @@ module CommanderMessage
         UInt64 seconds_to_expire
     }
 
+    class ChampionMinersRequest
+    {
+    }
+
+    class ChampionMinersResponse
+    {
+        Array String miner_addresses
+        UInt64 mined_blocks_count
+    }
+
 }
 ////1

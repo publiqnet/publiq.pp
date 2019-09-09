@@ -327,6 +327,17 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "champions")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::ChampionMinersRequest>();
+//          CommanderMessage::ChampionMinersRequest& ref = *reinterpret_cast<CommanderMessage::ChampionMinersRequest*>(p.get());
+
+            return ::beltpp::detail::pmsg_all(CommanderMessage::ChampionMinersRequest::rtt,
+                                                      std::move(p),
+                                                      &CommanderMessage::ChampionMinersRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "protocol")
         {
             ssd.session_specal_handler = nullptr;

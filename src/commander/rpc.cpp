@@ -626,6 +626,29 @@ void rpc::run()
 
                 break;
             }
+            case ChampionMinersRequest::rtt:
+            {
+                const size_t BLOCKS_COUNT = (7 * 24 * 60) / 10;
+
+                std::map<string, uint64_t> miners;
+
+                for (size_t index = blocks.size() - BLOCKS_COUNT; index < blocks.size(); index++)
+                    ++miners[blocks.at(index).authority];
+
+                ChampionMinersResponse champions;
+                champions.mined_blocks_count = miners.begin()->second;
+
+                for (auto const& miner : miners)
+                    if (miner.second > champions.mined_blocks_count)
+                        champions.mined_blocks_count = miner.second;
+
+                for (auto const& miner : miners)
+                    if (miner.second == champions.mined_blocks_count)
+                        champions.miner_addresses.push_back(miner.first);
+
+                rpc_socket.send(peerid, beltpp::packet(champions));
+                break;
+            }
             case Failed::rtt:
             {
                 rpc_socket.send(peerid, std::move(ref_packet));
