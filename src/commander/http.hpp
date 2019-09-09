@@ -291,6 +291,7 @@ beltpp::detail::pmsg_all message_list_load(
             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::StoragesRequest>();
             //CommanderMessage::StoragesRequest& ref = *reinterpret_cast<CommanderMessage::StoragesRequest*>(p.get());
 
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(CommanderMessage::StoragesRequest::rtt,
                                               std::move(p),
                                               &CommanderMessage::StoragesRequest::pvoid_saver);
@@ -332,6 +333,7 @@ beltpp::detail::pmsg_all message_list_load(
             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::ChampionMinersRequest>();
 //          CommanderMessage::ChampionMinersRequest& ref = *reinterpret_cast<CommanderMessage::ChampionMinersRequest*>(p.get());
 
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(CommanderMessage::ChampionMinersRequest::rtt,
                                                       std::move(p),
                                                       &CommanderMessage::ChampionMinersRequest::pvoid_saver);
