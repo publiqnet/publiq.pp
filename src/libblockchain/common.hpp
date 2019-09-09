@@ -68,6 +68,9 @@
 
 using coin = publiqpp::coin;
 
+#define CHANNEL_AMOUNT_THRESHOLD    coin(100000, 0)
+#define STORAGE_AMOUNT_THRESHOLD    coin(1000, 0)
+
 namespace publiqpp
 {
 

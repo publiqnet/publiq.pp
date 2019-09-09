@@ -67,6 +67,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         node_type == NodeType::blockchain)
         return false;
 
+    if (node_type == NodeType::channel &&
+        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+        return false;
+
+    if (node_type == NodeType::storage &&
+        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+        return false;
+
     if (state_layer::chain == layer)
     {
         auto tp_end = system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
@@ -150,6 +158,18 @@ void action_apply(publiqpp::detail::node_internals& impl,
     if (false == impl.m_state.get_role(service_statistics.server_address, node_type) ||
         node_type == NodeType::blockchain)
         throw wrong_data_exception("process_stat_info -> wrong authority type : " + service_statistics.server_address);
+
+    if (node_type == NodeType::channel &&
+        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+        throw wrong_data_exception("the node: " +
+                                   service_statistics.server_address +
+                                   " must have at least 100.000 PBQ verified balance.");
+
+    if (node_type == NodeType::storage &&
+        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+        throw wrong_data_exception("the node: " +
+                                   service_statistics.server_address +
+                                   " must have at least 1000 PBQ verified balance.");
 
     if (state_layer::chain == layer)
     {
