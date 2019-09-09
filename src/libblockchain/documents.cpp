@@ -411,12 +411,23 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
 
     StorageTypes::SponsoredInformationHeaders& expirings = expiration_entry_ref(expiring_block_number);
 
+    assert(expirings.expirations.count(si.transaction_hash));
+    if (0 == expirings.expirations.count(si.transaction_hash))
+        throw std::logic_error("0 == expirings.expirations.count(si.transaction_hash)");
+
     auto const& expiration_item = expirings.expirations[si.transaction_hash];
-    B_UNUSED(expiration_item);
     assert(expiration_item.uri == spi.uri);
+    if (expiration_item.uri != spi.uri)
+        throw std::logic_error("expiration_item.uri != spi.uri");
     assert(expiration_item.block_number == expiring_block_number);
+    if (expiration_item.block_number != expiring_block_number)
+        throw std::logic_error("expiration_item.block_number != expiring_block_number");
     assert(expiration_item.transaction_hash == si.transaction_hash);
+    if (expiration_item.transaction_hash != si.transaction_hash)
+        throw std::logic_error("expiration_item.transaction_hash != si.transaction_hash");
     assert(expiration_item.manually_cancelled == StorageTypes::Coin());
+    if (expiration_item.manually_cancelled != StorageTypes::Coin())
+        throw std::logic_error("expiration_item.manually_cancelled != StorageTypes::Coin()");
 
     expirings.expirations.erase(si.transaction_hash);
     if (expirings.expirations.empty())
