@@ -85,7 +85,7 @@ void process_history_rewards(uint64_t head_block_index,
 
         AccountHistoryRewarded details;
         details.reward_type = static_cast<RewardType>(reward_log.reward_type);
-        item.details = AccountHistoryRewarded();
+        item.details = details;
 
         result.log.push_back(std::move(item));
     }
