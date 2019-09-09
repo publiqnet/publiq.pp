@@ -159,7 +159,7 @@ void process_history_transactions(uint64_t head_block_index,
                 AccountHistorySponsored details;
                 item.block_index = block_index;
                 item.confirmations = head_block_index - block_index + 1;
-                item.item_type = AccountHistoryItemType::sent;
+                item.item_type = AccountHistoryItemType::sponsored;
                 item.timestamp.tm = transaction_log.time_signed.tm;
                 item.amount = scu->amount;
 
@@ -170,6 +170,7 @@ void process_history_transactions(uint64_t head_block_index,
                         chrono::hours(scu->hours);
 
                 details.end_time_point.tm = system_clock::to_time_t(end_time_point);
+                details.uri = scu->uri;
 
                 item.details = std::move(details);
 
