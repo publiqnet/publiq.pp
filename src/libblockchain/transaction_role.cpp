@@ -57,13 +57,16 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         impl.m_node_type != role.node_type)
         return false;
 
-    if (role.node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
-        return false;
+    if (false == impl.m_testnet)
+    {
+        if (role.node_type == NodeType::channel &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+            return false;
 
-    if (role.node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
-        return false;
+        if (role.node_type == NodeType::storage &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+            return false;
+    }
 
     return true;
 }
@@ -87,17 +90,20 @@ void action_apply(publiqpp::detail::node_internals& impl,
                                  " can have only the following role: " +
                                  BlockchainMessage::to_string(impl.m_node_type));
 
-    if (role.node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
-        throw std::runtime_error("the node: " +
-                                 role.node_address +
-                                 " must have at least 100.000 PBQ verified balance.");
+    if (false == impl.m_testnet)
+    {
+        if (role.node_type == NodeType::channel &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+            throw std::runtime_error("the node: " +
+                                     role.node_address +
+                                     " must have at least 100.000 PBQ verified balance.");
 
-    if (role.node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
-        throw std::runtime_error("the node: " +
-                                 role.node_address +
-                                 " must have at least 1000 PBQ verified balance.");
+        if (role.node_type == NodeType::storage &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+            throw std::runtime_error("the node: " +
+                                     role.node_address +
+                                     " must have at least 1000 PBQ verified balance.");
+    }
 
     impl.m_state.insert_role(role);
 }
