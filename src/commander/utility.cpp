@@ -79,6 +79,7 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
         transaction_log.action.get(sponsor_content_unit);
 
         from = sponsor_content_unit->sponsor_address;
+        amount = sponsor_content_unit->amount;
 
         break;
     }
