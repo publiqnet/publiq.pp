@@ -389,7 +389,7 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     if (cusi.time_points_used.size() != cusi.sponsored_informations.back().time_points_used_before)
         throw std::logic_error("cusi.time_points_used.size() != cusi.sponsored_informations.back().time_points_used_before");
 
-    auto const& si = cusi.sponsored_informations.back();
+    auto si = cusi.sponsored_informations.back();
     assert(si.transaction_hash == transaction_hash);
     if (si.transaction_hash != transaction_hash)
         throw std::logic_error("si.transaction_hash != transaction_hash");
