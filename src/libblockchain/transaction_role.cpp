@@ -52,9 +52,22 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     NodeType node_type;
     if (impl.m_state.get_role(role.node_address, node_type))
         return false;
+
     if (impl.m_pb_key.to_string() == role.node_address &&
         impl.m_node_type != role.node_type)
         return false;
+
+    if (false == impl.m_testnet)
+    {
+        if (role.node_type == NodeType::channel &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+            return false;
+
+        if (role.node_type == NodeType::storage &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+            return false;
+    }
+
     return true;
 }
 
@@ -69,12 +82,29 @@ void action_apply(publiqpp::detail::node_internals& impl,
                                  BlockchainMessage::to_string(role.node_type) +
                                  " is already stored for: " +
                                  role.node_address);
+
     if (impl.m_pb_key.to_string() == role.node_address &&
         impl.m_node_type != role.node_type)
         throw std::runtime_error("the node: " +
                                  role.node_address +
                                  " can have only the following role: " +
                                  BlockchainMessage::to_string(impl.m_node_type));
+
+    if (false == impl.m_testnet)
+    {
+        if (role.node_type == NodeType::channel &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+            throw std::runtime_error("the node: " +
+                                     role.node_address +
+                                     " must have at least 100.000 PBQ verified balance.");
+
+        if (role.node_type == NodeType::storage &&
+            coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+            throw std::runtime_error("the node: " +
+                                     role.node_address +
+                                     " must have at least 1000 PBQ verified balance.");
+    }
+
     impl.m_state.insert_role(role);
 }
 
