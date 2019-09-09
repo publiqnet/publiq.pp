@@ -106,6 +106,12 @@ bool node::run()
 {
     bool code = true;
 
+    if (m_pimpl->m_service_statistics_broadcast_triggered)
+    {
+        m_pimpl->m_service_statistics_broadcast_triggered = false;
+        broadcast_service_statistics(*m_pimpl);
+    }
+
     unordered_set<beltpp::ievent_item const*> wait_sockets;
 
     auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);

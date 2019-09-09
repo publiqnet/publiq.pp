@@ -62,57 +62,6 @@ namespace publiqpp
 namespace detail
 {
 
-/*class packet_and_expiry
-{
-public:
-    beltpp::packet packet;
-    size_t expiry;
-};
-
-class task_table
-{
-public:
-    void add(uint64_t task_id, packet& task_packet) 
-    {
-        task_map[task_id] = pair<system_clock::time_point, packet>(system_clock::now(), std::move(task_packet));
-    }
-
-    bool remove(uint64_t task_id, packet& task_packet)
-    {
-        auto task_it = task_map.find(task_id);
-
-        if (task_it != task_map.end())
-        {
-            task_packet = std::move(task_it->second.second);
-
-            task_map.erase(task_it);
-
-            return true;
-        }
-
-        return false;
-    }push_back
-
-    void clean() 
-    {
-        auto current_time = system_clock::now();
-
-        auto it = task_map.begin();
-        while (it != task_map.end())
-        {
-            chrono::seconds diff_seconds = chrono::duration_cast<chrono::seconds>(current_time - it->second.first);
-
-            if (diff_seconds.count() < BLOCK_MINE_DELAY)
-                ++it;
-            else
-                it = task_map.erase(it);
-        }
-    };
-
-private:
-    map<uint64_t, pair<system_clock::time_point, packet>> task_map;
-};*/
-
 class service_counter
 {
     class service_unit
@@ -408,6 +357,7 @@ public:
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_sync_delay.set(sync_delay, true);
+        m_service_statistics_broadcast_triggered = false;
 
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
@@ -597,8 +547,9 @@ public:
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
 
-    bool m_transfer_only;
     bool m_testnet;
+    bool m_transfer_only;
+    bool m_service_statistics_broadcast_triggered;
 
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;

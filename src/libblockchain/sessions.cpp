@@ -957,7 +957,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         // when all blocks are synced it's time to share service statistics for last period
         if (pimpl->m_node_type == NodeType::channel || pimpl->m_node_type == NodeType::storage)
-            broadcast_service_statistics(*pimpl);
+            pimpl->m_service_statistics_broadcast_triggered = true;
     }
 }
 
