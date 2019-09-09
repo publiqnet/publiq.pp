@@ -346,8 +346,9 @@ public:
         , m_node_type(n_type)
         , m_pv_key(pv_key)
         , m_pb_key(pv_key.get_public_key())
-        , m_transfer_only(transfer_only)
         , m_testnet(testnet)
+        , m_transfer_only(transfer_only)
+        , m_service_statistics_broadcast_triggered(false)
         , m_mine_amount_threshhold(mine_amount_threshhold)
         , m_block_reward_array(block_reward_array)
     {
@@ -357,7 +358,6 @@ public:
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
         m_sync_delay.set(sync_delay, true);
-        m_service_statistics_broadcast_triggered = false;
 
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
