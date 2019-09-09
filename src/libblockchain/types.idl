@@ -41,4 +41,10 @@ module StorageTypes
         UInt64 whole
         UInt64 fraction
     }
+
+    class TransactionHashToBlockNumber
+    {
+        String transaction_hash
+        UInt64 block_number
+    }
 }

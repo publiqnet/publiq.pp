@@ -48,6 +48,7 @@ public:
         , m_storages("storages", path_storages, 10000, get_putl_types())
         , m_content_unit_sponsored_information("content_unit_info", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_expiring("sponsored_info_expiring", path_documents, 10000, get_putl_types())
+        , m_sponsored_informations_hash_to_block("sponsored_info_hash_to_block", path_documents, 10000, get_putl_types())
     {}
 
     meshpp::map_loader<File> m_files;
@@ -56,6 +57,7 @@ public:
     meshpp::map_loader<StorageTypes::FileUriHolders> m_storages;
     meshpp::map_loader<StorageTypes::ContentUnitSponsoredInformation> m_content_unit_sponsored_information;
     meshpp::map_loader<StorageTypes::SponsoredInformationHeaders> m_sponsored_informations_expiring;
+    meshpp::map_loader<StorageTypes::TransactionHashToBlockNumber> m_sponsored_informations_hash_to_block;
 };
 }
 
@@ -76,6 +78,7 @@ void documents::save()
     m_pimpl->m_storages.save();
     m_pimpl->m_content_unit_sponsored_information.save();
     m_pimpl->m_sponsored_informations_expiring.save();
+    m_pimpl->m_sponsored_informations_hash_to_block.save();
 }
 
 void documents::commit()
@@ -88,6 +91,7 @@ void documents::commit()
     m_pimpl->m_storages.commit();
     m_pimpl->m_content_unit_sponsored_information.commit();
     m_pimpl->m_sponsored_informations_expiring.commit();
+    m_pimpl->m_sponsored_informations_hash_to_block.commit();
 }
 
 void documents::discard()
@@ -100,6 +104,7 @@ void documents::discard()
     m_pimpl->m_storages.discard();
     m_pimpl->m_content_unit_sponsored_information.discard();
     m_pimpl->m_sponsored_informations_expiring.discard();
+    m_pimpl->m_sponsored_informations_hash_to_block.discard();
 }
 
 bool documents::exist_file(string const& uri) const
@@ -367,6 +372,13 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
 
         expirings.expirations[expiring.transaction_hash] = expiring;
     }
+
+    StorageTypes::TransactionHashToBlockNumber hash_to_block;
+    hash_to_block.transaction_hash = si.transaction_hash;
+    hash_to_block.block_number = expiring_block_number;
+
+    m_pimpl->m_sponsored_informations_hash_to_block.insert(hash_to_block.transaction_hash,
+                                                           hash_to_block);
 }
 
 void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& impl,
@@ -432,6 +444,12 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     expirings.expirations.erase(si.transaction_hash);
     if (expirings.expirations.empty())
         m_pimpl->m_sponsored_informations_expiring.erase(std::to_string(expiring_block_number));
+
+    StorageTypes::TransactionHashToBlockNumber hash_to_block;
+    hash_to_block.transaction_hash = si.transaction_hash;
+    hash_to_block.block_number = expiring_block_number;
+
+    m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
 }
 
 map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
@@ -672,6 +690,26 @@ StorageTypes::SponsoredInformationHeader&
 documents::expiration_entry_ref(uint64_t block_number, std::string const& transaction_hash)
 {
     auto& expirings = expiration_entry_ref(block_number);
+
+    assert(expirings.expirations.count(transaction_hash));
+    if (0 == expirings.expirations.count(transaction_hash))
+        throw std::logic_error("0 == expirings.expirations.count(transaction_hash)");
+
+    auto& expiration_entry = expirings.expirations[transaction_hash];
+
+    return expiration_entry;
+}
+
+StorageTypes::SponsoredInformationHeader&
+documents::expiration_entry_ref(std::string const& transaction_hash)
+{
+    assert(m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash));
+    if (false == m_pimpl->m_sponsored_informations_expiring.contains(transaction_hash))
+        throw std::logic_error("false == m_pimpl->m_sponsored_informations_expiring.contains(transaction_hash)");
+
+    auto const& hash_to_block = m_pimpl->m_sponsored_informations_hash_to_block.as_const().at(transaction_hash);
+
+    auto& expirings = expiration_entry_ref(hash_to_block.block_number);
 
     assert(expirings.expirations.count(transaction_hash));
     if (0 == expirings.expirations.count(transaction_hash))
