@@ -79,6 +79,9 @@ public:
     StorageTypes::SponsoredInformationHeader&
     expiration_entry_ref(uint64_t block_number, std::string const& transaction_hash);
 
+    StorageTypes::SponsoredInformationHeader&
+    expiration_entry_ref(std::string const& transaction_hash);
+
 private:
     std::unique_ptr<detail::documents_internals> m_pimpl;
 };
