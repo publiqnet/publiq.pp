@@ -22,6 +22,7 @@ using std::unique_ptr;
 namespace chrono = std::chrono;
 using beltpp::packet;
 using peer_id = beltpp::socket::peer_id;
+using chrono::system_clock;
 
 using namespace CommanderMessage;
 
@@ -56,12 +57,12 @@ rpc::rpc(beltpp::ip_address const& rpc_address,
     rpc_socket.listen(rpc_address);
 }
 
-void process_rewards(uint64_t head_block_index,
-                     uint64_t block_index,
-                     daemon_rpc::LogIndexLoader& reward_index,
-                     daemon_rpc::RewardLogLoader& reward_logs,
-                     AccountHistory& result,
-                     rpc const& rpc_server)
+void process_history_rewards(uint64_t head_block_index,
+                             uint64_t block_index,
+                             daemon_rpc::LogIndexLoader& reward_index,
+                             daemon_rpc::RewardLogLoader& reward_logs,
+                             AccountHistory& result,
+                             rpc const& rpc_server)
 {
     auto const& value = reward_index.as_const().at(std::to_string(block_index));
 
@@ -82,19 +83,21 @@ void process_rewards(uint64_t head_block_index,
         item.amount = reward_log.amount;
         //publiqpp::coin(reward_log.amount).to_Coin(item.amount);
 
+        AccountHistoryRewarded details;
+        details.reward_type = static_cast<RewardType>(reward_log.reward_type);
         item.details = AccountHistoryRewarded();
 
         result.log.push_back(std::move(item));
     }
 }
 
-void process_transactions(uint64_t head_block_index,
-                          uint64_t block_index,
-                          string const& address,
-                          daemon_rpc::LogIndexLoader& transaction_index,
-                          daemon_rpc::TransactionLogLoader& transaction_logs,
-                          AccountHistory& result,
-                          rpc const& rpc_server)
+void process_history_transactions(uint64_t head_block_index,
+                                  uint64_t block_index,
+                                  string const& address,
+                                  daemon_rpc::LogIndexLoader& transaction_index,
+                                  daemon_rpc::TransactionLogLoader const& transaction_logs,
+                                  AccountHistory& result,
+                                  rpc const& rpc_server)
 {
     auto const& value = transaction_index.as_const().at(std::to_string(block_index));
 
@@ -102,35 +105,32 @@ void process_transactions(uint64_t head_block_index,
          index != value.first + value.second;
          ++index)
     {
-        auto& transaction_log = transaction_logs.at(index);
+        auto const& transaction_log = transaction_logs.as_const().at(index);
 
-        const TransactionInfo transaction_info = TransactionInfo(transaction_log);
-
-        string authority;
-
-        if (rpc_server.blocks.size() > block_index)
-            authority = rpc_server.blocks.as_const().at(block_index).authority;
-
-        if (transaction_info.to == address)
+        if (transaction_log.action.type() == BlockchainMessage::Transfer::rtt)
         {
-            AccountHistoryItem item;
-            AccountHistoryReceived details;
-            item.block_index = block_index;
-            item.confirmations = head_block_index - block_index + 1;
-            item.item_type = AccountHistoryItemType::received;
-            item.timestamp.tm = transaction_log.time_signed.tm;
-            item.amount = transaction_info.amount;
-            //publiqpp::coin(transaction_info.amount).to_Coin(item.amount);
+            BlockchainMessage::Transfer const* tf;
+            transaction_log.action.get(tf);
 
-            details.from = transaction_info.from;
-            details.message = transaction_info.message;
-            details.transaction_hash = transaction_log.transaction_hash;
-            item.details = std::move(details);
+            if (tf->to == address)
+            {
+                AccountHistoryItem item;
+                AccountHistoryReceived details;
+                item.block_index = block_index;
+                item.confirmations = head_block_index - block_index + 1;
+                item.item_type = AccountHistoryItemType::received;
+                item.timestamp.tm = transaction_log.time_signed.tm;
+                item.amount = tf->amount;
 
-            result.log.push_back(std::move(item));
-        }
-        if (transaction_info.from == address)
-        {
+                details.from = tf->from;
+                details.message = tf->message;
+                details.transaction_hash = transaction_log.transaction_hash;
+                item.details = std::move(details);
+
+                result.log.push_back(std::move(item));
+            }
+
+            if (tf->from == address)
             {
                 AccountHistoryItem item;
                 AccountHistorySent details;
@@ -138,33 +138,68 @@ void process_transactions(uint64_t head_block_index,
                 item.confirmations = head_block_index - block_index + 1;
                 item.item_type = AccountHistoryItemType::sent;
                 item.timestamp.tm = transaction_log.time_signed.tm;
-                item.amount = transaction_info.amount;
-                //publiqpp::coin(transaction_info.amount).to_Coin(item.amount);
+                item.amount = tf->amount;
 
-                details.to = transaction_info.to;
-                details.message = transaction_info.message;
+                details.to = tf->to;
+                details.message = tf->message;
                 details.transaction_hash = transaction_log.transaction_hash;
                 item.details = std::move(details);
 
                 result.log.push_back(std::move(item));
             }
-            if (transaction_log.fee != BlockchainMessage::Coin())
+        }
+        else if (transaction_log.action.type() == BlockchainMessage::SponsorContentUnit::rtt)
+        {
+            BlockchainMessage::SponsorContentUnit const* scu;
+            transaction_log.action.get(scu);
+
+            if (scu->sponsor_address == address)
             {
                 AccountHistoryItem item;
-                AccountHistorySentFee details;
+                AccountHistorySponsored details;
                 item.block_index = block_index;
                 item.confirmations = head_block_index - block_index + 1;
-                item.item_type = AccountHistoryItemType::sent_fee;
+                item.item_type = AccountHistoryItemType::sent;
                 item.timestamp.tm = transaction_log.time_signed.tm;
-                item.amount = transaction_log.fee;
-                //publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
+                item.amount = scu->amount;
 
-                details.to = authority;
                 details.transaction_hash = transaction_log.transaction_hash;
+                details.start_time_point.tm = scu->start_time_point.tm;
+                auto end_time_point =
+                        system_clock::from_time_t(scu->start_time_point.tm) +
+                        chrono::hours(scu->hours);
+
+                details.end_time_point.tm = system_clock::to_time_t(end_time_point);
+
                 item.details = std::move(details);
 
                 result.log.push_back(std::move(item));
             }
+        }
+
+        string authority;
+
+        if (rpc_server.blocks.size() > block_index)
+            authority = rpc_server.blocks.as_const().at(block_index).authority;
+
+        TransactionInfo const transaction_info = TransactionInfo(transaction_log);
+
+        if (transaction_info.from == address &&
+            transaction_log.fee != BlockchainMessage::Coin())
+        {
+            AccountHistoryItem item;
+            AccountHistorySentFee details;
+            item.block_index = block_index;
+            item.confirmations = head_block_index - block_index + 1;
+            item.item_type = AccountHistoryItemType::sent_fee;
+            item.timestamp.tm = transaction_log.time_signed.tm;
+            item.amount = transaction_log.fee;
+
+            details.to = authority;
+            details.transaction_hash = transaction_log.transaction_hash;
+            item.details = std::move(details);
+
+            result.log.push_back(std::move(item));
         }
         if (authority == address &&
             transaction_log.fee != BlockchainMessage::Coin())
@@ -176,7 +211,6 @@ void process_transactions(uint64_t head_block_index,
             item.item_type = AccountHistoryItemType::received_fee;
             item.timestamp.tm = transaction_log.time_signed.tm;
             item.amount = transaction_log.fee;
-            //publiqpp::coin(transaction_log.fee).to_Coin(item.amount);
 
             details.from = transaction_info.from;
             details.transaction_hash = transaction_log.transaction_hash;
@@ -258,13 +292,13 @@ AccountHistory get_history(uint64_t head_block_index,
     {
         if (set_tx.find(i) != set_tx.end())
         {
-            process_transactions(head_block_index,
-                                 i,
-                                 address,
-                                 transaction_index,
-                                 transaction_logs,
-                                 result,
-                                 rpc_server);
+            process_history_transactions(head_block_index,
+                                         i,
+                                         address,
+                                         transaction_index,
+                                         transaction_logs,
+                                         result,
+                                         rpc_server);
         }
     }
 
@@ -272,12 +306,12 @@ AccountHistory get_history(uint64_t head_block_index,
     {
         if (set_rw.find(i) != set_rw.end())
         {
-            process_rewards(head_block_index,
-                            i,
-                            reward_index,
-                            reward_logs,
-                            result,
-                            rpc_server);
+            process_history_rewards(head_block_index,
+                                    i,
+                                    reward_index,
+                                    reward_logs,
+                                    result,
+                                    rpc_server);
         }
     }
 
@@ -285,23 +319,23 @@ AccountHistory get_history(uint64_t head_block_index,
     {
         if (set_tx.find(i) != set_tx.end())
         {
-            process_transactions(head_block_index,
-                                 i,
-                                 address,
-                                 transaction_index,
-                                 transaction_logs,
-                                 result,
-                                 rpc_server);
+            process_history_transactions(head_block_index,
+                                         i,
+                                         address,
+                                         transaction_index,
+                                         transaction_logs,
+                                         result,
+                                         rpc_server);
         }
 
         if (set_rw.find(i) != set_rw.end())
         {
-            process_rewards(head_block_index,
-                            i,
-                            reward_index,
-                            reward_logs,
-                            result,
-                            rpc_server);
+            process_history_rewards(head_block_index,
+                                    i,
+                                    reward_index,
+                                    reward_logs,
+                                    result,
+                                    rpc_server);
         }
     }
 
@@ -309,13 +343,13 @@ AccountHistory get_history(uint64_t head_block_index,
     {
         if (set_tx.find(i) != set_tx.end())
         {
-            process_transactions(head_block_index,
-                                 i,
-                                 address,
-                                 transaction_index,
-                                 transaction_logs,
-                                 result,
-                                 rpc_server);
+            process_history_transactions(head_block_index,
+                                         i,
+                                         address,
+                                         transaction_index,
+                                         transaction_logs,
+                                         result,
+                                         rpc_server);
         }
     }
 
@@ -323,12 +357,12 @@ AccountHistory get_history(uint64_t head_block_index,
     {
         if (set_rw.find(i) != set_rw.end())
         {
-            process_rewards(head_block_index,
-                            i,
-                            reward_index,
-                            reward_logs,
-                            result,
-                            rpc_server);
+            process_history_rewards(head_block_index,
+                                    i,
+                                    reward_index,
+                                    reward_logs,
+                                    result,
+                                    rpc_server);
         }
     }
 

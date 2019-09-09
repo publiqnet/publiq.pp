@@ -80,6 +80,7 @@ module CommanderMessage
         received_fee
         sent
         sent_fee
+        sponsored
         rewarded
     }
     class AccountHistoryItem
@@ -114,8 +115,25 @@ module CommanderMessage
         String to
         String transaction_hash
     }
+    class AccountHistorySponsored
+    {
+        String uri
+        String transaction_hash
+        TimePoint start_time_point
+        TimePoint end_time_point
+    }
     class AccountHistoryRewarded
     {
+        RewardType reward_type
+    }
+    enum RewardType
+    {
+        initial
+        miner
+        author
+        channel
+        storage
+        sponsored_return
     }
 
     class ImportAccount

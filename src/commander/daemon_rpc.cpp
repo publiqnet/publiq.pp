@@ -403,12 +403,12 @@ void update_balances(unordered_set<string> const& set_accounts,
 }
 
 void process_transactions(uint64_t block_index,
-                         BlockchainMessage::TransactionLog const& transaction_log,
-                         unordered_set<string> const& set_accounts,
-                         unordered_map<string, TransactionLogLoader>& transactions,
-                         unordered_map<string, LogIndexLoader>& index_transactions,
-                         string  const& authority,
-                         LoggingType type)
+                          BlockchainMessage::TransactionLog const& transaction_log,
+                          unordered_set<string> const& set_accounts,
+                          unordered_map<string, TransactionLogLoader>& transactions,
+                          unordered_map<string, LogIndexLoader>& index_transactions,
+                          string  const& authority,
+                          LoggingType type)
 {
 
     const TransactionInfo transaction_info = TransactionInfo(transaction_log);
@@ -444,10 +444,10 @@ void process_transactions(uint64_t block_index,
                             type);
 }
 
-void process_storage_tansactions(   unordered_set<string> const& set_accounts,
-                                    BlockchainMessage::TransactionLog const& transaction_log,
-                                    rpc& rpc_server,
-                                    LoggingType type)
+void process_storage_tansactions(unordered_set<string> const& set_accounts,
+                                 BlockchainMessage::TransactionLog const& transaction_log,
+                                 rpc& rpc_server,
+                                 LoggingType type)
 {
     if (StorageUpdate::rtt == transaction_log.action.type())
     {
@@ -484,7 +484,6 @@ void process_storage_tansactions(   unordered_set<string> const& set_accounts,
 
             if ((UpdateType::store == update.status && LoggingType::revert == type) ||
                 (UpdateType::remove == update.status && LoggingType::apply == type))
-
                 check_files(CommanderMessage::Stored::no);
             else
             {
@@ -508,7 +507,7 @@ void process_storage_tansactions(   unordered_set<string> const& set_accounts,
             bool flag = false;
             for (auto file_uris : rpc_server.storages.at(key).file_uris)
             {
-                if ( file_uris.file_uri == update.file_uri)
+                if (file_uris.file_uri == update.file_uri)
                     flag = true;
             }
 
@@ -523,9 +522,9 @@ void process_storage_tansactions(   unordered_set<string> const& set_accounts,
     }
 }
 
-void process_channel_transactions(  BlockchainMessage::TransactionLog const& transaction_log,
-                                    rpc& rpc_server,
-                                    LoggingType type)
+void process_channel_transactions(BlockchainMessage::TransactionLog const& transaction_log,
+                                  rpc& rpc_server,
+                                  LoggingType type)
 {
     std::vector<std::string> file_uris;
     std::string channel_address;
@@ -605,7 +604,7 @@ void complete_storage(rpc& rpc_server)
 }
 
 beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::StorageUpdateRequest const& update,
-                                rpc& rpc_server)
+                                                          rpc& rpc_server)
 {
     B_UNUSED(rpc_server);
 
@@ -948,22 +947,22 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                         if (!new_import)
                                             process_channel_transactions(transaction_log,
-                                                                        rpc_server,
-                                                                        LoggingType::apply);
+                                                                         rpc_server,
+                                                                         LoggingType::apply);
 
                                         update_balances(set_accounts,
-                                                       rpc_server,
-                                                       transaction_log,
-                                                       block_log.authority,
-                                                       LoggingType::apply);
+                                                        rpc_server,
+                                                        transaction_log,
+                                                        block_log.authority,
+                                                        LoggingType::apply);
 
                                         process_transactions(block_index,
-                                                            transaction_log,
-                                                            set_accounts,
-                                                            transactions,
-                                                            index_transactions,
-                                                            block_log.authority,
-                                                            LoggingType::apply);
+                                                             transaction_log,
+                                                             set_accounts,
+                                                             transactions,
+                                                             index_transactions,
+                                                             block_log.authority,
+                                                             LoggingType::apply);
                                     }
 
                                     for (auto& reward_info : block_log.rewards)
@@ -1000,22 +999,22 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                     if (!new_import)
                                         process_channel_transactions(transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::apply);
+                                                                     rpc_server,
+                                                                     LoggingType::apply);
 
                                     update_balances(set_accounts,
-                                                   rpc_server,
-                                                   transaction_log,
-                                                   string(),
-                                                   LoggingType::apply);
+                                                    rpc_server,
+                                                    transaction_log,
+                                                    string(),
+                                                    LoggingType::apply);
 
                                     process_transactions(block_index,
-                                                        transaction_log,
-                                                        set_accounts,
-                                                        transactions,
-                                                        index_transactions,
-                                                        string(),
-                                                        LoggingType::apply);
+                                                         transaction_log,
+                                                         set_accounts,
+                                                         transactions,
+                                                         index_transactions,
+                                                         string(),
+                                                         LoggingType::apply);
                                 }
                             }
                             else// if (action_info.logging_type == LoggingType::revert)
@@ -1040,22 +1039,22 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                         if (!new_import)
                                             process_channel_transactions(transaction_log,
-                                                                        rpc_server,
-                                                                        LoggingType::apply);
+                                                                         rpc_server,
+                                                                         LoggingType::apply);
 
                                         update_balances(set_accounts,
-                                                       rpc_server,
-                                                       transaction_log,
-                                                       block_log.authority,
-                                                       LoggingType::revert);
+                                                        rpc_server,
+                                                        transaction_log,
+                                                        block_log.authority,
+                                                        LoggingType::revert);
 
                                         process_transactions(block_index,
-                                                            transaction_log,
-                                                            set_accounts,
-                                                            transactions,
-                                                            index_transactions,
-                                                            block_log.authority,
-                                                            LoggingType::revert);
+                                                             transaction_log,
+                                                             set_accounts,
+                                                             transactions,
+                                                             index_transactions,
+                                                             block_log.authority,
+                                                             LoggingType::revert);
                                     }
 
                                     for (auto& reward_info : block_log.rewards)
@@ -1097,22 +1096,22 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                     if (!new_import)
                                         process_channel_transactions(transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::apply);
+                                                                     rpc_server,
+                                                                     LoggingType::apply);
 
                                     update_balances(set_accounts,
-                                                   rpc_server,
-                                                   transaction_log,
-                                                   string(),
-                                                   LoggingType::revert);
+                                                    rpc_server,
+                                                    transaction_log,
+                                                    string(),
+                                                    LoggingType::revert);
 
                                     process_transactions(block_index,
-                                                        transaction_log,
-                                                        set_accounts,
-                                                        transactions,
-                                                        index_transactions,
-                                                        string(),
-                                                        LoggingType::revert);
+                                                         transaction_log,
+                                                         set_accounts,
+                                                         transactions,
+                                                         index_transactions,
+                                                         string(),
+                                                         LoggingType::revert);
                                 }
                             }
                             if (new_import && local_start_index == log_index.as_const()->value)
@@ -1132,6 +1131,7 @@ void daemon_rpc::sync(rpc& rpc_server,
             }
         }
 
+        //  what's this?
         complete_storage(rpc_server);
 
         if ((false == new_import && count < max_count) ||
@@ -1139,6 +1139,7 @@ void daemon_rpc::sync(rpc& rpc_server,
             break;
     }
 
+    //  and  this?
     complete_storage(rpc_server);
 
     rpc_server.head_block_index.save();
