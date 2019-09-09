@@ -704,8 +704,8 @@ StorageTypes::SponsoredInformationHeader&
 documents::expiration_entry_ref(std::string const& transaction_hash)
 {
     assert(m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash));
-    if (false == m_pimpl->m_sponsored_informations_expiring.contains(transaction_hash))
-        throw std::logic_error("false == m_pimpl->m_sponsored_informations_expiring.contains(transaction_hash)");
+    if (false == m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash))
+        throw std::logic_error("false == m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash)");
 
     auto const& hash_to_block = m_pimpl->m_sponsored_informations_hash_to_block.as_const().at(transaction_hash);
 

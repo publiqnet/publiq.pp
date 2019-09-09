@@ -89,6 +89,10 @@ TransactionInfo::TransactionInfo(TransactionLog const& transaction_log)
 
         break;
     }
+    case CancelSponsorContentUnit::rtt:
+    {
+        break;
+    }
     default:
     {
         assert(false);
