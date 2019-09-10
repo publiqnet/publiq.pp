@@ -95,7 +95,9 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 
         for (auto const& file_item : service_statistics.file_items)
             for (auto const& count_item : file_item.count_items)
-                peers_set.insert(count_item.peer_address);
+                // exclude myselvs from check list
+                if (count_item.peer_address != impl.m_pb_key.to_string())
+                    peers_set.insert(count_item.peer_address);
 
         PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
 
@@ -109,6 +111,9 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
             else if (peers_set.count(item.node_address) > 0)
                 addresses_set.insert(item.ip_address.local.address);
         }
+
+        if (server_address.empty() && service_statistics.server_address == impl.m_pb_key.to_string())
+            server_address = service_statistics.server_address;
 
         if (server_address.empty() ||
             peers_set.size() != addresses_set.size() ||
@@ -194,7 +199,9 @@ void action_apply(publiqpp::detail::node_internals& impl,
 
         for (auto const& file_item : service_statistics.file_items)
             for (auto const& count_item : file_item.count_items)
-                peers_set.insert(count_item.peer_address);
+                // exclude myselvs from check list
+                if (count_item.peer_address != impl.m_pb_key.to_string())
+                    peers_set.insert(count_item.peer_address);
 
         PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
 
@@ -209,7 +216,10 @@ void action_apply(publiqpp::detail::node_internals& impl,
                 addresses_set.insert(item.ip_address.local.address);
         }
 
-        if (server_address.empty() || 
+        if (server_address.empty() && service_statistics.server_address == impl.m_pb_key.to_string())
+            server_address = service_statistics.server_address;
+
+        if (server_address.empty() ||
             peers_set.size() != addresses_set.size() ||
             addresses_set.count(server_address) > 0)
             throw wrong_data_exception("service statistics contains channel and storage with same address");
