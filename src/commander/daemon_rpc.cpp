@@ -522,87 +522,6 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
     }
 }
 
-void process_channel_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                  rpc& rpc_server,
-                                  LoggingType type)
-{
-    std::vector<std::string> file_uris;
-    std::string channel_address;
-    uint64_t content_id;
-
-    auto check_channels = [&rpc_server, &type, &channel_address, &content_id, &file_uris] (){
-
-        if (rpc_server.channels.contains(channel_address))
-        {
-            for (auto &item : rpc_server.channels.at(channel_address).contnets)
-            {
-                if (item.id.content_id == content_id )
-                {
-                    if (LoggingType::apply == type &&
-                        CommanderMessage::Checked::no == item.id.checked)
-                        item.id.checked = CommanderMessage::Checked::yes;
-                    else
-                        item.id.checked = CommanderMessage::Checked::no;
-                }
-            }
-        }
-        else
-        {
-            if (LoggingType::apply == type)
-            {
-                CommanderMessage::CheckedContentID checked_content_id;
-                checked_content_id.checked = CommanderMessage::Checked::no;
-                checked_content_id.content_id = content_id;
-
-                CommanderMessage::Content content;
-                content.file_uris = file_uris;
-                content.id = checked_content_id;
-
-                CommanderMessage::Channel channel;
-                channel.channel_address = channel_address;
-                channel.contnets.push_back(content);
-
-                rpc_server.channels.insert(channel_address, channel);
-            }
-            else
-                rpc_server.channels.erase(channel_address);
-        }
-    };
-
-    if (Content::rtt == transaction_log.action.type())
-    {
-        Content content;
-        std::move(transaction_log.action).get(content);
-        channel_address = content.channel_address;
-        content_id = content.content_id;
-        check_channels();
-    }
-
-    if (ContentUnit::rtt == transaction_log.action.type())
-    {
-        ContentUnit content_unit;
-        std::move(transaction_log.action).get(content_unit);
-
-        file_uris = content_unit.file_uris;
-        channel_address = content_unit.channel_address;
-        content_id = content_unit.content_id;
-        check_channels();
-    }
-}
-
-
-void complete_storage(rpc& rpc_server)
-{
-    for (auto channel_key : rpc_server.channels.keys())
-        for (auto &content : rpc_server.channels.at(channel_key).contnets)
-            for (auto &channel_file : content.file_uris)
-                for (auto storage_key : rpc_server.storages.keys())
-                    for (auto &storage_file : rpc_server.storages.at(storage_key).file_uris)
-                        if (channel_file == storage_file.file_uri)
-                            storage_file.channel_address = channel_key;
-
-}
-
 beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::StorageUpdateRequest const& update,
                                                           rpc& rpc_server)
 {
@@ -809,7 +728,6 @@ void daemon_rpc::sync(rpc& rpc_server,
         rpc_server.accounts.discard();
         rpc_server.blocks.discard();
         rpc_server.storages.discard();
-        rpc_server.channels.discard();
         rpc_server.head_block_index.discard();
 
         for (auto& tr : transactions)
@@ -945,10 +863,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     rpc_server,
                                                                     LoggingType::apply);
 
-                                        if (!new_import)
-                                            process_channel_transactions(transaction_log,
-                                                                         rpc_server,
-                                                                         LoggingType::apply);
 
                                         update_balances(set_accounts,
                                                         rpc_server,
@@ -997,11 +911,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 rpc_server,
                                                                 LoggingType::apply);
 
-                                    if (!new_import)
-                                        process_channel_transactions(transaction_log,
-                                                                     rpc_server,
-                                                                     LoggingType::apply);
-
                                     update_balances(set_accounts,
                                                     rpc_server,
                                                     transaction_log,
@@ -1036,11 +945,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::apply);
-
-                                        if (!new_import)
-                                            process_channel_transactions(transaction_log,
-                                                                         rpc_server,
-                                                                         LoggingType::apply);
 
                                         update_balances(set_accounts,
                                                         rpc_server,
@@ -1094,11 +998,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 rpc_server,
                                                                 LoggingType::apply);
 
-                                    if (!new_import)
-                                        process_channel_transactions(transaction_log,
-                                                                     rpc_server,
-                                                                     LoggingType::apply);
-
                                     update_balances(set_accounts,
                                                     rpc_server,
                                                     transaction_log,
@@ -1131,22 +1030,15 @@ void daemon_rpc::sync(rpc& rpc_server,
             }
         }
 
-        //  what's this?
-        // complete_storage(rpc_server);
-
         if ((false == new_import && count < max_count) ||
             new_import_done)
             break;
     }
 
-    //  and  this?
-    // complete_storage(rpc_server);
-
     rpc_server.head_block_index.save();
     rpc_server.accounts.save();
     rpc_server.blocks.save();
     rpc_server.storages.save();
-    rpc_server.channels.save();
     log_index.save();
 
     for (auto& tr : transactions)
@@ -1164,7 +1056,6 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.commit();
     rpc_server.blocks.commit();
     rpc_server.storages.commit();
-    rpc_server.channels.commit();
     log_index.commit();
 
     for (auto& tr : transactions)

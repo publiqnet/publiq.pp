@@ -206,32 +206,7 @@ module CommanderMessage
     class StoredFile
     {
         Stored stored
-        String channel_address
         String file_uri
-    }
-
-    class Channel
-    {
-        String channel_address
-        Array Content contnets
-    }
-
-    class Content
-    {
-        Array String file_uris
-        CheckedContentID id
-    }
-
-    enum Checked
-    {
-        yes
-        no
-    }
-
-    class CheckedContentID
-    {
-        UInt64 content_id
-        Checked checked
     }
 
     class StorageUpdateRequest
