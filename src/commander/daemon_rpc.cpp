@@ -1132,7 +1132,7 @@ void daemon_rpc::sync(rpc& rpc_server,
         }
 
         //  what's this?
-        complete_storage(rpc_server);
+        // complete_storage(rpc_server);
 
         if ((false == new_import && count < max_count) ||
             new_import_done)
@@ -1140,7 +1140,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     }
 
     //  and  this?
-    complete_storage(rpc_server);
+    // complete_storage(rpc_server);
 
     rpc_server.head_block_index.save();
     rpc_server.accounts.save();
