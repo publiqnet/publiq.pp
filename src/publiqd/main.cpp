@@ -267,7 +267,7 @@ int main(int argc, char** argv)
                             pv_key,
                             n_type,
                             log_enabled,
-                            testnet ? false : true,
+                            false,
                             testnet,
                             mine_amount_threshhold(),
                             block_reward_array(),
