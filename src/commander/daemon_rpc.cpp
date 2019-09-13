@@ -944,7 +944,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         process_storage_tansactions(set_accounts,
                                                                     transaction_log,
                                                                     rpc_server,
-                                                                    LoggingType::apply);
+                                                                    LoggingType::revert);
 
                                         update_balances(set_accounts,
                                                         rpc_server,
@@ -996,7 +996,7 @@ void daemon_rpc::sync(rpc& rpc_server,
                                     process_storage_tansactions(set_accounts,
                                                                 transaction_log,
                                                                 rpc_server,
-                                                                LoggingType::apply);
+                                                                LoggingType::revert);
 
                                     update_balances(set_accounts,
                                                     rpc_server,
