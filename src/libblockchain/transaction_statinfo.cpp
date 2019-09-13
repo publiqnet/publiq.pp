@@ -168,13 +168,13 @@ void action_apply(publiqpp::detail::node_internals& impl,
         coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
         throw wrong_data_exception("the node: " +
                                     service_statistics.server_address +
-                                    " must have at least 100.000 PBQ verified balance.");
+                                    " must have at least 100.000 verified balance.");
 
     if (node_type == NodeType::storage &&
         coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
         throw wrong_data_exception("the node: " +
                                     service_statistics.server_address +
-                                    " must have at least 1000 PBQ verified balance.");
+                                    " must have at least 10.000 verified balance.");
 
     if (state_layer::chain == layer)
     {

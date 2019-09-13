@@ -91,13 +91,13 @@ void action_apply(publiqpp::detail::node_internals& impl,
         coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
         throw std::runtime_error("the node: " +
                                     role.node_address +
-                                    " must have at least 100.000 PBQ verified balance.");
+                                    " must have at least 100.000 verified balance.");
 
     if (role.node_type == NodeType::storage &&
         coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
         throw std::runtime_error("the node: " +
                                     role.node_address +
-                                    " must have at least 1000 PBQ verified balance.");
+                                    " must have at least 10.000 verified balance.");
 
     impl.m_state.insert_role(role);
 }
