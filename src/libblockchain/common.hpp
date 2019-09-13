@@ -54,7 +54,7 @@
 #define DIST_MAX    4294967296ull
 
 // Service statistics acceptable discreancy
-#define STAT_ERROR_LIMIT 1.1
+#define STAT_ERROR_LIMIT 1.2
 
 // Reward coins percents
 #define MINER_EMISSION_REWARD_PERCENT    10
