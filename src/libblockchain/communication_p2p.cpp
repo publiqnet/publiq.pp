@@ -1097,7 +1097,7 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     Transaction transaction;
     transaction.action = std::move(service_statistics);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(BLOCK_MINE_DELAY));
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(2 * BLOCK_MINE_DELAY));
 
     Authority authorization;
     authorization.address = impl.m_pb_key.to_string();

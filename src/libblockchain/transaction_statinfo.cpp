@@ -92,7 +92,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 
         for (auto const& file_item : service_statistics.file_items)
             for (auto const& count_item : file_item.count_items)
-                // exclude myselvs from check list
+                // exclude myself from check list
                 if (count_item.peer_address != impl.m_pb_key.to_string())
                     peers_set.insert(count_item.peer_address);
 
@@ -193,7 +193,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
 
         for (auto const& file_item : service_statistics.file_items)
             for (auto const& count_item : file_item.count_items)
-                // exclude myselvs from check list
+                // exclude myself from check list
                 if (count_item.peer_address != impl.m_pb_key.to_string())
                     peers_set.insert(count_item.peer_address);
 
