@@ -1,5 +1,7 @@
 #pragma once
 
+//#define EXTRA_LOGGING
+
 #include "coin.hpp"
 #include "message.hpp"
 

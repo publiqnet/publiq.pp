@@ -1016,7 +1016,9 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
 
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
 
-    //pimpl->writeln_node(file_uri + " requesting");
+#ifdef EXTRA_LOGGING
+    pimpl->writeln_node(file_uri + " requesting");
+#endif
 }
 
 bool session_action_request_file::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
@@ -1035,7 +1037,9 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             BlockchainMessage::StorageFile storage_file;
             std::move(package).get(storage_file);
 
-            //pimpl->writeln_node(file_uri + " processing");
+#ifdef EXTRA_LOGGING
+            pimpl->writeln_node(file_uri + " processing");
+#endif
 
             if (file_uri != meshpp::hash(storage_file.data))
             {
@@ -1057,7 +1061,9 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
                     if (false == impl.m_documents.storage_has_uri(pfile_address->uri, impl.m_pb_key.to_string()))
                         broadcast_storage_update(impl, pfile_address->uri, UpdateType::store);
 
-                    //impl.writeln_node(pfile_address->uri + " saved");
+#ifdef EXTRA_LOGGING
+                    impl.writeln_node(pfile_address->uri + " saved");
+#endif
                 }
             }));
 

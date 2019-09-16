@@ -552,7 +552,11 @@ bool node::run()
                     std::move(ref_packet).get(msg);
                     m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
 
-                    psk->send(peerid, beltpp::packet(Done()));
+#ifdef EXTRA_LOGGING
+                    m_pimpl->writeln_node("channel served");
+                    m_pimpl->writeln_node(msg.to_string());
+#endif
+
                     break;
                 }
                 default:
@@ -771,7 +775,14 @@ bool node::run()
                     m_pimpl->m_state.get_role(msg.peer_address, peer_node_type) &&
                     peer_node_type == NodeType::channel &&
                     m_pimpl->m_documents.exist_file(msg.file_uri))
+                {
                     m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+
+#ifdef EXTRA_LOGGING
+                    m_pimpl->writeln_node("storage served");
+                    m_pimpl->writeln_node(msg.to_string());
+#endif
+                }
                 break;
             }
             }
