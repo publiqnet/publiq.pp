@@ -552,6 +552,7 @@ bool node::run()
                     std::move(ref_packet).get(msg);
                     m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
 
+                    psk->send(peerid, beltpp::packet(Done()));
 #ifdef EXTRA_LOGGING
                     m_pimpl->writeln_node("channel served");
                     m_pimpl->writeln_node(msg.to_string());
