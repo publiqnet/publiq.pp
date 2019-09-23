@@ -840,6 +840,14 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     BlockHeader const& prev_header = pimpl->m_blockchain.header_at(lcb_number);
     uint64_t c_const = prev_header.c_const;
 
+    // reject blocks which not relevant statistics
+    if (sync_blocks.size() == 1 &&
+        check_service_statistics(sync_blocks.front().block_details, 
+                                 pool_transactions, 
+                                 reverted_transactions,
+                                 *pimpl))
+        return set_errored("blockchain response. block service statistics!", throw_for_debugging_only);
+
     for (auto const& signed_block : sync_blocks)
     {
         Block const& block = signed_block.block_details;

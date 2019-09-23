@@ -574,6 +574,92 @@ bool check_rewards(Block const& block,
     return bad_reward;
 }
 
+bool check_service_statistics(Block const& block,
+                              vector<SignedTransaction> const& pool_transactions,
+                              vector<SignedTransaction> const& reverted_transactions,
+                              publiqpp::detail::node_internals& impl)
+{
+    size_t block_channel_stat_count = 0;
+    size_t block_storage_stat_count = 0;
+    size_t known_channel_stat_count = 0;
+    size_t known_storage_stat_count = 0;
+
+    auto tp_end = system_clock::from_time_t(block.header.time_signed.tm) - chrono::seconds(BLOCK_MINE_DELAY);
+    auto tp_start = system_clock::from_time_t(block.header.time_signed.tm) - chrono::seconds(2 * BLOCK_MINE_DELAY);
+
+    for (auto it = block.signed_transactions.begin(); it != block.signed_transactions.end(); ++it)
+    {
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
+        {
+            ServiceStatistics const* service_statistics;
+            it->transaction_details.action.get(service_statistics);
+
+            if (service_statistics->start_time_point.tm == system_clock::to_time_t(tp_start) &&
+                service_statistics->end_time_point.tm == system_clock::to_time_t(tp_end))
+            {
+                NodeType node_type;
+                if (impl.m_state.get_role(service_statistics->server_address, node_type))
+                {
+                    if (node_type == NodeType::channel)
+                        ++block_channel_stat_count;
+                    else
+                        ++block_storage_stat_count;
+                }
+            }
+        }
+    }
+
+    for (auto it = pool_transactions.begin(); it != pool_transactions.end(); ++it)
+    {
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
+        {
+            ServiceStatistics const* service_statistics;
+            it->transaction_details.action.get(service_statistics);
+
+            if (service_statistics->start_time_point.tm == system_clock::to_time_t(tp_start) &&
+                service_statistics->end_time_point.tm == system_clock::to_time_t(tp_end))
+            {
+                NodeType node_type;
+                if (impl.m_state.get_role(service_statistics->server_address, node_type))
+                {
+                    if (node_type == NodeType::channel)
+                        ++known_channel_stat_count;
+                    else
+                        ++known_storage_stat_count;
+                }
+            }
+        }
+    }
+
+    for (auto it = reverted_transactions.begin(); it != reverted_transactions.end(); ++it)
+    {
+        if (it->transaction_details.action.type() == ServiceStatistics::rtt)
+        {
+            ServiceStatistics const* service_statistics;
+            it->transaction_details.action.get(service_statistics);
+
+            if (service_statistics->start_time_point.tm == system_clock::to_time_t(tp_start) &&
+                service_statistics->end_time_point.tm == system_clock::to_time_t(tp_end))
+            {
+                NodeType node_type;
+                if (impl.m_state.get_role(service_statistics->server_address, node_type))
+                {
+                    if (node_type == NodeType::channel)
+                        ++known_channel_stat_count;
+                    else
+                        ++known_storage_stat_count;
+                }
+            }
+        }
+    }
+
+    // at least 50% known acceptable service statistics must be included
+    // in current block for channels and storages seperately
+
+    return 2 * block_channel_stat_count < known_channel_stat_count ||
+           2 * block_storage_stat_count < known_storage_stat_count;
+}
+
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error)
 {
     static_assert(DELTA_STEP > 0, "check this please");
@@ -700,11 +786,6 @@ void mine_block(publiqpp::detail::node_internals& impl)
         impl.m_transaction_cache.restore();
     });
 
-    //  collect transactions to be reverted from pool
-    //  revert transactions from pool
-    vector<SignedTransaction> reverted_transactions =
-            revert_pool(system_clock::to_time_t(now), impl);
-
     uint64_t block_number = impl.m_blockchain.length() - 1;
 
     //  calculate consensus_const
@@ -748,8 +829,72 @@ void mine_block(publiqpp::detail::node_internals& impl)
     Block block;
     block.header = block_header;
 
-    vector<SignedTransaction> block_transactions;
     vector<SignedTransaction> pool_transactions;
+    vector<SignedTransaction> block_transactions;
+    vector<SignedTransaction> channel_statistics;
+    vector<SignedTransaction> storage_statistics;
+    vector<SignedTransaction> reverted_transactions;
+
+    auto tp_end = system_clock::from_time_t(prev_header.time_signed.tm);
+    auto tp_start = tp_end - chrono::seconds(BLOCK_MINE_DELAY);
+
+    //  collect transactions to be reverted from pool
+    //  revert transactions from pool
+    vector<SignedTransaction> pool_reverted_transactions = revert_pool(system_clock::to_time_t(now), impl);
+
+    for (auto& signed_tr : pool_reverted_transactions)
+    {
+        if (signed_tr.transaction_details.action.type() == ServiceStatistics::rtt)
+        {
+            ServiceStatistics* service_statistics;
+            signed_tr.transaction_details.action.get(service_statistics);
+
+            if (service_statistics->start_time_point.tm == system_clock::to_time_t(tp_start) &&
+                service_statistics->end_time_point.tm == system_clock::to_time_t(tp_end))
+            {
+                NodeType node_type;
+                if (impl.m_state.get_role(service_statistics->server_address, node_type))
+                {
+                    if (node_type == NodeType::channel)
+                        channel_statistics.push_back(std::move(signed_tr));
+                    else
+                        storage_statistics.push_back(std::move(signed_tr));
+                }
+            }
+            else
+                reverted_transactions.push_back(std::move(signed_tr));
+        }
+        else
+            reverted_transactions.push_back(std::move(signed_tr));
+    }
+
+    auto reserve_statistics = [&block_transactions, &reverted_transactions](vector<SignedTransaction>& statistics)
+    {
+        std::sort(statistics.begin(), statistics.end(),
+            [](SignedTransaction const& lhs, SignedTransaction const& rhs)
+        {
+            return lhs.transaction_details.fee >= rhs.transaction_details.fee;
+        });
+
+        size_t stat_index = 0;
+        size_t stat_count = statistics.size();
+
+        for (auto& stat : statistics)
+        {
+            if (2 * stat_index < stat_count)
+            {
+                ++stat_index;
+                block_transactions.push_back(std::move(stat));
+            }
+            else
+            {
+                reverted_transactions.push_back(std::move(stat));
+            }
+        }
+    };
+
+    reserve_statistics(channel_statistics);
+    reserve_statistics(storage_statistics);
 
     auto reverted_transactions_it_end =
             std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
@@ -922,25 +1067,22 @@ void mine_block(publiqpp::detail::node_internals& impl)
         return (lhs.value / lhs.size) > (rhs.value / rhs.size);
     });
 
+    size_t reserved_size = block_transactions.size();
+
     for (size_t index = 0; index != reverted_transactions_ex.size(); ++index)
     {
         auto& signed_transaction = reverted_transactions_ex[index].stx;
         bool can_put_in_block = true;
-        if (signed_transaction.transaction_details.action.type() ==
-            ServiceStatistics::rtt)
+        if (signed_transaction.transaction_details.action.type() == ServiceStatistics::rtt)
         {
             ServiceStatistics* paction;
             signed_transaction.transaction_details.action.get(paction);
-
-            auto tp_end = system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
-            auto tp_start = tp_end - chrono::seconds(BLOCK_MINE_DELAY);
 
             if (paction->start_time_point.tm != system_clock::to_time_t(tp_start) ||
                 paction->end_time_point.tm != system_clock::to_time_t(tp_end))
                 can_put_in_block = false;
         }
-        if (index < size_t(BLOCK_MAX_TRANSACTIONS) &&
-            can_put_in_block)
+        if (reserved_size + index < size_t(BLOCK_MAX_TRANSACTIONS) && can_put_in_block)
             block_transactions.push_back(std::move(signed_transaction));
         else
             pool_transactions.push_back(std::move(signed_transaction));
