@@ -1116,7 +1116,9 @@ session_action_save_file::~session_action_save_file()
         callback)
     {
         BlockchainMessage::RemoteError msg;
-        msg.message = "unknown error uploading the file";
+        msg.message = "unknown error uploading the file " +
+                      std::to_string(expected_next_package_type) + ", " +
+                      std::to_string(errored);
         callback(beltpp::packet(std::move(msg)));
     }
 }
@@ -1169,7 +1171,6 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
                 callback(std::move(package));
             completed = true;
             expected_next_package_type = size_t(-1);
-            errored = true;
         }
         else
             code = false;
