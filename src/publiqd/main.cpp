@@ -50,6 +50,7 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
+                          uint64_t& fractions,
                           std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet);
@@ -165,6 +166,7 @@ int main(int argc, char** argv)
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
     NodeType n_type;
+    uint64_t fractions;
     bool log_enabled;
     bool testnet;
     meshpp::random_seed seed;
@@ -181,6 +183,7 @@ int main(int argc, char** argv)
                                       data_directory,
                                       pv_key,
                                       n_type,
+                                      fractions,
                                       sync_delay,
                                       log_enabled,
                                       testnet))
@@ -266,6 +269,7 @@ int main(int argc, char** argv)
                             plogger_rpc.get(),
                             pv_key,
                             n_type,
+                            fractions,
                             log_enabled,
                             false,
                             testnet,
@@ -388,6 +392,7 @@ bool process_command_line(int argc, char** argv,
                           string& data_directory,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
+                          uint64_t& fractions,
                           std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet)
@@ -425,6 +430,8 @@ bool process_command_line(int argc, char** argv,
                             "Node private key to start with")
             ("node_type,t", program_options::value<string>(&str_n_type),
                             "Node start mode")
+            ("fee_fractions,f", program_options::value<uint64_t>(&fractions),
+                            "fractions to set for statinfo fee")
             ("sync_after_seconds", program_options::value<size_t>(&seconds_sync_delay),
                             "Node start mode")
             ("testnet", "Work in testnet blockchain");
@@ -500,6 +507,9 @@ bool process_command_line(int argc, char** argv,
         if (n_type != BlockchainMessage::NodeType::blockchain &&
             slave_local_interface.empty())
             throw std::runtime_error("slave_local_interface is not specified");
+
+        if (0 == options.count("fee_fractions"))
+            fractions = 0;
 
         sync_delay = std::chrono::seconds(seconds_sync_delay);
     }

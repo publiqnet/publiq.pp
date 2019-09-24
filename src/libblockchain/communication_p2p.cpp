@@ -964,6 +964,7 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     transaction.action = std::move(role);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
+    m_pimpl->m_fee_transactions.to_Coin(transaction.fee);
 
     Authority authorization;
     authorization.address = m_pimpl->m_pb_key.to_string();
@@ -1098,6 +1099,7 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     transaction.action = std::move(service_statistics);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(2 * BLOCK_MINE_DELAY));
+    impl.m_fee_transactions.to_Coin(transaction.fee);
 
     Authority authorization;
     authorization.address = impl.m_pb_key.to_string();
@@ -1137,6 +1139,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
     transaction.action = std::move(storage_update);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
+    impl.m_fee_transactions.to_Coin(transaction.fee);
 
     Authority authorization;
     authorization.address = impl.m_pb_key.to_string();

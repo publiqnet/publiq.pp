@@ -290,6 +290,13 @@ protected:
     unordered_map<string, data_type> data_backup;
 };
 
+inline coin coin_from_fractions(uint64_t fractions)
+{
+    coin result(0, 1);
+    result *= fractions;
+    return result;
+}
+
 class node_internals
 {
 public:
@@ -309,6 +316,7 @@ public:
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
                    NodeType& n_type,
+                   uint64_t fractions,
                    bool log_enabled,
                    bool transfer_only,
                    bool testnet,
@@ -344,6 +352,7 @@ public:
         , m_documents(fs_documents, fs_storages)
         , all_sync_info(*this)
         , m_node_type(n_type)
+        , m_fee_transactions(std::move(coin_from_fractions(fractions)))
         , m_pv_key(pv_key)
         , m_pb_key(pv_key.get_public_key())
         , m_testnet(testnet)
@@ -544,6 +553,7 @@ public:
     transaction_cache m_transaction_cache;
 
     NodeType m_node_type;
+    coin m_fee_transactions;
     meshpp::private_key m_pv_key;
     meshpp::public_key m_pb_key;
 

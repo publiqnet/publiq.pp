@@ -31,9 +31,9 @@ public:
     coin& operator += (coin const& other);
     coin& operator -= (coin const& other);
 
-    coin& operator *= (uint64_t  times);
-    coin& operator /= (uint64_t  times);
-    coin& operator %= (uint64_t  times);
+    coin& operator *= (uint64_t times);
+    coin& operator /= (uint64_t times);
+    coin& operator %= (uint64_t times);
 
     bool operator > (coin const& other) const;
     bool operator < (coin const& other) const;

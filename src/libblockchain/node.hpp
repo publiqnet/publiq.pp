@@ -42,6 +42,7 @@ public:
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,
          BlockchainMessage::NodeType& n_type,
+         uint64_t fractions,
          bool log_enabled,
          bool transfer_only,
          bool testnet,
