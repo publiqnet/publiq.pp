@@ -522,6 +522,222 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
     }
 }
 
+void process_channel_tansactions(unordered_set<string> const& set_accounts,
+                                 BlockchainMessage::TransactionLog const& transaction_log,
+                                 rpc& rpc_server,
+                                 LoggingType type)
+{
+
+    if (ContentUnit::rtt == transaction_log.action.type())
+    {
+        ContentUnit content_unit;
+        std::move(transaction_log.action).get(content_unit);
+
+        if (set_accounts.count(content_unit.channel_address))
+        {
+            if (LoggingType::apply == type)
+            {
+                if (!rpc_server.channels.contains(content_unit.channel_address))
+                {
+                    CommanderMessage::ContentUnit cont_unit;
+                    cont_unit.author_addresses = content_unit.author_addresses;
+                    cont_unit.file_uris = content_unit.file_uris;
+
+                    CommanderMessage::Content content;
+                    content.approved = false;
+                    content.content_units[content_unit.uri] = cont_unit;
+
+                    CommanderMessage::ContentHistory content_history;
+                    content_history.contents.push_back(content);
+
+                    CommanderMessage::ChannelsResponseItem channel_response_item;
+                    channel_response_item.channel_address = content_unit.channel_address;
+                    channel_response_item.content_histories[content_unit.content_id] = content_history;
+
+                    rpc_server.channels.insert(content_unit.channel_address, channel_response_item);
+                }
+                else
+                {
+                    auto & channel_response_item = rpc_server.channels.at(content_unit.channel_address);
+
+                    auto content_histories_item = channel_response_item.content_histories.find(content_unit.content_id);
+                    if (content_histories_item == channel_response_item.content_histories.end())
+                    {
+                        CommanderMessage::ContentUnit cont_unit;
+                        cont_unit.author_addresses = content_unit.author_addresses;
+                        cont_unit.file_uris = content_unit.file_uris;
+
+                        CommanderMessage::Content content;
+                        content.approved = false;
+                        content.content_units[content_unit.uri] = cont_unit;
+
+                        CommanderMessage::ContentHistory content_history;
+                        content_history.contents.push_back(content);
+
+                        channel_response_item.content_histories[content_unit.content_id] = content_history;
+                    }
+                    else
+                    {
+                        auto & contents = content_histories_item->second.contents;
+
+                        if (contents.empty())
+                        {
+                            CommanderMessage::ContentUnit cont_unit;
+                            cont_unit.author_addresses = content_unit.author_addresses;
+                            cont_unit.file_uris = content_unit.file_uris;
+
+                            CommanderMessage::Content content;
+                            content.approved = false;
+                            content.content_units[content_unit.uri] = cont_unit;
+
+                            contents.push_back(content);
+                        }
+                        else
+                        {
+
+                            size_t size = contents.size();
+
+                            auto & content = contents.at(size - 1);
+
+                            if (content.content_units.count(content_unit.uri))
+                                throw std::logic_error("try to apply already applied content unit");
+
+                            if (!content.approved)
+                            {
+                                CommanderMessage::ContentUnit cont_unit;
+                                cont_unit.author_addresses = content_unit.author_addresses;
+                                cont_unit.file_uris = content_unit.file_uris;
+
+                                content.content_units[content_unit.uri] = cont_unit;
+                            }
+                            else
+                            {
+                                CommanderMessage::ContentUnit cont_unit;
+                                cont_unit.author_addresses = content_unit.author_addresses;
+                                cont_unit.file_uris = content_unit.file_uris;
+
+                                CommanderMessage::Content content;
+                                content.approved = false;
+                                content.content_units[content_unit.uri] = cont_unit;
+
+                                contents.push_back(content);
+                            }
+                        }
+                    }
+                }
+            }
+            else //if (LoggingType::revert == type)
+            {
+                bool exist = false;
+
+                if (rpc_server.channels.contains(content_unit.channel_address))
+                {
+                    auto& channel_response_item = rpc_server.channels.at(content_unit.channel_address);
+
+                    auto content_histories_item = channel_response_item.content_histories.find(content_unit.content_id);
+                    if (content_histories_item != channel_response_item.content_histories.end())
+                    {
+                        auto & contents = content_histories_item->second.contents;
+                        for (auto rit = contents.rbegin(); rit != contents.rend(); ++rit)
+                        {
+                            auto & content_units = rit->content_units;
+
+                            auto content_unit_item = content_units.find(content_unit.uri);
+                            if (content_unit_item != content_units.end())
+                            {
+                                content_units.erase(content_unit.uri);
+                                exist = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!exist)
+                    throw std::logic_error("try to revert nonexistent content unit");
+            }
+        }
+    }
+
+    if (Content::rtt == transaction_log.action.type())
+    {
+        Content content;
+        std::move(transaction_log.action).get(content);
+
+        if (set_accounts.count(content.channel_address))
+        {
+            if (LoggingType::apply == type)
+            {
+                if (rpc_server.channels.contains(content.channel_address))
+                {
+                    auto & channel_response_item = rpc_server.channels.at(content.channel_address);
+
+                    auto content_histories_item = channel_response_item.content_histories.find(content.content_id);
+                    if (content_histories_item != channel_response_item.content_histories.end())
+                    {
+                        auto & contents = content_histories_item->second.contents;
+                        for (auto rit = contents.rbegin(); rit != contents.rend(); ++rit)
+                        {
+                            for (auto uri : content.content_unit_uris)
+                            {
+                                if (rit->content_units.count(uri))
+                                {
+                                    auto previous = rit + 1;
+                                    if (previous != contents.rend())
+                                            previous->approved = false;
+
+                                    rit->approved = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else //if (LoggingType::revert == type)
+            {
+                bool exist = false;
+
+                if (rpc_server.channels.contains(content.channel_address))
+                {
+                    auto & channel_response_item = rpc_server.channels.at(content.channel_address);
+
+                    auto content_histories_item = channel_response_item.content_histories.find(content.content_id);
+                    if (content_histories_item != channel_response_item.content_histories.end())
+                    {
+                        auto & contents = content_histories_item->second.contents;
+                        auto rit = contents.rbegin();
+                        for (; rit != contents.rend(); ++rit)
+                        {
+                            for (auto uri : content.content_unit_uris)
+                            {
+                                if (rit->content_units.count(uri))
+                                {
+                                    auto previous = rit + 1;
+                                    if (previous != contents.rend())
+                                        previous->approved = true;
+
+                                        rit->approved = false;
+                                        exist = true;
+                                        break;
+                                }
+                            }
+                        }
+
+                        if (rit->content_units.empty())
+                        {
+                            std::advance(rit, 1);
+                            content_histories_item->second.contents.erase(rit.base());
+                        }
+                    }
+                }
+                if (!exist)
+                    throw std::logic_error("try to revert nonexistent content");
+            }
+        }
+    }
+}
+
 beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::StorageUpdateRequest const& update,
                                                           rpc& rpc_server)
 {
@@ -728,6 +944,7 @@ void daemon_rpc::sync(rpc& rpc_server,
         rpc_server.accounts.discard();
         rpc_server.blocks.discard();
         rpc_server.storages.discard();
+        rpc_server.channels.discard();
         rpc_server.head_block_index.discard();
 
         for (auto& tr : transactions)
@@ -863,6 +1080,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     rpc_server,
                                                                     LoggingType::apply);
 
+                                        process_channel_tansactions(set_accounts,
+                                                                    transaction_log,
+                                                                    rpc_server,
+                                                                    LoggingType::apply);
 
                                         update_balances(set_accounts,
                                                         rpc_server,
@@ -911,6 +1132,11 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 rpc_server,
                                                                 LoggingType::apply);
 
+                                    process_channel_tansactions(set_accounts,
+                                                                transaction_log,
+                                                                rpc_server,
+                                                                LoggingType::apply);
+
                                     update_balances(set_accounts,
                                                     rpc_server,
                                                     transaction_log,
@@ -942,6 +1168,11 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         ++count;
 
                                         process_storage_tansactions(set_accounts,
+                                                                    transaction_log,
+                                                                    rpc_server,
+                                                                    LoggingType::revert);
+
+                                        process_channel_tansactions(set_accounts,
                                                                     transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::revert);
@@ -998,6 +1229,11 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                 rpc_server,
                                                                 LoggingType::revert);
 
+                                    process_channel_tansactions(set_accounts,
+                                                                transaction_log,
+                                                                rpc_server,
+                                                                LoggingType::revert);
+
                                     update_balances(set_accounts,
                                                     rpc_server,
                                                     transaction_log,
@@ -1039,6 +1275,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.save();
     rpc_server.blocks.save();
     rpc_server.storages.save();
+    rpc_server.channels.save();
     log_index.save();
 
     for (auto& tr : transactions)
@@ -1056,6 +1293,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     rpc_server.accounts.commit();
     rpc_server.blocks.commit();
     rpc_server.storages.commit();
+    rpc_server.channels.commit();
     log_index.commit();
 
     for (auto& tr : transactions)

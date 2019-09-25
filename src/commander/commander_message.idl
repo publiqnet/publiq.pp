@@ -230,5 +230,36 @@ module CommanderMessage
         UInt64 mined_blocks_count
     }
 
+    class ChannelsRequest
+    {
+    }
+
+    class ChannelsResponse
+    {
+        Array ChannelsResponseItem channels
+    }
+
+    class ChannelsResponseItem
+    {
+        String channel_address
+        Hash UInt64 ContentHistory content_histories
+    }
+
+    class ContentHistory
+    {
+        Array Content contents
+    }
+
+    class Content
+    {
+        Bool approved
+        Hash String ContentUnit content_units
+    }
+
+    class ContentUnit
+    {
+        Array String author_addresses
+        Array String file_uris
+    }
 }
 ////1

@@ -48,6 +48,7 @@ rpc::rpc(beltpp::ip_address const& rpc_address,
     , accounts("accounts", meshpp::data_directory_path("accounts"), 100, get_putl())
     , blocks("block", meshpp::data_directory_path("blocks"), 1000, 1, get_putl())
     , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
+    , channels("channels", meshpp::data_directory_path("channels"), 100, get_putl())
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(10));
@@ -681,6 +682,15 @@ void rpc::run()
                         champions.miner_addresses.push_back(miner.first);
 
                 rpc_socket.send(peerid, beltpp::packet(champions));
+                break;
+            }
+            case ChannelsRequest::rtt:
+            {
+                ChannelsResponse response;
+                for (auto const& channel : channels.keys())
+                         response.channels.push_back(channels.as_const().at(channel));
+
+                rpc_socket.send(peerid, beltpp::packet(response));
                 break;
             }
             case Failed::rtt:
