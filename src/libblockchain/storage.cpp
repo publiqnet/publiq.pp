@@ -6,6 +6,8 @@
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/cryptoutility.hpp>
 
+#include <belt.pp/utility.hpp>
+
 #include <string>
 
 #ifdef STORAGE_SERVER_LOGGING
@@ -115,7 +117,7 @@ bool storage::get(string const& uri, BlockchainMessage::StorageFile& file)
 #ifdef STORAGE_SERVER_LOGGING
     tp = chrono::steady_clock::now();
 #endif
-    file = std::move(m_pimpl->map.at(uri));
+    file = m_pimpl->map.as_const().at(uri);
 
 #ifdef STORAGE_SERVER_LOGGING
     dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
@@ -132,10 +134,19 @@ bool storage::get(string const& uri, BlockchainMessage::StorageFile& file)
 #ifdef STORAGE_SERVER_LOGGING
     tp = chrono::steady_clock::now();
 #endif
-    m_pimpl->map.discard();
+    bool discarded = false;
+    if (beltpp::chance_one_of(1000))
+    {
+        m_pimpl->map.discard();
+        discarded = true;
+        B_UNUSED(discarded);
+    }
 #ifdef STORAGE_SERVER_LOGGING
     dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
-    std::cout << "in " << dur1.count()  << "ms - did discard" << std::endl;
+    if (discarded)
+        std::cout << "in " << dur1.count()  << "ms - did discard" << std::endl;
+    else
+        std::cout << "in " << dur1.count()  << "ms - did NOT EVEN discard" << std::endl;
 #endif
 
     return true;
