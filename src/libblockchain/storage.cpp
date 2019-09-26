@@ -8,6 +8,13 @@
 
 #include <string>
 
+#ifdef STORAGE_SERVER_LOGGING
+#include <iostream>
+#include <chrono>
+
+namespace chrono = std::chrono;
+#endif
+
 namespace filesystem = boost::filesystem;
 using std::string;
 
@@ -83,14 +90,53 @@ bool storage::put(BlockchainMessage::StorageFile&& file, string& uri)
 
 bool storage::get(string const& uri, BlockchainMessage::StorageFile& file)
 {
+#ifdef STORAGE_SERVER_LOGGING
+    chrono::steady_clock::time_point tp = chrono::steady_clock::now();
+#endif
     auto keys = m_pimpl->map.keys();
+
+#ifdef STORAGE_SERVER_LOGGING
+    chrono::milliseconds dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
+    std::cout << "in " << dur1.count()  << "ms - got keys" << std::endl;
+#endif
+
+#ifdef STORAGE_SERVER_LOGGING
+    tp = chrono::steady_clock::now();
+#endif
     auto it = keys.find(uri);
+
+#ifdef STORAGE_SERVER_LOGGING
+    dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
+    std::cout << "in " << dur1.count()  << "ms - checked in keys" << std::endl;
+#endif
     if (it == keys.end())
         return false;
 
+#ifdef STORAGE_SERVER_LOGGING
+    tp = chrono::steady_clock::now();
+#endif
     file = std::move(m_pimpl->map.at(uri));
+
+#ifdef STORAGE_SERVER_LOGGING
+    dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
+    std::cout << "in " << dur1.count()  << "ms - did at" << std::endl;
+#endif
+#ifdef STORAGE_SERVER_LOGGING
+    tp = chrono::steady_clock::now();
+#endif
     file.data = meshpp::from_base64(file.data);
+#ifdef STORAGE_SERVER_LOGGING
+    dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
+    std::cout << "in " << dur1.count()  << "ms - did from_base64" << std::endl;
+#endif
+#ifdef STORAGE_SERVER_LOGGING
+    tp = chrono::steady_clock::now();
+#endif
     m_pimpl->map.discard();
+#ifdef STORAGE_SERVER_LOGGING
+    dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
+    std::cout << "in " << dur1.count()  << "ms - did discard" << std::endl;
+#endif
 
     return true;
 }

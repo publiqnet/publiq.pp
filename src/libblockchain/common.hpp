@@ -1,6 +1,7 @@
 #pragma once
 
 //#define EXTRA_LOGGING
+//#define STORAGE_SERVER_LOGGING
 
 #include "coin.hpp"
 #include "message.hpp"
