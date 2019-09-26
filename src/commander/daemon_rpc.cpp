@@ -717,9 +717,9 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                                     if (previous != contents.rend())
                                         previous->approved = true;
 
-                                        rit->approved = false;
-                                        exist = true;
-                                        break;
+                                    rit->approved = false;
+                                    exist = true;
+                                    break;
                                 }
                             }
                         }
