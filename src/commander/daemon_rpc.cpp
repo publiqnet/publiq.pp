@@ -588,11 +588,11 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                                 cont_unit.author_addresses = content_unit.author_addresses;
                                 cont_unit.file_uris = content_unit.file_uris;
 
-                                CommanderMessage::Content content;
-                                content.approved = false;
-                                content.content_units[content_unit.uri] = cont_unit;
+                                CommanderMessage::Content _content;
+                                _content.approved = false;
+                                _content.content_units[content_unit.uri] = cont_unit;
 
-                                contents.push_back(content);
+                                contents.push_back(_content);
                             }
                         }
                     }
