@@ -977,7 +977,9 @@ void block_worker(detail::node_internals& impl)
     double revert_fraction = std::min(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
 
     auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
+    auto it_scan_least_revert_approve_winner = impl.all_sync_info.headers_actions_data.end();
     auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
+    coin scan_most_approved_revert;
 
     for (auto it = impl.all_sync_info.headers_actions_data.begin();
          it != impl.all_sync_info.headers_actions_data.end();
@@ -1072,11 +1074,23 @@ void block_worker(detail::node_internals& impl)
             if (approve > reject &&
                 poll_participants > 2 &&
                 (
+                    impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approve_winner ||
+                    it_scan_least_revert_approve_winner->second.reverts_required < revert_coefficient
+                )
+               )
+                it_scan_least_revert_approve_winner = it;
+
+            if (approve > scan_most_approved_revert &&
+                poll_participants > 2 &&
+                (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required < revert_coefficient
                 )
                )
+            {
                 it_scan_most_approved_revert = it;
+                scan_most_approved_revert = approve;
+            }
         }
         else if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert ||
                  it_scan_least_revert->second.reverts_required > revert_coefficient)
@@ -1084,10 +1098,12 @@ void block_worker(detail::node_internals& impl)
     }
 
     auto it_chosen = impl.all_sync_info.headers_actions_data.end();
-    if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
-        it_chosen = it_scan_most_approved_revert;
+    if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner)
+        it_chosen = it_scan_least_revert_approve_winner;
     else if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert)
         it_chosen = it_scan_least_revert;
+    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
+        it_chosen = it_scan_most_approved_revert;
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
     {
