@@ -100,37 +100,65 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     map_unit_uri_view_counts.clear();
 
     map<string, map<string, map<string, uint64_t>>> channel_statistics;
-    map<string, map<string, map<string, uint64_t>>> channel_verified_statistics;
+    map<string, map<string, set<string>>> cross_verified_statistics;
+
+    unordered_set<string> file_uris, unit_uris;
 
     // group channel provided data to verify in comming steps
     for (auto const& stat_item : channel_provided_statistics)
     for (auto const& file_item : stat_item.second.file_items)
     for (auto const& count_item : file_item.count_items)
     {
+        file_uris.insert(file_item.file_uri);
+        unit_uris.insert(file_item.unit_uri);
+
         string channel_id = stat_item.first;
         string file_uri = file_item.file_uri;
         string storage_id = count_item.peer_address;
 
-        auto& temp_item = channel_statistics[channel_id][file_uri];
-        auto insert_result =
-        temp_item.insert({storage_id, 0});
-        insert_result.first->second += count_item.count;
+        assert(count_item.count != 0);
+        if (count_item.count == 0)
+            throw std::runtime_error("count_item.count == 0");
+
+        // it is safe to assume that initial value 0 will be created
+        channel_statistics[channel_id][file_uri][storage_id] += count_item.count;
     }
 
     // cross compare channel and storage provided data
     for (auto const& stat_item : storage_provided_statistics)
-        for (auto const& file_item : stat_item.second.file_items)
-            for (auto const& count_item : file_item.count_items)
-            {
-                string channel_id = count_item.peer_address;
-                string file_uri = file_item.file_uri;
-                string storage_id = stat_item.first;
+    for (auto const& file_item : stat_item.second.file_items)
+    for (auto const& count_item : file_item.count_items)
+    {
+        string channel_id = count_item.peer_address;
+        string file_uri = file_item.file_uri;
+        string storage_id = stat_item.first;
 
-                uint64_t& stat_value = channel_statistics[channel_id][file_uri][storage_id];
+        // channel_statistics is not used anymore so
+        // don't care if 0 value is created below, when it dit not exist
+        uint64_t stat_value = channel_statistics[channel_id][file_uri][storage_id];
 
-                if (false == stat_mismatch(stat_value, count_item.count))
-                    channel_verified_statistics[channel_id][file_uri][storage_id] = stat_value;
-            }
+        assert(count_item.count != 0);
+        if (count_item.count == 0)
+            throw std::runtime_error("count_item.count == 0");
+
+        if (stat_value > 0 &&
+            false == stat_mismatch(stat_value, count_item.count))
+            cross_verified_statistics[channel_id][file_uri].insert(storage_id);
+    }
+
+    // from here on - cross_verified_statistics holds values only for agreeing entries
+    // storage_provided_statistics and channel_statistics are not used
+
+    auto check_file_uris = impl.m_documents.files_exist(file_uris);
+    assert(check_file_uris.first);
+    if (false == check_file_uris.first)
+        throw std::logic_error("false == check_file_uris.first");
+    auto check_unit_uris = impl.m_documents.units_exist(unit_uris);
+    assert(check_unit_uris.first);
+    if (false == check_unit_uris.first)
+        throw std::logic_error("false == check_unit_uris.first");
+
+    uint64_t total_view_count = 0;
 
     // storage     view
     map<string, uint64_t> storage_group;
@@ -140,32 +168,41 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     map<string, map<string, map<uint64_t, uint64_t>>> content_group;
 
     for (auto const& stat_item : channel_provided_statistics)
-        for (auto const& file_item : stat_item.second.file_items)
-            for (auto const& count_item : file_item.count_items)
-            {
-                string channel_id = stat_item.first;
-                string file_uri = file_item.file_uri;
-                string unit_uri = file_item.unit_uri;
-                string storage_id = count_item.peer_address;
-                uint64_t view_count = count_item.count;
+    for (auto const& file_item : stat_item.second.file_items)
+    for (auto const& count_item : file_item.count_items)
+    {
+        string channel_id = stat_item.first;
+        string file_uri = file_item.file_uri;
+        string unit_uri = file_item.unit_uri;
+        string storage_id = count_item.peer_address;
+        uint64_t view_count = count_item.count;
 
-                if (channel_verified_statistics[channel_id][file_uri][storage_id] > 0 &&
-                    impl.m_documents.unit_exists(unit_uri) &&
-                    view_count > 0)
-                {
-                    storage_group[storage_id] += view_count;
-                    author_group[unit_uri][file_uri] += view_count;
-                    
-                    auto& unit_value = map_unit_uri_view_counts[unit_uri];
-                    unit_value = std::max(unit_value, view_count);
+        // cross_verified_statistics will not be used anymore
+        // so, don't care if empty object gets created
+        bool is_cross_verified = cross_verified_statistics[channel_id][file_uri].count(storage_id);
 
-                    ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
-                    auto& content_value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
-                    content_value = std::max(content_value, view_count);
-                }
-            }
+        assert(view_count > 0);
+        if (0 == view_count)
+            throw std::logic_error("0 == view_count");
+
+        if (is_cross_verified)
+        {
+            total_view_count += view_count;
+
+            storage_group[storage_id] += view_count;
+            author_group[unit_uri][file_uri] += view_count;
+
+            auto& unit_value = map_unit_uri_view_counts[unit_uri];
+            unit_value = std::max(unit_value, view_count); // why don't sum?
+
+            ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
+            auto& content_value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
+            content_value = std::max(content_value, view_count); // same - why don't sum?
+        }
+    }
 
     // collect storages final result
+    // the sum of values hold by storage_result will be total_view_count
     for (auto const& item : storage_group)
         storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
 
