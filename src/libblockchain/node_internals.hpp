@@ -120,9 +120,10 @@ public:
             index_key.content_unit_uri = content_unit_uri;
             index_key.file_uri = file_uri;
 
-            auto insert_result = index.insert(std::make_pair(
-                                       index_key,
-                                       service_statistics.file_items.size()));
+            auto insert_result = index.insert({
+                                                  index_key,
+                                                  service_statistics.file_items.size()
+                                              });
             if (false == insert_result.second)
             {
                 auto it = insert_result.first;

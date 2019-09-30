@@ -104,15 +104,18 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
     // group channel provided data to verify in comming steps
     for (auto const& stat_item : channel_provided_statistics)
-        for (auto const& file_item : stat_item.second.file_items)
-            for (auto const& count_item : file_item.count_items)
-            {
-                string channel_id = stat_item.first;
-                string file_uri = file_item.file_uri;
-                string storage_id = count_item.peer_address;
+    for (auto const& file_item : stat_item.second.file_items)
+    for (auto const& count_item : file_item.count_items)
+    {
+        string channel_id = stat_item.first;
+        string file_uri = file_item.file_uri;
+        string storage_id = count_item.peer_address;
 
-                channel_statistics[channel_id][file_uri][storage_id] += count_item.count;
-            }
+        auto& temp_item = channel_statistics[channel_id][file_uri];
+        auto insert_result =
+        temp_item.insert({storage_id, 0});
+        insert_result.first->second += count_item.count;
+    }
 
     // cross compare channel and storage provided data
     for (auto const& stat_item : storage_provided_statistics)
@@ -287,10 +290,32 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             NodeType node_type;
             if (impl.m_state.get_role(service_statistics->server_address, node_type))
             {
+                assert(node_type == NodeType::channel || node_type == NodeType::storage);
+                if (node_type != NodeType::channel && node_type != NodeType::storage)
+                    throw std::logic_error("node_type != NodeType::channel && node_type != NodeType::storage");
+
+                map<string, ServiceStatistics>* pstatistics = nullptr;
                 if (node_type == NodeType::channel)
-                    channel_provided_statistics[service_statistics->server_address] = *service_statistics;
-                else
-                    storage_provided_statistics[service_statistics->server_address] = *service_statistics;
+                    pstatistics = &channel_provided_statistics;
+                else if (node_type == NodeType::storage)
+                    pstatistics = &storage_provided_statistics;
+
+                auto insert_result = pstatistics->insert({
+                                                             service_statistics->server_address,
+                                                             *service_statistics
+                                                         });
+
+                //  unfortunately there is already a block with double stat reports
+                //  so cannot go on with the below code
+                /*
+                if (false == insert_result.second)
+                    throw wrong_data_exception("statistics from " +
+                                               service_statistics->server_address +
+                                               " are already included in the block");
+                                               */
+                //  keep the last statistics report - overwrite the original value
+                if (false == insert_result.second)
+                    insert_result.first->second = *service_statistics;
             }
         }
         else if (it->transaction_details.action.type() == CancelSponsorContentUnit::rtt)
