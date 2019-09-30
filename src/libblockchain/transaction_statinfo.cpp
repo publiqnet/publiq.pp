@@ -6,10 +6,12 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <algorithm>
+#include <unordered_set>
 
 using namespace BlockchainMessage;
 using std::string;
 using std::vector;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -49,6 +51,15 @@ void action_validate(SignedTransaction const& signed_transaction,
     auto signed_authority = signed_transaction.authorizations.front().address;
     if (signed_authority != service_statistics.server_address)
         throw authority_exception(signed_authority, service_statistics.server_address);
+
+    for (auto const& file_item : service_statistics.file_items)
+    {
+        for (auto const& count_item : file_item.count_items)
+        {
+            if (count_item.count == 0)
+                throw wrong_data_exception("dummy statistics");
+        }
+    }
 }
 
 bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
@@ -118,33 +129,43 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
             return false;
     }
 
-    for (auto const& item : service_statistics.file_items)
+    unordered_set<string> file_uris, unit_uris;
+    for (auto const& file_item : service_statistics.file_items)
     {
-        if (false == impl.m_documents.exist_file(item.file_uri))
-            return false;
+        file_uris.insert(file_item.file_uri);
 
         if (node_type == NodeType::storage)
         {
-            if (false == item.unit_uri.empty())
+            if (false == file_item.unit_uri.empty())
                 return false;
         }
         else if (node_type == NodeType::channel)
-        {
-            if (false == impl.m_documents.exist_unit(item.unit_uri))
-                return false;
+            unit_uris.insert(file_item.unit_uri);
+    }
 
-            auto content_unit = impl.m_documents.get_unit(item.unit_uri);
+    auto check_file_uris = impl.m_documents.files_exist(file_uris);
+    if (false == check_file_uris.first)
+        return false;
+    auto check_unit_uris = impl.m_documents.units_exist(unit_uris);
+    if (false == check_unit_uris.first)
+        return false;
+
+    for (auto const& file_item : service_statistics.file_items)
+    {
+        if (node_type == NodeType::channel)
+        {
+            auto content_unit = impl.m_documents.get_unit(file_item.unit_uri);
             if (content_unit.file_uris.end() ==
                 std::find(content_unit.file_uris.begin(),
                           content_unit.file_uris.end(),
-                          item.file_uri))
+                          file_item.file_uri))
                 return false;
         }
 
-        for (auto const& it : item.count_items)
+        for (auto const& count_item : file_item.count_items)
         {
             NodeType item_node_type;
-            if (false == impl.m_state.get_role(it.peer_address, item_node_type) ||
+            if (false == impl.m_state.get_role(count_item.peer_address, item_node_type) ||
                 item_node_type == NodeType::blockchain ||
                 item_node_type == node_type)
                 return false;
@@ -219,36 +240,46 @@ void action_apply(publiqpp::detail::node_internals& impl,
             throw wrong_data_exception("service statistics contains channel and storage with same address");
     }
 
-    for (auto const& item : service_statistics.file_items)
+    unordered_set<string> file_uris, unit_uris;
+    for (auto const& file_item : service_statistics.file_items)
     {
-        if (false == impl.m_documents.exist_file(item.file_uri))
-            throw uri_exception(item.file_uri, uri_exception::missing);
+        file_uris.insert(file_item.file_uri);
 
         if (node_type == NodeType::storage)
         {
-            if (false == item.unit_uri.empty())
-                throw uri_exception(item.unit_uri, uri_exception::invalid);
+            if (false == file_item.unit_uri.empty())
+                throw uri_exception(file_item.unit_uri, uri_exception::invalid);
         }
         else if (node_type == NodeType::channel)
-        {
-            if (false == impl.m_documents.exist_unit(item.unit_uri))
-                throw uri_exception(item.unit_uri, uri_exception::missing);
+            unit_uris.insert(file_item.unit_uri);
+    }
 
-            auto content_unit = impl.m_documents.get_unit(item.unit_uri);
+    auto check_file_uris = impl.m_documents.files_exist(file_uris);
+    if (false == check_file_uris.first)
+        throw uri_exception(check_file_uris.second, uri_exception::missing);
+    auto check_unit_uris = impl.m_documents.units_exist(unit_uris);
+    if (false == check_unit_uris.first)
+        throw uri_exception(check_unit_uris.second, uri_exception::missing);
+
+    for (auto const& file_item : service_statistics.file_items)
+    {
+        if (node_type == NodeType::channel)
+        {
+            auto content_unit = impl.m_documents.get_unit(file_item.unit_uri);
             if (content_unit.file_uris.end() ==
                 std::find(content_unit.file_uris.begin(),
                           content_unit.file_uris.end(),
-                          item.file_uri))
-                throw uri_exception(item.unit_uri, uri_exception::invalid);
+                          file_item.file_uri))
+                throw uri_exception(file_item.unit_uri, uri_exception::invalid);
         }
 
-        for (auto const& it : item.count_items)
+        for (auto const& count_item : file_item.count_items)
         {
             NodeType item_node_type;
-            if (false == impl.m_state.get_role(it.peer_address, item_node_type) ||
+            if (false == impl.m_state.get_role(count_item.peer_address, item_node_type) ||
                 item_node_type == NodeType::blockchain ||
                 item_node_type == node_type)
-                throw wrong_data_exception("wrong node type : " + it.peer_address);
+                throw wrong_data_exception("wrong node type : " + count_item.peer_address);
         }
     }
 }

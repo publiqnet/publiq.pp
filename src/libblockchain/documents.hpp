@@ -6,6 +6,7 @@
 #include <boost/filesystem/path.hpp>
 
 #include <vector>
+#include <unordered_set>
 #include <string>
 #include <map>
 #include <utility>
@@ -33,13 +34,15 @@ public:
     void commit();
     void discard();
 
-    bool exist_file(std::string const& uri) const;
+    std::pair<bool, std::string> files_exist(std::unordered_set<std::string> const& uris) const;
+    bool file_exists(std::string const& uri) const;
     bool insert_file(BlockchainMessage::File const& file);
     void remove_file(std::string const& uri);
     BlockchainMessage::File const& get_file(std::string const& uri) const;
     void get_file_uris(std::vector<std::string>&) const;
 
-    bool exist_unit(std::string const& uri) const;
+    std::pair<bool, std::string> units_exist(std::unordered_set<std::string> const& uris) const;
+    bool unit_exists(std::string const& uri) const;
     bool insert_unit(BlockchainMessage::ContentUnit const& content_unit);
     void remove_unit(std::string const& uri);
     BlockchainMessage::ContentUnit const& get_unit(std::string const& uri) const;

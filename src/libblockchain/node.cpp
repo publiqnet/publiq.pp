@@ -777,7 +777,7 @@ bool node::run()
                 if (m_pimpl->m_node_type == NodeType::storage &&
                     m_pimpl->m_state.get_role(msg.peer_address, peer_node_type) &&
                     peer_node_type == NodeType::channel &&
-                    m_pimpl->m_documents.exist_file(msg.file_uri))
+                    m_pimpl->m_documents.file_exists(msg.file_uri))
                 {
                     m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
 

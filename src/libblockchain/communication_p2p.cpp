@@ -147,7 +147,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                 uint64_t view_count = count_item.count;
 
                 if (channel_verified_statistics[channel_id][file_uri][storage_id] > 0 &&
-                    impl.m_documents.exist_unit(unit_uri) && 
+                    impl.m_documents.unit_exists(unit_uri) &&
                     view_count > 0)
                 {
                     storage_group[storage_id] += view_count;
@@ -198,7 +198,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
         for (auto const& it : item.second)
         {
-            if (impl.m_documents.exist_file(it.first))
+            if (impl.m_documents.file_exists(it.first))
             {
                 File file = impl.m_documents.get_file(it.first);
                 uint64_t author_count = file.author_addresses.size();

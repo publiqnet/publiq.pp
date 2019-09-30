@@ -5,9 +5,12 @@
 
 #include <mesh.pp/cryptoutility.hpp>
 
+#include <unordered_set>
+
 using namespace BlockchainMessage;
 using std::string;
 using std::vector;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -100,15 +103,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       ContentUnit const& content_unit,
                       state_layer/* layer*/)
 {
-    if (impl.m_documents.exist_unit(content_unit.uri))
+    if (impl.m_documents.unit_exists(content_unit.uri))
         return false;
 
+    unordered_set<string> file_uris;
     for (auto const& uri : content_unit.file_uris)
-    {
-        if (false == impl.m_documents.exist_file(uri))
-            return false;
-    }
-    return true;
+        file_uris.insert(uri);
+
+    return impl.m_documents.files_exist(file_uris).first;
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
@@ -116,14 +118,16 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   ContentUnit const& content_unit,
                   state_layer/* layer*/)
 {
-    if (impl.m_documents.exist_unit(content_unit.uri))
+    if (impl.m_documents.unit_exists(content_unit.uri))
         throw uri_exception(content_unit.uri, uri_exception::duplicate);
 
+    unordered_set<string> file_uris;
     for (auto const& uri : content_unit.file_uris)
-    {
-        if (false == impl.m_documents.exist_file(uri))
-            throw uri_exception(uri, uri_exception::missing);
-    }
+        file_uris.insert(uri);
+
+    auto check = impl.m_documents.files_exist(file_uris);
+    if (false == check.first)
+        throw uri_exception(check.second, uri_exception::missing);
 
     impl.m_documents.insert_unit(content_unit);
 }

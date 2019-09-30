@@ -65,7 +65,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       SponsorContentUnit const& sponsor_content_unit,
                       state_layer/* layer*/)
 {
-    if (false == impl.m_documents.exist_unit(sponsor_content_unit.uri))
+    if (false == impl.m_documents.unit_exists(sponsor_content_unit.uri))
         return false;
 
     Coin balance = impl.m_state.get_balance(sponsor_content_unit.sponsor_address, state_layer::pool);
@@ -80,7 +80,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   SponsorContentUnit const& sponsor_content_unit,
                   state_layer layer)
 {
-    if (false == impl.m_documents.exist_unit(sponsor_content_unit.uri))
+    if (false == impl.m_documents.unit_exists(sponsor_content_unit.uri))
         throw uri_exception(sponsor_content_unit.uri, uri_exception::missing);
 
     /*  this is written already in decrease_balance
@@ -161,7 +161,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       CancelSponsorContentUnit const& cancel_sponsor_content_unit,
                       state_layer/* layer*/)
 {
-    if (false == impl.m_documents.exist_unit(cancel_sponsor_content_unit.uri))
+    if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         return false;
 
     map<string, coin> temp_sponsored_rewards =
@@ -189,7 +189,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   CancelSponsorContentUnit const& cancel_sponsor_content_unit,
                   state_layer /*layer*/)
 {
-    if (false == impl.m_documents.exist_unit(cancel_sponsor_content_unit.uri))
+    if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         throw uri_exception(cancel_sponsor_content_unit.uri, uri_exception::missing);
 
     map<string, coin> temp_sponsored_rewards =

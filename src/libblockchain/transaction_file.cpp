@@ -88,7 +88,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       File const& file,
                       state_layer/* layer*/)
 {
-    if (impl.m_documents.exist_file(file.uri))
+    if (impl.m_documents.file_exists(file.uri))
         return false;
     return true;
 }
@@ -98,7 +98,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   File const& file,
                   state_layer/* layer*/)
 {
-    if (impl.m_documents.exist_file(file.uri))
+    if (impl.m_documents.file_exists(file.uri))
         throw uri_exception(file.uri, uri_exception::duplicate);
     impl.m_documents.insert_file(file);
 }

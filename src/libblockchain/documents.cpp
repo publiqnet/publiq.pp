@@ -17,6 +17,7 @@ using std::string;
 using std::vector;
 using std::pair;
 using std::map;
+using std::unordered_set;
 namespace chrono = std::chrono;
 using chrono::system_clock;
 using time_point = system_clock::time_point;
@@ -107,7 +108,20 @@ void documents::discard()
     m_pimpl->m_sponsored_informations_hash_to_block.discard();
 }
 
-bool documents::exist_file(string const& uri) const
+pair<bool, string> documents::files_exist(unordered_set<string> const& uris) const
+{
+    auto set_keys = m_pimpl->m_files.keys();
+
+    for (auto const& uri : uris)
+    {
+        if (0 == set_keys.count(uri))
+            return std::make_pair(false, uri);
+    }
+
+    return std::make_pair(true, string());
+}
+
+bool documents::file_exists(string const& uri) const
 {
     if (uri.empty())
         return false;
@@ -143,7 +157,20 @@ void documents::get_file_uris(vector<string>& file_uris) const
         file_uris.push_back(it);
 }
 
-bool documents::exist_unit(string const& uri) const
+pair<bool, string> documents::units_exist(unordered_set<string> const& uris) const
+{
+    auto set_keys = m_pimpl->m_units.keys();
+
+    for (auto const& uri : uris)
+    {
+        if (0 == set_keys.count(uri))
+            return std::make_pair(false, uri);
+    }
+
+    return std::make_pair(true, string());
+}
+
+bool documents::unit_exists(string const& uri) const
 {
     if (uri.empty())
         return false;

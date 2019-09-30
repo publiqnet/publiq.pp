@@ -12,6 +12,7 @@
 using namespace BlockchainMessage;
 using std::string;
 using std::vector;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -67,11 +68,16 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         node_type != NodeType::channel)
         throw wrong_data_exception("the content owner is not a channel");
 
+    unordered_set<string> unit_uris;
+    for (auto const& unit_uri : content.content_unit_uris)
+        unit_uris.insert(unit_uri);
+
+    auto check_unit_uris = impl.m_documents.units_exist(unit_uris);
+    if (false == check_unit_uris.first)
+        return false;
+
     for (auto const& unit_uri : content.content_unit_uris)
     {
-        if (false == impl.m_documents.exist_unit(unit_uri))
-            return false;
-
         ContentUnit const& unit = impl.m_documents.get_unit(unit_uri);
         if (unit.channel_address != content.channel_address ||
             unit.content_id != content.content_id)
@@ -90,11 +96,16 @@ void action_apply(publiqpp::detail::node_internals& impl,
         node_type != NodeType::channel)
         throw wrong_data_exception("the content owner is not a channel");
 
+    unordered_set<string> unit_uris;
+    for (auto const& unit_uri : content.content_unit_uris)
+        unit_uris.insert(unit_uri);
+
+    auto check_unit_uris = impl.m_documents.units_exist(unit_uris);
+    if (false == check_unit_uris.first)
+        throw uri_exception(check_unit_uris.second, uri_exception::missing);
+
     for (auto const& unit_uri : content.content_unit_uris)
     {
-        if (false == impl.m_documents.exist_unit(unit_uri))
-            throw uri_exception(unit_uri, uri_exception::missing);
-
         ContentUnit const& unit = impl.m_documents.get_unit(unit_uri);
         if (unit.channel_address != content.channel_address ||
             unit.content_id != content.content_id)
