@@ -451,72 +451,53 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
 {
     if (StorageUpdate::rtt == transaction_log.action.type())
     {
-        StorageUpdate update;
-        std::move(transaction_log.action).get(update);
+        StorageUpdate storage_update;
+        std::move(transaction_log.action).get(storage_update);
 
-        auto it = set_accounts.find(update.storage_address);
-        if (it != set_accounts.end())
+        if (set_accounts.count(storage_update.storage_address))
         {
-            auto check_files = [&rpc_server, &update] (CommanderMessage::Stored stored)
+            bool store = false;
+
+            if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
+                (UpdateType::remove == storage_update.status && LoggingType::revert == type))
+                store = true;
+            if ((UpdateType::store == storage_update.status && LoggingType::revert == type) ||
+                (UpdateType::remove == storage_update.status && LoggingType::apply == type))
+                store = false;
+
+
+            if (!rpc_server.storages.contains(storage_update.storage_address))
             {
-                if (rpc_server.storages.contains(update.storage_address))
-                {
-                    std::vector<CommanderMessage::StoredFile> &files = rpc_server.storages.at(update.storage_address).file_uris;
+                CommanderMessage::StoredFile stored_file;
+                stored_file.stored_file_uri[storage_update.file_uri] = store;
 
-                    bool flag = false;
+                CommanderMessage::StoragesResponseItem storage_response_item;
+                storage_response_item.storage_address = storage_update.storage_address;
+                storage_response_item.file_uris[storage_update.storage_address] = stored_file;
 
-                    for (auto & file : files)
-                        if (update.file_uri == file.file_uri)
-                        {
-                            flag = true;
-                            file.stored = stored;
-                        }
-
-                    if (!flag)
-                    {
-                        CommanderMessage::StoredFile file;
-                        file.stored = stored;
-                        file.file_uri = update.file_uri;
-                        files.push_back(file);
-                    }
-                }
-            };
-
-            if ((UpdateType::store == update.status && LoggingType::revert == type) ||
-                (UpdateType::remove == update.status && LoggingType::apply == type))
-                check_files(CommanderMessage::Stored::no);
+                rpc_server.storages.insert(storage_update.storage_address, storage_response_item);
+            }
             else
             {
-                check_files(CommanderMessage::Stored::yes);
+                auto & storage_response_item = rpc_server.storages.at(storage_update.storage_address);
 
-                if (!rpc_server.storages.contains(update.storage_address))
+                auto stored_file_uri_item = storage_response_item.file_uris.find(storage_update.file_uri);
+                if (stored_file_uri_item == storage_response_item.file_uris.end())
                 {
-                    CommanderMessage::StoragesResponseItem item;
-                    item.storage_address = update.storage_address;
-                    CommanderMessage::StoredFile file;
-                    file.stored = CommanderMessage::Stored::yes;
-                    file.file_uri = update.file_uri;
-                    item.file_uris.push_back(file);
-                    rpc_server.storages.insert(item.storage_address, item);
+                    CommanderMessage::StoredFile stored_file;
+                    stored_file.stored_file_uri[storage_update.file_uri] = store;
+
+                    storage_response_item.file_uris[storage_update.file_uri] = stored_file;
                 }
-            }
-        }
-
-        for (auto key : rpc_server.storages.keys())
-        {
-            bool flag = false;
-            for (auto file_uris : rpc_server.storages.at(key).file_uris)
-            {
-                if (file_uris.file_uri == update.file_uri)
-                    flag = true;
-            }
-
-            if (!flag)
-            {
-                CommanderMessage::StoredFile file;
-                file.stored = CommanderMessage::Stored::no;
-                file.file_uri = update.file_uri;
-                rpc_server.storages.at(key).file_uris.push_back(file);
+                else
+                {
+                    if (stored_file_uri_item->second.stored_file_uri[storage_update.file_uri] == store)
+                    {
+                        if (store) throw std::logic_error("try to apply already applied storage update");
+                        else throw std::logic_error("try to revert already reverted storage update");
+                    }
+                    else stored_file_uri_item->second.stored_file_uri[storage_update.file_uri] = store;
+                }
             }
         }
     }

@@ -194,19 +194,12 @@ module CommanderMessage
     class StoragesResponseItem
     {
         String storage_address
-        Array StoredFile file_uris
-    }
-
-    enum Stored
-    {
-        yes
-        no
+        Hash String StoredFile file_uris
     }
 
     class StoredFile
     {
-        Stored stored
-        String file_uri
+        Hash String Bool stored_file_uri
     }
 
     class StorageUpdateRequest
