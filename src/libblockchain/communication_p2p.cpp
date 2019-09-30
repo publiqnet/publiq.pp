@@ -158,14 +158,22 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     if (false == check_unit_uris.first)
         throw std::logic_error("false == check_unit_uris.first");
 
-    uint64_t total_view_count = 0;
-
+    // group views by storage
+    // sum by serving channel, unit and file
     // storage     view
     map<string, uint64_t> storage_group;
+
+    // group views by unit and file
+    // sum by serving channel and storage
     // unit_uri    file_uri   view
     map<string, map<string, uint64_t>> author_group;
-    // channel     owner       content_id   view
-    map<string, map<string, map<uint64_t, uint64_t>>> content_group;
+
+    // group views by serving channel, owner channel
+    // group by content id, file_uri and unit (units are limited by the particular content_id)
+    // sum by storage
+    // will take max by file and unit later then sum again by content id
+    // channel     owner       content_id   file_uri     unit_uri   view
+    map<string, map<string, map<uint64_t, map<string, map<string, uint64_t>>>>> content_group;
 
     for (auto const& stat_item : channel_provided_statistics)
     for (auto const& file_item : stat_item.second.file_items)
@@ -187,8 +195,6 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
         if (is_cross_verified)
         {
-            total_view_count += view_count;
-
             storage_group[storage_id] += view_count;
             author_group[unit_uri][file_uri] += view_count;
 
@@ -196,58 +202,97 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
             unit_value = std::max(unit_value, view_count); // why don't sum?
 
             ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
-            auto& content_value = content_group[channel_id][content_unit.channel_address][content_unit.content_id];
-            content_value = std::max(content_value, view_count); // same - why don't sum?
+            content_group[channel_id][content_unit.channel_address][content_unit.content_id][file_uri][unit_uri] += view_count;
         }
     }
 
+    uint64_t total_view_all_files_count = 0;
     // collect storages final result
-    // the sum of values hold by storage_result will be total_view_count
+    // the sum of values hold by storage_result is the total_view_units_count
     for (auto const& item : storage_group)
-        storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
-
-    // collect channels final result
-    for (auto const& item : content_group)
     {
-        for (auto const& it : item.second)
-        {
-            uint64_t count = 0;
-            for (auto const& i : it.second)
-                count += i.second;
-
-            if (item.first == it.first)
-                channel_result.insert(make_pair(item.first, make_pair(count, 1)));
-            else
-            {
-                channel_result.insert(make_pair(it.first, make_pair(count, 2)));
-                channel_result.insert(make_pair(item.first, make_pair(count, 2)));
-            }
-        }
+        total_view_all_files_count += item.second;
+        storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
     }
 
+    for (auto& item_result : storage_result)
+        item_result.second.second *= total_view_all_files_count;
+
+    uint64_t total_view_units_count = 0;
     // collect authors final result
-    for (auto const& item : author_group)
+    for (auto const& item_per_unit : author_group)
     {
         uint64_t total = 0;
-        uint64_t file_count = item.second.size();
-        for (auto const& it : item.second)
-            total += it.second;
+        uint64_t file_count = item_per_unit.second.size();
+        for (auto const& item_per_file : item_per_unit.second)
+            total += item_per_file.second;
 
-        // get middle value as a unit usage
-        total = total / file_count;
+        assert(file_count);
+        if (0 == file_count)
+            throw std::logic_error("0 == file_count");
 
-        for (auto const& it : item.second)
+        // get average value as a unit usage
+        total /= file_count;
+
+        total_view_units_count += total;
+
+        assert(total != 0);
+        if (0 == total)
+            throw std::logic_error("0 == total");
+
+        for (auto const& item_per_file : item_per_unit.second)
         {
-            if (impl.m_documents.file_exists(it.first))
-            {
-                File file = impl.m_documents.get_file(it.first);
-                uint64_t author_count = file.author_addresses.size();
+            string const& file_uri = item_per_file.first;
 
-                for (auto const& i : file.author_addresses)
-                    author_result.insert(make_pair(i, make_pair(total, file_count * author_count)));
-            }
+            File file = impl.m_documents.get_file(file_uri);
+            uint64_t authors_count = file.author_addresses.size();
+
+            for (auto const& author_address : file.author_addresses)
+                author_result.insert({author_address, {total, file_count * authors_count}});
         }
     }
+
+    for (auto& item_result : author_result)
+        item_result.second.second *= total_view_units_count;
+
+    uint64_t total_channel_view_count = 0;
+    // collect channels final result
+    for (auto const& item_per_server : content_group)
+    {
+        // item_per_server.first is the serving channel
+        string const& serving_channel = item_per_server.first;
+
+        for (auto const& item_per_owner : item_per_server.second)
+        {
+            // item_per_owner.first is the owner channel
+            string const& owner_channel = item_per_owner.first;
+
+            uint64_t count = 0;
+            for (auto const& item_per_content_id : item_per_owner.second)
+            {
+                uint64_t max_count_per_content_id = 0;
+                for (auto const& item_per_file : item_per_content_id.second)
+                for (auto const& item_per_unit : item_per_file.second)
+                    max_count_per_content_id = std::max(count, item_per_unit.second);
+                count += max_count_per_content_id;
+            }
+
+            if (serving_channel == owner_channel)
+            {
+                channel_result.insert(make_pair(serving_channel, make_pair(2 * count, 2)));
+            }
+            else
+            {
+                channel_result.insert(make_pair(owner_channel, make_pair(count, 2)));
+                channel_result.insert(make_pair(serving_channel, make_pair(count, 2)));
+            }
+
+            total_channel_view_count += count;
+        }
+    }
+
+    for (auto& item_result : channel_result)
+        item_result.second.second *= total_channel_view_count;
 }
 
 coin distribute_rewards(vector<Reward>& rewards,
@@ -259,25 +304,18 @@ coin distribute_rewards(vector<Reward>& rewards,
     if (stat_distribution.size() == 0 || total_amount.empty())
         return total_amount;
 
-    map<uint64_t, uint64_t> points_map;
-    for (auto const& item : stat_distribution)
-        points_map[item.second.second] += item.second.first;
-
-    uint64_t denominator = 1;
-    for (auto const& item : points_map)
-        denominator *= item.first;
-
-    uint64_t total_points = 0;
-    for (auto const& item : points_map)
-        total_points += (denominator / item.first) * item.second;
-
-    total_points /= denominator;
+#if 0
+    double stat_dist_sum = 0;
+    for (auto const& temp : stat_distribution)
+        stat_dist_sum += double(temp.second.first) / double(temp.second.second);
+    //  this is for testing purposes. sum must be 1
+#endif
 
     coin rest_amount = total_amount;
     map<string, coin> coin_distribution;
     for (auto const& item : stat_distribution)
     {
-        coin amount = (total_amount * item.second.first) / (total_points * item.second.second);
+        coin amount = (total_amount * item.second.first) / item.second.second;
 
         rest_amount -= amount;
         coin_distribution[item.first] += amount;
