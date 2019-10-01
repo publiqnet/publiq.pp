@@ -1083,7 +1083,7 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > scan_most_approved_revert &&
-                poll_participants > 3 &&
+                poll_participants > 10 &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
