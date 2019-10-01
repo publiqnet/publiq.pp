@@ -456,24 +456,20 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
 
         if (set_accounts.count(storage_update.storage_address))
         {
-            bool store = false;
+            bool stored = false;
 
             if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
                 (UpdateType::remove == storage_update.status && LoggingType::revert == type))
-                store = true;
+                stored = true;
             if ((UpdateType::store == storage_update.status && LoggingType::revert == type) ||
                 (UpdateType::remove == storage_update.status && LoggingType::apply == type))
-                store = false;
-
+                stored = false;
 
             if (!rpc_server.storages.contains(storage_update.storage_address))
             {
-                CommanderMessage::StoredFile stored_file;
-                stored_file.stored_file_uri[storage_update.file_uri] = store;
-
                 CommanderMessage::StoragesResponseItem storage_response_item;
                 storage_response_item.storage_address = storage_update.storage_address;
-                storage_response_item.file_uris[storage_update.storage_address] = stored_file;
+                storage_response_item.file_uris[storage_update.file_uri] = stored;
 
                 rpc_server.storages.insert(storage_update.storage_address, storage_response_item);
             }
@@ -483,20 +479,15 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
 
                 auto stored_file_uri_item = storage_response_item.file_uris.find(storage_update.file_uri);
                 if (stored_file_uri_item == storage_response_item.file_uris.end())
-                {
-                    CommanderMessage::StoredFile stored_file;
-                    stored_file.stored_file_uri[storage_update.file_uri] = store;
-
-                    storage_response_item.file_uris[storage_update.file_uri] = stored_file;
-                }
+                    storage_response_item.file_uris[storage_update.file_uri] = stored;
                 else
                 {
-                    if (stored_file_uri_item->second.stored_file_uri[storage_update.file_uri] == store)
+                    if (stored_file_uri_item->second == stored)
                     {
-                        if (store) throw std::logic_error("try to apply already applied storage update");
+                        if (stored) throw std::logic_error("try to apply already applied storage update");
                         else throw std::logic_error("try to revert already reverted storage update");
                     }
-                    else stored_file_uri_item->second.stored_file_uri[storage_update.file_uri] = store;
+                    else stored_file_uri_item->second = stored;
                 }
             }
         }

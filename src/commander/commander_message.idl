@@ -194,12 +194,7 @@ module CommanderMessage
     class StoragesResponseItem
     {
         String storage_address
-        Hash String StoredFile file_uris
-    }
-
-    class StoredFile
-    {
-        Hash String Bool stored_file_uri
+        Hash String Bool file_uris
     }
 
     class StorageUpdateRequest
