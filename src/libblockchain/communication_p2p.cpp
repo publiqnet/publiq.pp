@@ -118,7 +118,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
         assert(count_item.count != 0);
         if (count_item.count == 0)
-            throw std::runtime_error("count_item.count == 0");
+            throw std::logic_error("count_item.count == 0");
 
         // it is safe to assume that initial value 0 will be created
         channel_statistics[channel_id][file_uri][storage_id] += count_item.count;
@@ -139,7 +139,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
         assert(count_item.count != 0);
         if (count_item.count == 0)
-            throw std::runtime_error("count_item.count == 0");
+            throw std::logic_error("count_item.count == 0");
 
         if (stat_value > 0 &&
             false == stat_mismatch(stat_value, count_item.count))
@@ -212,7 +212,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     for (auto const& item : storage_group)
     {
         total_view_all_files_count += item.second;
-        storage_result.insert(make_pair(item.first, make_pair(item.second, 1)));
+        storage_result.insert({item.first, {item.second, 1}});
     }
 
     for (auto& item_result : storage_result)
@@ -279,12 +279,12 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
 
             if (serving_channel == owner_channel)
             {
-                channel_result.insert(make_pair(serving_channel, make_pair(2 * count, 2)));
+                channel_result.insert({serving_channel, {2 * count, 2}});
             }
             else
             {
-                channel_result.insert(make_pair(owner_channel, make_pair(count, 2)));
-                channel_result.insert(make_pair(serving_channel, make_pair(count, 2)));
+                channel_result.insert({owner_channel, {count, 2}});
+                channel_result.insert({serving_channel, {count, 2}});
             }
 
             total_channel_view_count += count;

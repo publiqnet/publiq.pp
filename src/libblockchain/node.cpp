@@ -1072,19 +1072,21 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > reject &&
-                poll_participants > 2 &&
-                (
-                    impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approve_winner ||
-                    it_scan_least_revert_approve_winner->second.reverts_required < revert_coefficient
-                )
-               )
-                it_scan_least_revert_approve_winner = it;
+                poll_participants > 2)
+            {
+                if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner)
+                    impl.writeln_node("two or more absolute majority in voting?");
+
+                if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approve_winner ||
+                    it_scan_least_revert_approve_winner->second.reverts_required > revert_coefficient)
+                    it_scan_least_revert_approve_winner = it;
+            }
 
             if (approve > scan_most_approved_revert &&
                 poll_participants > 2 &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
-                    it_scan_most_approved_revert->second.reverts_required < revert_coefficient
+                    it_scan_most_approved_revert->second.reverts_required > revert_coefficient
                 )
                )
             {
@@ -1124,7 +1126,7 @@ double header_worker(detail::node_internals& impl)
     block_worker(impl);
 
     // process collected SyncResponse data
-    BlockHeaderExtended head_block_header = impl.m_blockchain.last_header_ex();
+    BlockHeaderExtended const head_block_header = impl.m_blockchain.last_header_ex();
 
     BlockHeaderExtended scan_block_header = head_block_header;
     scan_block_header.c_sum = 0;
@@ -1158,8 +1160,6 @@ double header_worker(detail::node_internals& impl)
     //  if there is no active sync
     if (false == impl.all_sync_info.blockchain_sync_in_progress)
     {
-        head_block_header = impl.m_blockchain.last_header_ex();
-
         //  the duration passed according to my system time since the head block
         //  was signed
         chrono::system_clock::duration since_head_block =
