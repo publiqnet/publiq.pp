@@ -399,7 +399,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             it->transaction_details.action.get(cancel_sponsor_content_unit);
 
             auto const& expiry_entry =
-                    impl.m_documents.expiration_entry_ref(cancel_sponsor_content_unit->transaction_hash);
+                    impl.m_documents.expiration_entry_ref_by_hash(cancel_sponsor_content_unit->transaction_hash);
 
             assert(expiry_entry.manually_cancelled != StorageTypes::Coin());
             if (expiry_entry.manually_cancelled == StorageTypes::Coin())

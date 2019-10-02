@@ -564,8 +564,8 @@ bool node::run()
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("master don't know how to handle: " + std::to_string(ref_packet.type())/* +
-                                          ". dropping " + detail::peer_short_names(peerid)*/);
+                    m_pimpl->writeln_node("master don't know how to handle: " + std::to_string(ref_packet.type()) +
+                                          ". peer: " + peerid);
 
                     break;
                 }
@@ -1071,10 +1071,27 @@ void block_worker(detail::node_internals& impl)
                 replacing = voting;
             }
 
+            auto own_vote = std::make_pair(
+                                impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool) + coin(1,0),
+                                vote_type::approve);
+            {
+                if (impl.m_blockchain.last_header_ex() == it->second.headers.front())
+                {
+                    own_vote.second = vote_type::approve;
+                    approve += own_vote.first;
+                }
+                else
+                {
+                    own_vote.second = vote_type::reject;
+                    reject += own_vote.first;
+                }
+            }
+
             if (approve > reject &&
                 poll_participants > 2)
             {
-                if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner)
+                if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner &&
+                    it_scan_least_revert_approve_winner->second.headers.front() != it->second.headers.front())
                     impl.writeln_node("two or more absolute majority in voting?");
 
                 if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approve_winner ||
@@ -1083,7 +1100,8 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > scan_most_approved_revert &&
-                poll_participants > 10 &&
+                approve > own_vote.first &&
+                poll_participants > 2/*10*/ &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1292,6 +1310,8 @@ void sync_worker(detail::node_internals& impl)
                 continue;
             NodeType node_type;
             if (impl.m_state.get_role(item.node_address, node_type))
+                continue;
+            if (impl.m_pb_key.to_string() == item.node_address)
                 continue;
 
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;

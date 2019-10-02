@@ -448,7 +448,8 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
 
     size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 
-    StorageTypes::SponsoredInformationHeaders& expirings = expiration_entry_ref(expiring_block_number);
+    StorageTypes::SponsoredInformationHeaders& expirings =
+            expiration_entry_ref_by_block(expiring_block_number);
 
     assert(expirings.expirations.count(si.transaction_hash));
     if (0 == expirings.expirations.count(si.transaction_hash))
@@ -610,10 +611,7 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
 
                 if (false == transaction_hash_to_cancel.empty())
                 {
-                    size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
-
-                    auto& expiration_entry = expiration_entry_ref(expiring_block_number,
-                                                                  item.transaction_hash);
+                    auto& expiration_entry = expiration_entry_ref_by_hash(item.transaction_hash);
 
                     if (sponsored_content_unit_set_used_apply == type)
                     {
@@ -701,7 +699,7 @@ vector<pair<string, string>> documents::content_unit_uri_sponsor_expiring(size_t
 }
 
 StorageTypes::SponsoredInformationHeaders&
-documents::expiration_entry_ref(uint64_t block_number)
+documents::expiration_entry_ref_by_block(uint64_t block_number)
 {
     assert(m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(block_number)));
     if (false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(block_number)))
@@ -714,9 +712,9 @@ documents::expiration_entry_ref(uint64_t block_number)
 }
 
 StorageTypes::SponsoredInformationHeader&
-documents::expiration_entry_ref(uint64_t block_number, std::string const& transaction_hash)
+documents::expiration_entry_ref_by_block_by_hash(uint64_t block_number, std::string const& transaction_hash)
 {
-    auto& expirings = expiration_entry_ref(block_number);
+    auto& expirings = expiration_entry_ref_by_block(block_number);
 
     assert(expirings.expirations.count(transaction_hash));
     if (0 == expirings.expirations.count(transaction_hash))
@@ -728,7 +726,7 @@ documents::expiration_entry_ref(uint64_t block_number, std::string const& transa
 }
 
 StorageTypes::SponsoredInformationHeader&
-documents::expiration_entry_ref(std::string const& transaction_hash)
+documents::expiration_entry_ref_by_hash(std::string const& transaction_hash)
 {
     assert(m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash));
     if (false == m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash))
@@ -736,7 +734,7 @@ documents::expiration_entry_ref(std::string const& transaction_hash)
 
     auto const& hash_to_block = m_pimpl->m_sponsored_informations_hash_to_block.as_const().at(transaction_hash);
 
-    auto& expirings = expiration_entry_ref(hash_to_block.block_number);
+    auto& expirings = expiration_entry_ref_by_block(hash_to_block.block_number);
 
     assert(expirings.expirations.count(transaction_hash));
     if (0 == expirings.expirations.count(transaction_hash))

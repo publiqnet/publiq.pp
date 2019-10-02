@@ -77,13 +77,13 @@ public:
     content_unit_uri_sponsor_expiring(size_t block_number) const;
 
     StorageTypes::SponsoredInformationHeaders&
-    expiration_entry_ref(uint64_t block_number);
+    expiration_entry_ref_by_block(uint64_t block_number);
 
     StorageTypes::SponsoredInformationHeader&
-    expiration_entry_ref(uint64_t block_number, std::string const& transaction_hash);
+    expiration_entry_ref_by_block_by_hash(uint64_t block_number, std::string const& transaction_hash);
 
     StorageTypes::SponsoredInformationHeader&
-    expiration_entry_ref(std::string const& transaction_hash);
+    expiration_entry_ref_by_hash(std::string const& transaction_hash);
 
 private:
     std::unique_ptr<detail::documents_internals> m_pimpl;

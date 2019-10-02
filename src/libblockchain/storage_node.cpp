@@ -205,7 +205,7 @@ bool storage_node::run()
                 default:
                 {
                     m_pimpl->writeln_node("slave don't know how to handle: " + std::to_string(ref_packet.type()) +
-                                          " from " + detail::peer_short_names(peerid));
+                                          ". peer: " + peerid);
 
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
                     break;
