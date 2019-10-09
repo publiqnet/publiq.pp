@@ -55,11 +55,16 @@ void blockchain::discard()
     m_pimpl->m_header.discard();
     m_pimpl->m_blockchain.discard();
 
-    update_state();
+    if (length() > 0)
+        update_state();
 }
 
 void blockchain::update_state()
 {
+    assert(0 != length());
+    if (0 == length())
+        return;
+
     SignedBlock const& signed_block = at(length() - 1);
 
     m_pimpl->m_last_header = signed_block.block_details.header;
