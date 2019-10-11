@@ -1088,7 +1088,7 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > reject &&
-                poll_participants > 2)
+                poll_participants >= std::max(2ull, impl.m_p2p_peers.size() / 2 ))
             {
                 if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner &&
                     it_scan_least_revert_approve_winner->second.headers.front() != it->second.headers.front())
@@ -1101,7 +1101,7 @@ void block_worker(detail::node_internals& impl)
 
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.first &&
-                poll_participants > 10 &&
+                poll_participants >= std::max(2ull, impl.m_p2p_peers.size() / 2) &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
