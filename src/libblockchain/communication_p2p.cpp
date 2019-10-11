@@ -976,6 +976,11 @@ void mine_block(publiqpp::detail::node_internals& impl)
             //  either transaction time corresponds to a future block
             //  or it couldn't be applied because of the order
             //  or it will not even be possible to apply at all
+            if (chain_added)
+                impl.m_transaction_cache.erase_chain(signed_transaction);
+            // because after moving from signed_transaction
+            // the guard will be left non functional
+            guard1.dismiss();
             pool_transactions.push_back(std::move(signed_transaction));
         }
     }
