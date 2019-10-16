@@ -439,7 +439,7 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
 
     auto item_end_tp = system_clock::from_time_t(si.end_time_point.tm);
 
-    cusi.sponsored_informations.resize(cusi.sponsored_informations.size() - 1);
+    cusi.sponsored_informations.pop_back();
 
     if (cusi.sponsored_informations.empty())
         m_pimpl->m_content_unit_sponsored_information.erase(spi.uri);
@@ -537,7 +537,7 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
             {
                 //  pretend mode cannot enter this path
                 //
-                cusi.time_points_used.resize(cusi.time_points_used.size() - 1);
+                cusi.time_points_used.pop_back();
                 assert(false == cusi.time_points_used.empty());
                 if (cusi.time_points_used.empty())
                     throw std::logic_error("cusi.time_points_used.empty()");

@@ -44,6 +44,9 @@ void action_validate(SignedTransaction const& signed_transaction,
 
     meshpp::public_key pb_key_channel(content.channel_address);
 
+    if (content.content_unit_uris.empty())
+        throw wrong_data_exception("dummy content");
+
     for (auto const& uri : content.content_unit_uris)
     {
         string unit_hash = meshpp::from_base58(uri);
