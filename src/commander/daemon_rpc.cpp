@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <exception>
 #include <chrono>
+#include <iostream>
 
 using beltpp::packet;
 using peer_id = beltpp::socket::peer_id;
@@ -452,47 +453,48 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
     if (StorageUpdate::rtt == transaction_log.action.type())
     {
         StorageUpdate storage_update;
-        std::move(transaction_log.action).get(storage_update);
+        transaction_log.action.get(storage_update);
 
         if (set_accounts.count(storage_update.storage_address))
         {
-            bool stored = false;
+            bool is_stored = false;
 
             if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
                 (UpdateType::remove == storage_update.status && LoggingType::revert == type))
-                stored = true;
+                is_stored = true;
             if ((UpdateType::store == storage_update.status && LoggingType::revert == type) ||
                 (UpdateType::remove == storage_update.status && LoggingType::apply == type))
-                stored = false;
+                is_stored = false;
 
             if (!rpc_server.storages.contains(storage_update.storage_address))
             {
-                CommanderMessage::StoragesResponseItem storage_response_item;
-                storage_response_item.storage_address = storage_update.storage_address;
-                storage_response_item.file_uris[storage_update.file_uri] = stored;
+                CommanderMessage::StoragesResponseItem storage;
+                storage.storage_address = storage_update.storage_address;
+                storage.file_uris[storage_update.file_uri] = is_stored;
 
-                rpc_server.storages.insert(storage_update.storage_address, storage_response_item);
+                rpc_server.storages.insert(storage_update.storage_address, storage);
             }
             else
             {
-                auto & storage_response_item = rpc_server.storages.at(storage_update.storage_address);
+                auto& storage = rpc_server.storages.at(storage_update.storage_address);
 
-                auto stored_file_uri_item = storage_response_item.file_uris.find(storage_update.file_uri);
-                if (stored_file_uri_item == storage_response_item.file_uris.end())
-                    storage_response_item.file_uris[storage_update.file_uri] = stored;
+                auto stored_file_uri = storage.file_uris.find(storage_update.file_uri);
+                if (stored_file_uri == storage.file_uris.end())
+                    storage.file_uris[storage_update.file_uri] = is_stored;
                 else
                 {
-                    if (stored_file_uri_item->second == stored)
-                    {
-                        if (stored) throw std::logic_error("try to apply already applied storage update");
-                        else throw std::logic_error("try to revert already reverted storage update");
-                    }
-                    else stored_file_uri_item->second = stored;
+                    if (stored_file_uri->second == is_stored)
+                        throw std::logic_error("stored_file_uri->second == is_stored");
+
+                    assert (stored_file_uri->second != is_stored);
+
+                    stored_file_uri->second = is_stored;
                 }
             }
         }
     }
 }
+
 
 void process_channel_tansactions(unordered_set<string> const& set_accounts,
                                  BlockchainMessage::TransactionLog const& transaction_log,
@@ -503,7 +505,7 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
     if (ContentUnit::rtt == transaction_log.action.type())
     {
         ContentUnit content_unit;
-        std::move(transaction_log.action).get(content_unit);
+        transaction_log.action.get(content_unit);
 
         if (set_accounts.count(content_unit.channel_address))
         {
@@ -519,21 +521,21 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     content.approved = false;
                     content.content_units[content_unit.uri] = cont_unit;
 
-                    CommanderMessage::ContentHistory content_history;
-                    content_history.contents.push_back(content);
+                    CommanderMessage::Contents contents;
+                    contents.content_histories.push_back(content);
 
                     CommanderMessage::ChannelsResponseItem channel_response_item;
                     channel_response_item.channel_address = content_unit.channel_address;
-                    channel_response_item.content_histories[content_unit.content_id] = content_history;
+                    channel_response_item.contents[content_unit.content_id] = contents;
 
                     rpc_server.channels.insert(content_unit.channel_address, channel_response_item);
                 }
                 else
                 {
-                    auto & channel_response_item = rpc_server.channels.at(content_unit.channel_address);
+                    auto & channel = rpc_server.channels.at(content_unit.channel_address);
 
-                    auto content_histories_item = channel_response_item.content_histories.find(content_unit.content_id);
-                    if (content_histories_item == channel_response_item.content_histories.end())
+                    auto contents_item = channel.contents.find(content_unit.content_id);
+                    if (contents_item == channel.contents.end())
                     {
                         CommanderMessage::ContentUnit cont_unit;
                         cont_unit.author_addresses = content_unit.author_addresses;
@@ -543,16 +545,30 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                         content.approved = false;
                         content.content_units[content_unit.uri] = cont_unit;
 
-                        CommanderMessage::ContentHistory content_history;
-                        content_history.contents.push_back(content);
+                        CommanderMessage::Contents contents;
+                        contents.content_histories.push_back(content);
 
-                        channel_response_item.content_histories[content_unit.content_id] = content_history;
+                        channel.contents[content_unit.content_id] = contents;
                     }
                     else
                     {
-                        auto & contents = content_histories_item->second.contents;
+                        auto & content_histories = contents_item->second.content_histories;
+                        if (content_histories.empty())
+                            throw std::logic_error("content_histories.empty()");
 
-                        if (contents.empty())
+                        assert (!content_histories.empty());
+
+                        auto & content = content_histories.back();
+
+                        if (!content.approved)
+                        {
+                            CommanderMessage::ContentUnit cont_unit;
+                            cont_unit.author_addresses = content_unit.author_addresses;
+                            cont_unit.file_uris = content_unit.file_uris;
+
+                            content.content_units[content_unit.uri] = cont_unit;
+                        }
+                        else
                         {
                             CommanderMessage::ContentUnit cont_unit;
                             cont_unit.author_addresses = content_unit.author_addresses;
@@ -562,71 +578,50 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                             content.approved = false;
                             content.content_units[content_unit.uri] = cont_unit;
 
-                            contents.push_back(content);
-                        }
-                        else
-                        {
-
-                            size_t size = contents.size();
-
-                            auto & content = contents.at(size - 1);
-
-                            if (content.content_units.count(content_unit.uri))
-                                throw std::logic_error("try to apply already applied content unit");
-
-                            if (!content.approved)
-                            {
-                                CommanderMessage::ContentUnit cont_unit;
-                                cont_unit.author_addresses = content_unit.author_addresses;
-                                cont_unit.file_uris = content_unit.file_uris;
-
-                                content.content_units[content_unit.uri] = cont_unit;
-                            }
-                            else
-                            {
-                                CommanderMessage::ContentUnit cont_unit;
-                                cont_unit.author_addresses = content_unit.author_addresses;
-                                cont_unit.file_uris = content_unit.file_uris;
-
-                                CommanderMessage::Content content;
-                                content.approved = false;
-                                content.content_units[content_unit.uri] = cont_unit;
-
-                                contents.push_back(content);
-                            }
+                            content_histories.push_back(content);
                         }
                     }
                 }
             }
             else //if (LoggingType::revert == type)
             {
-                bool exist = false;
+                auto& channel_response_item = rpc_server.channels.at(content_unit.channel_address);
+                if (!rpc_server.channels.contains(content_unit.channel_address))
+                    throw std::logic_error("rpc_server.channels.contains(content_unit.channel_address)");
 
-                if (rpc_server.channels.contains(content_unit.channel_address))
-                {
-                    auto& channel_response_item = rpc_server.channels.at(content_unit.channel_address);
+                assert (rpc_server.channels.contains(content_unit.channel_address));
 
-                    auto content_histories_item = channel_response_item.content_histories.find(content_unit.content_id);
-                    if (content_histories_item != channel_response_item.content_histories.end())
+                auto contents_item = channel_response_item.contents.find(content_unit.content_id);
+                if (contents_item == channel_response_item.contents.end())
+                    throw std::logic_error("contents_item == channel_response_item.contents.end()");
+
+                assert (contents_item != channel_response_item.contents.end());
+
+                auto& contents = contents_item -> second.content_histories;
+                if (contents.size() == 0)
+                    throw std::logic_error("contents.size() == 0");
+
+                assert (contents.size() != 0);
+
+                auto riter = contents.rbegin();
+                for ( ; riter != contents.rend(); ++riter)
+                    if (riter -> content_units.erase(content_unit.uri) &&
+                        riter -> content_units.empty())
                     {
-                        auto & contents = content_histories_item->second.contents;
-                        for (auto rit = contents.rbegin(); rit != contents.rend(); ++rit)
-                        {
-                            auto & content_units = rit->content_units;
-
-                            auto content_unit_item = content_units.find(content_unit.uri);
-                            if (content_unit_item != content_units.end())
-                            {
-                                content_units.erase(content_unit.uri);
-                                exist = true;
-                                break;
-                            }
-                        }
+                        contents.erase(--(riter.base()));
+                        break;
                     }
-                }
 
-                if (!exist)
-                    throw std::logic_error("try to revert nonexistent content unit");
+                if (riter == contents.rend())
+                    throw std::logic_error("riter == contents.rend()");
+
+                assert(riter != contents.rend());
+
+                if (contents.empty())
+                    channel_response_item.contents.erase(content_unit.content_id);
+
+                if (rpc_server.channels.keys().count(content_unit.channel_address) == 0)
+                    rpc_server.channels.erase(content_unit.channel_address);
             }
         }
     }
@@ -634,77 +629,142 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
     if (Content::rtt == transaction_log.action.type())
     {
         Content content;
-        std::move(transaction_log.action).get(content);
+        transaction_log.action.get(content);
 
         if (set_accounts.count(content.channel_address))
         {
             if (LoggingType::apply == type)
             {
-                if (rpc_server.channels.contains(content.channel_address))
+                if (!rpc_server.channels.contains(content.channel_address))
+                    throw std::logic_error("rpc_server.channels.contains(content.channel_address)");
+
+                assert (rpc_server.channels.contains(content.channel_address));
+
+                auto& channel = rpc_server.channels.at(content.channel_address);
+
+                auto contents = channel.contents.find(content.content_id);
+                if (contents == channel.contents.end())
+                    throw std::logic_error("contents_item == channel_response_item.contents.end()");
+
+                assert (contents != channel.contents.end());
+
+                auto& content_histories = contents -> second.content_histories;
+
+                if (content_histories.size() == 0)
+                    throw std::logic_error("content_histories.size() == 0");
+
+                assert (content_histories.size() != 0);
+
+                CommanderMessage::Content new_content;
+
+                for (auto& content_unit_uri : content.content_unit_uris)
                 {
-                    auto & channel_response_item = rpc_server.channels.at(content.channel_address);
-
-                    auto content_histories_item = channel_response_item.content_histories.find(content.content_id);
-                    if (content_histories_item != channel_response_item.content_histories.end())
+                    bool found = false;
+                    for (auto rit = content_histories.rbegin(); rit != content_histories.rend(); ++rit)
                     {
-                        auto & contents = content_histories_item->second.contents;
-                        for (auto rit = contents.rbegin(); rit != contents.rend(); ++rit)
+                        if (rit -> content_units.count(content_unit_uri))
                         {
-                            for (auto uri : content.content_unit_uris)
-                            {
-                                if (rit->content_units.count(uri))
-                                {
-                                    auto previous = rit + 1;
-                                    if (previous != contents.rend())
-                                            previous->approved = false;
+                            found = true;
+                            new_content.content_units[content_unit_uri] = rit->content_units[content_unit_uri];
 
-                                    rit->approved = true;
-                                    break;
-                                }
-                            }
+                            if (rit == content_histories.rbegin() &&
+                                !rit -> approved)
+                                    rit -> content_units.erase(content_unit_uri);
+                            break;
                         }
                     }
+                    if (!found)
+                        throw std::logic_error ("!found");
+                    assert(found);
                 }
+
+                new_content.approved = true;
+
+                if (new_content.content_units.size() == 0)
+                    throw std::logic_error("new_content.content_units.size() == 0");
+
+                assert (new_content.content_units.size() != 0);
+
+                if (content_histories.back().content_units.empty())
+                    content_histories.pop_back();
+
+                if (content_histories.empty())
+                    content_histories.push_back(std::move(new_content));
+                else if (content_histories.size() == 1 &&
+                         !content_histories.back().approved)
+                    content_histories.insert(content_histories.begin() + 1, std::move(new_content));
+                else
+                    for ( auto it = content_histories.begin(); it != content_histories.end(); ++it)
+                        if (it -> approved)
+                        {
+                            it -> approved = false;
+                            content_histories.insert(it + 1, std::move(new_content));
+                            break;
+                        }
             }
             else //if (LoggingType::revert == type)
             {
-                bool exist = false;
+                if (!rpc_server.channels.contains(content.channel_address))
+                    throw std::logic_error("rpc_server.channels.contains(content.channel_address)");
 
-                if (rpc_server.channels.contains(content.channel_address))
-                {
-                    auto & channel_response_item = rpc_server.channels.at(content.channel_address);
+                assert (rpc_server.channels.contains(content.channel_address));
 
-                    auto content_histories_item = channel_response_item.content_histories.find(content.content_id);
-                    if (content_histories_item != channel_response_item.content_histories.end())
+                auto& channel = rpc_server.channels.at(content.channel_address);
+
+                auto contents = channel.contents.find(content.content_id);
+                if (contents == channel.contents.end())
+                    throw std::logic_error("contents_item == channel_response_item.contents.end()");
+
+                assert (contents != channel.contents.end());
+
+                auto& content_histories = contents -> second.content_histories;
+
+                if (content_histories.size() == 0)
+                    throw std::logic_error("content_histories.size() == 0");
+
+                assert (content_histories.size() != 0);
+
+                auto approved_iter = content_histories.begin();
+                for ( ; approved_iter != content_histories.end(); ++approved_iter)
+                    if (approved_iter -> approved)
                     {
-                        auto & contents = content_histories_item->second.contents;
-                        auto rit = contents.rbegin();
-                        for (; rit != contents.rend(); ++rit)
-                        {
-                            for (auto uri : content.content_unit_uris)
-                            {
-                                if (rit->content_units.count(uri))
-                                {
-                                    auto previous = rit + 1;
-                                    if (previous != contents.rend())
-                                        previous->approved = true;
+                        size_t count = 0;
+                        for (auto& content_unit_uri : content.content_unit_uris)
+                            if (approved_iter -> content_units.count(content_unit_uri))
+                                ++count;
 
-                                    rit->approved = false;
-                                    exist = true;
-                                    break;
-                                }
-                            }
-                        }
+                        if (count != content.content_unit_uris.size())
+                            throw std::logic_error ("count != content.content_unit_uris.size()");
+                        assert(count == content.content_unit_uris.size());
 
-                        if (rit->content_units.empty())
-                        {
-                            std::advance(rit, 1);
-                            content_histories_item->second.contents.erase(rit.base());
-                        }
+                        break;
                     }
+
+                if (approved_iter -> approved != true)
+                    throw std::logic_error("approved_iter -> approved != true");
+
+                assert (approved_iter -> approved == true);
+
+                for (auto it = content_histories.begin(); it != approved_iter; ++it)
+                    if (!it -> approved)
+                    {
+                        for (auto& content_unit : it -> content_units)
+                            approved_iter -> content_units.erase(content_unit.first);
+
+                        assert(it + 1 != content_histories.end());
+
+                        if (it + 1 == approved_iter) it -> approved = true;
+                    }
+                    else break;
+
+                if (approved_iter == content_histories.end() - 1) approved_iter -> approved = false;
+                else
+                {
+                    for (auto& content_unit : approved_iter -> content_units)
+                        content_histories.back().content_units.insert(content_unit);
+
+                    content_histories.erase(approved_iter);
                 }
-                if (!exist)
-                    throw std::logic_error("try to revert nonexistent content");
             }
         }
     }

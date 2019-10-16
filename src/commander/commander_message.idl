@@ -230,12 +230,12 @@ module CommanderMessage
     class ChannelsResponseItem
     {
         String channel_address
-        Hash UInt64 ContentHistory content_histories
+        Hash UInt64 Contents contents
     }
 
-    class ContentHistory
+    class Contents
     {
-        Array Content contents
+        Array Content content_histories
     }
 
     class Content
