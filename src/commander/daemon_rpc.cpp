@@ -501,7 +501,6 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                                  rpc& rpc_server,
                                  LoggingType type)
 {
-
     if (ContentUnit::rtt == transaction_log.action.type())
     {
         ContentUnit content_unit;
@@ -603,24 +602,21 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
 
                 assert (contents.size() != 0);
 
-                auto riter = contents.rbegin();
-                for ( ; riter != contents.rend(); ++riter)
-                    if (riter -> content_units.erase(content_unit.uri) &&
-                        riter -> content_units.empty())
-                    {
-                        contents.erase(--(riter.base()));
-                        break;
-                    }
+                size_t erased_count = contents.back().content_units.erase(content_unit.uri);
+                assert(erased_count != 0);
+                if (erased_count == 0)
+                    throw std::logic_error("erased_count == 0");
+                assert(contents.back().approved == false);
+                if (contents.back().approved)
+                    throw std::logic_error("contents.back().approved");
 
-                if (riter == contents.rend())
-                    throw std::logic_error("riter == contents.rend()");
-
-                assert(riter != contents.rend());
+                if (contents.back().content_units.empty())
+                    contents.pop_back();
 
                 if (contents.empty())
                     channel_response_item.contents.erase(content_unit.content_id);
 
-                if (rpc_server.channels.keys().count(content_unit.channel_address) == 0)
+                if (channel_response_item.contents.empty())
                     rpc_server.channels.erase(content_unit.channel_address);
             }
         }
@@ -692,15 +688,19 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     content_histories.push_back(std::move(new_content));
                 else if (content_histories.size() == 1 &&
                          !content_histories.back().approved)
-                    content_histories.insert(content_histories.begin() + 1, std::move(new_content));
+                    content_histories.insert(content_histories.begin(), std::move(new_content));
                 else
+                {
                     for ( auto it = content_histories.begin(); it != content_histories.end(); ++it)
+                    {
                         if (it -> approved)
                         {
                             it -> approved = false;
                             content_histories.insert(it + 1, std::move(new_content));
                             break;
                         }
+                    }
+                }
             }
             else //if (LoggingType::revert == type)
             {
@@ -757,7 +757,8 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     }
                     else break;
 
-                if (approved_iter == content_histories.end() - 1) approved_iter -> approved = false;
+                if (approved_iter == content_histories.end() - 1)
+                    approved_iter -> approved = false;
                 else
                 {
                     for (auto& content_unit : approved_iter -> content_units)
