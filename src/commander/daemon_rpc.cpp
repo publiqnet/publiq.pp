@@ -157,8 +157,7 @@ void update_balance(string const& str_account,
                     meshpp::map_loader<CommanderMessage::Account>& accounts,
                     update_balance_type type)
 {
-    auto it = set_accounts.find(str_account);
-    if (it != set_accounts.end())
+    if (set_accounts.count(str_account))
     {
         {
             CommanderMessage::Account account;
@@ -191,8 +190,7 @@ void process_transaction(uint64_t block_index,
                          unordered_map<string, LogIndexLoader>& index_transactions,
                          LoggingType type)
 {
-    auto it = set_accounts.find(str_account);
-    if (it != set_accounts.end())
+    if (set_accounts.count(str_account))
     {
         auto tl_insert_res = transactions.emplace(std::make_pair(str_account,
                                                                  daemon_rpc::get_transaction_log(str_account)));
@@ -259,8 +257,7 @@ void process_reward(uint64_t block_index,
                     unordered_map<string, LogIndexLoader>& index_rewards,
                     LoggingType type)
 {
-    auto it = set_accounts.find(str_account);
-    if (it != set_accounts.end())
+    if (set_accounts.count(str_account))
     {
         auto rw_insert_res = rewards.emplace(std::make_pair(str_account,
                                                             daemon_rpc::get_reward_log(str_account)));
@@ -482,7 +479,6 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
             else
             {
                 auto& storage = rpc_server.storages.at(storage_update.storage_address);
-
                 auto stored_file_uri = storage.file_uris.find(storage_update.file_uri);
                 if (stored_file_uri == storage.file_uris.end())
                     storage.file_uris[storage_update.file_uri] = is_stored;
@@ -535,7 +531,6 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                 else
                 {
                     auto& channel = rpc_server.channels.at(content_unit.channel_address);
-
                     auto contents_item = channel.contents.find(content_unit.content_id);
                     if (contents_item == channel.contents.end())
                     {
@@ -560,7 +555,6 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                             throw std::logic_error("content_histories.empty()");
 
                         auto& content = content_histories.back();
-
                         if (!content.approved)
                         {
                             CommanderMessage::ContentUnit cont_unit;
@@ -630,7 +624,6 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
             }
         }
     }
-
     if (Content::rtt == transaction_log.action.type())
     {
         Content content;
@@ -677,7 +670,6 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     if (!found)
                         throw std::logic_error ("!found");
                 }
-
                 new_content.approved = true;
 
                 assert (new_content.content_units.size() != 0);
@@ -733,7 +725,6 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                             if (approved_iter->content_units.count(content_unit_uri))
                                 ++count;
                         }
-
                         assert(count == content.content_unit_uris.size());
                         if (count != content.content_unit_uris.size())
                             throw std::logic_error ("count != content.content_unit_uris.size()");
@@ -741,7 +732,6 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                         break;
                     }
                 }
-
                 assert (approved_iter != content_histories.end());
                 if (approved_iter == content_histories.end())
                     throw std::logic_error("approved_iter == content_histories.end()");
@@ -762,20 +752,18 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     if (it + 1 == approved_iter)
                         it->approved = true;
                 }
-
                 if (approved_iter == content_histories.end() - 1)
                     approved_iter->approved = false;
                 else
                 {
                     for (auto& content_unit : approved_iter->content_units)
                     {
-                        auto insert_result = content_histories.back().content_units.insert(std::move(content_unit));
+                        auto emplace_result = content_histories.back().content_units.emplace(std::move(content_unit));
 
-                        assert(insert_result.second);
-                        if (!insert_result.second)
-                            throw std::logic_error("!insert_result.second");
+                        assert(emplace_result.second);
+                        if (!emplace_result.second)
+                            throw std::logic_error("!emplace_result.second");
                     }
-
                     content_histories.erase(approved_iter);
                 }
             }
