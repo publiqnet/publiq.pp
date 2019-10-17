@@ -459,12 +459,17 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
         {
             bool is_stored = false;
 
-            if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
-                (UpdateType::remove == storage_update.status && LoggingType::revert == type))
-                is_stored = true;
-            if ((UpdateType::store == storage_update.status && LoggingType::revert == type) ||
-                (UpdateType::remove == storage_update.status && LoggingType::apply == type))
-                is_stored = false;
+            if ((UpdateType::store == storage_update.status &&
+                LoggingType::apply == type) ||
+                (UpdateType::remove == storage_update.status &&
+                LoggingType::revert == type))
+                    is_stored = true;
+
+            if ((UpdateType::store == storage_update.status &&
+                LoggingType::revert == type) ||
+                (UpdateType::remove == storage_update.status &&
+                LoggingType::apply == type))
+                    is_stored = false;
 
             if (!rpc_server.storages.contains(storage_update.storage_address))
             {
@@ -483,10 +488,9 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
                     storage.file_uris[storage_update.file_uri] = is_stored;
                 else
                 {
+                    assert (stored_file_uri->second != is_stored);
                     if (stored_file_uri->second == is_stored)
                         throw std::logic_error("stored_file_uri->second == is_stored");
-
-                    assert (stored_file_uri->second != is_stored);
 
                     stored_file_uri->second = is_stored;
                 }
@@ -494,7 +498,6 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
         }
     }
 }
-
 
 void process_channel_tansactions(unordered_set<string> const& set_accounts,
                                  BlockchainMessage::TransactionLog const& transaction_log,
@@ -531,7 +534,7 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                 }
                 else
                 {
-                    auto & channel = rpc_server.channels.at(content_unit.channel_address);
+                    auto& channel = rpc_server.channels.at(content_unit.channel_address);
 
                     auto contents_item = channel.contents.find(content_unit.content_id);
                     if (contents_item == channel.contents.end())
@@ -551,13 +554,12 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     }
                     else
                     {
-                        auto & content_histories = contents_item->second.content_histories;
+                        auto& content_histories = contents_item->second.content_histories;
+                        assert (!content_histories.empty());
                         if (content_histories.empty())
                             throw std::logic_error("content_histories.empty()");
 
-                        assert (!content_histories.empty());
-
-                        auto & content = content_histories.back();
+                        auto& content = content_histories.back();
 
                         if (!content.approved)
                         {
@@ -584,28 +586,27 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
             }
             else //if (LoggingType::revert == type)
             {
+                assert (rpc_server.channels.contains(content_unit.channel_address));
                 auto& channel_response_item = rpc_server.channels.at(content_unit.channel_address);
                 if (!rpc_server.channels.contains(content_unit.channel_address))
                     throw std::logic_error("rpc_server.channels.contains(content_unit.channel_address)");
 
-                assert (rpc_server.channels.contains(content_unit.channel_address));
-
+                assert (contents_item != channel_response_item.contents.end());
                 auto contents_item = channel_response_item.contents.find(content_unit.content_id);
                 if (contents_item == channel_response_item.contents.end())
                     throw std::logic_error("contents_item == channel_response_item.contents.end()");
 
-                assert (contents_item != channel_response_item.contents.end());
-
-                auto& contents = contents_item -> second.content_histories;
+                assert (contents.size() != 0);
+                auto& contents = contents_item->second.content_histories;
                 if (contents.size() == 0)
                     throw std::logic_error("contents.size() == 0");
 
-                assert (contents.size() != 0);
-
                 size_t erased_count = contents.back().content_units.erase(content_unit.uri);
+
                 assert(erased_count != 0);
                 if (erased_count == 0)
                     throw std::logic_error("erased_count == 0");
+
                 assert(contents.back().approved == false);
                 if (contents.back().approved)
                     throw std::logic_error("contents.back().approved");
@@ -614,10 +615,18 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     contents.pop_back();
 
                 if (contents.empty())
-                    channel_response_item.contents.erase(content_unit.content_id);
+                    erased_count = channel_response_item.contents.erase(content_unit.content_id);
+
+                assert(erased_count != 0);
+                if (erased_count == 0)
+                    throw std::logic_error("erased_count == 0");
 
                 if (channel_response_item.contents.empty())
-                    rpc_server.channels.erase(content_unit.channel_address);
+                    erased_count = rpc_server.channels.erase(content_unit.channel_address);
+
+                assert(erased_count != 0);
+                if (erased_count == 0)
+                    throw std::logic_error("erased_count == 0");
             }
         }
     }
@@ -631,25 +640,20 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
         {
             if (LoggingType::apply == type)
             {
+                assert (rpc_server.channels.contains(content.channel_address));
                 if (!rpc_server.channels.contains(content.channel_address))
                     throw std::logic_error("rpc_server.channels.contains(content.channel_address)");
 
-                assert (rpc_server.channels.contains(content.channel_address));
-
                 auto& channel = rpc_server.channels.at(content.channel_address);
-
                 auto contents = channel.contents.find(content.content_id);
+                assert (contents != channel.contents.end());
                 if (contents == channel.contents.end())
                     throw std::logic_error("contents_item == channel_response_item.contents.end()");
 
-                assert (contents != channel.contents.end());
-
-                auto& content_histories = contents -> second.content_histories;
-
+                auto& content_histories = contents->second.content_histories;
+                assert (content_histories.size() != 0);
                 if (content_histories.size() == 0)
                     throw std::logic_error("content_histories.size() == 0");
-
-                assert (content_histories.size() != 0);
 
                 CommanderMessage::Content new_content;
 
@@ -658,28 +662,27 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     bool found = false;
                     for (auto rit = content_histories.rbegin(); rit != content_histories.rend(); ++rit)
                     {
-                        if (rit -> content_units.count(content_unit_uri))
+                        if (rit->content_units.count(content_unit_uri))
                         {
                             found = true;
                             new_content.content_units[content_unit_uri] = rit->content_units[content_unit_uri];
 
                             if (rit == content_histories.rbegin() &&
-                                !rit -> approved)
-                                    rit -> content_units.erase(content_unit_uri);
+                                !rit->approved)
+                                    rit->content_units.erase(content_unit_uri);
                             break;
                         }
                     }
+                    assert(found);
                     if (!found)
                         throw std::logic_error ("!found");
-                    assert(found);
                 }
 
                 new_content.approved = true;
 
+                assert (new_content.content_units.size() != 0);
                 if (new_content.content_units.size() == 0)
                     throw std::logic_error("new_content.content_units.size() == 0");
-
-                assert (new_content.content_units.size() != 0);
 
                 if (content_histories.back().content_units.empty())
                     content_histories.pop_back();
@@ -693,9 +696,9 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                 {
                     for ( auto it = content_histories.begin(); it != content_histories.end(); ++it)
                     {
-                        if (it -> approved)
+                        if (it->approved)
                         {
-                            it -> approved = false;
+                            it->approved = false;
                             content_histories.insert(it + 1, std::move(new_content));
                             break;
                         }
@@ -704,65 +707,74 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
             }
             else //if (LoggingType::revert == type)
             {
+                assert (rpc_server.channels.contains(content.channel_address));
                 if (!rpc_server.channels.contains(content.channel_address))
                     throw std::logic_error("rpc_server.channels.contains(content.channel_address)");
 
-                assert (rpc_server.channels.contains(content.channel_address));
-
                 auto& channel = rpc_server.channels.at(content.channel_address);
-
                 auto contents = channel.contents.find(content.content_id);
+                assert (contents != channel.contents.end());
                 if (contents == channel.contents.end())
                     throw std::logic_error("contents_item == channel_response_item.contents.end()");
 
-                assert (contents != channel.contents.end());
-
-                auto& content_histories = contents -> second.content_histories;
-
+                auto& content_histories = contents->second.content_histories;
+                assert (content_histories.size() != 0);
                 if (content_histories.size() == 0)
                     throw std::logic_error("content_histories.size() == 0");
 
-                assert (content_histories.size() != 0);
-
                 auto approved_iter = content_histories.begin();
                 for ( ; approved_iter != content_histories.end(); ++approved_iter)
-                    if (approved_iter -> approved)
+                {
+                    if (approved_iter->approved)
                     {
                         size_t count = 0;
                         for (auto& content_unit_uri : content.content_unit_uris)
-                            if (approved_iter -> content_units.count(content_unit_uri))
+                        {
+                            if (approved_iter->content_units.count(content_unit_uri))
                                 ++count;
+                        }
 
+                        assert(count == content.content_unit_uris.size());
                         if (count != content.content_unit_uris.size())
                             throw std::logic_error ("count != content.content_unit_uris.size()");
-                        assert(count == content.content_unit_uris.size());
 
                         break;
                     }
+                }
 
-                if (approved_iter -> approved != true)
-                    throw std::logic_error("approved_iter -> approved != true");
+                assert (approved_iter != content_histories.end());
+                if (approved_iter == content_histories.end())
+                    throw std::logic_error("approved_iter == content_histories.end()");
 
-                assert (approved_iter -> approved == true);
+                assert (approved_iter->approved == true);
+                if (approved_iter->approved != true)
+                    throw std::logic_error("approved_iter->approved != true");
 
                 for (auto it = content_histories.begin(); it != approved_iter; ++it)
-                    if (!it -> approved)
-                    {
-                        for (auto& content_unit : it -> content_units)
-                            approved_iter -> content_units.erase(content_unit.first);
+                {
+                    assert(!it->approved);
+                    if (it->approved)
+                        throw std::logic_error("it->approved");
 
-                        assert(it + 1 != content_histories.end());
+                    for (auto& content_unit : it->content_units)
+                        approved_iter->content_units.erase(content_unit.first);
 
-                        if (it + 1 == approved_iter) it -> approved = true;
-                    }
-                    else break;
+                    if (it + 1 == approved_iter)
+                        it->approved = true;
+                }
 
                 if (approved_iter == content_histories.end() - 1)
-                    approved_iter -> approved = false;
+                    approved_iter->approved = false;
                 else
                 {
-                    for (auto& content_unit : approved_iter -> content_units)
-                        content_histories.back().content_units.insert(content_unit);
+                    for (auto& content_unit : approved_iter->content_units)
+                    {
+                        auto insert_result = content_histories.back().content_units.insert(std::move(content_unit));
+
+                        assert(insert_result.second);
+                        if (!insert_result.second)
+                            throw std::logic_error("!insert_result.second");
+                    }
 
                     content_histories.erase(approved_iter);
                 }
