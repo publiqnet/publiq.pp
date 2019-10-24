@@ -474,7 +474,6 @@ bool node::run()
                     BlockHeaderRequest header_request;
                     std::move(ref_packet).get(header_request);
 
-                    //m_pimpl->writeln_node("header response - " + peerid);
                     session_action_header::process_request(peerid,
                                                            header_request,
                                                            *m_pimpl.get());
@@ -489,7 +488,6 @@ bool node::run()
                     BlockchainRequest blockchain_request;
                     std::move(ref_packet).get(blockchain_request);
 
-                    //m_pimpl->writeln_node("chain response - " + peerid);
                     session_action_block::process_request(peerid,
                                                           blockchain_request,
                                                           *m_pimpl.get());
@@ -963,8 +961,6 @@ void block_worker(detail::node_internals& impl)
     if (impl.all_sync_info.blockchain_sync_in_progress)
         return;
 
-    uint64_t additional_delay_threshhold = 120;
-
     auto const blockchain_length = impl.m_blockchain.length();
     auto const last_header = impl.m_blockchain.last_header();
 
@@ -1007,8 +1003,7 @@ void block_worker(detail::node_internals& impl)
 
         it->second.reverts_required = revert_coefficient;
 
-        bool unsafe_time_to_revert = BLOCK_WAIT_DELAY + additional_delay_threshhold <
-                                     revert_coefficient * BLOCK_MINE_DELAY;
+        bool unsafe_time_to_revert = BLOCK_SAFE_DELAY < revert_coefficient * BLOCK_MINE_DELAY;
         //  that is if revert_coefficient > 0.4
         //  or in other words need to revert block that is older than 4 minutes
 

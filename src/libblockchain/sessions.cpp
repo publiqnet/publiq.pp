@@ -767,6 +767,26 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         return; // will wait for new chain
     }
 
+    size_t blockchain_length = pimpl->m_blockchain.length();
+    uint64_t lcb_number = sync_headers.rbegin()->block_number - 1;
+
+    // NEW checks for test
+    if (sync_blocks.size() == 1 &&
+        lcb_number == blockchain_length - 2)
+    {
+        auto& inserted_block = pimpl->m_blockchain.at(blockchain_length - 1);
+        auto inserted_block_miner_balance = pimpl->m_state.get_balance(inserted_block.authorization.address, state_layer::pool);
+        auto received_block_miner_balance = pimpl->m_state.get_balance(sync_blocks.front().authorization.address, state_layer::pool);
+
+        if (inserted_block_miner_balance > received_block_miner_balance &&
+            inserted_block.block_details.header.c_sum == sync_blocks.front().block_details.header.c_sum)
+        {
+            pimpl->writeln_node("Reject block from : " + sync_blocks.front().authorization.address);
+            pimpl->writeln_node("Inserted block is from : " + inserted_block.authorization.address);
+            return;
+        }
+    }
+    
     //3. all needed blocks received, start to check
     pimpl->m_transaction_cache.backup();
 
@@ -777,13 +797,11 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         pimpl->m_transaction_cache.restore();
     });
 
-    uint64_t lcb_number = sync_headers.rbegin()->block_number - 1;
     vector<SignedTransaction> reverted_transactions;
     bool clear_pool = sync_blocks.size() < sync_headers.size();
 
     //  collect transactions to be reverted from blockchain
     //
-    size_t blockchain_length = pimpl->m_blockchain.length();
 
     for (size_t index = lcb_number + 1; index < blockchain_length; ++index)
     {
