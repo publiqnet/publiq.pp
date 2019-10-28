@@ -626,11 +626,9 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                 temp_to = back.header.block_number;
 
                 if(temp_from == temp_to)
-                    //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
                     pimpl->writeln_node("validating block " + std::to_string(temp_from));
                 else
-                    pimpl->writeln_node("validating blocks [" + std::to_string(temp_from) +
-                                        "," + std::to_string(temp_to) + "] from " + detail::peer_short_names(header.peerid));
+                    pimpl->writeln_node("validating blocks [" + std::to_string(temp_from) + "," + std::to_string(temp_to) + "]");
             }
 
             process_response(header, std::move(blockchain_response));
@@ -770,19 +768,18 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     size_t blockchain_length = pimpl->m_blockchain.length();
     uint64_t lcb_number = sync_headers.rbegin()->block_number - 1;
 
-    // NEW checks for test
-    if (sync_blocks.size() == 1 &&
-        lcb_number == blockchain_length - 2)
+    // resolve normal fork case
+    if (sync_blocks.size() == 1 && lcb_number == blockchain_length - 2)
     {
         auto& inserted_block = pimpl->m_blockchain.at(blockchain_length - 1);
-        auto inserted_block_miner_balance = pimpl->m_state.get_balance(inserted_block.authorization.address, state_layer::pool);
-        auto received_block_miner_balance = pimpl->m_state.get_balance(sync_blocks.front().authorization.address, state_layer::pool);
+        coin inserted_block_miner_balance = pimpl->m_state.get_balance(inserted_block.authorization.address, state_layer::pool);
+        coin received_block_miner_balance = pimpl->m_state.get_balance(sync_blocks.rbegin()->authorization.address, state_layer::pool);
 
-        if (inserted_block_miner_balance > received_block_miner_balance &&
-            inserted_block.block_details.header.c_sum == sync_blocks.front().block_details.header.c_sum)
+        if (inserted_block_miner_balance >= received_block_miner_balance &&
+            inserted_block.block_details.header.c_sum == sync_blocks.rbegin()->block_details.header.c_sum)
         {
-            pimpl->writeln_node("Reject block from : " + sync_blocks.front().authorization.address);
-            pimpl->writeln_node("Inserted block is from : " + inserted_block.authorization.address);
+            pimpl->writeln_node("Rej. : " + sync_blocks.front().authorization.address);
+            pimpl->writeln_node("Ins.: " + inserted_block.authorization.address);
             return;
         }
     }
@@ -814,8 +811,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    vector<SignedTransaction> pool_transactions =
-            revert_pool(system_clock::to_time_t(now), *pimpl);
+    vector<SignedTransaction> pool_transactions = revert_pool(system_clock::to_time_t(now), *pimpl);
 
     //  revert blocks
     //  calculate back to get state at LCB point

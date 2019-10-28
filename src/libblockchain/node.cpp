@@ -180,7 +180,8 @@ bool node::run()
                 case beltpp::isocket_join::rtt:
                 {
                     if (it == interface_type::p2p)
-                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
+                        m_pimpl->writeln_node("joined peer: " + detail::peer_short_names(peerid) + 
+                                              " total count:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -455,10 +456,10 @@ bool node::run()
                 }
                 case SyncRequest::rtt:
                 {
-                    BlockHeaderExtended const& header = m_pimpl->m_blockchain.header_ex_at(m_pimpl->m_blockchain.length() - 1);
+                    BlockHeaderExtended const& header_ex = m_pimpl->m_blockchain.last_header_ex();
 
                     SyncResponse sync_response;
-                    sync_response.own_header = header;
+                    sync_response.own_header = header_ex;
 
                     if (m_pimpl->all_sync_info.net_sync_info().c_sum > m_pimpl->all_sync_info.own_sync_info().c_sum)
                         sync_response.promised_header = m_pimpl->all_sync_info.net_sync_info();
@@ -1196,6 +1197,14 @@ double header_worker(detail::node_internals& impl)
                  head_block_header.block_number == scan_block_header.block_number)
         {
             //  there is a better consensus sum than what I have and I must get it first
+            sync_now = true;
+        }
+        else if (since_head_block > chrono::seconds(BLOCK_WAIT_DELAY) &&
+                 since_head_block < chrono::seconds(BLOCK_SAFE_DELAY) &&
+                 head_block_header.c_sum == scan_block_header.c_sum &&
+                 head_block_header.block_number == scan_block_header.block_number)
+        {
+            // there can be a normal fork and I am trying go to the best miner
             sync_now = true;
         }
         else if (own_sum < scan_block_header.c_sum &&

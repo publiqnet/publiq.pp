@@ -88,9 +88,8 @@ BlockHeader const& blockchain::last_header() const
 
 BlockHeaderExtended blockchain::last_header_ex() const
 {
-    //return header_ex_at(m_pimpl->m_blockchain.size() - 1);
-
-    //the code below is copied from header_ex_at()
+    // the code below is copied from header_ex_at()
+    // just to use cached value of header
 
     BlockHeaderExtended result;
 
