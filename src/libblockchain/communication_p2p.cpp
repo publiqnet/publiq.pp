@@ -873,7 +873,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
         std::sort(statistics.begin(), statistics.end(),
             [](SignedTransaction const& lhs, SignedTransaction const& rhs)
         {
-            return lhs.transaction_details.fee >= rhs.transaction_details.fee;
+            return coin(lhs.transaction_details.fee) > coin(rhs.transaction_details.fee);
         });
 
         size_t stat_index = 0;
@@ -881,7 +881,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
         for (auto& stat : statistics)
         {
-            if (2 * stat_index < stat_count)
+            if (2 * stat_index < stat_count + 1 &&
+                block_transactions.size() < size_t(BLOCK_MAX_TRANSACTIONS))
             {
                 ++stat_index;
                 block_transactions.push_back(std::move(stat));
@@ -1067,8 +1068,6 @@ void mine_block(publiqpp::detail::node_internals& impl)
         return (lhs.value / lhs.size) > (rhs.value / rhs.size);
     });
 
-    size_t reserved_size = block_transactions.size();
-
     for (size_t index = 0; index != reverted_transactions_ex.size(); ++index)
     {
         auto& signed_transaction = reverted_transactions_ex[index].stx;
@@ -1082,7 +1081,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
                 paction->end_time_point.tm != system_clock::to_time_t(tp_end))
                 can_put_in_block = false;
         }
-        if (reserved_size + index < size_t(BLOCK_MAX_TRANSACTIONS) && can_put_in_block)
+        if (block_transactions.size() < size_t(BLOCK_MAX_TRANSACTIONS) && can_put_in_block)
             block_transactions.push_back(std::move(signed_transaction));
         else
             pool_transactions.push_back(std::move(signed_transaction));

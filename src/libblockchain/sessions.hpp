@@ -134,7 +134,15 @@ protected:
 class session_action_block : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
-    session_action_block(detail::node_internals& impl);
+    class reason
+    {
+    public:
+        enum e_v {safe_better, safe_revert, unsafe_better, unsafe_best};
+        size_t poll_participants = 0;
+        double revert_coefficient = 0;
+        e_v v = safe_better;
+    };
+    session_action_block(detail::node_internals& impl, reason e_reason);
     ~session_action_block() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -154,6 +162,7 @@ public:
     detail::node_internals* pimpl;
     std::vector<BlockchainMessage::SignedBlock> sync_blocks;
     std::vector<BlockchainMessage::BlockHeaderExtended> sync_headers;
+    reason m_reason;
 };
 
 class session_action_request_file : public meshpp::session_action<meshpp::nodeid_session_header>

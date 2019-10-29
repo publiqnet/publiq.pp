@@ -52,17 +52,12 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_authority != service_statistics.server_address)
         throw authority_exception(signed_authority, service_statistics.server_address);
 
-    if (service_statistics.file_items.size() == 0)
+    if (service_statistics.file_items.empty())
         throw wrong_data_exception("dummy statistics");
-
-    bool is_storage_stat = service_statistics.file_items.begin()->unit_uri.empty();
 
     for (auto const& file_item : service_statistics.file_items)
     {
-        if (file_item.count_items.size() == 0)
-            throw wrong_data_exception("dummy statistics");
-
-        if (is_storage_stat != file_item.unit_uri.empty())
+        if (file_item.count_items.empty())
             throw wrong_data_exception("dummy statistics");
 
         for (auto const& count_item : file_item.count_items)

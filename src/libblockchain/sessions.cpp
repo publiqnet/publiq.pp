@@ -572,9 +572,10 @@ bool session_action_header::check_headers_vector(std::vector<BlockchainMessage::
 
 // --------------------------- session_action_block ---------------------------
 
-session_action_block::session_action_block(detail::node_internals& impl)
+session_action_block::session_action_block(detail::node_internals& impl, reason e_reason)
     : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
+    , m_reason(e_reason)
 {
     assert(false == pimpl->all_sync_info.blockchain_sync_in_progress);
     pimpl->all_sync_info.blockchain_sync_in_progress = true;
@@ -625,10 +626,30 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                 temp_from = front.header.block_number;
                 temp_to = back.header.block_number;
 
+                string code;
+
+                switch (m_reason.v)
+                {
+                case reason::safe_better:
+                    code = "[sf]";
+                    break;
+                case reason::safe_revert:
+                    code = "[sf,rv]";
+                    break;
+                case reason::unsafe_better:
+                    code = "[unsf,btr][" + std::to_string(m_reason.poll_participants) + "]";
+                    break;
+                case reason::unsafe_best:
+                    code = "[unsf,bst][" + std::to_string(m_reason.poll_participants) + "]";
+                    break;
+                }
+
                 if(temp_from == temp_to)
-                    pimpl->writeln_node("validating block " + std::to_string(temp_from));
+                    //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
+                    pimpl->writeln_node(code + " validating block " + std::to_string(temp_from) + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
                 else
-                    pimpl->writeln_node("validating blocks [" + std::to_string(temp_from) + "," + std::to_string(temp_to) + "]");
+                    pimpl->writeln_node(code + " validating blocks [" + std::to_string(temp_from) +
+                                        "," + std::to_string(temp_to) + "]" + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
             }
 
             process_response(header, std::move(blockchain_response));
@@ -773,13 +794,16 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     {
         auto& inserted_block = pimpl->m_blockchain.at(blockchain_length - 1);
         coin inserted_block_miner_balance = pimpl->m_state.get_balance(inserted_block.authorization.address, state_layer::pool);
-        coin received_block_miner_balance = pimpl->m_state.get_balance(sync_blocks.rbegin()->authorization.address, state_layer::pool);
+        coin received_block_miner_balance = pimpl->m_state.get_balance(sync_blocks.back().authorization.address, state_layer::pool);
 
         if (inserted_block_miner_balance >= received_block_miner_balance &&
-            inserted_block.block_details.header.c_sum == sync_blocks.rbegin()->block_details.header.c_sum)
+            inserted_block.block_details.header.c_sum == sync_blocks.back().block_details.header.c_sum)
         {
-            pimpl->writeln_node("Rej. : " + sync_blocks.front().authorization.address);
-            pimpl->writeln_node("Ins.: " + inserted_block.authorization.address);
+            pimpl->writeln_node("reject from " + sync_blocks.front().authorization.address);
+
+            completed = true;
+            expected_next_package_type = size_t(-1);
+
             return;
         }
     }

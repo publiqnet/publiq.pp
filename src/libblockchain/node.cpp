@@ -564,7 +564,7 @@ bool node::run()
                 }
                 default:
                 {
-                    if(ref_packet.type() != SyncResponse::rtt)
+                    //if (ref_packet.type() != SyncResponse::rtt)
                         m_pimpl->writeln_node("master can't handle: " + std::to_string(ref_packet.type()) +
                                               ". peer: " + peerid);
 
@@ -976,9 +976,13 @@ void block_worker(detail::node_internals& impl)
     double revert_fraction = std::min(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
 
     auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
-    auto it_scan_least_revert_approve_winner = impl.all_sync_info.headers_actions_data.end();
+    auto it_scan_least_revert_approved_winner = impl.all_sync_info.headers_actions_data.end();
     auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
     coin scan_most_approved_revert;
+
+    session_action_block::reason reason_scan_least_revert;
+    session_action_block::reason reason_scan_least_revert_approved_winner;
+    session_action_block::reason reason_scan_most_approved_revert;
 
     for (auto it = impl.all_sync_info.headers_actions_data.begin();
          it != impl.all_sync_info.headers_actions_data.end();
@@ -1086,20 +1090,25 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > reject &&
-                poll_participants >= std::max(2ull, static_cast<uint64_t>(impl.m_p2p_peers.size() / 2 )))
+                poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 2)))
             {
-                if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner &&
-                    it_scan_least_revert_approve_winner->second.headers.front() != it->second.headers.front())
+                if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner &&
+                    it_scan_least_revert_approved_winner->second.headers.front() != it->second.headers.front())
                     impl.writeln_node("two or more absolute majority in voting?");
 
-                if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approve_winner ||
-                    it_scan_least_revert_approve_winner->second.reverts_required > revert_coefficient)
-                    it_scan_least_revert_approve_winner = it;
+                if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approved_winner ||
+                    it_scan_least_revert_approved_winner->second.reverts_required > revert_coefficient)
+                {
+                    it_scan_least_revert_approved_winner = it;
+                    reason_scan_least_revert_approved_winner.v = session_action_block::reason::unsafe_best;
+                    reason_scan_least_revert_approved_winner.poll_participants = poll_participants;
+                    reason_scan_least_revert_approved_winner.revert_coefficient = revert_coefficient;
+                }
             }
 
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.first &&
-                poll_participants >= std::max(2ull, static_cast<uint64_t>(impl.m_p2p_peers.size() / 2 )) &&
+                poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 2)) &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1108,25 +1117,53 @@ void block_worker(detail::node_internals& impl)
             {
                 it_scan_most_approved_revert = it;
                 scan_most_approved_revert = approve;
+                reason_scan_most_approved_revert.v = session_action_block::reason::unsafe_better;
+                reason_scan_most_approved_revert.poll_participants = poll_participants;
+                reason_scan_most_approved_revert.revert_coefficient = revert_coefficient;
             }
         }
         else if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert ||
                  it_scan_least_revert->second.reverts_required > revert_coefficient)
+        {
             it_scan_least_revert = it;
+            if (revert_coefficient > 0)
+            {
+                reason_scan_least_revert.v = session_action_block::reason::safe_revert;
+                reason_scan_least_revert.poll_participants = 0;
+                reason_scan_least_revert.revert_coefficient = revert_coefficient;
+            }
+            else
+            {
+                reason_scan_least_revert.v = session_action_block::reason::safe_better;
+                reason_scan_least_revert.poll_participants = 0;
+                reason_scan_least_revert.revert_coefficient = revert_coefficient;
+            }
+        }
     }
 
+    session_action_block::reason t_reason;
+
     auto it_chosen = impl.all_sync_info.headers_actions_data.end();
-    if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner)
-        it_chosen = it_scan_least_revert_approve_winner;
+    if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner)
+    {
+        it_chosen = it_scan_least_revert_approved_winner;
+        t_reason = reason_scan_least_revert_approved_winner;
+    }
     else if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert)
+    {
         it_chosen = it_scan_least_revert;
+        t_reason = reason_scan_least_revert;
+    }
     else if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
+    {
         it_chosen = it_scan_most_approved_revert;
+        t_reason = reason_scan_most_approved_revert;
+    }
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
     {
         vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-        actions.emplace_back(new session_action_block(impl));
+        actions.emplace_back(new session_action_block(impl, t_reason));
 
         meshpp::nodeid_session_header header;
         header.nodeid = it_chosen->first;
@@ -1204,7 +1241,8 @@ double header_worker(detail::node_internals& impl)
         else if (since_head_block > chrono::seconds(BLOCK_WAIT_DELAY) &&
                  since_head_block < chrono::seconds(BLOCK_SAFE_DELAY) &&
                  head_block_header.c_sum == scan_block_header.c_sum &&
-                 head_block_header.block_number == scan_block_header.block_number)
+                 head_block_header.block_number == scan_block_header.block_number &&
+                 head_block_header.block_hash != scan_block_header.block_hash)
         {
             // there can be a normal fork and I am trying go to the best miner
             sync_now = true;
