@@ -181,7 +181,7 @@ bool node::run()
                 {
                     if (it == interface_type::p2p)
                         m_pimpl->writeln_node("joined peer: " + detail::peer_short_names(peerid) + 
-                                              " total count:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
+                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -205,10 +205,11 @@ bool node::run()
                 case beltpp::isocket_drop::rtt:
                 {
                     if (it == interface_type::p2p)
-                        m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
-
-                    if (it == interface_type::p2p)
+                    {
                         m_pimpl->remove_peer(peerid);
+                        m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid) +
+                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size()));
+                    }
 
                     break;
                 }
@@ -563,8 +564,9 @@ bool node::run()
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("master don't know how to handle: " + std::to_string(ref_packet.type()) +
-                                          ". peer: " + peerid);
+                    if(ref_packet.type() != SyncResponse::rtt)
+                        m_pimpl->writeln_node("master can't handle: " + std::to_string(ref_packet.type()) +
+                                              ". peer: " + peerid);
 
                     break;
                 }

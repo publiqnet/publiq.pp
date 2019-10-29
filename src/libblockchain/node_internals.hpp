@@ -428,7 +428,7 @@ public:
 
     void remove_peer(socket::peer_id peerid)
     {
-        writeln_node("remove peer: " + detail::peer_short_names(peerid));
+        //writeln_node("remove peer: " + detail::peer_short_names(peerid));
         m_sync_sessions.remove(peerid);
         m_nodeid_sessions.remove(peerid);
         m_sessions.remove(peerid);
