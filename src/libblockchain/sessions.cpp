@@ -799,7 +799,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         if (inserted_block_miner_balance >= received_block_miner_balance &&
             inserted_block.block_details.header.c_sum == sync_blocks.back().block_details.header.c_sum)
         {
-            pimpl->writeln_node("reject from " + sync_blocks.front().authorization.address);
+            pimpl->writeln_node("reject block by " + sync_blocks.front().authorization.address);
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -856,7 +856,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
                           rewards_type::revert,
                           *pimpl,
                           unit_uri_view_counts))
-            return set_errored("blockchain response. block rewards reverting error!", throw_for_debugging_only);
+            return set_errored("block response - " + std::to_string(block.header.block_number) + ". block rewards reverting error!", throw_for_debugging_only);
 
         B_UNUSED(unit_uri_view_counts);
 
@@ -924,7 +924,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
                           rewards_type::apply,
                           *pimpl,
                           unit_uri_view_counts))
-            return set_errored("blockchain response. block rewards!", throw_for_debugging_only);
+            return set_errored("block response - " + std::to_string(block.header.block_number) + ". block rewards!", throw_for_debugging_only);
 
         // increase all reward amounts to balances
         for (auto const& reward_item : block.rewards)

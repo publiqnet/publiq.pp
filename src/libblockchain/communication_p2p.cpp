@@ -91,6 +91,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                          multimap<string, pair<uint64_t, uint64_t>>& channel_result,
                          multimap<string, pair<uint64_t, uint64_t>>& storage_result,
                          map<string, uint64_t>& map_unit_uri_view_counts,
+                         uint64_t block_number,
                          publiqpp::detail::node_internals& impl)
 {
     author_result.clear();
@@ -267,15 +268,18 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
             // item_per_owner.first is the owner channel
             string const& owner_channel = item_per_owner.first;
 
-            uint64_t count = 0;
+            /*uint64_t count = 0;
             for (auto const& item_per_content_id : item_per_owner.second)
             {
                 uint64_t max_count_per_content_id = 0;
                 for (auto const& item_per_file : item_per_content_id.second)
                 for (auto const& item_per_unit : item_per_file.second)
-                    max_count_per_content_id = std::max(count, item_per_unit.second);
+                    max_count_per_content_id = std::max(max_count_per_content_id, item_per_unit.second);
                 count += max_count_per_content_id;
-            }
+            }*/
+            uint64_t count = impl.pcounts_per_channel_views(item_per_owner.second,
+                                                            block_number,
+                                                            impl.m_testnet);
 
             if (serving_channel == owner_channel)
             {
@@ -420,6 +424,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                         channel_result,
                         storage_result,
                         unit_uri_view_counts,
+                        block_header.block_number,
                         impl);
 
     assert(unit_uri_view_counts.empty() || (false == unit_uri_view_counts.empty() &&

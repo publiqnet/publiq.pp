@@ -26,6 +26,7 @@
 #include <thread>
 #include <functional>
 #include <chrono>
+#include <map>
 
 #include <csignal>
 
@@ -140,6 +141,37 @@ private:
     boost::filesystem::path path;
     std::exception_ptr eptr;
 };
+
+uint64_t counts_per_channel_views(std::map<uint64_t, std::map<string, std::map<string, uint64_t>>> const& item_per_owner,
+                                  uint64_t block_number,
+                                  bool is_testnet)
+{
+    uint64_t count = 0;
+    for (auto const& item_per_content_id : item_per_owner)
+    {
+        uint64_t max_count_per_content_id = 0;
+        for (auto const& item_per_file : item_per_content_id.second)
+        for (auto const& item_per_unit : item_per_file.second)
+        {
+            if (false == is_testnet &&
+                (
+                    block_number == 30335 ||
+                    block_number == 30346 ||
+                    block_number == 30438 ||
+                    block_number == 30460 ||
+                    block_number == 30463 ||
+                    block_number == 30478
+                ))
+                max_count_per_content_id = std::max(count, item_per_unit.second);
+            else
+                max_count_per_content_id = std::max(max_count_per_content_id, item_per_unit.second);
+        }
+
+        count += max_count_per_content_id;
+    }
+
+    return count;
+}
 
 template <typename NODE>
 void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled);
@@ -275,7 +307,8 @@ int main(int argc, char** argv)
                             testnet,
                             mine_amount_threshhold(),
                             block_reward_array(),
-                            sync_delay);
+                            sync_delay,
+                            &counts_per_channel_views);
 
         cout << endl;
         cout << "Node: " << node.name() << endl;

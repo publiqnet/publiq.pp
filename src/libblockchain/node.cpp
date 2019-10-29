@@ -64,7 +64,8 @@ node::node(string const& genesis_signed_block,
            bool testnet,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
-           std::chrono::steady_clock::duration const& sync_delay)
+           std::chrono::steady_clock::duration const& sync_delay,
+           detail::fp_counts_per_channel_views p_counts_per_channel_views)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          public_ssl_address,
@@ -87,7 +88,8 @@ node::node(string const& genesis_signed_block,
                                          testnet,
                                          mine_amount_threshhold,
                                          block_reward_array,
-                                         sync_delay))
+                                         sync_delay,
+                                         p_counts_per_channel_views))
 {}
 
 node::node(node&&) noexcept = default;

@@ -79,7 +79,7 @@ wrong_document_exception::~wrong_document_exception() noexcept
 not_enough_balance_exception::not_enough_balance_exception(coin const& balance, coin const& spending)
     : runtime_error("trying to spend more than available. "
                     "balance is " + balance.to_string() + ", "
-                    "while trying to spend (" + spending.to_string() + ")")
+                    "while trying to spend " + spending.to_string())
     , balance(balance)
     , spending(spending)
 {}

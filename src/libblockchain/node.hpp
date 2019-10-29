@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <chrono>
+#include <map>
 
 namespace publiqpp
 {
@@ -20,6 +21,11 @@ class storage_node;
 class coin;
 namespace detail
 {
+using fp_counts_per_channel_views =
+uint64_t (*)(std::map<uint64_t, std::map<std::string, std::map<std::string, uint64_t>>> const& item_per_owner,
+uint64_t block_number,
+bool is_testnet);
+
     class node_internals;
 }
 
@@ -48,7 +54,8 @@ public:
          bool testnet,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
-         std::chrono::steady_clock::duration const& sync_delay);
+         std::chrono::steady_clock::duration const& sync_delay,
+         detail::fp_counts_per_channel_views p_counts_per_channel_views);
     node(node&& other) noexcept;
     ~node();
 
