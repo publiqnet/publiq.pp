@@ -626,29 +626,29 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                 temp_from = front.header.block_number;
                 temp_to = back.header.block_number;
 
-                string code;
+                string s_code;
 
                 switch (m_reason.v)
                 {
                 case reason::safe_better:
-                    code = "[sf]";
+                    s_code = "[sf]";
                     break;
                 case reason::safe_revert:
-                    code = "[sf,rv]";
+                    s_code = "[sf,rv]";
                     break;
                 case reason::unsafe_better:
-                    code = "[unsf,btr][" + std::to_string(m_reason.poll_participants) + "]";
+                    s_code = "[unsf,btr][" + std::to_string(m_reason.poll_participants) + "]";
                     break;
                 case reason::unsafe_best:
-                    code = "[unsf,bst][" + std::to_string(m_reason.poll_participants) + "]";
+                    s_code = "[unsf,bst][" + std::to_string(m_reason.poll_participants) + "]";
                     break;
                 }
 
                 if(temp_from == temp_to)
                     //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
-                    pimpl->writeln_node(code + " validating block " + std::to_string(temp_from) + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
+                    pimpl->writeln_node(s_code + " validating block " + std::to_string(temp_from) + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
                 else
-                    pimpl->writeln_node(code + " validating blocks [" + std::to_string(temp_from) +
+                    pimpl->writeln_node(s_code + " validating blocks [" + std::to_string(temp_from) +
                                         "," + std::to_string(temp_to) + "]" + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
             }
 

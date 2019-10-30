@@ -156,8 +156,8 @@ uint64_t counts_per_channel_views(std::map<uint64_t, std::map<string, std::map<s
             if (false == is_testnet &&
                 (
                     block_number == 30335 ||
-                    block_number == 30346 ||
                     block_number == 30438 ||
+                    block_number == 30346 ||
                     block_number == 30460 ||
                     block_number == 30463 ||
                     block_number == 30478
