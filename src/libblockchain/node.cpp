@@ -1240,8 +1240,7 @@ double header_worker(detail::node_internals& impl)
             //  there is a better consensus sum than what I have and I must get it first
             sync_now = true;
         }
-        else if (since_head_block > chrono::seconds(BLOCK_WAIT_DELAY) &&
-                 since_head_block < chrono::seconds(BLOCK_SAFE_DELAY) &&
+        else if (since_head_block < chrono::seconds(BLOCK_SAFE_DELAY) &&
                  head_block_header.c_sum == scan_block_header.c_sum &&
                  head_block_header.block_number == scan_block_header.block_number &&
                  head_block_header.block_hash != scan_block_header.block_hash)
@@ -1372,7 +1371,7 @@ void sync_worker(detail::node_internals& impl)
             beltpp::assign(header.address, item.ip_address);
             impl.m_nodeid_sessions.add(header,
                                        std::move(actions),
-                                       chrono::minutes(SYNC_TIMER));
+                                       chrono::seconds(SYNC_TIMER));
         }
     }
 }
