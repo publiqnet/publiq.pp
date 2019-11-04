@@ -150,8 +150,8 @@ uint64_t counts_per_channel_views(std::map<uint64_t, std::map<string, std::map<s
     for (auto const& item_per_content_id : item_per_owner)
     {
         uint64_t max_count_per_content_id = 0;
-        for (auto const& item_per_file : item_per_content_id.second)
-        for (auto const& item_per_unit : item_per_file.second)
+        for (auto const& item_per_unit : item_per_content_id.second)
+        for (auto const& item_per_file : item_per_unit.second)
         {
             if (false == is_testnet &&
                 (
@@ -162,9 +162,9 @@ uint64_t counts_per_channel_views(std::map<uint64_t, std::map<string, std::map<s
                     block_number == 30463 ||
                     block_number == 30478
                 ))
-                max_count_per_content_id = std::max(count, item_per_unit.second);
+                max_count_per_content_id = std::max(count, item_per_file.second);
             else
-                max_count_per_content_id = std::max(max_count_per_content_id, item_per_unit.second);
+                max_count_per_content_id = std::max(max_count_per_content_id, item_per_file.second);
         }
 
         count += max_count_per_content_id;

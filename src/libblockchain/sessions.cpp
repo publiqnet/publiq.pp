@@ -849,7 +849,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         Block const& block = signed_block.block_details;
 
-        map<string, uint64_t> unit_uri_view_counts;
+        map<string, map<string, uint64_t>> unit_uri_view_counts;
         // verify block rewards before reverting, this also reclaims advertisement coins
         if (check_rewards(block,
                           signed_block.authorization.address,
@@ -917,7 +917,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             prev_transaction_time = tr_item.transaction_details.creation.tm;
         }
 
-        map<string, uint64_t> unit_uri_view_counts;
+        map<string, map<string, uint64_t>> unit_uri_view_counts;
         // verify block rewards
         if (check_rewards(block,
                           signed_block.authorization.address,

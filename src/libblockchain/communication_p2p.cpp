@@ -90,7 +90,8 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
                          multimap<string, pair<uint64_t, uint64_t>>& author_result,
                          multimap<string, pair<uint64_t, uint64_t>>& channel_result,
                          multimap<string, pair<uint64_t, uint64_t>>& storage_result,
-                         map<string, uint64_t>& map_unit_uri_view_counts,
+                         //  uri         channel   views
+                         map<string, map<string, uint64_t>>& map_unit_uri_view_counts,
                          uint64_t block_number,
                          publiqpp::detail::node_internals& impl)
 {
@@ -173,7 +174,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
     // group by content id, file_uri and unit (units are limited by the particular content_id)
     // sum by storage
     // will take max by file and unit later then sum again by content id
-    // channel     owner       content_id   file_uri     unit_uri   view
+    // channel     owner       content_id   unit_uri     file_uri   view
     map<string, map<string, map<uint64_t, map<string, map<string, uint64_t>>>>> content_group;
 
     for (auto const& stat_item : channel_provided_statistics)
@@ -199,11 +200,8 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
             storage_group[storage_id] += view_count;
             author_group[unit_uri][file_uri] += view_count;
 
-            auto& unit_value = map_unit_uri_view_counts[unit_uri];
-            unit_value = std::max(unit_value, view_count); // why don't sum?
-
             ContentUnit content_unit = impl.m_documents.get_unit(unit_uri);
-            content_group[channel_id][content_unit.channel_address][content_unit.content_id][file_uri][unit_uri] += view_count;
+            content_group[channel_id][content_unit.channel_address][content_unit.content_id][unit_uri][file_uri] += view_count;
         }
     }
 
@@ -268,13 +266,24 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
             // item_per_owner.first is the owner channel
             string const& owner_channel = item_per_owner.first;
 
+            for (auto const& item_per_content_id : item_per_owner.second)
+            {
+                for (auto const& item_per_unit : item_per_content_id.second)
+                {
+                    auto& unit_value = map_unit_uri_view_counts[item_per_unit.first][serving_channel];
+
+                    for (auto const& item_per_file : item_per_unit.second)
+                        unit_value = std::max(unit_value, item_per_file.second);
+                }
+            }
+
             /*uint64_t count = 0;
             for (auto const& item_per_content_id : item_per_owner.second)
             {
                 uint64_t max_count_per_content_id = 0;
-                for (auto const& item_per_file : item_per_content_id.second)
-                for (auto const& item_per_unit : item_per_file.second)
-                    max_count_per_content_id = std::max(max_count_per_content_id, item_per_unit.second);
+                for (auto const& item_per_unit : item_per_content_id.second)
+                for (auto const& item_per_file : item_per_unit.second)
+                    max_count_per_content_id = std::max(max_count_per_content_id, item_per_file.second);
                 count += max_count_per_content_id;
             }*/
             uint64_t count = impl.pcounts_per_channel_views(item_per_owner.second,
@@ -349,7 +358,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    BlockHeader const& block_header,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
-                   map<string, uint64_t>& unit_uri_view_counts)
+                   //  uri         channel   views
+                   map<string, map<string, uint64_t>>& unit_uri_view_counts)
 {
     rewards.clear();
 
@@ -552,7 +562,8 @@ bool check_rewards(Block const& block,
                    string const& authority,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
-                   map<string, uint64_t>& unit_uri_view_counts)
+                   //  uri         channel   views
+                   map<string, map<string, uint64_t>>& unit_uri_view_counts)
 {
     vector<Reward> rewards;
     grant_rewards(block.signed_transactions,
@@ -1137,7 +1148,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
         return lhs.transaction_details.creation.tm < rhs.transaction_details.creation.tm;
     });
 
-    map<string, uint64_t> unit_uri_view_counts;
+    //  uri         channel   views
+    map<string, map<string, uint64_t>> unit_uri_view_counts;
     // grant rewards and move to block
     grant_rewards(block.signed_transactions,
                   block.rewards,

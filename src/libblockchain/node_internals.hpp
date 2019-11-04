@@ -311,9 +311,9 @@ inline uint64_t counts_per_channel_views(map<uint64_t, map<string, map<string, u
     for (auto const& item_per_content_id : item_per_owner)
     {
         uint64_t max_count_per_content_id = 0;
-        for (auto const& item_per_file : item_per_content_id.second)
-        for (auto const& item_per_unit : item_per_file.second)
-            max_count_per_content_id = std::max(max_count_per_content_id, item_per_unit.second);
+        for (auto const& item_per_unit : item_per_content_id.second)
+        for (auto const& item_per_file : item_per_unit.second)
+            max_count_per_content_id = std::max(max_count_per_content_id, item_per_file.second);
 
         count += max_count_per_content_id;
     }
@@ -540,7 +540,7 @@ public:
 
         // insert to blockchain and action_log
         m_blockchain.insert(signed_block);
-        m_action_log.log_block(signed_block, map<string, uint64_t>());
+        m_action_log.log_block(signed_block, map<string, map<string, uint64_t>>());
 
         save(guard);
     }
