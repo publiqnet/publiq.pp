@@ -21,9 +21,9 @@
 
 using namespace BlockchainMessage;
 
-using beltpp::ip_address;
-using beltpp::socket;
 using beltpp::packet;
+using beltpp::socket;
+using beltpp::ip_address;
 using peer_id = socket::peer_id;
 
 namespace chrono = std::chrono;
@@ -32,8 +32,8 @@ using chrono::system_clock;
 using std::pair;
 using std::string;
 using std::vector;
-using std::unordered_set;
 using std::unique_ptr;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -1092,7 +1092,7 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > reject &&
-                poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 2)))
+                poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)))
             {
                 if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner &&
                     it_scan_least_revert_approved_winner->second.headers.front() != it->second.headers.front())
@@ -1110,7 +1110,7 @@ void block_worker(detail::node_internals& impl)
 
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.first &&
-                poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 2)) &&
+                poll_participants > std::max(uint64_t(5), uint64_t(impl.m_p2p_peers.size() / 3)) &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1186,9 +1186,9 @@ double header_worker(detail::node_internals& impl)
     BlockHeaderExtended scan_block_header = head_block_header;
     scan_block_header.c_sum = 0;
 
-    beltpp::isocket::peer_id scan_peer;
-
     double revert_coefficient = 0;
+    beltpp::isocket::peer_id scan_peer;
+    unordered_set<string> requested_blocks_hashes;
 
     for (auto const& item : impl.all_sync_info.sync_responses)
     {
@@ -1199,12 +1199,14 @@ double header_worker(detail::node_internals& impl)
         if (it != impl.all_sync_info.headers_actions_data.end() && it->second.reverts_required > 0)
         {
             revert_coefficient = it->second.reverts_required;
+            requested_blocks_hashes.insert(item.second.own_header.block_hash);
             continue; // don't consider this peer during header action is active
         }
 
         if (head_block_header.block_hash != item.second.own_header.block_hash &&
             scan_block_header.c_sum < item.second.own_header.c_sum &&
-            scan_block_header.block_number <= item.second.own_header.block_number)
+            scan_block_header.block_number <= item.second.own_header.block_number &&
+            requested_blocks_hashes.count(item.second.own_header.block_hash) == 0)
         {
             scan_block_header = item.second.own_header;
             scan_peer = item.first;
