@@ -1110,7 +1110,7 @@ void block_worker(detail::node_internals& impl)
 
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.first &&
-                poll_participants > std::max(uint64_t(5), uint64_t(impl.m_p2p_peers.size() / 3)) &&
+                poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1303,6 +1303,9 @@ double header_worker(detail::node_internals& impl)
         if (sync_now)
         {
             assert(false == scan_peer.empty());
+            if (scan_peer.empty())
+                throw std::logic_error("scan_peer.empty()");
+
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
             actions.emplace_back(new session_action_p2pconnections(*impl.m_ptr_p2p_socket.get()));
             actions.emplace_back(new session_action_sync_request(impl,
