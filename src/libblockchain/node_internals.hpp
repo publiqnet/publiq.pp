@@ -298,6 +298,29 @@ inline coin coin_from_fractions(uint64_t fractions)
     return result;
 }
 
+using fp_counts_per_channel_views =
+uint64_t (*)(std::map<uint64_t, std::map<std::string, std::map<std::string, uint64_t>>> const& item_per_owner,
+uint64_t block_number,
+bool is_testnet);
+
+inline uint64_t counts_per_channel_views(map<uint64_t, map<string, map<string, uint64_t>>> const& item_per_owner,
+                                         uint64_t /*block_number*/,
+                                         bool /*is_testnet*/)
+{
+    uint64_t count = 0;
+    for (auto const& item_per_content_id : item_per_owner)
+    {
+        uint64_t max_count_per_content_id = 0;
+        for (auto const& item_per_unit : item_per_content_id.second)
+        for (auto const& item_per_file : item_per_unit.second)
+            max_count_per_content_id = std::max(max_count_per_content_id, item_per_file.second);
+
+        count += max_count_per_content_id;
+    }
+
+    return count;
+}
+
 class node_internals
 {
 public:
@@ -323,7 +346,8 @@ public:
                    bool testnet,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
-                   std::chrono::steady_clock::duration const& sync_delay)
+                   std::chrono::steady_clock::duration const& sync_delay,
+                   detail::fp_counts_per_channel_views p_counts_per_channel_views)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
@@ -361,6 +385,9 @@ public:
         , m_service_statistics_broadcast_triggered(false)
         , m_mine_amount_threshhold(mine_amount_threshhold)
         , m_block_reward_array(block_reward_array)
+        , pcounts_per_channel_views(nullptr != p_counts_per_channel_views ?
+                                                   p_counts_per_channel_views :
+                                                   &counts_per_channel_views)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -513,7 +540,7 @@ public:
 
         // insert to blockchain and action_log
         m_blockchain.insert(signed_block);
-        m_action_log.log_block(signed_block, map<string, uint64_t>());
+        m_action_log.log_block(signed_block, map<string, map<string, uint64_t>>());
 
         save(guard);
     }
@@ -564,6 +591,7 @@ public:
 
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;
+    fp_counts_per_channel_views pcounts_per_channel_views;
     unordered_map<string, unordered_map<string, bool>> map_channel_to_file_uris;
 };
 

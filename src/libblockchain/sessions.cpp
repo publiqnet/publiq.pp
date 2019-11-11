@@ -572,9 +572,10 @@ bool session_action_header::check_headers_vector(std::vector<BlockchainMessage::
 
 // --------------------------- session_action_block ---------------------------
 
-session_action_block::session_action_block(detail::node_internals& impl)
+session_action_block::session_action_block(detail::node_internals& impl, reason e_reason)
     : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
+    , m_reason(e_reason)
 {
     assert(false == pimpl->all_sync_info.blockchain_sync_in_progress);
     pimpl->all_sync_info.blockchain_sync_in_progress = true;
@@ -625,12 +626,30 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                 temp_from = front.header.block_number;
                 temp_to = back.header.block_number;
 
+                string s_code;
+
+                switch (m_reason.v)
+                {
+                case reason::safe_better:
+                    s_code = "[sf]";
+                    break;
+                case reason::safe_revert:
+                    s_code = "[sf,rv]";
+                    break;
+                case reason::unsafe_better:
+                    s_code = "[unsf,btr][" + std::to_string(m_reason.poll_participants) + "]";
+                    break;
+                case reason::unsafe_best:
+                    s_code = "[unsf,bst][" + std::to_string(m_reason.poll_participants) + "]";
+                    break;
+                }
+
                 if(temp_from == temp_to)
                     //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
-                    pimpl->writeln_node("validating block " + std::to_string(temp_from));
+                    pimpl->writeln_node(s_code + " validating block " + std::to_string(temp_from) + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
                 else
-                    pimpl->writeln_node("validating blocks [" + std::to_string(temp_from) +
-                                        "," + std::to_string(temp_to) + "] from " + detail::peer_short_names(header.peerid));
+                    pimpl->writeln_node(s_code + " validating blocks [" + std::to_string(temp_from) +
+                                        "," + std::to_string(temp_to) + "]" + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
             }
 
             process_response(header, std::move(blockchain_response));
@@ -767,6 +786,28 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         return; // will wait for new chain
     }
 
+    size_t blockchain_length = pimpl->m_blockchain.length();
+    uint64_t lcb_number = sync_headers.rbegin()->block_number - 1;
+
+    // resolve normal fork case
+    if (sync_blocks.size() == 1 && lcb_number == blockchain_length - 2)
+    {
+        auto& inserted_block = pimpl->m_blockchain.at(blockchain_length - 1);
+        coin inserted_block_miner_balance = pimpl->m_state.get_balance(inserted_block.authorization.address, state_layer::pool);
+        coin received_block_miner_balance = pimpl->m_state.get_balance(sync_blocks.back().authorization.address, state_layer::pool);
+
+        if (inserted_block_miner_balance >= received_block_miner_balance &&
+            inserted_block.block_details.header.c_sum == sync_blocks.back().block_details.header.c_sum)
+        {
+            pimpl->writeln_node("reject block by " + sync_blocks.front().authorization.address);
+
+            completed = true;
+            expected_next_package_type = size_t(-1);
+
+            return;
+        }
+    }
+    
     //3. all needed blocks received, start to check
     pimpl->m_transaction_cache.backup();
 
@@ -777,13 +818,11 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         pimpl->m_transaction_cache.restore();
     });
 
-    uint64_t lcb_number = sync_headers.rbegin()->block_number - 1;
     vector<SignedTransaction> reverted_transactions;
     bool clear_pool = sync_blocks.size() < sync_headers.size();
 
     //  collect transactions to be reverted from blockchain
     //
-    size_t blockchain_length = pimpl->m_blockchain.length();
 
     for (size_t index = lcb_number + 1; index < blockchain_length; ++index)
     {
@@ -796,8 +835,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    vector<SignedTransaction> pool_transactions =
-            revert_pool(system_clock::to_time_t(now), *pimpl);
+    vector<SignedTransaction> pool_transactions = revert_pool(system_clock::to_time_t(now), *pimpl);
 
     //  revert blocks
     //  calculate back to get state at LCB point
@@ -811,14 +849,14 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         Block const& block = signed_block.block_details;
 
-        map<string, uint64_t> unit_uri_view_counts;
+        map<string, map<string, uint64_t>> unit_uri_view_counts;
         // verify block rewards before reverting, this also reclaims advertisement coins
         if (check_rewards(block,
                           signed_block.authorization.address,
                           rewards_type::revert,
                           *pimpl,
                           unit_uri_view_counts))
-            return set_errored("blockchain response. block rewards reverting error!", throw_for_debugging_only);
+            return set_errored("block response - " + std::to_string(block.header.block_number) + ". block rewards reverting error!", throw_for_debugging_only);
 
         B_UNUSED(unit_uri_view_counts);
 
@@ -839,6 +877,14 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     // verify new received blocks
     BlockHeader const& prev_header = pimpl->m_blockchain.header_at(lcb_number);
     uint64_t c_const = prev_header.c_const;
+
+    // reject blocks which not relevant statistics
+    if (sync_blocks.size() == 1 &&
+        check_service_statistics(sync_blocks.front().block_details, 
+                                 pool_transactions, 
+                                 reverted_transactions,
+                                 *pimpl))
+        return set_errored("blockchain response. block service statistics!", throw_for_debugging_only);
 
     for (auto const& signed_block : sync_blocks)
     {
@@ -871,14 +917,14 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             prev_transaction_time = tr_item.transaction_details.creation.tm;
         }
 
-        map<string, uint64_t> unit_uri_view_counts;
+        map<string, map<string, uint64_t>> unit_uri_view_counts;
         // verify block rewards
         if (check_rewards(block,
                           signed_block.authorization.address,
                           rewards_type::apply,
                           *pimpl,
                           unit_uri_view_counts))
-            return set_errored("blockchain response. block rewards!", throw_for_debugging_only);
+            return set_errored("block response - " + std::to_string(block.header.block_number) + ". block rewards!", throw_for_debugging_only);
 
         // increase all reward amounts to balances
         for (auto const& reward_item : block.rewards)

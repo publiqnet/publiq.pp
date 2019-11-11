@@ -52,8 +52,14 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_authority != service_statistics.server_address)
         throw authority_exception(signed_authority, service_statistics.server_address);
 
+    if (service_statistics.file_items.empty())
+        throw wrong_data_exception("dummy statistics");
+
     for (auto const& file_item : service_statistics.file_items)
     {
+        if (file_item.count_items.empty())
+            throw wrong_data_exception("dummy statistics");
+
         for (auto const& count_item : file_item.count_items)
         {
             if (count_item.count == 0)

@@ -14,10 +14,6 @@
 #include <exception>
 #include <thread>
 
-#ifdef STORAGE_SERVER_LOGGING
-#include <iostream>
-#endif
-
 using namespace BlockchainMessage;
 
 using beltpp::ip_address;
@@ -128,17 +124,10 @@ bool storage_node::run()
                 {
                     StorageFileRequest file_info;
                     std::move(ref_packet).get(file_info);
-#ifdef STORAGE_SERVER_LOGGING
-                    chrono::steady_clock::time_point tp = chrono::steady_clock::now();
-#endif
 
                     StorageFile file;
                     if (m_pimpl->m_storage.get(file_info.uri, file))
                     {
-#ifdef STORAGE_SERVER_LOGGING
-                        chrono::milliseconds dur1 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
-                        std::cout << "in " << dur1.count()  << "ms - sending file " << file_info.uri << std::endl;
-#endif
                         psk->send(peerid, beltpp::packet(std::move(file)));
 
                         {
@@ -157,11 +146,6 @@ bool storage_node::run()
                         error.uri_problem_type = UriProblemType::missing;
                         psk->send(peerid, beltpp::packet(std::move(error)));
                     }
-
-#ifdef STORAGE_SERVER_LOGGING
-                    chrono::milliseconds dur2 = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - tp);
-                    std::cout << "in " << dur2.count() << "ms all done" << std::endl;
-#endif
 
                     break;
                 }
@@ -204,7 +188,7 @@ bool storage_node::run()
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("slave don't know how to handle: " + std::to_string(ref_packet.type()) +
+                    m_pimpl->writeln_node("slave can't handle: " + std::to_string(ref_packet.type()) +
                                           ". peer: " + peerid);
 
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));

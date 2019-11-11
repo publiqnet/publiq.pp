@@ -21,9 +21,9 @@
 
 using namespace BlockchainMessage;
 
-using beltpp::ip_address;
-using beltpp::socket;
 using beltpp::packet;
+using beltpp::socket;
+using beltpp::ip_address;
 using peer_id = socket::peer_id;
 
 namespace chrono = std::chrono;
@@ -32,8 +32,8 @@ using chrono::system_clock;
 using std::pair;
 using std::string;
 using std::vector;
-using std::unordered_set;
 using std::unique_ptr;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -64,7 +64,8 @@ node::node(string const& genesis_signed_block,
            bool testnet,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
-           std::chrono::steady_clock::duration const& sync_delay)
+           std::chrono::steady_clock::duration const& sync_delay,
+           detail::fp_counts_per_channel_views p_counts_per_channel_views)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          public_ssl_address,
@@ -87,7 +88,8 @@ node::node(string const& genesis_signed_block,
                                          testnet,
                                          mine_amount_threshhold,
                                          block_reward_array,
-                                         sync_delay))
+                                         sync_delay,
+                                         p_counts_per_channel_views))
 {}
 
 node::node(node&&) noexcept = default;
@@ -180,7 +182,8 @@ bool node::run()
                 case beltpp::isocket_join::rtt:
                 {
                     if (it == interface_type::p2p)
-                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid));
+                        m_pimpl->writeln_node("joined peer: " + detail::peer_short_names(peerid) + 
+                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -204,10 +207,11 @@ bool node::run()
                 case beltpp::isocket_drop::rtt:
                 {
                     if (it == interface_type::p2p)
-                        m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid));
-
-                    if (it == interface_type::p2p)
+                    {
                         m_pimpl->remove_peer(peerid);
+                        m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid) +
+                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size()));
+                    }
 
                     break;
                 }
@@ -455,10 +459,10 @@ bool node::run()
                 }
                 case SyncRequest::rtt:
                 {
-                    BlockHeaderExtended const& header = m_pimpl->m_blockchain.header_ex_at(m_pimpl->m_blockchain.length() - 1);
+                    BlockHeaderExtended const& header_ex = m_pimpl->m_blockchain.last_header_ex();
 
                     SyncResponse sync_response;
-                    sync_response.own_header = header;
+                    sync_response.own_header = header_ex;
 
                     if (m_pimpl->all_sync_info.net_sync_info().c_sum > m_pimpl->all_sync_info.own_sync_info().c_sum)
                         sync_response.promised_header = m_pimpl->all_sync_info.net_sync_info();
@@ -474,7 +478,6 @@ bool node::run()
                     BlockHeaderRequest header_request;
                     std::move(ref_packet).get(header_request);
 
-                    //m_pimpl->writeln_node("header response - " + peerid);
                     session_action_header::process_request(peerid,
                                                            header_request,
                                                            *m_pimpl.get());
@@ -489,7 +492,6 @@ bool node::run()
                     BlockchainRequest blockchain_request;
                     std::move(ref_packet).get(blockchain_request);
 
-                    //m_pimpl->writeln_node("chain response - " + peerid);
                     session_action_block::process_request(peerid,
                                                           blockchain_request,
                                                           *m_pimpl.get());
@@ -564,8 +566,9 @@ bool node::run()
                 }
                 default:
                 {
-                    m_pimpl->writeln_node("master don't know how to handle: " + std::to_string(ref_packet.type()) +
-                                          ". peer: " + peerid);
+                    //if (ref_packet.type() != SyncResponse::rtt)
+                        m_pimpl->writeln_node("master can't handle: " + std::to_string(ref_packet.type()) +
+                                              ". peer: " + peerid);
 
                     break;
                 }
@@ -963,8 +966,6 @@ void block_worker(detail::node_internals& impl)
     if (impl.all_sync_info.blockchain_sync_in_progress)
         return;
 
-    uint64_t additional_delay_threshhold = 120;
-
     auto const blockchain_length = impl.m_blockchain.length();
     auto const last_header = impl.m_blockchain.last_header();
 
@@ -977,9 +978,13 @@ void block_worker(detail::node_internals& impl)
     double revert_fraction = std::min(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
 
     auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
-    auto it_scan_least_revert_approve_winner = impl.all_sync_info.headers_actions_data.end();
+    auto it_scan_least_revert_approved_winner = impl.all_sync_info.headers_actions_data.end();
     auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
     coin scan_most_approved_revert;
+
+    session_action_block::reason reason_scan_least_revert;
+    session_action_block::reason reason_scan_least_revert_approved_winner;
+    session_action_block::reason reason_scan_most_approved_revert;
 
     for (auto it = impl.all_sync_info.headers_actions_data.begin();
          it != impl.all_sync_info.headers_actions_data.end();
@@ -1007,8 +1012,7 @@ void block_worker(detail::node_internals& impl)
 
         it->second.reverts_required = revert_coefficient;
 
-        bool unsafe_time_to_revert = BLOCK_WAIT_DELAY + additional_delay_threshhold <
-                                     revert_coefficient * BLOCK_MINE_DELAY;
+        bool unsafe_time_to_revert = BLOCK_SAFE_DELAY < revert_coefficient * BLOCK_MINE_DELAY;
         //  that is if revert_coefficient > 0.4
         //  or in other words need to revert block that is older than 4 minutes
 
@@ -1088,20 +1092,25 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > reject &&
-                poll_participants > 2)
+                poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)))
             {
-                if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner &&
-                    it_scan_least_revert_approve_winner->second.headers.front() != it->second.headers.front())
+                if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner &&
+                    it_scan_least_revert_approved_winner->second.headers.front() != it->second.headers.front())
                     impl.writeln_node("two or more absolute majority in voting?");
 
-                if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approve_winner ||
-                    it_scan_least_revert_approve_winner->second.reverts_required > revert_coefficient)
-                    it_scan_least_revert_approve_winner = it;
+                if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert_approved_winner ||
+                    it_scan_least_revert_approved_winner->second.reverts_required > revert_coefficient)
+                {
+                    it_scan_least_revert_approved_winner = it;
+                    reason_scan_least_revert_approved_winner.v = session_action_block::reason::unsafe_best;
+                    reason_scan_least_revert_approved_winner.poll_participants = poll_participants;
+                    reason_scan_least_revert_approved_winner.revert_coefficient = revert_coefficient;
+                }
             }
 
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.first &&
-                poll_participants > 10 &&
+                poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1110,25 +1119,53 @@ void block_worker(detail::node_internals& impl)
             {
                 it_scan_most_approved_revert = it;
                 scan_most_approved_revert = approve;
+                reason_scan_most_approved_revert.v = session_action_block::reason::unsafe_better;
+                reason_scan_most_approved_revert.poll_participants = poll_participants;
+                reason_scan_most_approved_revert.revert_coefficient = revert_coefficient;
             }
         }
         else if (impl.all_sync_info.headers_actions_data.end() == it_scan_least_revert ||
                  it_scan_least_revert->second.reverts_required > revert_coefficient)
+        {
             it_scan_least_revert = it;
+            if (revert_coefficient > 0)
+            {
+                reason_scan_least_revert.v = session_action_block::reason::safe_revert;
+                reason_scan_least_revert.poll_participants = 0;
+                reason_scan_least_revert.revert_coefficient = revert_coefficient;
+            }
+            else
+            {
+                reason_scan_least_revert.v = session_action_block::reason::safe_better;
+                reason_scan_least_revert.poll_participants = 0;
+                reason_scan_least_revert.revert_coefficient = revert_coefficient;
+            }
+        }
     }
 
+    session_action_block::reason t_reason;
+
     auto it_chosen = impl.all_sync_info.headers_actions_data.end();
-    if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approve_winner)
-        it_chosen = it_scan_least_revert_approve_winner;
+    if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner)
+    {
+        it_chosen = it_scan_least_revert_approved_winner;
+        t_reason = reason_scan_least_revert_approved_winner;
+    }
     else if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert)
+    {
         it_chosen = it_scan_least_revert;
+        t_reason = reason_scan_least_revert;
+    }
     else if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
+    {
         it_chosen = it_scan_most_approved_revert;
+        t_reason = reason_scan_most_approved_revert;
+    }
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
     {
         vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-        actions.emplace_back(new session_action_block(impl));
+        actions.emplace_back(new session_action_block(impl, t_reason));
 
         meshpp::nodeid_session_header header;
         header.nodeid = it_chosen->first;
@@ -1149,9 +1186,9 @@ double header_worker(detail::node_internals& impl)
     BlockHeaderExtended scan_block_header = head_block_header;
     scan_block_header.c_sum = 0;
 
-    beltpp::isocket::peer_id scan_peer;
-
     double revert_coefficient = 0;
+    beltpp::isocket::peer_id scan_peer;
+    unordered_set<string> requested_blocks_hashes;
 
     for (auto const& item : impl.all_sync_info.sync_responses)
     {
@@ -1162,12 +1199,14 @@ double header_worker(detail::node_internals& impl)
         if (it != impl.all_sync_info.headers_actions_data.end() && it->second.reverts_required > 0)
         {
             revert_coefficient = it->second.reverts_required;
+            requested_blocks_hashes.insert(item.second.own_header.block_hash);
             continue; // don't consider this peer during header action is active
         }
 
         if (head_block_header.block_hash != item.second.own_header.block_hash &&
             scan_block_header.c_sum < item.second.own_header.c_sum &&
-            scan_block_header.block_number <= item.second.own_header.block_number)
+            scan_block_header.block_number <= item.second.own_header.block_number &&
+            requested_blocks_hashes.count(item.second.own_header.block_hash) == 0)
         {
             scan_block_header = item.second.own_header;
             scan_peer = item.first;
@@ -1201,6 +1240,14 @@ double header_worker(detail::node_internals& impl)
                  head_block_header.block_number == scan_block_header.block_number)
         {
             //  there is a better consensus sum than what I have and I must get it first
+            sync_now = true;
+        }
+        else if (since_head_block < chrono::seconds(BLOCK_SAFE_DELAY) &&
+                 head_block_header.c_sum == scan_block_header.c_sum &&
+                 head_block_header.block_number == scan_block_header.block_number &&
+                 head_block_header.block_hash != scan_block_header.block_hash)
+        {
+            // there can be a normal fork and I am trying go to the best miner
             sync_now = true;
         }
         else if (own_sum < scan_block_header.c_sum &&
@@ -1256,6 +1303,9 @@ double header_worker(detail::node_internals& impl)
         if (sync_now)
         {
             assert(false == scan_peer.empty());
+            if (scan_peer.empty())
+                throw std::logic_error("scan_peer.empty()");
+
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
             actions.emplace_back(new session_action_p2pconnections(*impl.m_ptr_p2p_socket.get()));
             actions.emplace_back(new session_action_sync_request(impl,
@@ -1326,7 +1376,7 @@ void sync_worker(detail::node_internals& impl)
             beltpp::assign(header.address, item.ip_address);
             impl.m_nodeid_sessions.add(header,
                                        std::move(actions),
-                                       chrono::minutes(SYNC_TIMER));
+                                       chrono::seconds(SYNC_TIMER));
         }
     }
 }

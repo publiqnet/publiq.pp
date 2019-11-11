@@ -110,11 +110,9 @@ void documents::discard()
 
 pair<bool, string> documents::files_exist(unordered_set<string> const& uris) const
 {
-    auto set_keys = m_pimpl->m_files.keys();
-
     for (auto const& uri : uris)
     {
-        if (0 == set_keys.count(uri))
+        if (false == file_exists(uri))
             return std::make_pair(false, uri);
     }
 
@@ -159,11 +157,9 @@ void documents::get_file_uris(vector<string>& file_uris) const
 
 pair<bool, string> documents::units_exist(unordered_set<string> const& uris) const
 {
-    auto set_keys = m_pimpl->m_units.keys();
-
     for (auto const& uri : uris)
     {
-        if (0 == set_keys.count(uri))
+        if (false == unit_exists(uri))
             return std::make_pair(false, uri);
     }
 

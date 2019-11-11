@@ -43,7 +43,12 @@ bool check_rewards(BlockchainMessage::Block const& block,
                    std::string const& authority,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
-                   std::map<std::string, uint64_t>& unit_uri_view_counts);
+                   std::map<std::string, std::map<std::string, uint64_t>>& unit_uri_view_counts);
+
+bool check_service_statistics(BlockchainMessage::Block const& block,
+                              vector<SignedTransaction> const& pool_transactions,
+                              vector<SignedTransaction> const& reverted_transactions,
+                              publiqpp::detail::node_internals& impl);
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);
 }// end of namespace publiqpp

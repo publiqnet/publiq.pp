@@ -1,7 +1,6 @@
 #pragma once
 
 //#define EXTRA_LOGGING
-//#define STORAGE_SERVER_LOGGING
 
 #include "coin.hpp"
 #include "message.hpp"
@@ -21,6 +20,7 @@
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 600
 #define BLOCK_WAIT_DELAY 120
+#define BLOCK_SAFE_DELAY 240
 
 // Sent packet will considered as not answered
 // after PACKET_EXPIRY_STEPS x EVENT_TIMER seconds

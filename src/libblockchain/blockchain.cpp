@@ -88,7 +88,17 @@ BlockHeader const& blockchain::last_header() const
 
 BlockHeaderExtended blockchain::last_header_ex() const
 {
-    return header_ex_at(m_pimpl->m_blockchain.size() - 1);
+    BlockHeaderExtended result;
+
+    result.block_number = last_header().block_number;
+    result.c_const = last_header().c_const;
+    result.c_sum = last_header().c_sum;
+    result.delta = last_header().delta;
+    result.prev_hash = last_header().prev_hash;
+    result.time_signed = last_header().time_signed;
+    result.block_hash = last_hash();
+
+    return result;
 }
 
 void blockchain::insert(SignedBlock const& signed_block)
@@ -117,20 +127,21 @@ BlockHeader const& blockchain::header_at(uint64_t number) const
 }
 BlockHeaderExtended blockchain::header_ex_at(uint64_t number) const
 {
-    auto const& header = header_at(number);
     BlockHeaderExtended result;
+    if (number != m_pimpl->m_blockchain.size() - 1)
+    {
+        auto const& header = header_at(number);
 
-    result.block_number = header.block_number;
-    result.c_const = header.c_const;
-    result.c_sum = header.c_sum;
-    result.delta = header.delta;
-    result.prev_hash = header.prev_hash;
-    result.time_signed = header.time_signed;
-
-    if (number == m_pimpl->m_blockchain.size() - 1)
-        result.block_hash = last_hash();
-    else
+        result.block_number = header.block_number;
+        result.c_const = header.c_const;
+        result.c_sum = header.c_sum;
+        result.delta = header.delta;
+        result.prev_hash = header.prev_hash;
+        result.time_signed = header.time_signed;
         result.block_hash = m_pimpl->m_header.as_const().at(number + 1).prev_hash;
+    }
+    else
+        result = last_header_ex();
 
     return result;
 }

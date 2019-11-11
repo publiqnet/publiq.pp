@@ -403,9 +403,14 @@ module BlockchainMessage
     class ContentUnitImpactLog
     {
         String content_unit_uri
+        Array ContentUnitImpactPerChannel views_per_channel
+    }
+    class ContentUnitImpactPerChannel
+    {
+        String channel_address
         UInt64 view_count
     }
-    class ApiReserve6 {}
+
     class ApiReserve7 {}
     class ApiReserve8 {}
     class ApiReserve9 {}
@@ -501,4 +506,4 @@ module BlockchainMessage
     class GenericModelReserve9 {}
     class GenericModelReserve10 {}
 }
-////1
+////2

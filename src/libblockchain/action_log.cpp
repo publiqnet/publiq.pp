@@ -9,6 +9,7 @@ using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
 using std::string;
+using std::map;
 
 namespace publiqpp
 {
@@ -58,7 +59,7 @@ size_t action_log::length() const
 }
 
 void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block,
-                           std::map<std::string, uint64_t> const& unit_uri_view_counts)
+                           map<string, map<string, uint64_t>> const& unit_uri_view_counts)
 {
     if (!m_pimpl->m_enabled)
         return;
@@ -101,7 +102,15 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block,
     {
         ContentUnitImpactLog impact_log;
         impact_log.content_unit_uri = item.first;
-        impact_log.view_count = item.second;
+
+        impact_log.views_per_channel.reserve(item.second.size());
+        for (auto const& item_per_channel : item.second)
+        {
+            ContentUnitImpactPerChannel views;
+            views.channel_address = item_per_channel.first;
+            views.view_count = item_per_channel.second;
+            impact_log.views_per_channel.push_back(views);
+        }
 
         block_log.unit_uri_impacts.push_back(impact_log);
     }
