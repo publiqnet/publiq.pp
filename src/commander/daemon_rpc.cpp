@@ -585,13 +585,13 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                 if (!rpc_server.channels.contains(content_unit.channel_address))
                     throw std::logic_error("rpc_server.channels.contains(content_unit.channel_address)");
 
-                assert (contents_item != channel_response_item.contents.end());
                 auto contents_item = channel_response_item.contents.find(content_unit.content_id);
+                assert (contents_item != channel_response_item.contents.end());
                 if (contents_item == channel_response_item.contents.end())
                     throw std::logic_error("contents_item == channel_response_item.contents.end()");
 
-                assert (contents.size() != 0);
                 auto& contents = contents_item->second.content_histories;
+                assert (contents.size() != 0);
                 if (contents.size() == 0)
                     throw std::logic_error("contents.size() == 0");
 
