@@ -570,10 +570,10 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                             cont_unit.file_uris = content_unit.file_uris;
 
                             CommanderMessage::Content _content;
-                            content.approved = false;
-                            content.content_units[content_unit.uri] = cont_unit;
+                            _content.approved = false;
+                            _content.content_units[content_unit.uri] = cont_unit;
 
-                            content_histories.push_back(content);
+                            content_histories.push_back(_content);
                         }
                     }
                 }
