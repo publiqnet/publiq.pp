@@ -569,7 +569,7 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                             cont_unit.author_addresses = content_unit.author_addresses;
                             cont_unit.file_uris = content_unit.file_uris;
 
-                            CommanderMessage::Content content;
+                            CommanderMessage::Content _content;
                             content.approved = false;
                             content.content_units[content_unit.uri] = cont_unit;
 
