@@ -65,7 +65,7 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block,
         return;
 
     Block const& block = signed_block.block_details;
-    string block_serialized = signed_block.to_string();
+    string block_serialized = block.to_string();
     string block_hash = meshpp::hash(block_serialized);
 
     BlockLog block_log;
