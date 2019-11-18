@@ -92,13 +92,8 @@ bool storage::get(string const& uri, BlockchainMessage::StorageFile& file)
 
     file.data = meshpp::from_base64(file.data);
 
-    bool discarded = false;
     if (beltpp::chance_one_of(1000))
-    {
         m_pimpl->map.discard();
-        discarded = true;
-        B_UNUSED(discarded);
-    }
 
     return true;
 }
