@@ -65,14 +65,15 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block,
         return;
 
     Block const& block = signed_block.block_details;
-    string block_hash = meshpp::hash(block.to_string());
+    string block_serialized = block.to_string();
+    string block_hash = meshpp::hash(block_serialized);
 
     BlockLog block_log;
     block_log.block_hash = block_hash;
     block_log.block_number = block.header.block_number;
     block_log.time_signed = block.header.time_signed;
     block_log.authority = signed_block.authorization.address;
-    block_log.block_size = signed_block.to_string().size();
+    block_log.block_size = block_serialized.size();
 
     for (auto const& item : block.signed_transactions)
     {
