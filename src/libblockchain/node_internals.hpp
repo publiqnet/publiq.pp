@@ -33,6 +33,7 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
+#include <chrono>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -597,6 +598,16 @@ public:
     std::vector<coin> const m_block_reward_array;
     fp_counts_per_channel_views pcounts_per_channel_views;
     unordered_map<string, unordered_map<string, bool>> map_channel_to_file_uris;
+
+    struct vote_info
+    {
+        enum vote_type {approve, reject};
+        coin stake;
+        vote_type type;
+        std::chrono::steady_clock::time_point tp;
+    };
+
+    unordered_map<string, vote_info> m_votes;
 };
 
 }

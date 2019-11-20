@@ -1039,11 +1039,21 @@ void block_worker(detail::node_internals& impl)
                 map_nodeid_ip_address[item.node_address] = item.ip_address.local.address;
             }
 
-            coin approve, reject;
-            enum class vote_type {approve, reject};
-            unordered_map<string, pair<coin, vote_type>> votes;
+            impl.m_votes.clear();
+            auto const steady_clock_now = std::chrono::steady_clock::now();
+            auto vote_iter = impl.m_votes.begin();
+            while (vote_iter != impl.m_votes.end())
+            {
+                auto const& tp = vote_iter->second.tp;
+                assert (steady_clock_now >= tp);
+                if (tp > steady_clock_now)
+                    throw std::logic_error("just temporary");
 
-            size_t poll_participants = 0;
+                if (steady_clock_now - tp >= std::chrono::seconds(SYNC_TIMER * 2))
+                    vote_iter = impl.m_votes.erase(vote_iter);
+                else
+                    ++vote_iter;
+            }
 
             for (auto const& item : impl.all_sync_info.sync_responses)
             {
@@ -1051,47 +1061,45 @@ void block_worker(detail::node_internals& impl)
                 if (it_ip_address == map_nodeid_ip_address.end())
                     continue;
                 string str_ip_address = it_ip_address->second;
-                auto& replacing = votes[str_ip_address];
-                auto voting = std::make_pair(
+                auto& replacing = impl.m_votes[str_ip_address];
+                auto voting = detail::node_internals::vote_info{
                                   impl.m_state.get_balance(item.first, state_layer::pool) + coin(1,0),
-                                  vote_type::approve);
-                if (voting.first <= replacing.first)
+                                  detail::node_internals::vote_info::approve,
+                                  steady_clock_now};
+                if (voting.stake <= replacing.stake)
                     continue;
 
-                if (replacing.first == publiqpp::coin())
-                    ++poll_participants;
-
-                if (replacing.second == vote_type::approve)
-                    approve -= replacing.first;
-                else
-                    reject -= replacing.first;
-
                 if (item.second.own_header == it->second.headers.front())
-                {
-                    voting.second = vote_type::approve;
-                    approve += voting.first;
-                }
+                    voting.type = detail::node_internals::vote_info::approve;
                 else
-                {
-                    voting.second = vote_type::reject;
-                    reject += voting.first;
-                }
+                    voting.type = detail::node_internals::vote_info::reject;
+            }
 
-                replacing = voting;
+            coin approve, reject;
+            size_t poll_participants = 0;
+
+            for (auto const& vote_item : impl.m_votes)
+            {
+                auto const& vote = vote_item.second;
+                ++poll_participants;
+                if (vote.type == detail::node_internals::vote_info::approve)
+                    approve += vote.stake;
+                else
+                    reject += vote.stake;
             }
 
             auto own_vote = std::make_pair(
                                 impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool) + coin(1,0),
-                                vote_type::approve);
+                                detail::node_internals::vote_info::approve);
             {
                 if (impl.m_blockchain.last_header_ex() == it->second.headers.front())
                 {
-                    own_vote.second = vote_type::approve;
+                    own_vote.second = detail::node_internals::vote_info::approve;
                     approve += own_vote.first;
                 }
                 else
                 {
-                    own_vote.second = vote_type::reject;
+                    own_vote.second = detail::node_internals::vote_info::reject;
                     reject += own_vote.first;
                 }
             }
