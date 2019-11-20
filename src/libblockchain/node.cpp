@@ -1039,7 +1039,6 @@ void block_worker(detail::node_internals& impl)
                 map_nodeid_ip_address[item.node_address] = item.ip_address.local.address;
             }
 
-            impl.m_votes.clear();
             auto const steady_clock_now = std::chrono::steady_clock::now();
             auto vote_iter = impl.m_votes.begin();
             while (vote_iter != impl.m_votes.end())
