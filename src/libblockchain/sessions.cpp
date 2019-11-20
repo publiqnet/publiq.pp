@@ -947,6 +947,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
     // apply back the rest of the transaction pool
     //
+    if (pimpl->m_blockchain.length() < pimpl->m_freeze_before_block)
     for (size_t index = 0; index != reverted_transactions.size(); ++index)
     {
         auto& signed_transaction = reverted_transactions[index];

@@ -49,6 +49,7 @@ public:
          meshpp::private_key const& pv_key,
          BlockchainMessage::NodeType& n_type,
          uint64_t fractions,
+         uint64_t freeze_before_block,
          bool log_enabled,
          bool transfer_only,
          bool testnet,

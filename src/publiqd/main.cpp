@@ -52,6 +52,7 @@ bool process_command_line(int argc, char** argv,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
                           uint64_t& fractions,
+                          uint64_t& freeze_before_block,
                           std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet);
@@ -199,6 +200,7 @@ int main(int argc, char** argv)
     string data_directory;
     NodeType n_type;
     uint64_t fractions;
+    uint64_t freeze_before_block;
     bool log_enabled;
     bool testnet;
     meshpp::random_seed seed;
@@ -216,6 +218,7 @@ int main(int argc, char** argv)
                                       pv_key,
                                       n_type,
                                       fractions,
+                                      freeze_before_block,
                                       sync_delay,
                                       log_enabled,
                                       testnet))
@@ -302,6 +305,7 @@ int main(int argc, char** argv)
                             pv_key,
                             n_type,
                             fractions,
+                            freeze_before_block,
                             log_enabled,
                             false,
                             testnet,
@@ -426,6 +430,7 @@ bool process_command_line(int argc, char** argv,
                           meshpp::private_key& pv_key,
                           NodeType& n_type,
                           uint64_t& fractions,
+                          uint64_t& freeze_before_block,
                           std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet)
@@ -455,7 +460,7 @@ bool process_command_line(int argc, char** argv,
                             "(rpc) The local network interface and port the slave will bind to")
             ("public_address,a", program_options::value<string>(&str_public_address),
                             "(rpc) The public IP address that will be broadcasted")
-             ("public_ssl_address,A", program_options::value<string>(&str_public_ssl_address),
+            ("public_ssl_address,A", program_options::value<string>(&str_public_ssl_address),
                              "(rpc) The public SSL IP address that will be broadcasted")
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
@@ -465,6 +470,8 @@ bool process_command_line(int argc, char** argv,
                             "Node start mode")
             ("fee_fractions,f", program_options::value<uint64_t>(&fractions),
                             "fractions to set for statinfo fee")
+            ("freeze_before_block,b", program_options::value<uint64_t>(&freeze_before_block),
+                            "limit the blockchain")
             ("sync_after_seconds", program_options::value<size_t>(&seconds_sync_delay),
                             "Node start mode")
             ("testnet", "Work in testnet blockchain");
@@ -543,6 +550,8 @@ bool process_command_line(int argc, char** argv,
 
         if (0 == options.count("fee_fractions"))
             fractions = 0;
+        if (0 == options.count("freeze_before_block"))
+            freeze_before_block = uint64_t(-1);
 
         sync_delay = std::chrono::seconds(seconds_sync_delay);
     }

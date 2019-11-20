@@ -341,6 +341,7 @@ public:
                    meshpp::private_key const& pv_key,
                    NodeType& n_type,
                    uint64_t fractions,
+                   uint64_t freeze_before_block,
                    bool log_enabled,
                    bool transfer_only,
                    bool testnet,
@@ -383,6 +384,7 @@ public:
         , m_testnet(testnet)
         , m_transfer_only(transfer_only)
         , m_service_statistics_broadcast_triggered(false)
+        , m_freeze_before_block(freeze_before_block)
         , m_mine_amount_threshhold(mine_amount_threshhold)
         , m_block_reward_array(block_reward_array)
         , pcounts_per_channel_views(nullptr != p_counts_per_channel_views ?
@@ -588,6 +590,8 @@ public:
     bool m_testnet;
     bool m_transfer_only;
     bool m_service_statistics_broadcast_triggered;
+
+    uint64_t m_freeze_before_block;
 
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;

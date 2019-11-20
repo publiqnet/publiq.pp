@@ -59,6 +59,7 @@ node::node(string const& genesis_signed_block,
            meshpp::private_key const& pv_key,
            NodeType& n_type,
            uint64_t fractions,
+           uint64_t freeze_before_block,
            bool log_enabled,
            bool transfer_only,
            bool testnet,
@@ -83,6 +84,7 @@ node::node(string const& genesis_signed_block,
                                          pv_key,
                                          n_type,
                                          fractions,
+                                         freeze_before_block,
                                          log_enabled,
                                          transfer_only,
                                          testnet,
@@ -252,6 +254,8 @@ bool node::run()
                 case SponsorContentUnit::rtt:
                 case CancelSponsorContentUnit::rtt:
                 {
+                    if (m_pimpl->m_blockchain.length() >= m_pimpl->m_freeze_before_block)
+                        break;
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
@@ -873,7 +877,8 @@ bool node::run()
     {
         m_pimpl->m_check_timer.update();
 
-        if (m_pimpl->m_sync_delay.expired())
+        if (m_pimpl->m_sync_delay.expired() &&
+            m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
             sync_worker(*m_pimpl.get());
 
         vector<string> channel_file_uris_backup;
