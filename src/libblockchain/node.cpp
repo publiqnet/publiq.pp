@@ -1062,7 +1062,7 @@ void block_worker(detail::node_internals& impl)
                 string str_ip_address = it_ip_address->second;
                 auto& replacing = impl.m_votes[str_ip_address];
                 auto voting = detail::node_internals::vote_info{
-                                  impl.m_state.get_balance(item.first, state_layer::pool) + coin(1,0),
+                                  impl.m_state.get_balance(item.first, state_layer::pool),
                                   detail::node_internals::vote_info::approve,
                                   steady_clock_now};
                 if (voting.stake <= replacing.stake)
@@ -1076,15 +1076,19 @@ void block_worker(detail::node_internals& impl)
 
             coin approve, reject;
             size_t poll_participants = 0;
+            size_t poll_participants_with_stake = 0;
 
             for (auto const& vote_item : impl.m_votes)
             {
                 auto const& vote = vote_item.second;
                 ++poll_participants;
+                if (vote.stake != coin())
+                    ++poll_participants_with_stake;
+
                 if (vote.type == detail::node_internals::vote_info::approve)
-                    approve += vote.stake;
+                    approve += vote.stake + coin(1,0);
                 else
-                    reject += vote.stake;
+                    reject += vote.stake + coin(1,0);
             }
 
             auto own_vote = std::make_pair(
