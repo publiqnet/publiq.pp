@@ -1092,23 +1092,24 @@ void block_worker(detail::node_internals& impl)
             }
 
             auto own_vote = std::make_pair(
-                                impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool) + coin(1,0),
+                                impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool),
                                 detail::node_internals::vote_info::approve);
             {
                 if (impl.m_blockchain.last_header_ex() == it->second.headers.front())
                 {
                     own_vote.second = detail::node_internals::vote_info::approve;
-                    approve += own_vote.first;
+                    approve += own_vote.first + coin(1,0);
                 }
                 else
                 {
                     own_vote.second = detail::node_internals::vote_info::reject;
-                    reject += own_vote.first;
+                    reject += own_vote.first + coin(1,0);
                 }
             }
 
             if (approve > reject &&
-                poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)))
+                poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)) &&
+                poll_participants_with_stake > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)))
             {
                 if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner &&
                     it_scan_least_revert_approved_winner->second.headers.front() != it->second.headers.front())
@@ -1120,6 +1121,7 @@ void block_worker(detail::node_internals& impl)
                     it_scan_least_revert_approved_winner = it;
                     reason_scan_least_revert_approved_winner.v = session_action_block::reason::unsafe_best;
                     reason_scan_least_revert_approved_winner.poll_participants = poll_participants;
+                    reason_scan_least_revert_approved_winner.poll_participants_with_stake = poll_participants_with_stake;
                     reason_scan_least_revert_approved_winner.revert_coefficient = revert_coefficient;
                 }
             }
@@ -1127,6 +1129,7 @@ void block_worker(detail::node_internals& impl)
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.first &&
                 poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
+                poll_participants_with_stake > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1137,6 +1140,7 @@ void block_worker(detail::node_internals& impl)
                 scan_most_approved_revert = approve;
                 reason_scan_most_approved_revert.v = session_action_block::reason::unsafe_better;
                 reason_scan_most_approved_revert.poll_participants = poll_participants;
+                reason_scan_most_approved_revert.poll_participants_with_stake = poll_participants_with_stake;
                 reason_scan_most_approved_revert.revert_coefficient = revert_coefficient;
             }
         }
@@ -1148,12 +1152,14 @@ void block_worker(detail::node_internals& impl)
             {
                 reason_scan_least_revert.v = session_action_block::reason::safe_revert;
                 reason_scan_least_revert.poll_participants = 0;
+                reason_scan_least_revert.poll_participants_with_stake = 0;
                 reason_scan_least_revert.revert_coefficient = revert_coefficient;
             }
             else
             {
                 reason_scan_least_revert.v = session_action_block::reason::safe_better;
                 reason_scan_least_revert.poll_participants = 0;
+                reason_scan_least_revert.poll_participants_with_stake = 0;
                 reason_scan_least_revert.revert_coefficient = revert_coefficient;
             }
         }

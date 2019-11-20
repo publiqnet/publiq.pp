@@ -637,10 +637,10 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                     s_code = "[sf,rv]";
                     break;
                 case reason::unsafe_better:
-                    s_code = "[unsf,btr][" + std::to_string(m_reason.poll_participants) + "]";
+                    s_code = "[unsf,btr][" + std::to_string(m_reason.poll_participants) + "][" + std::to_string(m_reason.poll_participants_with_stake) + "]";
                     break;
                 case reason::unsafe_best:
-                    s_code = "[unsf,bst][" + std::to_string(m_reason.poll_participants) + "]";
+                    s_code = "[unsf,bst][" + std::to_string(m_reason.poll_participants) + "][" + std::to_string(m_reason.poll_participants_with_stake) + "]";
                     break;
                 }
 

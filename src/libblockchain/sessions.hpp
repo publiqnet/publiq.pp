@@ -139,6 +139,7 @@ public:
     public:
         enum e_v {safe_better, safe_revert, unsafe_better, unsafe_best};
         size_t poll_participants = 0;
+        size_t poll_participants_with_stake = 0;
         double revert_coefficient = 0;
         e_v v = safe_better;
     };
