@@ -8,19 +8,19 @@ add_custom_command (
 add_definitions(-DSTORAGEUTILITY_LIBRARY)
 
 # define the library
-add_library(storageutility
+add_library(storage_utility
     global.hpp
     exception.hpp
     exception.cpp
     http.hpp
-    node.cpp
-    node.hpp
-    node_internals.hpp
+    rpc.cpp
+    rpc.hpp
+    rpc_internals.hpp
     types.hpp
     types.gen.hpp)
 
 # libraries this module links to
-target_link_libraries(storageutility
+target_link_libraries(storage_utility
     PUBLIC
         mesh.pp
         belt.pp
@@ -28,7 +28,6 @@ target_link_libraries(storageutility
     PRIVATE
         packet
         utility
-        p2psocket
         socket
         systemutility
         cryptoutility
@@ -36,7 +35,7 @@ target_link_libraries(storageutility
         log)
 
 # what to do on make install
-install(TARGETS storageutility
+install(TARGETS storage_utility
         EXPORT publiq.pp.package
         RUNTIME DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_RUNTIME}
         LIBRARY DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY}
@@ -44,5 +43,5 @@ install(TARGETS storageutility
 
 install(FILES
     global.hpp
-    node.hpp
-    DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/libstorageutility)
+    rpc.hpp
+    DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/libstorage_utility)

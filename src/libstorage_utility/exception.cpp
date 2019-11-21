@@ -2,7 +2,7 @@
 
 using std::string;
 
-namespace storage_utilitypp
+namespace storage_utility
 {
 wrong_data_exception::wrong_data_exception(std::string const& _message)
     : runtime_error("wrong_data_exception - " + _message)

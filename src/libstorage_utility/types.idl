@@ -1,4 +1,4 @@
-module StorageTypes
+module StorageUtilityMessage
 {
     class RemoteError { String message }
 }

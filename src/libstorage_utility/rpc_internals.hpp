@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-using namespace StorageTypes;
+using namespace StorageUtilityMessage;
 namespace filesystem = boost::filesystem;
 
 using beltpp::ip_address;
@@ -46,18 +46,18 @@ namespace chrono = std::chrono;
 using chrono::system_clock;
 using chrono::steady_clock;
 
-namespace storage_utilitypp
+namespace storage_utility
 {
-    using rpc_sf = beltpp::socket_family_t<&http::message_list_load<&StorageTypes::message_list_load>>;
+    using rpc_sf = beltpp::socket_family_t<&http::message_list_load<&StorageUtilityMessage::message_list_load>>;
 
 namespace detail
 {
-class node_internals
+class rpc_internals
 {
 public:
-    node_internals(ip_address const& rpc_bind_to_address,
-                   beltpp::ilog* _plogger_node)
-        : plogger_node(_plogger_node)
+    rpc_internals(ip_address const& rpc_bind_to_address,
+                   beltpp::ilog* _plogger_rpc)
+        : plogger_rpc(_plogger_rpc)
         , m_ptr_eh(new beltpp::event_handler())
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_sf>(*m_ptr_eh)
@@ -74,17 +74,17 @@ public:
 
     void writeln_node(string const& value)
     {
-        if (plogger_node)
-            plogger_node->message(value);
+        if (plogger_rpc)
+            plogger_rpc->message(value);
     }
 
     void writeln_node_warning(string const& value)
     {
-        if (plogger_node)
-            plogger_node->warning(value);
+        if (plogger_rpc)
+            plogger_rpc->warning(value);
     }
 
-    beltpp::ilog* plogger_node;
+    beltpp::ilog* plogger_rpc;
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 

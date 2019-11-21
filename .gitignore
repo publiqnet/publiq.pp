@@ -3,6 +3,7 @@ CMakeLists.txt.user
 /src/libblockchain/message.gen.hpp
 /src/libblockchain/message.gen.cpp.hpp
 /src/libblockchain/message.gen.tmpl.hpp
+/src/libstorage_utility/types.gen.hpp
 /src/commander/commander_message.gen.hpp
 /src/libblockchain/types.gen.hpp
 /.vs

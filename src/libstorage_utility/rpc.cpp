@@ -1,6 +1,6 @@
-#include "node.hpp"
+#include "rpc.hpp"
 #include "exception.hpp"
-#include "node_internals.hpp"
+#include "rpc_internals.hpp"
 
 #include <vector>
 #include <string>
@@ -26,25 +26,25 @@ using std::vector;
 using std::unique_ptr;
 using std::unordered_set;
 
-namespace storage_utilitypp
+namespace storage_utility
 {
 
-node::node(ip_address const& rpc_bind_to_address,
+rpc::rpc(ip_address const& rpc_bind_to_address,
            beltpp::ilog* plogger_node)
-    : m_pimpl(new detail::node_internals(rpc_bind_to_address,
-                                         plogger_node))
+    : m_pimpl(new detail::rpc_internals(rpc_bind_to_address,
+                                        plogger_node))
 {}
 
-node::node(node&&) noexcept = default;
+rpc::rpc(rpc&&) noexcept = default;
 
-node::~node() = default;
+rpc::~rpc() = default;
 
-void node::wake()
+void rpc::wake()
 {
     m_pimpl->m_ptr_eh->wake();
 }
 
-bool node::run()
+bool rpc::run()
 {
     bool code = true;
 
@@ -221,7 +221,6 @@ bool node::run()
 
     if (wait_result & beltpp::event_handler::on_demand)
     {
-
     }
 
     return code;

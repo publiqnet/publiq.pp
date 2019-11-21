@@ -9,7 +9,7 @@
 #include <mesh.pp/settings.hpp>
 #include <mesh.pp/pid.hpp>
 
-#include <libstorageutility/node.hpp>
+#include <publiq.pp/storage_utility_rpc.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/locale.hpp>
@@ -28,7 +28,6 @@
 
 #include <csignal>
 
-using namespace StorageTypes;
 namespace program_options = boost::program_options;
 
 using std::unique_ptr;
@@ -45,13 +44,13 @@ bool process_command_line(int argc, char** argv,
                             string& data_directory);
 
 static bool g_termination_handled = false;
-static storage_utilitypp::node* g_pnode = nullptr;
+static storage_utility::rpc* g_prpc = nullptr;
 
 void termination_handler(int /*signum*/)
 {
     g_termination_handled = true;
-    if (g_pnode)
-        g_pnode->wake();
+    if (g_prpc)
+        g_prpc->wake();
 }
 
 template <typename NODE>
@@ -125,12 +124,12 @@ int main(int argc, char** argv)
                                                  fs_log / "exceptions.txt");
         //__debugbreak();
 
-        storage_utilitypp::node node(rpc_bind_to_address,
-                                    plogger_rpc.get());
+        storage_utility::rpc rpc(rpc_bind_to_address,
+                                 plogger_rpc.get());
 
-        g_pnode = &node;
+        g_prpc = &rpc;
 
-        loop(node, plogger_exceptions, g_termination_handled);
+        loop(rpc, plogger_exceptions, g_termination_handled);
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         dda.save();

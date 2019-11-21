@@ -1,7 +1,6 @@
 #pragma once
 
 #include "global.hpp"
-#include "types.hpp"
 
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/isocket.hpp>
@@ -15,26 +14,26 @@
 #include <chrono>
 #include <map>
 
-namespace storage_utilitypp
+namespace storage_utility
 {
 namespace detail
 {
-    class node_internals;
+class rpc_internals;
 }
 
-class STORAGEUTILITYSHARED_EXPORT node
+class STORAGEUTILITYSHARED_EXPORT rpc
 {
 public:
-    node(beltpp::ip_address const& rpc_bind_to_address,
-         beltpp::ilog* plogger_node);
-    node(node&& other) noexcept;
-    ~node();
+    rpc(beltpp::ip_address const& rpc_bind_to_address,
+        beltpp::ilog* plogger_node);
+    rpc(rpc&& other) noexcept;
+    ~rpc();
 
     void wake();
     bool run();
 
 private:
-    std::unique_ptr<detail::node_internals> m_pimpl;
+    std::unique_ptr<detail::rpc_internals> m_pimpl;
 };
 
 }

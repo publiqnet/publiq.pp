@@ -4,7 +4,7 @@ add_executable(storage_helper
 
 # libraries this module links to
 target_link_libraries(storage_helper PRIVATE
-    storageutility
+    storage_utility
     socket
     publiq.pp
     mesh.pp

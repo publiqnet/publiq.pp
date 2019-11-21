@@ -6,7 +6,7 @@
 #include <string>
 #include <stdexcept>
 
-namespace storage_utilitypp
+namespace storage_utility
 {
 class STORAGEUTILITYSHARED_EXPORT wrong_data_exception : public std::runtime_error
 {

@@ -18,7 +18,7 @@ using std::vector;
 using std::pair;
 using std::unordered_map;
 
-namespace storage_utilitypp
+namespace storage_utility
 {
 namespace http
 {
@@ -161,7 +161,7 @@ beltpp::detail::pmsg_all message_list_load(
         {
             ssd.session_specal_handler = nullptr;
 
-            ssd.autoreply = beltpp::http::http_response(ssd, StorageTypes::detail::storage_json_schema());
+            ssd.autoreply = beltpp::http::http_response(ssd, StorageUtilityMessage::detail::storage_json_schema());
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
@@ -189,7 +189,7 @@ beltpp::detail::pmsg_all message_list_load(
 
             ssd.autoreply = beltpp::http::http_not_found(ssd,
                                                          message +
-                                                         StorageTypes::detail::storage_json_schema());
+                                                         StorageUtilityMessage::detail::storage_json_schema());
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
