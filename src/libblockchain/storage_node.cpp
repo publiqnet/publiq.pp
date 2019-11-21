@@ -315,6 +315,7 @@ beltpp::isocket::packets storage_node::receive()
 
     return result;
 }
+
 void storage_node::send(beltpp::packet&& pack)
 {
     std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
