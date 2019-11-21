@@ -41,9 +41,9 @@ Then build the PUBLIQ.
 [user@localhost ~]$ git clone --recursive https://github.com/publiqnet/publiq.pp
 [user@localhost ~]$ mkdir publiq
 [user@localhost ~]$ cd publiq
-[user@localhost publiq]$ ../publiq.pp/cryptopp.package.sh
-[user@localhost publiq]$ ../publiq.pp/boost.package.sh
-[user@localhost publiq]$ ../publiq.pp/publiq.pp.package.sh
+[user@localhost publiq]$ ../publiq.pp/scripts/cryptopp.package.sh
+[user@localhost publiq]$ ../publiq.pp/scripts/boost.package.sh
+[user@localhost publiq]$ ../publiq.pp/scripts/publiq.pp.package.sh
 ```
 
 Done, now there is ~/publiq/install/bin/publiq.pp/publiqd executable ready to use
