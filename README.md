@@ -16,10 +16,10 @@
 + *portable?* yes! it's a goal. clang, gcc, msvc working.
 + *build system?* cmake. refer to cmake project generator options for msvc, xcode, etc... project generation.
 + *static linking vs dynamic linking?* both supported, refer to BUILD_SHARED_LIBS cmake option
-+ *32 bit build?* never tried to fix build errors/warnings
++ *32 bit build?* never tried to fix build errors/warnings on windows. tested successfully on linux.
 + c++11
 + *unicode support?* boost::filesystem::path ensures that unicode paths are well supported and the rest of the code assumes that std::string is utf8 encoded.
-+ *full blown blockchain?*, yes! we hope to solve the rough edges around distributed consensus algorithm and all the blockchain communication to serve the needs of PUBLIQ protocol soon.
++ *full blown blockchain?*, yes! we hope to solve the rough edges around distributed consensus algorithm and all the blockchain communication to serve the needs of PUBLIQ protocol better and better.
 
 ## how to build publiq.pp?
 ```console
