@@ -40,8 +40,9 @@ using std::runtime_error;
 using std::thread;
 
 bool process_command_line(int argc, char** argv,
-                          beltpp::ip_address& rpc_bind_to_address,
-                          string& data_directory);
+                            std::string& prefix,
+                            beltpp::ip_address& rpc_bind_to_address,
+                            string& data_directory);
 
 static bool g_termination_handled = false;
 static storage_utilitypp::node* g_pnode = nullptr;
@@ -72,16 +73,15 @@ int main(int argc, char** argv)
 
     beltpp::ip_address rpc_bind_to_address;
     string data_directory;
+    string prefix;
 
     if (false == process_command_line(argc, argv,
+                                      prefix,
                                       rpc_bind_to_address,
                                       data_directory))
         return 1;
 
-//    if (testnet)
-//        meshpp::config::set_public_key_prefix("TPBQ");
-//    else
-        meshpp::config::set_public_key_prefix("PBQ");
+    meshpp::config::set_public_key_prefix(prefix);
 
     if (false == data_directory.empty())
         meshpp::settings::set_data_directory(data_directory);
@@ -130,16 +130,7 @@ int main(int argc, char** argv)
 
         g_pnode = &node;
 
-
-        {
-            thread node_thread([&node, &plogger_exceptions]
-            {
-                loop(node, plogger_exceptions, g_termination_handled);
-            });
-
-            beltpp::finally join_node_thread([&node_thread](){ node_thread.join(); });
-
-        }
+        loop(node, plogger_exceptions, g_termination_handled);
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
         dda.save();
@@ -207,6 +198,7 @@ void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_ha
 }
 
 bool process_command_line(int argc, char** argv,
+                          std::string& prefix,
                           beltpp::ip_address& rpc_bind_to_address,
                           string& data_directory)
 {
@@ -220,7 +212,9 @@ bool process_command_line(int argc, char** argv,
             ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface),
                             "(rpc) The local network interface and port to bind to")
             ("data_directory,d", program_options::value<string>(&data_directory),
-                            "Data directory path");
+                            "Data directory path")
+            ("prefix,p", program_options::value<string>(&prefix)->required(),
+                            "blockchain prefix");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -239,11 +233,8 @@ bool process_command_line(int argc, char** argv,
         if (false == rpc_local_interface.empty())
             rpc_bind_to_address.from_string(rpc_local_interface);
 
-//        if (n_type == StorageTypes::NodeType::blockchain &&
-//            false == str_public_address.empty() &&
-//            rpc_local_interface.empty())
-//            throw std::runtime_error("rpc_local_interface is not specified");
-
+        if (rpc_local_interface.empty())
+            throw std::runtime_error("rpc_local_interface is not specified");
     }
     catch (std::exception const& ex)
     {

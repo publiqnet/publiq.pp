@@ -147,30 +147,30 @@ bool node::run()
 //                psk->send(peerid, beltpp::packet(msg));
 //                throw;
 //            }
-//            catch (wrong_data_exception const& e)
-//            {
-//                RemoteError remote_error;
-//                remote_error.message = e.message;
-//                psk->send(peerid, beltpp::packet(remote_error));
+            catch (wrong_data_exception const& e)
+            {
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
 
-//                throw;
-//            }
-//            catch (wrong_request_exception const& e)
-//            {
-//                RemoteError remote_error;
-//                remote_error.message = e.message;
-//                psk->send(peerid, beltpp::packet(remote_error));
+                throw;
+            }
+            catch (wrong_request_exception const& e)
+            {
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
 
-//                throw;
-//            }
-//            catch (wrong_document_exception const& e)
-//            {
-//                RemoteError remote_error;
-//                remote_error.message = e.message;
-//                psk->send(peerid, beltpp::packet(remote_error));
+                throw;
+            }
+            catch (wrong_document_exception const& e)
+            {
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
 
-//                throw;
-//            }
+                throw;
+            }
 //            catch (authority_exception const& e)
 //            {
 //                InvalidAuthority msg;
@@ -196,14 +196,14 @@ bool node::run()
 
 //                throw;
 //            }
-//            catch (std::exception const& e)
-//            {
-//                RemoteError msg;
-//                msg.message = e.what();
-//                psk->send(peerid, beltpp::packet(msg));
+            catch (std::exception const& e)
+            {
+                RemoteError msg;
+                msg.message = e.what();
+                psk->send(peerid, beltpp::packet(msg));
 
-//                throw;
-//            }
+                throw;
+            }
             catch (...)
             {
                 RemoteError msg;
