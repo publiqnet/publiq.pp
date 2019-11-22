@@ -11,14 +11,12 @@
 #include <vector>
 #include <utility>
 #include <unordered_map>
-#include <set>
 #include <chrono>
 
 using std::string;
 using std::vector;
 using std::pair;
 using std::unordered_map;
-using std::set;
 
 namespace storage_utility
 {
@@ -26,10 +24,17 @@ namespace http
 {
 
 inline
-string response(beltpp::detail::session_special_data& ssd,
+string json_response(beltpp::detail::session_special_data& ssd,
                 beltpp::packet const& pc)
 {
     return beltpp::http::http_response(ssd, pc.to_string());
+}
+
+inline
+string base64_response(beltpp::detail::session_special_data& ssd,
+                beltpp::packet const& pc)
+{
+    return beltpp::http::http_response(ssd, meshpp::to_base64(pc.to_string()));
 }
 
 template <beltpp::detail::pmsg_all (*fallback_message_list_load)(
@@ -96,7 +101,7 @@ beltpp::detail::pmsg_all message_list_load(
     }
     else// if (code == beltpp::e_three_state_result::success)
     {
-        ssd.session_specal_handler = &response;
+        ssd.session_specal_handler = &base64_response;
         ssd.autoreply.clear();
 
         if (pss->type == beltpp::http::detail::scan_status::get &&
