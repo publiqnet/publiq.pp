@@ -36,7 +36,6 @@ using std::cout;
 using std::endl;
 using std::vector;
 using std::runtime_error;
-using std::thread;
 
 bool process_command_line(int argc, char** argv,
                             std::string& prefix,
@@ -53,8 +52,8 @@ void termination_handler(int /*signum*/)
         g_prpc->wake();
 }
 
-template <typename NODE>
-void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled);
+template <typename RPC>
+void loop(RPC& rpc, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled);
 
 int main(int argc, char** argv)
 {
@@ -149,8 +148,8 @@ int main(int argc, char** argv)
     return 0;
 }
 
-template <typename NODE>
-void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled)
+template <typename RPC>
+void loop(RPC& rpc, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled)
 {
     while (true)
     {
@@ -158,7 +157,7 @@ void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_ha
         {
             if (termination_handled)
                 break;
-            if (false == node.run())
+            if (false == rpc.run())
                 break;
         }
         catch (std::bad_alloc const& ex)

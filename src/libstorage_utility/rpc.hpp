@@ -25,7 +25,7 @@ class STORAGEUTILITYSHARED_EXPORT rpc
 {
 public:
     rpc(beltpp::ip_address const& rpc_bind_to_address,
-        beltpp::ilog* plogger_node);
+        beltpp::ilog* plogger_rpc);
     rpc(rpc&& other) noexcept;
     ~rpc();
 

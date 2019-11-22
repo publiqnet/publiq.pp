@@ -72,13 +72,13 @@ public:
         m_ptr_eh->add(*m_ptr_rpc_socket);
     }
 
-    void writeln_node(string const& value)
+    void writeln_rpc(string const& value)
     {
         if (plogger_rpc)
             plogger_rpc->message(value);
     }
 
-    void writeln_node_warning(string const& value)
+    void writeln_rpc_warning(string const& value)
     {
         if (plogger_rpc)
             plogger_rpc->warning(value);

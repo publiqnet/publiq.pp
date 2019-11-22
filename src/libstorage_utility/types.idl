@@ -1,4 +1,31 @@
 module StorageUtilityMessage
 {
+    class StorageOrder
+    {
+        String storage_address
+        String file_uri
+        UInt64 seconds
+        TimePoint time
+    }
+
+    class SignedStorageOrder
+    {
+        StorageOrder order
+        Authority authorization
+    }
+
+    class Authority
+    {
+        String address
+        String signature
+    }
+
+    class SignRequest
+    {
+        String private_key
+        StorageOrder order
+    }
+
     class RemoteError { String message }
 }
+//2

@@ -30,9 +30,9 @@ namespace storage_utility
 {
 
 rpc::rpc(ip_address const& rpc_bind_to_address,
-           beltpp::ilog* plogger_node)
+           beltpp::ilog* plogger_rpc)
     : m_pimpl(new detail::rpc_internals(rpc_bind_to_address,
-                                        plogger_node))
+                                        plogger_rpc))
 {}
 
 rpc::rpc(rpc&&) noexcept = default;
@@ -89,8 +89,8 @@ bool rpc::run()
                 {
                     beltpp::isocket_protocol_error msg;
                     received_packet.get(msg);
-                    m_pimpl->writeln_node("protocol error: ");
-                    m_pimpl->writeln_node(msg.buffer);
+                    m_pimpl->writeln_rpc("protocol error: ");
+                    m_pimpl->writeln_rpc(msg.buffer);
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
 
                     break;
@@ -99,21 +99,38 @@ bool rpc::run()
                 {
                     beltpp::isocket_open_refused msg;
                     received_packet.get(msg);
-                    //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
+                    //m_pimpl->writeln_rpc_warning(msg.reason + ", " + peerid);
                     break;
                 }
                 case beltpp::isocket_open_error::rtt:
                 {
                     beltpp::isocket_open_error msg;
                     received_packet.get(msg);
-                    //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
+                    //m_pimpl->writeln_rpc_warning(msg.reason + ", " + peerid);
+                    break;
+                }
+                case SignRequest::rtt:
+                {
+                    SignRequest msg_sign_request;
+                    std::move(received_packet).get(msg_sign_request);
+
+                    meshpp::private_key pv(msg_sign_request.private_key);
+
+                    Authority authorization;
+                    authorization.address = pv.get_public_key().to_string();
+                    authorization.signature = pv.sign(msg_sign_request.order.to_string()).base58;
+
+                    SignedStorageOrder signed_storage_order;
+                    signed_storage_order.order = msg_sign_request.order;
+                    signed_storage_order.authorization = authorization;
+
+                    psk->send(peerid, beltpp::packet(std::move(signed_storage_order)));
                     break;
                 }
                 default:
                 {
-                    //if (received_packet.type() != SyncResponse::rtt)
-                        m_pimpl->writeln_node("master can't handle: " + std::to_string(received_packet.type()) +
-                                              ". peer: " + peerid);
+                    m_pimpl->writeln_rpc("can't handle: " + std::to_string(received_packet.type()) +
+                                          ". peer: " + peerid);
 
                     break;
                 }
@@ -147,30 +164,30 @@ bool rpc::run()
 //                psk->send(peerid, beltpp::packet(msg));
 //                throw;
 //            }
-            catch (wrong_data_exception const& e)
-            {
-                RemoteError remote_error;
-                remote_error.message = e.message;
-                psk->send(peerid, beltpp::packet(remote_error));
+//            catch (wrong_data_exception const& e)
+//            {
+//                RemoteError remote_error;
+//                remote_error.message = e.message;
+//                psk->send(peerid, beltpp::packet(remote_error));
 
-                throw;
-            }
-            catch (wrong_request_exception const& e)
-            {
-                RemoteError remote_error;
-                remote_error.message = e.message;
-                psk->send(peerid, beltpp::packet(remote_error));
+//                throw;
+//            }
+//            catch (wrong_request_exception const& e)
+//            {
+//                RemoteError remote_error;
+//                remote_error.message = e.message;
+//                psk->send(peerid, beltpp::packet(remote_error));
 
-                throw;
-            }
-            catch (wrong_document_exception const& e)
-            {
-                RemoteError remote_error;
-                remote_error.message = e.message;
-                psk->send(peerid, beltpp::packet(remote_error));
+//                throw;
+//            }
+//            catch (wrong_document_exception const& e)
+//            {
+//                RemoteError remote_error;
+//                remote_error.message = e.message;
+//                psk->send(peerid, beltpp::packet(remote_error));
 
-                throw;
-            }
+//                throw;
+//            }
 //            catch (authority_exception const& e)
 //            {
 //                InvalidAuthority msg;

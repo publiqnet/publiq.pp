@@ -11,70 +11,26 @@
 #include <vector>
 #include <utility>
 #include <unordered_map>
+#include <set>
 #include <chrono>
 
 using std::string;
 using std::vector;
 using std::pair;
 using std::unordered_map;
+using std::set;
 
 namespace storage_utility
 {
 namespace http
 {
+
 inline
 string response(beltpp::detail::session_special_data& ssd,
                 beltpp::packet const& pc)
 {
     return beltpp::http::http_response(ssd, pc.to_string());
 }
-//inline
-//string file_response(beltpp::detail::session_special_data& ssd,
-//                     beltpp::packet const& pc)
-//{
-//    ssd.session_specal_handler = nullptr;
-
-//    if (pc.type() == BlockchainMessage::StorageFile::rtt)
-//    {
-//        string str_result;
-//        BlockchainMessage::StorageFile const* pFile = nullptr;
-//        pc.get(pFile);
-
-//        str_result += "HTTP/1.1 200 OK\r\n";
-//        if (false == pFile->mime_type.empty())
-//            str_result += "Content-Type: " + pFile->mime_type + "\r\n";
-//        str_result += "Access-Control-Allow-Origin: *\r\n";
-//        str_result += "Content-Length: ";
-//        str_result += std::to_string(pFile->data.length());
-//        str_result += "\r\n\r\n";
-//        str_result += pFile->data;
-
-//        return str_result;
-//    }
-//    else
-//    {
-//        string str_result;
-//        string message;
-//        if (pc.type() == BlockchainMessage::UriError::rtt)
-//        {
-//            BlockchainMessage::UriError const* pError = nullptr;
-//            pc.get(pError);
-//            if (pError->uri_problem_type == BlockchainMessage::UriProblemType::missing)
-//                message = "404 Not Found\r\n"
-//                          "requested file: " + pError->uri;
-//        }
-
-//        if (message.empty())
-//            message = "internal error";
-
-//        str_result += "HTTP/1.1 404 Not Found\r\n";
-//        str_result += "Content-Type: text/plain\r\n";
-//        str_result += "Access-Control-Allow-Origin: *\r\n";
-//        str_result += "Content-Length: " + std::to_string(message.length()) + "\r\n\r\n";
-//        str_result += message;
-//        return str_result;
-//    }
-//}
 
 template <beltpp::detail::pmsg_all (*fallback_message_list_load)(
         std::string::const_iterator&,
@@ -143,9 +99,29 @@ beltpp::detail::pmsg_all message_list_load(
         ssd.session_specal_handler = &response;
         ssd.autoreply.clear();
 
-        if (pss->type == beltpp::http::detail::scan_status::post &&
-            pss->resource.path.size() == 1 &&
-            pss->resource.path.front() == "api")
+        if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "storage_order")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignRequest>();
+            StorageUtilityMessage::SignRequest& ref = *reinterpret_cast<StorageUtilityMessage::SignRequest*>(p.get());
+
+            size_t pos;
+
+            ref.private_key =  pss->resource.arguments["private_key"];
+            ref.order.storage_address = pss->resource.arguments["storage_address"];
+            ref.order.file_uri = pss->resource.arguments["file_uri"];
+            ref.order.seconds = beltpp::stoui64(pss->resource.arguments["seconds"], pos);
+            ref.order.time.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignRequest::rtt,
+                                              std::move(p),
+                                              &StorageUtilityMessage::SignRequest::pvoid_saver);
+        }
+        else if (pss->type == beltpp::http::detail::scan_status::post &&
+                pss->resource.path.size() == 1 &&
+                pss->resource.path.front() == "api")
         {
             std::string::const_iterator iter_scan_begin_temp = posted.cbegin();
             std::string::const_iterator const iter_scan_end_temp = posted.cend();
