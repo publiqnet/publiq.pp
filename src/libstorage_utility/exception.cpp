@@ -1,6 +1,6 @@
 #include "exception.hpp"
 
-#include "assert.h"
+#include <cassert>
 
 using std::string;
 
