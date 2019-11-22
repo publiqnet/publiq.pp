@@ -101,13 +101,16 @@ beltpp::detail::pmsg_all message_list_load(
     }
     else// if (code == beltpp::e_three_state_result::success)
     {
-        ssd.session_specal_handler = &base64_response;
+        ssd.session_specal_handler = &json_response;
         ssd.autoreply.clear();
 
         if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 1 &&
                  pss->resource.path.front() == "storage_order")
         {
+            ssd.session_specal_handler = &base64_response;
+            ssd.autoreply.clear();
+
             auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignRequest>();
             StorageUtilityMessage::SignRequest& ref = *reinterpret_cast<StorageUtilityMessage::SignRequest*>(p.get());
 
