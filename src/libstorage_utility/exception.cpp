@@ -1,5 +1,7 @@
 #include "exception.hpp"
 
+#include "assert.h"
+
 using std::string;
 
 namespace storage_utility
