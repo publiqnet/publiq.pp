@@ -67,7 +67,7 @@ bool storage::put(BlockchainMessage::StorageFile&& file, string& uri)
 {
     bool code = false;
     uri = meshpp::hash(file.data);
-    file.data = meshpp::to_base64(file.data);
+    file.data = meshpp::to_base64(file.data, true);
     beltpp::on_failure guard([this]
     {
         m_pimpl->map.discard();

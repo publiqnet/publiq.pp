@@ -25,16 +25,25 @@ namespace http
 
 inline
 string json_response(beltpp::detail::session_special_data& ssd,
-                beltpp::packet const& pc)
+                     beltpp::packet const& pc)
 {
     return beltpp::http::http_response(ssd, pc.to_string());
 }
 
 inline
 string base64_response(beltpp::detail::session_special_data& ssd,
-                beltpp::packet const& pc)
+                       beltpp::packet const& pc)
 {
-    return beltpp::http::http_response(ssd, meshpp::to_base64(pc.to_string()));
+    assert(pc.type() == StorageUtilityMessage::SignedStorageOrder::rtt);
+    StorageUtilityMessage::SignedStorageOrder const* pSSO;
+    pc.get(pSSO);
+
+    string result;
+    result += "{";
+    result += "\"channel_order\":\"" + meshpp::to_base64(pc.to_string(), false) + "\",";
+    result += "\"storage_address\":\"" + pSSO->order.storage_address + "\"";
+    result += "}";
+    return beltpp::http::http_response(ssd, result);
 }
 
 template <beltpp::detail::pmsg_all (*fallback_message_list_load)(

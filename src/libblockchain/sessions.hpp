@@ -179,7 +179,7 @@ public:
     bool permanent() const override;
 
     detail::node_internals* pimpl;
-    std::string file_uri;
+    std::string const file_uri;
     std::string nodeid;
 };
 

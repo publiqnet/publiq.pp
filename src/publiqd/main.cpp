@@ -66,6 +66,8 @@ static publiqpp::node* g_pnode = nullptr;
 static publiqpp::storage_node* g_pstorage_node = nullptr;
 void termination_handler(int /*signum*/)
 {
+    cout << "stopping..." << endl;
+
     g_termination_handled = true;
     if (g_pnode)
         g_pnode->wake();
@@ -369,6 +371,9 @@ int main(int argc, char** argv)
             plogger_exceptions->message("always throw std::exceptions");
         cout << "always throw std::exceptions" << endl;
     }
+
+    cout << "quit." << endl;
+
     return 0;
 }
 
