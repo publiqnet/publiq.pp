@@ -17,9 +17,7 @@ add_library(storage_utility
     rpc.hpp
     rpc_internals.hpp
     types.hpp
-    types.gen.hpp
-    utility.cpp
-    utility.hpp)
+    types.gen.hpp)
 
 # libraries this module links to
 target_link_libraries(storage_utility
