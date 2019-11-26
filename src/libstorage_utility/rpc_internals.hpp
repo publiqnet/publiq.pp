@@ -88,6 +88,8 @@ public:
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 
+    std::map<string, SignedStorageOrder>  cache_signed_storage_order;
+
     beltpp::ip_address m_rpc_bind_to_address;
 };
 

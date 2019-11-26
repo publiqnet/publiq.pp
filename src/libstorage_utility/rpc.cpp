@@ -114,17 +114,56 @@ bool rpc::run()
                     SignRequest msg_sign_request;
                     std::move(received_packet).get(msg_sign_request);
 
-                    meshpp::private_key pv(msg_sign_request.private_key);
+                    string map_key;
+                    map_key = msg_sign_request.private_key + msg_sign_request.order.storage_address + msg_sign_request.order.file_uri;
 
-                    Authority authorization;
-                    authorization.address = pv.get_public_key().to_string();
-                    authorization.signature = pv.sign(msg_sign_request.order.to_string()).base58;
+                    auto const& signed_storage_order_it = m_pimpl->cache_signed_storage_order.find(map_key);
+                    if (signed_storage_order_it != m_pimpl->cache_signed_storage_order.end())
+                    {
+                        chrono::system_clock::duration duration =
+                                chrono::system_clock::now() -
+                                chrono::system_clock::from_time_t(signed_storage_order_it->second.order.time.tm);
 
-                    SignedStorageOrder signed_storage_order;
-                    signed_storage_order.order = msg_sign_request.order;
-                    signed_storage_order.authorization = authorization;
+                        uint64_t duration_seconds = uint64_t(chrono::duration_cast<chrono::seconds>(duration).count());
 
-                    psk->send(peerid, beltpp::packet(std::move(signed_storage_order)));
+                        if (signed_storage_order_it->second.order.seconds > duration_seconds)
+                        {
+                            psk->send(peerid, beltpp::packet(signed_storage_order_it->second.order));
+                        }
+                        else
+                        {
+                            meshpp::private_key pv(msg_sign_request.private_key);
+
+                            Authority authorization;
+                            authorization.address = pv.get_public_key().to_string();
+                            authorization.signature = pv.sign(msg_sign_request.order.to_string()).base58;
+
+                            SignedStorageOrder signed_storage_order;
+                            signed_storage_order.order = msg_sign_request.order;
+                            signed_storage_order.authorization = authorization;
+
+                            m_pimpl->cache_signed_storage_order.emplace(std::make_pair(map_key, signed_storage_order));
+
+                            psk->send(peerid, beltpp::packet(std::move(signed_storage_order)));
+                        }
+                    }
+                    else
+                    {
+                        meshpp::private_key pv(msg_sign_request.private_key);
+
+                        Authority authorization;
+                        authorization.address = pv.get_public_key().to_string();
+                        authorization.signature = pv.sign(msg_sign_request.order.to_string()).base58;
+
+                        SignedStorageOrder signed_storage_order;
+                        signed_storage_order.order = msg_sign_request.order;
+                        signed_storage_order.authorization = authorization;
+
+                        m_pimpl->cache_signed_storage_order.emplace(std::make_pair(map_key, signed_storage_order));
+
+                        psk->send(peerid, beltpp::packet(std::move(signed_storage_order)));
+                    }
+
                     break;
                 }
                 default:

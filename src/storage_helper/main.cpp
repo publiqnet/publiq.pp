@@ -21,7 +21,6 @@
 #include <vector>
 #include <sstream>
 #include <exception>
-#include <thread>
 #include <functional>
 #include <chrono>
 #include <map>
