@@ -123,18 +123,42 @@ beltpp::detail::pmsg_all message_list_load(
             auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignRequest>();
             StorageUtilityMessage::SignRequest& ref = *reinterpret_cast<StorageUtilityMessage::SignRequest*>(p.get());
 
-            size_t pos;
-
             ref.private_key =  pss->resource.arguments["private_key"];
             ref.order.storage_address = pss->resource.arguments["storage_address"];
             ref.order.file_uri = pss->resource.arguments["file_uri"];
-            ref.order.seconds = beltpp::stoui64(pss->resource.arguments["seconds"], pos);
-            ref.order.time.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            ref.order.content_unit_uri = pss->resource.arguments["content_unit_uri"];
+            ref.order.session_id = pss->resource.arguments["session_id"];
+            ref.order.seconds = 12;
+            ref.order.time_signed.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignRequest::rtt,
                                               std::move(p),
                                               &StorageUtilityMessage::SignRequest::pvoid_saver);
+        }
+        if (pss->type == beltpp::http::detail::scan_status::get &&
+                 pss->resource.path.size() == 1 &&
+                 pss->resource.path.front() == "verify")
+        {
+            ssd.session_specal_handler = &json_response;
+            ssd.autoreply.clear();
+
+            auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignedStorageOrder>();
+            StorageUtilityMessage::SignedStorageOrder& ref = *reinterpret_cast<StorageUtilityMessage::SignedStorageOrder*>(p.get());
+
+            ref.order.storage_address = pss->resource.arguments["storage_address"];
+            ref.order.file_uri = pss->resource.arguments["file_uri"];
+            ref.order.content_unit_uri = pss->resource.arguments["content_unit_uri"];
+            ref.order.session_id = pss->resource.arguments["session_id"];
+            ref.order.seconds = 12;
+            ref.order.time_signed.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            ref.authorization.address = pss->resource.arguments["address"];
+            ref.authorization.signature = pss->resource.arguments["signature"];
+
+            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignedStorageOrder::rtt,
+                                              std::move(p),
+                                              &StorageUtilityMessage::SignedStorageOrder::pvoid_saver);
         }
         else if (pss->type == beltpp::http::detail::scan_status::post &&
                 pss->resource.path.size() == 1 &&

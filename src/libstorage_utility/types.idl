@@ -4,8 +4,10 @@ module StorageUtilityMessage
     {
         String storage_address
         String file_uri
+        String content_unit_uri
+        String session_id
         UInt64 seconds
-        TimePoint time
+        TimePoint time_signed
     }
 
     class SignedStorageOrder
@@ -26,6 +28,15 @@ module StorageUtilityMessage
         StorageOrder order
     }
 
+    class VerificationResponse
+    {
+        String channel_address
+        String storage_address
+        String file_uri
+        String content_unit_uri
+        String session_id
+    }
+
     class RemoteError { String message }
 }
-//2
+//1
