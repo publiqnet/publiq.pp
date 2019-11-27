@@ -487,6 +487,7 @@ module BlockchainMessage
     class StorageFileRequest
     {
         String uri
+        String channel_address
         String storage_order_token
     }
 
