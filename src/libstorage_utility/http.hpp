@@ -18,6 +18,8 @@ using std::vector;
 using std::pair;
 using std::unordered_map;
 
+#define SIGN_SECONDS 3600
+
 namespace storage_utility
 {
 namespace http
@@ -175,7 +177,7 @@ beltpp::detail::pmsg_all message_list_load(
             ref.order.file_uri = pss->resource.arguments["file_uri"];
             ref.order.content_unit_uri = pss->resource.arguments["content_unit_uri"];
             ref.order.session_id = pss->resource.arguments["session_id"];
-            ref.order.seconds = 3600;
+            ref.order.seconds = SIGN_SECONDS;
             ref.order.time_point.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();

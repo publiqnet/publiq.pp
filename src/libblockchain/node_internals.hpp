@@ -82,13 +82,13 @@ public:
     class service_unit_counter
     {
     public:
-        string sesson_id;
+        string session_id;
         system_clock::time_point time_point;
         uint64_t seconds;
 
         bool operator == (service_unit_counter const& other) const
         {
-            return (sesson_id == other.sesson_id &&
+            return (session_id == other.session_id &&
                     time_point == other.time_point &&
                     seconds == other.seconds);
         }
@@ -110,7 +110,7 @@ private:
         size_t operator()(service_unit_counter const& value) const noexcept
         {
             size_t hash_value = 0xdeadbeef;
-            boost::hash_combine(hash_value, value.sesson_id);
+            boost::hash_combine(hash_value, value.session_id);
             boost::hash_combine(hash_value, system_clock::to_time_t(value.time_point));
             boost::hash_combine(hash_value, value.seconds);
             return hash_value;
@@ -124,10 +124,10 @@ public:
     {
         auto now = system_clock::now();
 
-        if (now < unit_counter.time_point + chrono::seconds(NODES_TIME_SHIFT))
-            throw std::logic_error("now < unit_counter.time_point + chrono::seconds(NODES_TIME_SHIFT)");
-        if (now > unit_counter.time_point + chrono::seconds(unit_counter.seconds) + chrono::seconds(NODES_TIME_SHIFT))
-            throw std::logic_error("now > unitunit_countertime_point + chrono::seconds(unit_counter.seconds) + chrono::seconds(NODES_TIME_SHIFT)");
+        if (unit_counter.time_point > now + chrono::seconds(NODES_TIME_SHIFT))
+            throw std::logic_error("unit_counter.time_point > now + chrono::seconds(NODES_TIME_SHIFT)");
+        if (unit_counter.time_point + chrono::seconds(unit_counter.seconds) <= now - chrono::seconds(NODES_TIME_SHIFT))
+            throw std::logic_error("unit_counter.time_point + chrono::seconds(unit_counter.seconds) <= now - chrono::seconds(NODES_TIME_SHIFT)");
 
         auto insert_res = m_served.insert({unit, service_unit_counter_map()});
         insert_res.first->second.insert({unit_counter, false});
@@ -177,7 +177,7 @@ public:
                 auto const& unit_counter = unit_counter_it->first;
 
                 bool expired = false;
-                if (now > unit_counter.time_point + chrono::seconds(unit_counter.seconds) + chrono::seconds(NODES_TIME_SHIFT))
+                if (unit_counter.time_point + chrono::seconds(unit_counter.seconds) <= now - chrono::seconds(NODES_TIME_SHIFT))
                     expired = true;
                 bool& counted = unit_counter_it->second;
 

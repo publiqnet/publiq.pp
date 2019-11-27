@@ -396,9 +396,6 @@ module BlockchainMessage
 
     class Served
     {
-        String file_uri
-        String content_unit_uri
-        String peer_address
         String storage_order_token
     }
 
@@ -487,7 +484,6 @@ module BlockchainMessage
     class StorageFileRequest
     {
         String uri
-        String channel_address
         String storage_order_token
     }
 

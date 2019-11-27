@@ -47,5 +47,23 @@ module StorageTypes
         String transaction_hash
         UInt64 block_number
     }
+
+    ///
+    // Slave message types below
+    ///
+    class StorageFile
+    {
+        Extension storage_file
+    }
+
+    class StorageFileDelete
+    {
+        Extension storage_file_delete
+    }
+
+    class SetVerifiedChannels
+    {
+        Array String channel_addresses
+    }
 }
 ////2
