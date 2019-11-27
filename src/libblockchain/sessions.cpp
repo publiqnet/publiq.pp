@@ -921,14 +921,14 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         }
 
         map<string, map<string, uint64_t>> unit_uri_view_counts;
-        map<string, coin> unit_sponsor_applied;
+        map<string, coin> applied_sponsor_items;
         // verify block rewards
         if (check_rewards(block,
                           signed_block.authorization.address,
                           rewards_type::apply,
                           *pimpl,
                           unit_uri_view_counts,
-                          unit_sponsor_applied))
+                          applied_sponsor_items))
             return set_errored("block response - " + std::to_string(block.header.block_number) + ". block rewards!", throw_for_debugging_only);
 
         // increase all reward amounts to balances
@@ -937,7 +937,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         // Insert to blockchain
         pimpl->m_blockchain.insert(signed_block);
-        pimpl->m_action_log.log_block(signed_block, unit_uri_view_counts, unit_sponsor_applied);
+        pimpl->m_action_log.log_block(signed_block, unit_uri_view_counts, applied_sponsor_items);
 
         c_const = block.header.c_const;
     }
