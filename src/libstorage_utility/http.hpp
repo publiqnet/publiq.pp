@@ -31,18 +31,65 @@ string json_response(beltpp::detail::session_special_data& ssd,
 }
 
 inline
-string base64_response(beltpp::detail::session_special_data& ssd,
-                       beltpp::packet const& pc)
+string storage_order_response(beltpp::detail::session_special_data& ssd,
+                              beltpp::packet const& pc)
 {
-    assert(pc.type() == StorageUtilityMessage::SignedStorageOrder::rtt);
-    StorageUtilityMessage::SignedStorageOrder const* pSSO;
-    pc.get(pSSO);
-
     string result;
-    result += "{";
-    result += "\"channel_order\":\"" + meshpp::to_base64(pc.to_string(), false) + "\",";
-    result += "\"storage_address\":\"" + pSSO->order.storage_address + "\"";
-    result += "}";
+    if (pc.type() == StorageUtilityMessage::SignedStorageOrder::rtt)
+    {
+        StorageUtilityMessage::SignedStorageOrder const* pSSO;
+        pc.get(pSSO);
+
+        result += "{";
+        result += "\"code\":true,";
+        result += "\"storage_order\":\"" + meshpp::to_base64(pc.to_string(), false) + "\",";
+        result += "\"storage_address\":\"" + pSSO->order.storage_address + "\"";
+        result += "}";
+    }
+    else
+    {
+        string message = "\"unknown\"";
+        if (pc.type() == StorageUtilityMessage::RemoteError::rtt)
+        {
+            StorageUtilityMessage::RemoteError const* pError;
+            pc.get(pError);
+            message = beltpp::json::value_string::encode(pError->message);
+        }
+
+        result += "{";
+        result += "\"code\":false,";
+        result += "\"reason\":" + message;
+        result += "}";
+    }
+    return beltpp::http::http_response(ssd, result);
+}
+
+inline
+string storage_verify_response(beltpp::detail::session_special_data& ssd,
+                               beltpp::packet const& pc)
+{
+    string result;
+    if (pc.type() == StorageUtilityMessage::VerificationResponse::rtt)
+    {
+        result += "{";
+        result += "\"code\":true";
+        result += "}";
+    }
+    else
+    {
+        string message = "\"unknown\"";
+        if (pc.type() == StorageUtilityMessage::RemoteError::rtt)
+        {
+            StorageUtilityMessage::RemoteError const* pError;
+            pc.get(pError);
+            message = beltpp::json::value_string::encode(pError->message);
+        }
+
+        result += "{";
+        result += "\"code\":false,";
+        result += "\"reason\":" + message ;
+        result += "}";
+    }
     return beltpp::http::http_response(ssd, result);
 }
 
@@ -114,10 +161,10 @@ beltpp::detail::pmsg_all message_list_load(
         ssd.autoreply.clear();
 
         if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "storage_order")
+            pss->resource.path.size() == 1 &&
+            pss->resource.path.front() == "storage_order")
         {
-            ssd.session_specal_handler = &base64_response;
+            ssd.session_specal_handler = &storage_order_response;
             ssd.autoreply.clear();
 
             auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignRequest>();
@@ -128,8 +175,8 @@ beltpp::detail::pmsg_all message_list_load(
             ref.order.file_uri = pss->resource.arguments["file_uri"];
             ref.order.content_unit_uri = pss->resource.arguments["content_unit_uri"];
             ref.order.session_id = pss->resource.arguments["session_id"];
-            ref.order.seconds = 12;
-            ref.order.time_signed.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            ref.order.seconds = 3600;
+            ref.order.time_point.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignRequest::rtt,
@@ -137,28 +184,40 @@ beltpp::detail::pmsg_all message_list_load(
                                               &StorageUtilityMessage::SignRequest::pvoid_saver);
         }
         if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "verify")
+                 pss->resource.path.size() == 2 &&
+                 pss->resource.path.front() == "verify_order")
         {
-            ssd.session_specal_handler = &json_response;
+            ssd.session_specal_handler = &storage_verify_response;
             ssd.autoreply.clear();
 
             auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignedStorageOrder>();
             StorageUtilityMessage::SignedStorageOrder& ref = *reinterpret_cast<StorageUtilityMessage::SignedStorageOrder*>(p.get());
 
-            ref.order.storage_address = pss->resource.arguments["storage_address"];
-            ref.order.file_uri = pss->resource.arguments["file_uri"];
-            ref.order.content_unit_uri = pss->resource.arguments["content_unit_uri"];
-            ref.order.session_id = pss->resource.arguments["session_id"];
-            ref.order.seconds = 12;
-            ref.order.time_signed.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            ref.authorization.address = pss->resource.arguments["address"];
-            ref.authorization.signature = pss->resource.arguments["signature"];
+            try
+            {
+                ref.from_string(meshpp::from_base64(pss->resource.path.back()), putl);
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-            return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignedStorageOrder::rtt,
-                                              std::move(p),
-                                              &StorageUtilityMessage::SignedStorageOrder::pvoid_saver);
+                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+                return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignedStorageOrder::rtt,
+                                                  std::move(p),
+                                                  &StorageUtilityMessage::SignedStorageOrder::pvoid_saver);
+            }
+            catch(...)
+            {
+                ssd.session_specal_handler = nullptr;
+
+                string message("{\"code\":false,\"reason\":\"invalid storage_order\"}");
+
+                ssd.autoreply = beltpp::http::http_not_found(ssd,
+                                                             message);
+
+                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+
+                return ::beltpp::detail::pmsg_all(size_t(-1),
+                                                  ::beltpp::void_unique_nullptr(),
+                                                  nullptr);
+            }
+
         }
         else if (pss->type == beltpp::http::detail::scan_status::post &&
                 pss->resource.path.size() == 1 &&
