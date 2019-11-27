@@ -26,6 +26,8 @@ using std::vector;
 using std::unique_ptr;
 using std::unordered_set;
 
+#define NODES_TIME_SHIFT 60
+
 namespace storage_utility
 {
 rpc::rpc(ip_address const& rpc_bind_to_address,
@@ -113,48 +115,31 @@ bool rpc::run()
                     SignRequest msg_sign_request;
                     std::move(received_packet).get(msg_sign_request);
 
-                    string map_key;
-                    map_key =   msg_sign_request.private_key +
-                                msg_sign_request.order.storage_address +
-                                msg_sign_request.order.file_uri +
-                                msg_sign_request.order.content_unit_uri +
-                                msg_sign_request.order.session_id;
+                    meshpp::private_key pv(msg_sign_request.private_key);
 
-                    auto const& signed_storage_order_it = m_pimpl->cache_signed_storage_order.find(map_key);
-                    if (signed_storage_order_it != m_pimpl->cache_signed_storage_order.end())
+                    detail::rpc_internals::cache_key map_key;
+                    map_key.authority_address = pv.get_public_key().to_string();
+                    map_key.file_uri = msg_sign_request.order.file_uri;
+                    map_key.content_unit_uri = msg_sign_request.order.content_unit_uri;
+                    map_key.session_id = msg_sign_request.order.session_id;
+
+                    auto it = m_pimpl->cache_signed_storage_order.find(map_key);
+
+                    bool have_cache = false;
+                    if (it != m_pimpl->cache_signed_storage_order.end())
                     {
-                        chrono::system_clock::duration duration =
-                                chrono::system_clock::now() -
-                                chrono::system_clock::from_time_t(signed_storage_order_it->second.order.time_signed.tm);
+                        auto expiry_time_point =
+                                chrono::system_clock::from_time_t(it->second.order.time_point.tm) +
+                                chrono::seconds(it->second.order.seconds);
 
-                        uint64_t duration_seconds = uint64_t(chrono::duration_cast<chrono::seconds>(duration).count());
-
-                        if (signed_storage_order_it->second.order.seconds > duration_seconds)
-                        {
-                            psk->send(peerid, beltpp::packet(signed_storage_order_it->second));
-                        }
-                        else
-                        {
-                            meshpp::private_key pv(msg_sign_request.private_key);
-
-                            Authority authorization;
-                            authorization.address = pv.get_public_key().to_string();
-                            authorization.signature = pv.sign(msg_sign_request.order.to_string()).base58;
-
-                            SignedStorageOrder signed_storage_order;
-                            signed_storage_order.order = msg_sign_request.order;
-                            signed_storage_order.authorization = authorization;
-
-                            m_pimpl->cache_signed_storage_order.erase(map_key);
-                            m_pimpl->cache_signed_storage_order.insert(std::make_pair(map_key, signed_storage_order));
-
-                            psk->send(peerid, beltpp::packet(std::move(signed_storage_order)));
-                        }
+                        if (expiry_time_point > std::chrono::system_clock::now() + chrono::seconds(NODES_TIME_SHIFT))
+                            have_cache = true;
                     }
+
+                    if (have_cache)
+                        psk->send(peerid, beltpp::packet(it->second));
                     else
                     {
-                        meshpp::private_key pv(msg_sign_request.private_key);
-
                         Authority authorization;
                         authorization.address = pv.get_public_key().to_string();
                         authorization.signature = pv.sign(msg_sign_request.order.to_string()).base58;
@@ -163,7 +148,7 @@ bool rpc::run()
                         signed_storage_order.order = msg_sign_request.order;
                         signed_storage_order.authorization = authorization;
 
-                        m_pimpl->cache_signed_storage_order.insert(std::make_pair(map_key, signed_storage_order));
+                        m_pimpl->cache_signed_storage_order[map_key] = signed_storage_order;
 
                         psk->send(peerid, beltpp::packet(std::move(signed_storage_order)));
                     }
@@ -175,45 +160,23 @@ bool rpc::run()
                     SignedStorageOrder msg_verfy_sig_storage_order;
                     std::move(received_packet).get(msg_verfy_sig_storage_order);
 
-                    string message = msg_verfy_sig_storage_order.order.to_string();
+                    bool correct = meshpp::verify_signature(
+                                       msg_verfy_sig_storage_order.authorization.address,
+                                       msg_verfy_sig_storage_order.order.to_string(),
+                                       msg_verfy_sig_storage_order.authorization.signature);
 
-                    if ( meshpp::verify_signature(
-                                msg_verfy_sig_storage_order.authorization.address,
-                                message,
-                                msg_verfy_sig_storage_order.authorization.signature)
-                        )
+                    if (correct)
                     {
-                        chrono::system_clock::duration duration =
-                                chrono::system_clock::now() -
-                                chrono::system_clock::from_time_t(msg_verfy_sig_storage_order.order.time_signed.tm);
+                        VerificationResponse verify_response;
 
-                        uint64_t duration_seconds = uint64_t(chrono::duration_cast<chrono::seconds>(duration).count());
+                        verify_response.address = msg_verfy_sig_storage_order.authorization.address;
+                        verify_response.storage_order = std::move(msg_verfy_sig_storage_order.order);
 
-                        if (msg_verfy_sig_storage_order.order.seconds > duration_seconds)
-                        {
-                            VerificationResponse verify_response;
-
-                            verify_response.channel_address = msg_verfy_sig_storage_order.authorization.address;
-                            verify_response.storage_address = msg_verfy_sig_storage_order.order.storage_address;
-                            verify_response.file_uri = msg_verfy_sig_storage_order.order.file_uri;
-                            verify_response.content_unit_uri = msg_verfy_sig_storage_order.order.content_unit_uri;
-                            verify_response.session_id = msg_verfy_sig_storage_order.order.session_id;
-
-                            psk->send(peerid, beltpp::packet(std::move(verify_response)));
-                            break;
-                        }
-                        else
-                        {
-                            RemoteError remote_error;
-                            remote_error.message = "sign time expired";
-                            psk->send(peerid, beltpp::packet(remote_error));
-                        }
+                        psk->send(peerid, beltpp::packet(std::move(verify_response)));
                     }
                     else
                     {
-                        RemoteError remote_error;
-                        remote_error.message = "sign verification failed";
-                        psk->send(peerid, beltpp::packet(remote_error));
+                        throw std::runtime_error("invalid signature");
                     }
 
                     break;
@@ -221,7 +184,7 @@ bool rpc::run()
                 default:
                 {
                     m_pimpl->writeln_rpc("can't handle: " + std::to_string(received_packet.type()) +
-                                          ". peer: " + peerid);
+                                         ". peer: " + peerid);
 
                     break;
                 }
@@ -306,6 +269,7 @@ bool rpc::run()
 //            }
             catch (std::exception const& e)
             {
+
                 RemoteError msg;
                 msg.message = e.what();
                 psk->send(peerid, beltpp::packet(msg));
@@ -325,7 +289,22 @@ bool rpc::run()
     }
 
     if (wait_result & beltpp::event_handler::timer_out)
+    {
+        auto it = m_pimpl->cache_signed_storage_order.begin();
+        while (it != m_pimpl->cache_signed_storage_order.end())
+        {
+            auto expiry_time_point =
+                    chrono::system_clock::from_time_t(it->second.order.time_point.tm) +
+                    chrono::seconds(it->second.order.seconds);
+
+            if (expiry_time_point <= std::chrono::system_clock::now() + chrono::seconds(NODES_TIME_SHIFT))
+                it = m_pimpl->cache_signed_storage_order.erase(it);
+            else
+                ++it;
+        }
+
         m_pimpl->m_ptr_rpc_socket->timer_action();
+    }
 
     if (wait_result & beltpp::event_handler::on_demand)
     {
