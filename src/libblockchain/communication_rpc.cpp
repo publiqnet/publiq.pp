@@ -21,7 +21,7 @@ size_t get_action_size(beltpp::packet const& package)
                block_log.rewards.size() +
                block_log.transactions.size() +
                block_log.unit_uri_impacts.size() + 
-               block_log.unit_sponsor_applied.size();
+               block_log.applied_sponsor_items.size();
     }
 
     return 1;

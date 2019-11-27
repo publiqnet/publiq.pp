@@ -110,7 +110,7 @@ module BlockchainMessage
         Array RewardLog rewards
         Array TransactionLog transactions
         Array ContentUnitImpactLog unit_uri_impacts
-        Array SponsorContentUnitApplied unit_sponsor_applied
+        Array SponsorContentUnitApplied applied_sponsor_items
     }
 
     ///
