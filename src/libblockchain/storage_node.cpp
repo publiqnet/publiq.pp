@@ -125,6 +125,10 @@ bool storage_node::run()
                     StorageFileRequest file_info;
                     std::move(ref_packet).get(file_info);
 
+                    string channel_address;
+                    string content_unit_uri;
+                    // file_info.storage_order_token; // verify and get needed info
+
                     StorageFile file;
                     if (m_pimpl->m_storage.get(file_info.uri, file))
                     {
@@ -134,7 +138,11 @@ bool storage_node::run()
                             std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
                             Served msg;
                             msg.file_uri = file_info.uri;
-                            msg.peer_address = file_info.channel_address;
+                            //  content unit is available, but leave it empty
+                            //  work as before; later may review service statistics transactions
+                            //  that don't provide content unit info from storage node
+                            //msg.content_unit_uri = content_unit_uri; // need to get from storage_order_token
+                            msg.peer_address = channel_address; // need to get from storage_order_token
                             m_pimpl->m_messages.push_back(std::make_pair(beltpp::packet(), packet(std::move(msg))));
                             m_pimpl->m_master_node->wake();
                         }

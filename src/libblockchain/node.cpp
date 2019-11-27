@@ -558,7 +558,19 @@ bool node::run()
 
                     Served msg;
                     std::move(ref_packet).get(msg);
-                    m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+
+                    detail::service_counter::service_unit unit;
+                    detail::service_counter::service_unit_counter unit_counter;
+
+                    unit.file_uri = msg.file_uri;
+                    unit.content_unit_uri = msg.content_unit_uri;
+                    unit.peer_address = msg.peer_address;
+
+                    /*unit_counter.seconds;
+                    unit_counter.sesson_id;
+                    unit_counter.time_point;*/
+
+                    m_pimpl->service_counter.served(unit, unit_counter);
 
                     psk->send(peerid, beltpp::packet(Done()));
 #ifdef EXTRA_LOGGING
@@ -783,10 +795,21 @@ bool node::run()
                 std::move(ref_packet).get(msg);
                 if (m_pimpl->m_node_type == NodeType::storage &&
                     m_pimpl->m_state.get_role(msg.peer_address, peer_node_type) &&
-                    peer_node_type == NodeType::channel &&
+                    peer_node_type == NodeType::channel && // this will be verified before serving the file
                     m_pimpl->m_documents.file_exists(msg.file_uri))
                 {
-                    m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+                    detail::service_counter::service_unit unit;
+                    detail::service_counter::service_unit_counter unit_counter;
+
+                    unit.file_uri = msg.file_uri;
+                    unit.content_unit_uri = msg.content_unit_uri;
+                    unit.peer_address = msg.peer_address;
+
+                    /*unit_counter.seconds;
+                    unit_counter.sesson_id;
+                    unit_counter.time_point;*/
+
+                    m_pimpl->service_counter.served(unit, unit_counter);
 
 #ifdef EXTRA_LOGGING
                     m_pimpl->writeln_node("storage served");
@@ -1045,8 +1068,6 @@ void block_worker(detail::node_internals& impl)
             {
                 auto const& tp = vote_iter->second.tp;
                 assert (steady_clock_now >= tp);
-                if (tp > steady_clock_now)
-                    throw std::logic_error("just temporary");
 
                 if (steady_clock_now - tp >= std::chrono::seconds(SYNC_TIMER * 2))
                     vote_iter = impl.m_votes.erase(vote_iter);

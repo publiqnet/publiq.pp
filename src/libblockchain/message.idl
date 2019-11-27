@@ -399,6 +399,7 @@ module BlockchainMessage
         String file_uri
         String content_unit_uri
         String peer_address
+        String storage_order_token
     }
 
     class ContentUnitImpactLog
@@ -486,7 +487,7 @@ module BlockchainMessage
     class StorageFileRequest
     {
         String uri
-        String channel_address
+        String storage_order_token
     }
 
     class StorageFileDetails
