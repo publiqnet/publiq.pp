@@ -110,6 +110,7 @@ module BlockchainMessage
         Array RewardLog rewards
         Array TransactionLog transactions
         Array ContentUnitImpactLog unit_uri_impacts
+        Array SponsorContentUnitApplied unit_sponsor_applied
     }
 
     ///
@@ -411,7 +412,12 @@ module BlockchainMessage
         UInt64 view_count
     }
 
-    class ApiReserve7 {}
+    class SponsorContentUnitApplied
+    {
+        Coin amount 
+        String transaction_hash
+    }
+    
     class ApiReserve8 {}
     class ApiReserve9 {}
     class ApiReserve10 {}

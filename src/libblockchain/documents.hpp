@@ -64,7 +64,7 @@ public:
         sponsored_content_unit_set_used_revert
     };
 
-    std::map<std::string, coin>
+    std::map<std::string, std::map<std::string, coin>>
     sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
                                     std::string const& content_unit_uri,
                                     size_t block_number,

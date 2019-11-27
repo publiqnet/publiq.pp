@@ -1,7 +1,7 @@
 #pragma once
 
+#include "coin.hpp"
 #include "global.hpp"
-
 #include "message.hpp"
 
 #include <boost/filesystem/path.hpp>
@@ -30,7 +30,8 @@ public:
     size_t length() const;
 
     void log_block(BlockchainMessage::SignedBlock const& signed_block,
-                   std::map<std::string, std::map<std::string, uint64_t>> const& unit_uri_view_counts);
+                   std::map<std::string, std::map<std::string, uint64_t>> const& unit_uri_view_counts,
+                   std::map<std::string, coin> const& unit_sponsor_applied);
     void log_transaction(BlockchainMessage::SignedTransaction const& signed_transaction);
     void at(size_t number, BlockchainMessage::LoggedTransaction& action_info) const;
     void revert();

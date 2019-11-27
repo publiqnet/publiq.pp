@@ -476,15 +476,15 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
 }
 
-map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
-                                                             string const& content_unit_uri,
-                                                             size_t block_number,
-                                                             documents::e_sponsored_content_unit_set_used type,
-                                                             string const& transaction_hash_to_cancel,
-                                                             string const& manual_by_account,
-                                                             bool pretend)
+map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
+                                                                          string const& content_unit_uri,
+                                                                          size_t block_number,
+                                                                          documents::e_sponsored_content_unit_set_used type,
+                                                                          string const& transaction_hash_to_cancel,
+                                                                          string const& manual_by_account,
+                                                                          bool pretend)
 {
-    map<string, coin> result;
+    map<string, map<string, coin>> result;
 
     if (transaction_hash_to_cancel.empty() ||
         sponsored_content_unit_set_used_revert == type)
@@ -587,8 +587,7 @@ map<string, coin> documents::sponsored_content_unit_set_used(publiqpp::detail::n
                 if (part == coin())
                     throw std::logic_error("part == coin()");
 
-                coin& temp_result = result[item.sponsor_address];
-                temp_result += part;
+                result[item.sponsor_address][item.transaction_hash] = part;
 
                 if (false == manual_by_account.empty())
                 {

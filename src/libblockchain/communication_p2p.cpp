@@ -359,9 +359,11 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
                    //  uri         channel   views
-                   map<string, map<string, uint64_t>>& unit_uri_view_counts)
+                   map<string, map<string, uint64_t>>& unit_uri_view_counts,
+                   map<string, coin>& unit_sponsor_applied_amounts)
 {
     rewards.clear();
+    unit_sponsor_applied_amounts.clear();
 
     map<string, ServiceStatistics> channel_provided_statistics;
     map<string, ServiceStatistics> storage_provided_statistics;
@@ -453,7 +455,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     for (auto const& unit_uri : unit_uri_view_counts)
     {
-        map<string, coin> sponsored_rewards =
+        map<string, map<string, coin>> sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
                                                          unit_uri.first,
                                                          block_header.block_number,
@@ -464,7 +466,12 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                          string(),  //  manual_by_account
                                                          false);
         for (auto const& item : sponsored_rewards)
-            sponsored_reward += item.second;
+            for (auto const& it : item.second)
+            {
+                sponsored_reward += it.second;
+
+                unit_sponsor_applied_amounts[it.first] = it.second;
+            }
     }
 
     auto expirings = impl.m_documents.content_unit_uri_sponsor_expiring(block_header.block_number);
@@ -474,7 +481,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         auto const& expiring_item_transaction_hash = expiring_item.second;
         if (0 == unit_uri_view_counts.count(expiring_item_uri))
         {
-            map<string, coin> temp_sponsored_rewards =
+            map<string, map<string, coin>> temp_sponsored_rewards =
                                 impl.m_documents.sponsored_content_unit_set_used(impl,
                                                                                  expiring_item_uri,
                                                                                  block_header.block_number,
@@ -486,14 +493,15 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                                                  false);
 
             for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
-            {
-                assert(temp_sponsored_reward.second != coin());
-                if (temp_sponsored_reward.second == coin())
-                    throw std::logic_error("temp_sponsored_reward.second == coin()");
+                for(auto const& temp_detail : temp_sponsored_reward.second)
+                {
+                    assert(temp_detail.second != coin());
+                    if (temp_detail.second == coin())
+                        throw std::logic_error("temp_sponsored_reward.second == coin()");
 
-                auto& sponsored_reward_ref = sponsored_rewards_returns[temp_sponsored_reward.first];
-                sponsored_reward_ref += temp_sponsored_reward.second;
-            }
+                    auto& sponsored_reward_ref = sponsored_rewards_returns[temp_sponsored_reward.first];
+                    sponsored_reward_ref += temp_detail.second;
+                }
         }
     }
 
@@ -563,7 +571,8 @@ bool check_rewards(Block const& block,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
                    //  uri         channel   views
-                   map<string, map<string, uint64_t>>& unit_uri_view_counts)
+                   map<string, map<string, uint64_t>>& unit_uri_view_counts,
+                   map<string, coin>& unit_sponsor_applied)
 {
     vector<Reward> rewards;
     grant_rewards(block.signed_transactions,
@@ -572,7 +581,8 @@ bool check_rewards(Block const& block,
                   block.header,
                   type,
                   impl,
-                  unit_uri_view_counts);
+                  unit_uri_view_counts,
+                  unit_sponsor_applied);
 
     auto it1 = rewards.begin();
     auto it2 = block.rewards.begin();
@@ -1150,6 +1160,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     //  uri         channel   views
     map<string, map<string, uint64_t>> unit_uri_view_counts;
+    // tr_hash  amount
+    map<string, coin> unit_sponsor_applied;
     // grant rewards and move to block
     grant_rewards(block.signed_transactions,
                   block.rewards,
@@ -1157,7 +1169,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
                   block.header,
                   rewards_type::apply,
                   impl,
-                  unit_uri_view_counts);
+                  unit_uri_view_counts,
+                  unit_sponsor_applied);
 
     meshpp::signature sgn = impl.m_pv_key.sign(block.to_string());
 
@@ -1172,8 +1185,8 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     // insert to blockchain and action_log
     impl.m_blockchain.insert(signed_block);
-    impl.m_action_log.log_block(signed_block, unit_uri_view_counts);
-
+    impl.m_action_log.log_block(signed_block, unit_uri_view_counts, unit_sponsor_applied);
+    
     // apply back rest of the pool content to the state and action_log
     for (auto& signed_transaction : pool_transactions)
     {

@@ -543,7 +543,7 @@ public:
 
         // insert to blockchain and action_log
         m_blockchain.insert(signed_block);
-        m_action_log.log_block(signed_block, map<string, map<string, uint64_t>>());
+        m_action_log.log_block(signed_block, map<string, map<string, uint64_t>>(), map<string, coin>());
 
         save(guard);
     }
