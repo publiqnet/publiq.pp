@@ -65,6 +65,7 @@ namespace detail
 
 class service_counter
 {
+public:
     class service_unit
     {
     public:
@@ -79,8 +80,22 @@ class service_counter
                     peer_address == other.peer_address);
         }
     };
+    class service_unit_counter
+    {
+    public:
+        string sesson_id;
+        system_clock::time_point time_point;
+        uint64_t seconds;
 
-    struct hash
+        bool operator == (service_unit_counter const& other) const
+        {
+            return (sesson_id == other.sesson_id &&
+                    time_point == other.time_point &&
+                    seconds == other.seconds);
+        }
+    };
+private:
+    struct service_unit_hash
     {
         size_t operator()(service_unit const& value) const noexcept
         {
@@ -91,71 +106,135 @@ class service_counter
             return hash_value;
         }
     };
-public:
-    void served(string const& content_unit_uri,
-                string const& file_uri,
-                string const& peer_address)
+    struct service_unit_counter_hash
     {
-        service_unit unit;
-        unit.content_unit_uri = content_unit_uri;
-        unit.file_uri = file_uri;
-        unit.peer_address = peer_address;
+        size_t operator()(service_unit_counter const& value) const noexcept
+        {
+            size_t hash_value = 0xdeadbeef;
+            boost::hash_combine(hash_value, value.sesson_id);
+            boost::hash_combine(hash_value, system_clock::to_time_t(value.time_point));
+            boost::hash_combine(hash_value, value.seconds);
+            return hash_value;
+        }
+    };
 
-        ++m_served[unit];
+    using service_unit_counter_map = unordered_map<service_unit_counter, bool, service_unit_counter_hash>;
+public:
+    void served(service_unit const& unit,
+                service_unit_counter const& unit_counter)
+    {
+        auto now = system_clock::now();
+
+        if (now < unit_counter.time_point + chrono::seconds(NODES_TIME_SHIFT))
+            throw std::logic_error("now < unit_counter.time_point + chrono::seconds(NODES_TIME_SHIFT)");
+        if (now > unit_counter.time_point + chrono::seconds(unit_counter.seconds) + chrono::seconds(NODES_TIME_SHIFT))
+            throw std::logic_error("now > unitunit_countertime_point + chrono::seconds(unit_counter.seconds) + chrono::seconds(NODES_TIME_SHIFT)");
+
+        auto insert_res = m_served.insert({unit, service_unit_counter_map()});
+        insert_res.first->second.insert({unit_counter, false});
     }
 
     ServiceStatistics take_statistics_info()
     {
+        struct index_helper
+        {
+            string content_unit_uri;
+            string file_uri;
+
+            bool operator == (index_helper const& other) const
+            {
+                return (content_unit_uri == other.content_unit_uri &&
+                        file_uri == other.file_uri);
+            }
+        };
+        struct hash_index_helper
+        {
+            size_t operator()(index_helper const& value) const noexcept
+            {
+                size_t hash_value = 0xdeadbeef;
+                boost::hash_combine(hash_value, value.file_uri);
+                boost::hash_combine(hash_value, value.content_unit_uri);
+                return hash_value;
+            }
+        };
+
+        unordered_map<index_helper, size_t, hash_index_helper> index;
         ServiceStatistics service_statistics;
 
-        unordered_map<service_unit, size_t, hash> index;
+        auto now = system_clock::now();
 
-        for (auto const& item : m_served)
+        auto it = m_served.begin();
+        while (it != m_served.end())
         {
-            auto const& file_uri = item.first.file_uri;
-            auto const& content_unit_uri = item.first.content_unit_uri;
-
-            ServiceStatisticsFile* pstat_file = nullptr;
-
-            service_unit index_key;
-            index_key.content_unit_uri = content_unit_uri;
-            index_key.file_uri = file_uri;
-
-            auto insert_result = index.insert({
-                                                  index_key,
-                                                  service_statistics.file_items.size()
-                                              });
-            if (false == insert_result.second)
-            {
-                auto it = insert_result.first;
-                pstat_file = &service_statistics.file_items[it->second];
-            }
-            else
-            {
-                ServiceStatisticsFile stat_file_local;
-                stat_file_local.file_uri = file_uri;
-                stat_file_local.unit_uri = content_unit_uri;
-                service_statistics.file_items.push_back(stat_file_local);
-
-                pstat_file = &service_statistics.file_items.back();
-            }
-
-            ServiceStatisticsFile& stat_file = *pstat_file;
+            auto const& unit = it->first;
+            auto& unit_counter_map = it->second;
 
             ServiceStatisticsCount stat_count;
-            stat_count.peer_address = item.first.peer_address;
-            stat_count.count = item.second;
+            stat_count.peer_address = unit.peer_address;
 
-            stat_file.count_items.push_back(stat_count);
-        }
+            auto unit_counter_it = unit_counter_map.begin();
+            while (unit_counter_it != unit_counter_map.end())
+            {
+                auto const& unit_counter = unit_counter_it->first;
 
-        m_served.clear();
+                bool expired = false;
+                if (now > unit_counter.time_point + chrono::seconds(unit_counter.seconds) + chrono::seconds(NODES_TIME_SHIFT))
+                    expired = true;
+                bool& counted = unit_counter_it->second;
+
+                if (false == counted)
+                {
+                    ++stat_count.count;
+                    counted = true;
+                }
+
+                if (expired)
+                    unit_counter_it = unit_counter_map.erase(unit_counter_it);
+                else
+                    ++unit_counter_it;
+            }
+
+            if (stat_count.count)
+            {
+                auto const& file_uri = unit.file_uri;
+                auto const& content_unit_uri = unit.content_unit_uri;
+
+                ServiceStatisticsFile* pstat_file = nullptr;
+
+                auto insert_result = index.insert({
+                                                      {content_unit_uri, file_uri},
+                                                      service_statistics.file_items.size()
+                                                  });
+                if (false == insert_result.second)
+                {
+                    auto it = insert_result.first;
+                    pstat_file = &service_statistics.file_items[it->second];
+                }
+                else
+                {
+                    ServiceStatisticsFile stat_file_local;
+                    stat_file_local.file_uri = file_uri;
+                    stat_file_local.unit_uri = content_unit_uri;
+                    service_statistics.file_items.push_back(stat_file_local);
+
+                    pstat_file = &service_statistics.file_items.back();
+                }
+
+                ServiceStatisticsFile& stat_file = *pstat_file;
+                stat_file.count_items.push_back(stat_count);
+            }
+
+            if (unit_counter_map.empty())
+                it = m_served.erase(it);
+            else
+                ++it;
+        };
 
         return service_statistics;
     }
 
 private:
-    unordered_map<service_unit, uint64_t, hash> m_served;
+    unordered_map<service_unit, service_unit_counter_map, service_unit_hash> m_served;
 };
 
 class transaction_cache
