@@ -206,8 +206,7 @@ public:
                                                   });
                 if (false == insert_result.second)
                 {
-                    auto it = insert_result.first;
-                    pstat_file = &service_statistics.file_items[it->second];
+                    pstat_file = &service_statistics.file_items[insert_result.first->second];
                 }
                 else
                 {
