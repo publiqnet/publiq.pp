@@ -647,10 +647,10 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
 
                 if(temp_from == temp_to)
                     //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
-                    pimpl->writeln_node(s_code + " validating block " + std::to_string(temp_from) + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
+                    pimpl->writeln_node(s_code + " block " + std::to_string(temp_from) + " - " + blockchain_response.signed_blocks.back().authorization.address);
                 else
-                    pimpl->writeln_node(s_code + " validating blocks [" + std::to_string(temp_from) +
-                                        "," + std::to_string(temp_to) + "]" + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
+                    pimpl->writeln_node(s_code + " blocks [" + std::to_string(temp_from) +
+                                        "," + std::to_string(temp_to) + "]" + " - " + blockchain_response.signed_blocks.back().authorization.address);
             }
 
             process_response(header, std::move(blockchain_response));

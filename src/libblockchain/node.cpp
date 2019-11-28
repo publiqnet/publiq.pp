@@ -188,8 +188,8 @@ bool node::run()
                 case beltpp::isocket_join::rtt:
                 {
                     if (it == interface_type::p2p)
-                        m_pimpl->writeln_node("joined peer: " + detail::peer_short_names(peerid) + 
-                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
+                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) + 
+                                              " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -216,7 +216,7 @@ bool node::run()
                     {
                         m_pimpl->remove_peer(peerid);
                         m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid) +
-                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size()));
+                                              " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size()));
                     }
 
                     break;
