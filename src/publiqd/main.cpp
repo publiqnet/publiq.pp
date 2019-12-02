@@ -487,7 +487,7 @@ bool process_command_line(int argc, char** argv,
             ("sync_after_seconds", program_options::value<size_t>(&seconds_sync_delay),
                             "Node start mode")
             ("testnet", "Work in testnet blockchain")
-            ("resync-blockchain", "resync blockchain");
+            ("resync_blockchain", "resync blockchain");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -503,7 +503,7 @@ bool process_command_line(int argc, char** argv,
             throw std::runtime_error("");
         }
         testnet = options.count("testnet");
-        resync = options.count("resync-blockchain");
+        resync = options.count("resync_blockchain");
 
         p2p_bind_to_address.from_string(p2p_local_interface);
         if (false == rpc_local_interface.empty())
