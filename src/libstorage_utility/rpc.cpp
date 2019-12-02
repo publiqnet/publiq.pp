@@ -341,6 +341,14 @@ bool rpc::verify_storage_order(string const& storage_order_token,
 
     msg_verfy_sig_storage_order.from_string(meshpp::from_base64(storage_order_token), nullptr);
 
+    channel_address = msg_verfy_sig_storage_order.authorization.address;
+    storage_address = msg_verfy_sig_storage_order.order.storage_address;
+    file_uri = msg_verfy_sig_storage_order.order.file_uri;
+    content_unit_uri = msg_verfy_sig_storage_order.order.content_unit_uri;
+    session_id = msg_verfy_sig_storage_order.order.session_id;
+    seconds = msg_verfy_sig_storage_order.order.seconds;
+    tp = chrono::system_clock::from_time_t(msg_verfy_sig_storage_order.order.time_point.tm);
+
     if (msg_verfy_sig_storage_order.order.seconds != SIGN_SECONDS)
         return false;
 
@@ -359,14 +367,6 @@ bool rpc::verify_storage_order(string const& storage_order_token,
 
     if (false == correct)
         return false;
-
-    channel_address = msg_verfy_sig_storage_order.authorization.address;
-    storage_address = msg_verfy_sig_storage_order.order.storage_address;
-    file_uri = msg_verfy_sig_storage_order.order.file_uri;
-    content_unit_uri = msg_verfy_sig_storage_order.order.content_unit_uri;
-    session_id = msg_verfy_sig_storage_order.order.session_id;
-    seconds = msg_verfy_sig_storage_order.order.seconds;
-    tp = chrono::system_clock::from_time_t(msg_verfy_sig_storage_order.order.time_point.tm);
 
     return true;
 }
