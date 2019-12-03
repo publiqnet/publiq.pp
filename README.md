@@ -31,7 +31,7 @@ user@pc:~/projects/publiq.pp$ git submodule update --init --recursive
 user@pc:~/projects/publiq.pp$ cd ..
 user@pc:~/projects$ mkdir publiq.pp.build
 user@pc:~/projects$ cd publiq.pp.build
-user@pc:~/projects/publiq.pp.build$ cmake -DCMAKE_INSTALL_PREFIX=./install ../publiq.pp
+user@pc:~/projects/publiq.pp.build$ cmake -DCMAKE_INSTALL_PREFIX=./install -DCMAKE_BUILD_TYPE=Release ../publiq.pp
 user@pc:~/projects/publiq.pp.build$ cmake --build . --target install
 ```
 
