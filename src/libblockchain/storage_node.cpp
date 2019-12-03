@@ -329,6 +329,9 @@ bool storage_node::run()
                     m_pimpl->m_verified_channels.clear();
                     for (auto const& channel_address : channels.channel_addresses)
                         m_pimpl->m_verified_channels.insert(channel_address);
+
+                    response.set(Done());
+                    m_pimpl->m_master_node->wake();
                     break;
                 }
                 }
