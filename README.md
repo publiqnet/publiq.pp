@@ -39,17 +39,17 @@ user@pc:~/projects/publiq.pp.build$ cmake --build . --target install
 yes, we keep up with belt.pp and mesh.pp. those are essential parts of the project, so, if you're a developer contributing to mesh.pp and belt.pp too, then
 ```console
 user@pc:~$ cd projects/publiq.pp
-user@pc:~/projects$ cd src/belt.pp
-user@pc:~/projects/src/belt.pp$ git checkout master
-user@pc:~/projects/src/belt.pp$ git pull
-user@pc:~/projects/src/belt.pp$ cd ../..
-user@pc:~/projects$ cd src/mesh.pp
-user@pc:~/projects/src/mesh.pp$ cd src/belt.pp
-user@pc:~/projects/src/mesh.pp/src/belt.pp$ git checkout master
-user@pc:~/projects/src/mesh.pp/src/belt.pp$ git pull
-user@pc:~/projects/src/mesh.pp/src/belt.pp$ cd ../..
-user@pc:~/projects/src/mesh.pp$ git checkout master
-user@pc:~/projects/src/mesh.pp$ git pull
+user@pc:~/projects/publiq.pp$ cd src/belt.pp
+user@pc:~/projects/publiq.pp/src/belt.pp$ git checkout master
+user@pc:~/projects/publiq.pp/src/belt.pp$ git pull
+user@pc:~/projects/publiq.pp/src/belt.pp$ cd ../..
+user@pc:~/projects/publiq.pp$ cd src/mesh.pp
+user@pc:~/projects/publiq.pp/src/mesh.pp$ cd src/belt.pp
+user@pc:~/projects/publiq.pp/src/mesh.pp/src/belt.pp$ git checkout master
+user@pc:~/projects/publiq.pp/src/mesh.pp/src/belt.pp$ git pull
+user@pc:~/projects/publiq.pp/src/mesh.pp/src/belt.pp$ cd ../..
+user@pc:~/projects/publiq.pp/src/mesh.pp$ git checkout master
+user@pc:~/projects/publiq.pp/src/mesh.pp$ git pull
 ```
 as you see, belt.pp appears twice as a submodule, the other one that relies under mesh.pp, does not participate in the build process, we just keep up with it, to have proper repository history
 
