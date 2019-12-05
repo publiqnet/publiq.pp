@@ -32,6 +32,15 @@ public:
     void wake();
     bool run();
 
+    static bool verify_storage_order(std::string const& storage_order_token,
+                                     std::string& channel_address,
+                                     std::string& storage_address,
+                                     std::string& file_uri,
+                                     std::string& content_unit_uri,
+                                     std::string& session_id,
+                                     uint64_t& seconds,
+                                     std::chrono::system_clock::time_point& tp);
+
 private:
     std::unique_ptr<detail::rpc_internals> m_pimpl;
 };

@@ -60,7 +60,7 @@ size_t action_log::length() const
 
 void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block,
                            map<string, map<string, uint64_t>> const& unit_uri_view_counts,
-                           map<string, coin> const& unit_sponsor_applied)
+                           map<string, coin> const& applied_sponsor_items)
 {
     if (!m_pimpl->m_enabled)
         return;
@@ -116,13 +116,13 @@ void action_log::log_block(BlockchainMessage::SignedBlock const& signed_block,
         block_log.unit_uri_impacts.push_back(impact_log);
     }
 
-    for (auto const& item : unit_sponsor_applied)
+    for (auto const& item : applied_sponsor_items)
     {
         SponsorContentUnitApplied applied_log;
         item.second.to_Coin(applied_log.amount);
         applied_log.transaction_hash = item.first;
 
-        block_log.unit_sponsor_applied.push_back(applied_log);
+        block_log.applied_sponsor_items.push_back(applied_log);
     }
 
     insert(beltpp::packet(std::move(block_log)));

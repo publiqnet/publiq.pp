@@ -1,8 +1,10 @@
 #include "storage_node.hpp"
 #include "common.hpp"
 #include "storage_node_internals.hpp"
-
+#include "types.hpp"
 #include "open_container_packet.hpp"
+
+#include <publiq.pp/storage_utility_rpc.hpp>
 
 #include <vector>
 #include <string>
@@ -125,16 +127,45 @@ bool storage_node::run()
                     StorageFileRequest file_info;
                     std::move(ref_packet).get(file_info);
 
+                    string file_uri;
+
+                    if (m_pimpl->m_node_type == NodeType::storage)
+                    {
+                        string channel_address;
+                        string storage_address;
+                        string content_unit_uri;
+                        string session_id;
+                        uint64_t seconds;
+                        system_clock::time_point tp;
+
+                        if (false == storage_utility::rpc::verify_storage_order(file_info.storage_order_token,
+                                                                                channel_address,
+                                                                                storage_address,
+                                                                                file_uri,
+                                                                                content_unit_uri,
+                                                                                session_id,
+                                                                                seconds,
+                                                                                tp) ||
+                            storage_address != m_pimpl->m_pv_key.get_public_key().to_string() ||
+                            0 == m_pimpl->m_verified_channels.count(channel_address))
+                            file_uri.clear();
+                    }
+                    else
+                    {
+                        file_uri = file_info.uri;
+                    }
+
                     StorageFile file;
-                    if (m_pimpl->m_storage.get(file_info.uri, file))
+                    if (false == file_uri.empty() &&
+                        m_pimpl->m_storage.get(file_uri, file))
                     {
                         psk->send(peerid, beltpp::packet(std::move(file)));
 
+                        if (m_pimpl->m_node_type == NodeType::storage)
                         {
                             std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
                             Served msg;
-                            msg.file_uri = file_info.uri;
-                            msg.peer_address = file_info.channel_address;
+                            msg.storage_order_token = file_info.storage_order_token;
                             m_pimpl->m_messages.push_back(std::make_pair(beltpp::packet(), packet(std::move(msg))));
                             m_pimpl->m_master_node->wake();
                         }
@@ -233,10 +264,18 @@ bool storage_node::run()
             {
                 switch (request.type())
                 {
-                case StorageFile::rtt:
+                case StorageTypes::StorageFile::rtt:
                 {
+                    StorageTypes::StorageFile storage_file_ex;
+                    std::move(request).get(storage_file_ex);
+
+                    assert(storage_file_ex.storage_file.type() == BlockchainMessage::StorageFile::rtt);
+                    if (storage_file_ex.storage_file.type() != BlockchainMessage::StorageFile::rtt)
+                        throw std::logic_error("storage_file.storage_file.type() != BlockchainMessage::StorageFile::rtt");
+
                     StorageFile storage_file;
-                    std::move(request).get(storage_file);
+                    std::move(storage_file_ex.storage_file).get(storage_file);
+
                     string uri;
                     if (m_pimpl->m_storage.put(std::move(storage_file), uri))
                     {
@@ -255,10 +294,17 @@ bool storage_node::run()
                     m_pimpl->m_master_node->wake();
                     break;
                 }
-                case StorageFileDelete::rtt:
+                case StorageTypes::StorageFileDelete::rtt:
                 {
+                    StorageTypes::StorageFileDelete storage_file_delete_ex;
+                    std::move(request).get(storage_file_delete_ex);
+
+                    assert(storage_file_delete_ex.storage_file_delete.type() == BlockchainMessage::StorageFileDelete::rtt);
+                    if (storage_file_delete_ex.storage_file_delete.type() != BlockchainMessage::StorageFileDelete::rtt)
+                        throw std::logic_error("storage_file_delete_ex.storage_file_delete.type() != BlockchainMessage::StorageFileDelete::rtt");
+
                     StorageFileDelete storage_file_delete;
-                    std::move(request).get(storage_file_delete);
+                    std::move(storage_file_delete_ex.storage_file_delete).get(storage_file_delete);
 
                     if (m_pimpl->m_storage.remove(storage_file_delete.uri))
                     {
@@ -272,6 +318,19 @@ bool storage_node::run()
                         response.set(std::move(msg));
                     }
 
+                    m_pimpl->m_master_node->wake();
+                    break;
+                }
+                case StorageTypes::SetVerifiedChannels::rtt:
+                {
+                    StorageTypes::SetVerifiedChannels channels;
+                    std::move(request).get(channels);
+
+                    m_pimpl->m_verified_channels.clear();
+                    for (auto const& channel_address : channels.channel_addresses)
+                        m_pimpl->m_verified_channels.insert(channel_address);
+
+                    response.set(Done());
                     m_pimpl->m_master_node->wake();
                     break;
                 }

@@ -9,6 +9,10 @@
 #include "open_container_packet.hpp"
 #include "sessions.hpp"
 #include "message.tmpl.hpp"
+#include "storage_node_internals.hpp"
+#include "types.hpp"
+
+#include <publiq.pp/storage_utility_rpc.hpp>
 
 #include <vector>
 #include <string>
@@ -184,8 +188,8 @@ bool node::run()
                 case beltpp::isocket_join::rtt:
                 {
                     if (it == interface_type::p2p)
-                        m_pimpl->writeln_node("joined peer: " + detail::peer_short_names(peerid) + 
-                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
+                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) + 
+                                              " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
                     if (psk == m_pimpl->m_ptr_p2p_socket.get())
                     {
@@ -212,7 +216,7 @@ bool node::run()
                     {
                         m_pimpl->remove_peer(peerid);
                         m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid) +
-                                              " -> total peers:" + std::to_string(m_pimpl->m_p2p_peers.size()));
+                                              " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size()));
                     }
 
                     break;
@@ -558,7 +562,27 @@ bool node::run()
 
                     Served msg;
                     std::move(ref_packet).get(msg);
-                    m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+
+                    detail::service_counter::service_unit unit;
+                    detail::service_counter::service_unit_counter unit_counter;
+
+                    string channel_address;
+                    string& storage_address = unit.peer_address;
+
+                    if (false == storage_utility::rpc::verify_storage_order(msg.storage_order_token,
+                                                                            channel_address,
+                                                                            storage_address,
+                                                                            unit.file_uri,
+                                                                            unit.content_unit_uri,
+                                                                            unit_counter.session_id,
+                                                                            unit_counter.seconds,
+                                                                            unit_counter.time_point))
+                        throw wrong_request_exception("wrong storage order token");
+
+                    if (channel_address != m_pimpl->m_pb_key.to_string())
+                        throw wrong_request_exception("channel_address != m_pimpl->m_pb_key.to_string()");
+
+                    m_pimpl->service_counter.served(unit, unit_counter);
 
                     psk->send(peerid, beltpp::packet(Done()));
 #ifdef EXTRA_LOGGING
@@ -779,19 +803,36 @@ bool node::run()
             {
                 Served msg;
 
-                NodeType peer_node_type;
                 std::move(ref_packet).get(msg);
-                if (m_pimpl->m_node_type == NodeType::storage &&
-                    m_pimpl->m_state.get_role(msg.peer_address, peer_node_type) &&
-                    peer_node_type == NodeType::channel &&
-                    m_pimpl->m_documents.file_exists(msg.file_uri))
+                if (m_pimpl->m_node_type == NodeType::storage)
                 {
-                    m_pimpl->service_counter.served(msg.content_unit_uri, msg.file_uri, msg.peer_address);
+                    detail::service_counter::service_unit unit;
+                    detail::service_counter::service_unit_counter unit_counter;
+
+                    string& channel_address = unit.peer_address;
+                    string storage_address;
+
+                    if (storage_utility::rpc::verify_storage_order(msg.storage_order_token,
+                                                                   channel_address,
+                                                                   storage_address,
+                                                                   unit.file_uri,
+                                                                   unit.content_unit_uri,
+                                                                   unit_counter.session_id,
+                                                                   unit_counter.seconds,
+                                                                   unit_counter.time_point) &&
+                        storage_address == m_pimpl->m_pb_key.to_string() &&
+                        m_pimpl->m_documents.file_exists(unit.file_uri))
+                    {
+                        unit.content_unit_uri.clear(); // simulate the old behavior
+
+                        m_pimpl->service_counter.served(unit, unit_counter);
 
 #ifdef EXTRA_LOGGING
-                    m_pimpl->writeln_node("storage served");
-                    m_pimpl->writeln_node(msg.to_string());
+                        m_pimpl->writeln_node("storage served");
+                        m_pimpl->writeln_node(msg.to_string());
 #endif
+                    }
+
                 }
                 break;
             }
@@ -870,6 +911,30 @@ bool node::run()
                                            std::move(actions),
                                            chrono::minutes(1));
         });
+
+        // collect verified channel addresses and send to slave node
+        if (m_pimpl->m_node_type == NodeType::storage &&
+            m_pimpl->m_slave_node)
+        {
+            StorageTypes::SetVerifiedChannels set_channels;
+
+            PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
+            for (auto const& item : public_addresses.addresses_info)
+            {
+                if (item.seconds_since_checked > 2 * PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                    break;
+
+                NodeType check_role;
+                if (m_pimpl->m_state.get_role(item.node_address, check_role) &&
+                    check_role == NodeType::channel)
+                {
+                    set_channels.channel_addresses.push_back(item.node_address);
+                }
+            }
+
+            m_pimpl->m_slave_node->send(beltpp::packet(std::move(set_channels)));
+            m_pimpl->m_slave_node->wake();
+        }
     }
 
     // init sync process and block mining
@@ -963,6 +1028,7 @@ bool node::run()
 void node::set_slave_node(storage_node& slave_node)
 {
     m_pimpl->m_slave_node = &slave_node;
+    m_pimpl->m_slave_node->m_pimpl->m_node_type = m_pimpl->m_node_type;
 }
 
 //  free functions
@@ -1045,8 +1111,6 @@ void block_worker(detail::node_internals& impl)
             {
                 auto const& tp = vote_iter->second.tp;
                 assert (steady_clock_now >= tp);
-                if (tp > steady_clock_now)
-                    throw std::logic_error("just temporary");
 
                 if (steady_clock_now - tp >= std::chrono::seconds(SYNC_TIMER * 2))
                     vote_iter = impl.m_votes.erase(vote_iter);

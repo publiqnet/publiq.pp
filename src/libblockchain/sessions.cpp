@@ -6,6 +6,7 @@
 #include "node_internals.hpp"
 #include "exception.hpp"
 #include "transaction_handler.hpp"
+#include "types.hpp"
 
 #include <belt.pp/utility.hpp>
 #include <belt.pp/scope_helper.hpp>
@@ -646,10 +647,10 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
 
                 if(temp_from == temp_to)
                     //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
-                    pimpl->writeln_node(s_code + " validating block " + std::to_string(temp_from) + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
+                    pimpl->writeln_node(s_code + " block " + std::to_string(temp_from) + " - " + blockchain_response.signed_blocks.back().authorization.address);
                 else
-                    pimpl->writeln_node(s_code + " validating blocks [" + std::to_string(temp_from) +
-                                        "," + std::to_string(temp_to) + "]" + " miner - " + blockchain_response.signed_blocks.back().authorization.address);
+                    pimpl->writeln_node(s_code + " blocks [" + std::to_string(temp_from) +
+                                        "," + std::to_string(temp_to) + "]" + " - " + blockchain_response.signed_blocks.back().authorization.address);
             }
 
             process_response(header, std::move(blockchain_response));
@@ -921,14 +922,14 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         }
 
         map<string, map<string, uint64_t>> unit_uri_view_counts;
-        map<string, coin> unit_sponsor_applied;
+        map<string, coin> applied_sponsor_items;
         // verify block rewards
         if (check_rewards(block,
                           signed_block.authorization.address,
                           rewards_type::apply,
                           *pimpl,
                           unit_uri_view_counts,
-                          unit_sponsor_applied))
+                          applied_sponsor_items))
             return set_errored("block response - " + std::to_string(block.header.block_number) + ". block rewards!", throw_for_debugging_only);
 
         // increase all reward amounts to balances
@@ -937,7 +938,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         // Insert to blockchain
         pimpl->m_blockchain.insert(signed_block);
-        pimpl->m_action_log.log_block(signed_block, unit_uri_view_counts, unit_sponsor_applied);
+        pimpl->m_action_log.log_block(signed_block, unit_uri_view_counts, applied_sponsor_items);
 
         c_const = block.header.c_const;
     }
@@ -1177,7 +1178,10 @@ session_action_save_file::~session_action_save_file()
 
 void session_action_save_file::initiate(meshpp::session_header&/* header*/)
 {
-    pimpl->m_slave_node->send(beltpp::packet(std::move(file)));
+    StorageTypes::StorageFile file_ex;
+    file_ex.storage_file.set(std::move(file));
+
+    pimpl->m_slave_node->send(beltpp::packet(std::move(file_ex)));
     pimpl->m_slave_node->wake();
     expected_next_package_type = BlockchainMessage::StorageFileAddress::rtt;
 }
@@ -1263,9 +1267,13 @@ session_action_delete_file::~session_action_delete_file()
 
 void session_action_delete_file::initiate(meshpp::session_header&/* header*/)
 {
-    StorageFileDelete msg;
-    msg.uri = uri;
-    pimpl->m_slave_node->send(beltpp::packet(std::move(msg)));
+    StorageFileDelete storage_file_delete;
+    storage_file_delete.uri = uri;
+
+    StorageTypes::StorageFileDelete storage_file_delete_ex;
+    storage_file_delete_ex.storage_file_delete.set(std::move(storage_file_delete));
+
+    pimpl->m_slave_node->send(beltpp::packet(std::move(storage_file_delete_ex)));
     pimpl->m_slave_node->wake();
     expected_next_package_type = BlockchainMessage::Done::rtt;
 }

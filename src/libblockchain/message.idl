@@ -110,7 +110,7 @@ module BlockchainMessage
         Array RewardLog rewards
         Array TransactionLog transactions
         Array ContentUnitImpactLog unit_uri_impacts
-        Array SponsorContentUnitApplied unit_sponsor_applied
+        Array SponsorContentUnitApplied applied_sponsor_items
     }
 
     ///
@@ -396,9 +396,7 @@ module BlockchainMessage
 
     class Served
     {
-        String file_uri
-        String content_unit_uri
-        String peer_address
+        String storage_order_token
     }
 
     class ContentUnitImpactLog
@@ -486,7 +484,7 @@ module BlockchainMessage
     class StorageFileRequest
     {
         String uri
-        String channel_address
+        String storage_order_token
     }
 
     class StorageFileDetails

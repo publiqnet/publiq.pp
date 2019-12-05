@@ -21,7 +21,6 @@
 #include <memory>
 #include <utility>
 #include <vector>
-#include <map>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -37,7 +36,6 @@ using peer_id = socket::peer_id;
 using std::pair;
 using std::string;
 using std::vector;
-using std::map;
 using std::unique_ptr;
 using std::unordered_set;
 using std::unordered_map;
@@ -88,7 +86,35 @@ public:
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 
-    std::map<string, SignedStorageOrder>  cache_signed_storage_order;
+    struct cache_key
+    {
+        string authority_address;
+        string file_uri;
+        string content_unit_uri;
+        string session_id;
+
+        bool operator == (cache_key const& other) const
+        {
+            return (authority_address == other.authority_address &&
+                    file_uri == other.file_uri &&
+                    content_unit_uri == other.content_unit_uri &&
+                    session_id == other.session_id);
+        }
+    };
+    struct hash_cache_key
+    {
+        size_t operator()(cache_key const& value) const noexcept
+        {
+            size_t hash_value = 0xdeadbeef;
+            boost::hash_combine(hash_value, value.authority_address);
+            boost::hash_combine(hash_value, value.file_uri);
+            boost::hash_combine(hash_value, value.content_unit_uri);
+            boost::hash_combine(hash_value, value.session_id);
+            return hash_value;
+        }
+    };
+
+    std::unordered_map<cache_key, SignedStorageOrder, hash_cache_key> cache_signed_storage_order;
 
     beltpp::ip_address m_rpc_bind_to_address;
 };

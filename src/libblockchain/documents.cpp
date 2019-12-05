@@ -587,7 +587,11 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
                 if (part == coin())
                     throw std::logic_error("part == coin()");
 
-                result[item.sponsor_address][item.transaction_hash] = part;
+                auto& temp_result = result[item.sponsor_address];
+
+                auto insert_result = temp_result.insert({item.transaction_hash, part});
+                if (false == insert_result.second)
+                    throw std::logic_error("temp_result.insert({item.transaction_hash, part})");
 
                 if (false == manual_by_account.empty())
                 {

@@ -92,6 +92,7 @@ target_link_libraries(blockchain
         systemutility
         cryptoutility
         sessionutility
+        storage_utility
         log)
 
 # what to do on make install

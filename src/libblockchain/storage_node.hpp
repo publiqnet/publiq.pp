@@ -21,6 +21,7 @@ namespace detail
 
 class BLOCKCHAINSHARED_EXPORT storage_node
 {
+    friend class node;
 public:
     storage_node(node& master_node,
                  beltpp::ip_address const& rpc_bind_to_address,

@@ -28,6 +28,7 @@
 #include <list>
 #include <utility>
 #include <mutex>
+#include <unordered_set>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -68,6 +69,7 @@ public:
         beltpp::ilog* _plogger_storage_node)
         : m_master_node(&master_node)
         , plogger_storage_node(_plogger_storage_node)
+        , m_node_type(NodeType::blockchain)
         , m_ptr_eh(new beltpp::event_handler())
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_storage_sf>(*m_ptr_eh)
@@ -98,6 +100,7 @@ public:
 
     node* m_master_node;
     beltpp::ilog* plogger_storage_node;
+    NodeType m_node_type;
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 
@@ -107,6 +110,8 @@ public:
 
     std::mutex m_messages_mutex;
     list<pair<beltpp::packet, beltpp::packet>> m_messages;
+
+    unordered_set<string> m_verified_channels;
 };
 
 }
