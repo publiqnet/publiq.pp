@@ -195,6 +195,7 @@ void action_log::revert()
     // revert last valid action
     LoggedTransaction action_revert_info;
     at(index, action_revert_info);
+    assert(action_revert_info.logging_type == LoggingType::apply);
     action_revert_info.logging_type = LoggingType::revert;
     m_pimpl->m_actions.push_back(action_revert_info);
 
