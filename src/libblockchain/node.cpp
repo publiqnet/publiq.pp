@@ -851,7 +851,7 @@ bool node::run()
         m_pimpl->m_broadcast_timer.update();
 
         size_t pool_size = m_pimpl->m_transaction_pool.length();
-        if (pool_size > 0)
+        if (pool_size > 0 && m_pimpl->blockchain_updated())
         {
             //m_pimpl->writeln_node("broadcasting old stored transactions to all peers");
 

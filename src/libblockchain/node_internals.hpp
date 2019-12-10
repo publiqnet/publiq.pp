@@ -625,6 +625,19 @@ public:
         save(guard);
     }
 
+    bool blockchain_updated()
+    {
+        auto const last_header = m_blockchain.last_header();
+
+        chrono::system_clock::duration last_block_age =
+            chrono::system_clock::now() -
+            chrono::system_clock::from_time_t(last_header.time_signed.tm);
+
+        double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
+
+        return last_block_age_seconds < BLOCK_MINE_DELAY;
+    }
+
     storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;

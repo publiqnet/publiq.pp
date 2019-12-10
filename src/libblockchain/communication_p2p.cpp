@@ -1233,8 +1233,12 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
 void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    //  don't do anything if there are no peers
+    //  don't broadcast if there are no peers
     if (m_pimpl->m_p2p_peers.empty())
+        return;
+
+    //  don't broadcast if blockchain is not synced
+    if (false == m_pimpl->blockchain_updated())
         return;
 
     NodeType my_state_type;
