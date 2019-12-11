@@ -678,9 +678,8 @@ public:
 
     struct vote_info
     {
-        enum vote_type {approve, reject};
         coin stake;
-        vote_type type;
+        string block_hash;
         std::chrono::steady_clock::time_point tp;
     };
 
