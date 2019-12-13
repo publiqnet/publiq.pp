@@ -1057,6 +1057,63 @@ void block_worker(detail::node_internals& impl)
     session_action_block::reason reason_scan_least_revert_approved_winner;
     session_action_block::reason reason_scan_most_approved_revert;
 
+    ///  clean old entries from votes map
+    //
+    auto const steady_clock_now = std::chrono::steady_clock::now();
+    auto vote_iter = impl.m_votes.begin();
+    while (vote_iter != impl.m_votes.end())
+    {
+        auto const& tp = vote_iter->second.tp;
+        assert (steady_clock_now >= tp);
+
+        if (steady_clock_now - tp >= std::chrono::seconds(SYNC_TIMER * 2))
+            vote_iter = impl.m_votes.erase(vote_iter);
+        else
+            ++vote_iter;
+    }
+
+    ///  update the votes map, to consider latest sync responses
+    //
+    // get the ip addresses
+    unordered_map<string, string> map_nodeid_ip_address;
+    for (auto const& peerid : impl.m_p2p_peers)
+        map_nodeid_ip_address[peerid] = impl.m_ptr_p2p_socket->info_connection(peerid).remote.address;
+
+    PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
+
+    for (auto const& item : public_addresses.addresses_info)
+    {
+        if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+            break;
+        if (impl.m_p2p_peers.count(item.node_address))
+            continue;
+
+        map_nodeid_ip_address[item.node_address] = item.ip_address.local.address;
+    }
+
+    // use the ip addresses, to keep one vote per ip address
+    for (auto const& item : impl.all_sync_info.sync_responses)
+    {
+        auto it_ip_address = map_nodeid_ip_address.find(item.first);
+        if (it_ip_address == map_nodeid_ip_address.end())
+            continue;
+        string str_ip_address = it_ip_address->second;
+        auto& replacing = impl.m_votes[str_ip_address];
+        auto voting = detail::node_internals::vote_info{
+                          impl.m_state.get_balance(item.first, state_layer::pool),
+                          item.second.own_header.block_hash,
+                          steady_clock_now};
+        if (voting.stake <= replacing.stake)
+            continue;
+
+        /*if (item.second.own_header == it->second.headers.front())
+            voting.type = detail::node_internals::vote_info::approve;
+        else
+            voting.type = detail::node_internals::vote_info::reject;*/
+
+        replacing = voting;
+    }
+
     for (auto it = impl.all_sync_info.headers_actions_data.begin();
          it != impl.all_sync_info.headers_actions_data.end();
          ++it)
@@ -1089,57 +1146,6 @@ void block_worker(detail::node_internals& impl)
 
         if (unsafe_time_to_revert)
         {
-            unordered_map<string, string> map_nodeid_ip_address;
-            for (auto const& peerid : impl.m_p2p_peers)
-                map_nodeid_ip_address[peerid] = impl.m_ptr_p2p_socket->info_connection(peerid).remote.address;
-
-            PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
-
-            for (auto const& item : public_addresses.addresses_info)
-            {
-                if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
-                    break;
-                if (impl.m_p2p_peers.count(item.node_address))
-                    continue;
-
-                map_nodeid_ip_address[item.node_address] = item.ip_address.local.address;
-            }
-
-            auto const steady_clock_now = std::chrono::steady_clock::now();
-            auto vote_iter = impl.m_votes.begin();
-            while (vote_iter != impl.m_votes.end())
-            {
-                auto const& tp = vote_iter->second.tp;
-                assert (steady_clock_now >= tp);
-
-                if (steady_clock_now - tp >= std::chrono::seconds(SYNC_TIMER * 2))
-                    vote_iter = impl.m_votes.erase(vote_iter);
-                else
-                    ++vote_iter;
-            }
-
-            for (auto const& item : impl.all_sync_info.sync_responses)
-            {
-                auto it_ip_address = map_nodeid_ip_address.find(item.first);
-                if (it_ip_address == map_nodeid_ip_address.end())
-                    continue;
-                string str_ip_address = it_ip_address->second;
-                auto& replacing = impl.m_votes[str_ip_address];
-                auto voting = detail::node_internals::vote_info{
-                                  impl.m_state.get_balance(item.first, state_layer::pool),
-                                  detail::node_internals::vote_info::approve,
-                                  steady_clock_now};
-                if (voting.stake <= replacing.stake)
-                    continue;
-
-                if (item.second.own_header == it->second.headers.front())
-                    voting.type = detail::node_internals::vote_info::approve;
-                else
-                    voting.type = detail::node_internals::vote_info::reject;
-
-                replacing = voting;
-            }
-
             coin approve, reject;
             size_t poll_participants = 0;
             size_t poll_participants_with_stake = 0;
@@ -1151,26 +1157,21 @@ void block_worker(detail::node_internals& impl)
                 if (vote.stake != coin())
                     ++poll_participants_with_stake;
 
-                if (vote.type == detail::node_internals::vote_info::approve)
+                if (vote.block_hash == it->second.headers.front().block_hash)
                     approve += vote.stake + coin(1,0);
                 else
                     reject += vote.stake + coin(1,0);
             }
 
-            auto own_vote = std::make_pair(
+            auto own_vote = detail::node_internals::vote_info{
                                 impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool),
-                                detail::node_internals::vote_info::approve);
+                                impl.m_blockchain.last_header_ex().block_hash,
+                                steady_clock_now};
             {
-                if (impl.m_blockchain.last_header_ex() == it->second.headers.front())
-                {
-                    own_vote.second = detail::node_internals::vote_info::approve;
-                    approve += own_vote.first + coin(1,0);
-                }
+                if (own_vote.block_hash == it->second.headers.front().block_hash)
+                    approve += own_vote.stake + coin(1,0);
                 else
-                {
-                    own_vote.second = detail::node_internals::vote_info::reject;
-                    reject += own_vote.first + coin(1,0);
-                }
+                    reject += own_vote.stake + coin(1,0);
             }
 
             if (approve > reject &&
@@ -1193,7 +1194,7 @@ void block_worker(detail::node_internals& impl)
             }
 
             if (approve > scan_most_approved_revert &&
-                approve > own_vote.first &&
+                approve > own_vote.stake &&
                 poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
                 poll_participants_with_stake > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) &&
                 (
