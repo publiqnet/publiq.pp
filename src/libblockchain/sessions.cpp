@@ -878,14 +878,14 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         // add TRANSACTION_MAX_LIFETIME_HOURS old block transactions to cache
         // to prevent transaction double use when reverting long chains
 
-        uint64_t block_count_per_transaction_lifetime = TRANSACTION_MAX_LIFETIME_HOURS * 3600 / BLOCK_MINE_DELAY; // 144 or something around
+        uint64_t block_count_per_transaction_lifetime = TRANSACTION_MAX_LIFETIME_HOURS * 3600 / BLOCK_MINE_DELAY; // =144
 
         if (index >= block_count_per_transaction_lifetime)
         {
             Block const& block_to_cache = pimpl->m_blockchain.at(index - block_count_per_transaction_lifetime).block_details;
             
-            for (auto it = block_to_cache.signed_transactions.crbegin(); it != block_to_cache.signed_transactions.crend(); ++it)
-                pimpl->m_transaction_cache.add_chain(*it);
+            for (auto const& old_tr : block_to_cache.signed_transactions)
+                pimpl->m_transaction_cache.add_chain(old_tr);
         }
     }
     //  update the variable, just in case it will be needed down the code

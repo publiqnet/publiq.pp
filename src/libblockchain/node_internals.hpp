@@ -633,9 +633,9 @@ public:
             chrono::system_clock::now() -
             chrono::system_clock::from_time_t(last_header.time_signed.tm);
 
-        double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
+        // maybe need to change this funtion to tell when the block is even more older
 
-        return last_block_age_seconds < BLOCK_MINE_DELAY;
+        return last_block_age < chrono::seconds(BLOCK_MINE_DELAY);
     }
 
     storage_node* m_slave_node;
