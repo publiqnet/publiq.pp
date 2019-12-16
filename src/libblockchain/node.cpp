@@ -1045,8 +1045,9 @@ void block_worker(detail::node_internals& impl)
             chrono::system_clock::from_time_t(last_header.time_signed.tm);
 
     double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
+    double last_block_age_blocks = last_block_age_seconds / BLOCK_MINE_DELAY;
 
-    double revert_fraction = std::min(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
+    double revert_fraction = std::min(1.0, last_block_age_blocks);
 
     auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
     auto it_scan_least_revert_approved_winner = impl.all_sync_info.headers_actions_data.end();
@@ -1105,11 +1106,6 @@ void block_worker(detail::node_internals& impl)
                           steady_clock_now};
         if (voting.stake <= replacing.stake)
             continue;
-
-        /*if (item.second.own_header == it->second.headers.front())
-            voting.type = detail::node_internals::vote_info::approve;
-        else
-            voting.type = detail::node_internals::vote_info::reject;*/
 
         replacing = voting;
     }
@@ -1249,6 +1245,12 @@ void block_worker(detail::node_internals& impl)
     {
         it_chosen = it_scan_most_approved_revert;
         t_reason = reason_scan_most_approved_revert;
+    }
+    else
+    {
+        impl.writeln_node_warning("has stuck on block_worker");
+        if (last_block_age_blocks > 1)
+            impl.writeln_node_warning("has stuck on an old blockchain");
     }
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
