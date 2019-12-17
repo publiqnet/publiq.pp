@@ -1175,8 +1175,6 @@ void block_worker(detail::node_internals& impl)
                         std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) :
                         1;
 
-            impl.writeln_node("poll_participants_with_stake_treshhold: " + std::to_string(poll_participants_with_stake_treshhold));
-
             if (approve > reject &&
                 poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)) &&
                 poll_participants_with_stake > poll_participants_with_stake_treshhold)
