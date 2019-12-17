@@ -1170,9 +1170,16 @@ void block_worker(detail::node_internals& impl)
                     reject += own_vote.stake + coin(1,0);
             }
 
+            uint64_t const poll_participants_with_stake_treshhold =
+                    false == impl.m_testnet ?
+                        std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) :
+                        1;
+
+            impl.writeln_node("poll_participants_with_stake_treshhold: " + std::to_string(poll_participants_with_stake_treshhold));
+
             if (approve > reject &&
                 poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)) &&
-                poll_participants_with_stake > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)))
+                poll_participants_with_stake > poll_participants_with_stake_treshhold)
             {
                 if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner &&
                     it_scan_least_revert_approved_winner->second.headers.front() != it->second.headers.front())
@@ -1192,7 +1199,7 @@ void block_worker(detail::node_internals& impl)
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.stake &&
                 poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
-                poll_participants_with_stake > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) &&
+                poll_participants_with_stake > poll_participants_with_stake_treshhold &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1248,8 +1255,7 @@ void block_worker(detail::node_internals& impl)
     }
     else
     {
-        impl.writeln_node_warning("has stuck on block_worker");
-        if (last_block_age_blocks > 1)
+        if (last_block_age_blocks > 3)
             impl.writeln_node_warning("has stuck on an old blockchain");
     }
 
