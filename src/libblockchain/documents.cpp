@@ -45,8 +45,8 @@ public:
                         filesystem::path const& path_storages)
         : m_files("file", path_documents, 10000, detail::get_putl())
         , m_units("unit", path_documents, 10000, detail::get_putl())
-        , m_contents("content", path_documents, 10000, detail::get_putl())
         , m_storages("storages", path_storages, 10000, get_putl_types())
+        , m_file_requests("file_requests", path_storages, 1000, get_putl_types())
         , m_content_unit_sponsored_information("content_unit_info", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_expiring("sponsored_info_expiring", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_hash_to_block("sponsored_info_hash_to_block", path_documents, 10000, get_putl_types())
@@ -54,8 +54,8 @@ public:
 
     meshpp::map_loader<File> m_files;
     meshpp::map_loader<ContentUnit> m_units;
-    meshpp::map_loader<Content> m_contents;
     meshpp::map_loader<StorageTypes::FileUriHolders> m_storages;
+    meshpp::map_loader<StorageTypes::FileRequest> m_file_requests;
     meshpp::map_loader<StorageTypes::ContentUnitSponsoredInformation> m_content_unit_sponsored_information;
     meshpp::map_loader<StorageTypes::SponsoredInformationHeaders> m_sponsored_informations_expiring;
     meshpp::map_loader<StorageTypes::TransactionHashToBlockNumber> m_sponsored_informations_hash_to_block;
@@ -75,8 +75,8 @@ void documents::save()
         return;
     m_pimpl->m_files.save();
     m_pimpl->m_units.save();
-    m_pimpl->m_contents.save();
     m_pimpl->m_storages.save();
+    m_pimpl->m_file_requests.save();
     m_pimpl->m_content_unit_sponsored_information.save();
     m_pimpl->m_sponsored_informations_expiring.save();
     m_pimpl->m_sponsored_informations_hash_to_block.save();
@@ -88,8 +88,8 @@ void documents::commit()
         return;
     m_pimpl->m_files.commit();
     m_pimpl->m_units.commit();
-    m_pimpl->m_contents.commit();
     m_pimpl->m_storages.commit();
+    m_pimpl->m_file_requests.commit();
     m_pimpl->m_content_unit_sponsored_information.commit();
     m_pimpl->m_sponsored_informations_expiring.commit();
     m_pimpl->m_sponsored_informations_hash_to_block.commit();
@@ -101,8 +101,8 @@ void documents::discard()
         return;
     m_pimpl->m_files.discard();
     m_pimpl->m_units.discard();
-    m_pimpl->m_contents.discard();
     m_pimpl->m_storages.discard();
+    m_pimpl->m_file_requests.discard();
     m_pimpl->m_content_unit_sponsored_information.discard();
     m_pimpl->m_sponsored_informations_expiring.discard();
     m_pimpl->m_sponsored_informations_hash_to_block.discard();
@@ -241,6 +241,39 @@ bool documents::storage_has_uri(std::string const& uri,
 
     StorageTypes::FileUriHolders const& holders = m_pimpl->m_storages.as_const().at(uri);
     return 0 != holders.addresses.count(address);
+}
+
+bool documents::insert_file_request(std::string const& uri, std::string const& channel_address)
+{
+    if (m_pimpl->m_file_requests.contains(uri))
+        return false;
+
+    StorageTypes::FileRequest file_request;
+    file_request.file_uri = uri;
+    file_request.channel_address = channel_address;
+
+    m_pimpl->m_file_requests.insert(uri, file_request);
+
+    return true;
+}
+
+void documents::remove_file_request(std::string const& uri)
+{
+    m_pimpl->m_file_requests.erase(uri);
+}
+
+StorageTypes::FileRequest const& documents::get_file_request(std::string const& uri) const
+{
+    return m_pimpl->m_file_requests.as_const().at(uri);
+}
+
+std::vector<StorageTypes::FileRequest> documents::get_file_requests(uint64_t const& count) const
+{
+    std::vector<StorageTypes::FileRequest> result;
+
+    return result;
+    B_UNUSED(count);
+    //return m_pimpl->m_file_requests.as_const().get_first(count);
 }
 
 namespace

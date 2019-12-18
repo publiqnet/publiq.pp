@@ -13,6 +13,7 @@
 
 namespace StorageTypes
 {
+    class FileRequest;
     class SponsoredInformationHeaders;
     class SponsoredInformationHeader;
 }
@@ -50,6 +51,12 @@ public:
 
     void storage_update(std::string const& uri, std::string const& address, BlockchainMessage::UpdateType status);
     bool storage_has_uri(std::string const& uri, std::string const& address) const;
+
+    bool insert_file_request(std::string const& uri, std::string const& channel_address);
+    void remove_file_request(std::string const& uri);
+    StorageTypes::FileRequest const& get_file_request(std::string const& uri) const;
+    std::vector<StorageTypes::FileRequest> get_file_requests(uint64_t const& count) const;
+
 
     void sponsor_content_unit_apply(publiqpp::detail::node_internals& impl,
                                     BlockchainMessage::SponsorContentUnit const& spi,

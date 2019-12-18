@@ -28,6 +28,7 @@ module StorageTypes
     {
         Hash String SponsoredInformationHeader expirations
     }
+
     class SponsoredInformationHeader
     {
         String uri
@@ -46,6 +47,12 @@ module StorageTypes
     {
         String transaction_hash
         UInt64 block_number
+    }
+
+    class FileRequest
+    {
+        String file_uri
+        String channel_address
     }
 
     ///

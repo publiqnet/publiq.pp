@@ -123,10 +123,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
             auto const& unit = impl.m_documents.get_unit(unit_uri);
 
             for (auto const& file_uri : unit.file_uris)
-            {
-                auto& value = impl.map_channel_to_file_uris[content.channel_address];
-                value.insert(std::make_pair(file_uri, false));
-            }
+                impl.m_documents.insert_file_request(file_uri, content.channel_address);
         }
     }
 

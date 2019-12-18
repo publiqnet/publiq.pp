@@ -946,9 +946,26 @@ bool node::run()
             m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
             sync_worker(*m_pimpl.get());
 
+        uint64_t pending_count = 0;
         vector<string> channel_file_uris_backup;
         for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
+        {
+            pending_count += channel_file_uris.first.size();
             channel_file_uris_backup.push_back(channel_file_uris.first);
+        }
+
+        if (pending_count < 5 && m_pimpl->m_transaction_pool.length() < 500) //TODO define constants and move to common.h
+        {
+            auto file_requests = m_pimpl->m_documents.get_file_requests(5 - pending_count);
+
+            // new nequests are not included in channel_file_uris_backup
+            // vector, so they will be taken next time
+            for (auto const& request : file_requests)
+            {
+                auto& value = m_pimpl->map_channel_to_file_uris[request.channel_address];
+                value.insert(std::make_pair(request.file_uri, false));
+            }
+        }
 
         unordered_set<string> unresolved_channels;
         for (auto const& channel_address : channel_file_uris_backup)
