@@ -284,9 +284,19 @@ std::vector<StorageTypes::FileRequest> documents::get_file_requests(uint64_t con
 {
     std::vector<StorageTypes::FileRequest> result;
 
+    auto keys = m_pimpl->m_file_requests.as_const().keys();
+    auto result_count = std::min(count, keys.size());
+
+    for (auto const& it : keys)
+    {
+        if (result_count == 0)
+            break;
+
+        --result_count;
+        result.push_back(get_file_request(it));
+    }
+
     return result;
-    B_UNUSED(count);
-    //return m_pimpl->m_file_requests.as_const().get_first(count);
 }
 
 namespace
