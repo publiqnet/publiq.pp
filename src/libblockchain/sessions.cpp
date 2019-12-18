@@ -742,19 +742,19 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     for (auto& block_item : blockchain_response.signed_blocks)
     {
         Block& block = block_item.block_details;
-        string str = block.to_string();
+        string block_to_string = block.to_string();
 
         if(block.signed_transactions.size() > BLOCK_MAX_TRANSACTIONS)
             return set_errored("blockchain response. block max transactions count!", throw_for_debugging_only);
 
         // verify block signature
-        if (!meshpp::verify_signature(meshpp::public_key(block_item.authorization.address), str, block_item.authorization.signature))
+        if (!meshpp::verify_signature(meshpp::public_key(block_item.authorization.address), block_to_string, block_item.authorization.signature))
             return set_errored("blockchain response. block signature!", throw_for_debugging_only);
 
         BlockHeaderExtended& temp_header_ex = *header_it;
         BlockHeader temp_header;
         temp_header = temp_header_ex;
-        if (temp_header != block.header || temp_header_ex.block_hash != meshpp::hash(str))
+        if (temp_header != block.header || temp_header_ex.block_hash != meshpp::hash(block_to_string))
             return set_errored("blockchain response. block header!", throw_for_debugging_only);
 
         ++header_it;
@@ -917,6 +917,11 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         // verify miner balance at mining time
         if (coin(amount) < pimpl->m_mine_amount_threshhold)
             return set_errored("blockchain response. miner balance!", throw_for_debugging_only);
+
+        NodeType miner_node_type;
+        if (pimpl->m_state.get_role(signed_block.authorization.address, miner_node_type) &&
+            miner_node_type != NodeType::blockchain)
+            return set_errored("blockchain response. node type!", throw_for_debugging_only);
 
         // verify block transactions
         time_t prev_transaction_time = 0;
