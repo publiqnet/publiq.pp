@@ -1062,8 +1062,9 @@ void block_worker(detail::node_internals& impl)
             chrono::system_clock::from_time_t(last_header.time_signed.tm);
 
     double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
+    double last_block_age_blocks = last_block_age_seconds / BLOCK_MINE_DELAY;
 
-    double revert_fraction = std::min(1.0, last_block_age_seconds / BLOCK_MINE_DELAY);
+    double revert_fraction = std::min(1.0, last_block_age_blocks);
 
     auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
     auto it_scan_least_revert_approved_winner = impl.all_sync_info.headers_actions_data.end();
@@ -1122,11 +1123,6 @@ void block_worker(detail::node_internals& impl)
                           steady_clock_now};
         if (voting.stake <= replacing.stake)
             continue;
-
-        /*if (item.second.own_header == it->second.headers.front())
-            voting.type = detail::node_internals::vote_info::approve;
-        else
-            voting.type = detail::node_internals::vote_info::reject;*/
 
         replacing = voting;
     }
@@ -1191,9 +1187,14 @@ void block_worker(detail::node_internals& impl)
                     reject += own_vote.stake + coin(1,0);
             }
 
+            uint64_t const poll_participants_with_stake_treshhold =
+                    false == impl.m_testnet ?
+                        std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) :
+                        1;
+
             if (approve > reject &&
                 poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)) &&
-                poll_participants_with_stake > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)))
+                poll_participants_with_stake > poll_participants_with_stake_treshhold)
             {
                 if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner &&
                     it_scan_least_revert_approved_winner->second.headers.front() != it->second.headers.front())
@@ -1213,7 +1214,7 @@ void block_worker(detail::node_internals& impl)
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.stake &&
                 poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
-                poll_participants_with_stake > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) &&
+                poll_participants_with_stake > poll_participants_with_stake_treshhold &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
@@ -1266,6 +1267,11 @@ void block_worker(detail::node_internals& impl)
     {
         it_chosen = it_scan_most_approved_revert;
         t_reason = reason_scan_most_approved_revert;
+    }
+    else
+    {
+        if (last_block_age_blocks > 3)
+            impl.writeln_node_warning("has stuck on an old blockchain");
     }
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)

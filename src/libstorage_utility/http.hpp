@@ -231,7 +231,12 @@ beltpp::detail::pmsg_all message_list_load(
             ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             ssd.parser_unrecognized_limit = 0;
 
-            return fallback_message_list_load(iter_scan_begin_temp, iter_scan_end_temp, ssd, putl);
+            auto pmsgall = fallback_message_list_load(iter_scan_begin_temp, iter_scan_end_temp, ssd, putl);
+
+            if (pmsgall.pmsg)
+                return pmsgall;
+
+            return protocol_error();
         }
         else if (pss->type == beltpp::http::detail::scan_status::get &&
                  pss->resource.path.size() == 1 &&
