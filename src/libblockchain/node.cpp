@@ -1037,29 +1037,6 @@ void block_worker(detail::node_internals& impl)
     if (impl.all_sync_info.blockchain_sync_in_progress)
         return;
 
-    auto const blockchain_length = impl.m_blockchain.length();
-    auto const last_header = impl.m_blockchain.last_header();
-
-    chrono::system_clock::duration last_block_age =
-            chrono::system_clock::now() -
-            chrono::system_clock::from_time_t(last_header.time_signed.tm);
-
-    double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
-    double last_block_age_blocks = last_block_age_seconds / BLOCK_MINE_DELAY;
-
-    double revert_fraction = std::min(1.0, last_block_age_blocks);
-
-    auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
-    auto it_scan_least_revert_approved_winner = impl.all_sync_info.headers_actions_data.end();
-    auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
-    coin scan_most_approved_revert;
-    size_t count_most_approved_revert_candidates = 0;
-    unordered_set<string> limit_most_approved_revert_candidates;
-
-    session_action_block::reason reason_scan_least_revert;
-    session_action_block::reason reason_scan_least_revert_approved_winner;
-    session_action_block::reason reason_scan_most_approved_revert;
-
     ///  clean old entries from votes map
     //
     auto const steady_clock_now = std::chrono::steady_clock::now();
@@ -1109,10 +1086,102 @@ void block_worker(detail::node_internals& impl)
         if (voting.stake <= replacing.stake)
             continue;
 
-        impl.writeln_node("voting for: " + voting.block_hash + ", voter: " + item.first);
+        //impl.writeln_node("voting for: " + voting.block_hash + ", voter: " + item.first);
 
         replacing = voting;
     }
+
+    struct vote_sum
+    {
+        coin approve;
+        coin reject;
+    };
+
+    unordered_map<string, vote_sum> vote_results;
+
+    coin sum_stake;
+    size_t poll_participants = 0;
+    size_t poll_participants_with_stake = 0;
+
+    for (auto const& vote_item : impl.m_votes)
+    {
+        auto const& vote = vote_item.second;
+        ++poll_participants;
+        if (vote.stake != coin())
+            ++poll_participants_with_stake;
+
+        auto current_stake = vote.stake + coin(1,0);
+        sum_stake += current_stake;
+
+        vote_results[vote.block_hash].approve += current_stake;
+    }
+
+    auto own_vote = detail::node_internals::vote_info{
+                        impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool),
+                        impl.m_blockchain.last_header_ex().block_hash,
+                        steady_clock_now};
+    {
+        auto current_stake = own_vote.stake + coin(1,0);
+        sum_stake += current_stake;
+
+        vote_results[own_vote.block_hash].approve += current_stake;
+    }
+
+    for (auto& vote_result_item : vote_results)
+    {
+        vote_result_item.second.reject = sum_stake - vote_result_item.second.approve;
+    }
+
+    uint64_t const poll_participants_with_stake_treshhold =
+            false == impl.m_testnet ?
+                std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) :
+                1;
+
+    unordered_set<string> least_revert_approved_winner_candidates;
+    string scan_most_approved_revert_candidate;
+    coin scan_most_approved_revert;
+
+    for (auto& vote_result_item : vote_results)
+    {
+        auto const& approve = vote_result_item.second.approve;
+        auto const& reject = vote_result_item.second.reject;
+
+        if (approve > reject &&
+            poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)) &&
+            poll_participants_with_stake > poll_participants_with_stake_treshhold)
+        {
+            least_revert_approved_winner_candidates.insert(vote_result_item.first);
+        }
+
+        if (approve > scan_most_approved_revert &&
+            approve > own_vote.stake &&
+            poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
+            poll_participants_with_stake > poll_participants_with_stake_treshhold)
+        {
+            scan_most_approved_revert_candidate = vote_result_item.first;
+            scan_most_approved_revert = approve;
+        }
+    }
+
+    auto const blockchain_length = impl.m_blockchain.length();
+    auto const last_header = impl.m_blockchain.last_header();
+
+    chrono::system_clock::duration last_block_age =
+            chrono::system_clock::now() -
+            chrono::system_clock::from_time_t(last_header.time_signed.tm);
+
+    double last_block_age_seconds = double(chrono::duration_cast<chrono::seconds>(last_block_age).count());
+    double last_block_age_blocks = last_block_age_seconds / BLOCK_MINE_DELAY;
+
+    double revert_fraction = std::min(1.0, last_block_age_blocks);
+
+    auto it_scan_least_revert = impl.all_sync_info.headers_actions_data.end();
+    auto it_scan_least_revert_approved_winner = impl.all_sync_info.headers_actions_data.end();
+    auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
+
+    session_action_block::reason reason_scan_least_revert;
+    session_action_block::reason reason_scan_least_revert_approved_winner;
+    session_action_block::reason reason_scan_most_approved_revert;
 
     for (auto it = impl.all_sync_info.headers_actions_data.begin();
          it != impl.all_sync_info.headers_actions_data.end();
@@ -1146,44 +1215,7 @@ void block_worker(detail::node_internals& impl)
 
         if (unsafe_time_to_revert)
         {
-            coin approve, reject;
-            size_t poll_participants = 0;
-            size_t poll_participants_with_stake = 0;
-
-            for (auto const& vote_item : impl.m_votes)
-            {
-                auto const& vote = vote_item.second;
-                ++poll_participants;
-                if (vote.stake != coin())
-                    ++poll_participants_with_stake;
-
-                limit_most_approved_revert_candidates.insert(vote.block_hash);
-
-                if (vote.block_hash == it->second.headers.front().block_hash)
-                    approve += vote.stake + coin(1,0);
-                else
-                    reject += vote.stake + coin(1,0);
-            }
-
-            auto own_vote = detail::node_internals::vote_info{
-                                impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool),
-                                impl.m_blockchain.last_header_ex().block_hash,
-                                steady_clock_now};
-            {
-                if (own_vote.block_hash == it->second.headers.front().block_hash)
-                    approve += own_vote.stake + coin(1,0);
-                else
-                    reject += own_vote.stake + coin(1,0);
-            }
-
-            uint64_t const poll_participants_with_stake_treshhold =
-                    false == impl.m_testnet ?
-                        std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) :
-                        1;
-
-            if (approve > reject &&
-                poll_participants > std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 3)) &&
-                poll_participants_with_stake > poll_participants_with_stake_treshhold)
+            if (least_revert_approved_winner_candidates.count(it->second.headers.front().block_hash))
             {
                 if (impl.all_sync_info.headers_actions_data.end() != it_scan_least_revert_approved_winner &&
                     it_scan_least_revert_approved_winner->second.headers.front() != it->second.headers.front())
@@ -1200,29 +1232,24 @@ void block_worker(detail::node_internals& impl)
                 }
             }
 
-            impl.writeln_node("testing: " + it->second.headers.front().block_hash);
-            impl.writeln_node("full approve:" + approve.to_string());
-            impl.writeln_node("full reject:" + reject.to_string());
-            impl.writeln_node("scan_most_approved_revert:" + scan_most_approved_revert.to_string());
+            //impl.writeln_node("testing: " + it->second.headers.front().block_hash);
+            //impl.writeln_node("full approve:" + approve.to_string());
+            //impl.writeln_node("full reject:" + reject.to_string());
+            //impl.writeln_node("scan_most_approved_revert:" + scan_most_approved_revert.to_string());
 
-            if (approve > scan_most_approved_revert &&
-                approve > own_vote.stake &&
-                poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
-                poll_participants_with_stake > poll_participants_with_stake_treshhold &&
+            if (scan_most_approved_revert_candidate == it->second.headers.front().block_hash &&
                 (
                     impl.all_sync_info.headers_actions_data.end() == it_scan_most_approved_revert ||
                     it_scan_most_approved_revert->second.reverts_required > revert_coefficient
                 )
                )
             {
-                impl.writeln_node("\tchoosing: " + it->second.headers.front().block_hash);
-                impl.writeln_node("\tfull approve:" + approve.to_string());
-                impl.writeln_node("\tfull reject:" + reject.to_string());
-                impl.writeln_node("\tscan_most_approved_revert:" + scan_most_approved_revert.to_string());
+                //impl.writeln_node("\tchoosing: " + it->second.headers.front().block_hash);
+                //impl.writeln_node("\tfull approve:" + approve.to_string());
+                //impl.writeln_node("\tfull reject:" + reject.to_string());
+                //impl.writeln_node("\tscan_most_approved_revert:" + scan_most_approved_revert.to_string());
 
                 it_scan_most_approved_revert = it;
-                scan_most_approved_revert = approve;
-                ++count_most_approved_revert_candidates;
                 reason_scan_most_approved_revert.v = session_action_block::reason::unsafe_better;
                 reason_scan_most_approved_revert.poll_participants = poll_participants;
                 reason_scan_most_approved_revert.poll_participants_with_stake = poll_participants_with_stake;
@@ -1263,8 +1290,7 @@ void block_worker(detail::node_internals& impl)
         it_chosen = it_scan_least_revert;
         t_reason = reason_scan_least_revert;
     }
-    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert &&
-             count_most_approved_revert_candidates >= limit_most_approved_revert_candidates.size())
+    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
     {
         it_chosen = it_scan_most_approved_revert;
         t_reason = reason_scan_most_approved_revert;
