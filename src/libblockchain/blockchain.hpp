@@ -26,7 +26,7 @@ public:
     void save();
     void commit();
     void discard();
-
+    void clear();
     void update_state();
 
     uint64_t length() const;

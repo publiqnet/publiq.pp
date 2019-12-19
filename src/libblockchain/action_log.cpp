@@ -53,6 +53,11 @@ void action_log::discard()
     m_pimpl->m_revert_index = length() - 1;
 }
 
+void action_log::clear()
+{
+    m_pimpl->m_actions.clear();
+}
+
 size_t action_log::length() const
 {
     return m_pimpl->m_actions.as_const().size();

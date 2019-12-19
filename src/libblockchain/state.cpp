@@ -64,6 +64,13 @@ void state::discard()
     m_pimpl->m_roles.discard();
 }
 
+void state::clear()
+{
+    m_pimpl->m_accounts.clear();
+    m_pimpl->m_node_accounts.clear();
+    m_pimpl->m_roles.clear();
+}
+
 Coin state::get_balance(string const& key, state_layer layer) const
 {
     if (layer == state_layer::pool &&

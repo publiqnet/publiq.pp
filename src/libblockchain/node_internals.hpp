@@ -423,6 +423,7 @@ public:
                    bool log_enabled,
                    bool transfer_only,
                    bool testnet,
+                   bool resync,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
                    std::chrono::steady_clock::duration const& sync_delay,
@@ -469,6 +470,22 @@ public:
                                                    p_counts_per_channel_views :
                                                    &counts_per_channel_views)
     {
+        if (resync)
+        {
+            beltpp::on_failure guard([this]
+            {
+                discard();
+            });
+
+            m_state.clear();
+            m_documents.clear();
+            m_blockchain.clear();
+            m_action_log.clear();
+            m_transaction_pool.clear();
+
+            save(guard);
+        }
+
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));

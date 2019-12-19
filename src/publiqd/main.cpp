@@ -252,10 +252,7 @@ int main(int argc, char** argv)
     try
     {
         meshpp::create_config_directory();
-        if(resync)
-            meshpp::reset_data_directory();
-        else
-            meshpp::create_data_directory();
+        meshpp::create_data_directory();
 
         unique_ptr<port2pid_helper> port2pid(new port2pid_helper(meshpp::config_file_path("pid"), p2p_bind_to_address.local.port));
 
@@ -317,6 +314,7 @@ int main(int argc, char** argv)
                             log_enabled,
                             false,
                             testnet,
+                            resync,
                             mine_amount_threshhold(),
                             block_reward_array(),
                             sync_delay,

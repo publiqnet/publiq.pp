@@ -59,6 +59,12 @@ void blockchain::discard()
         update_state();
 }
 
+void blockchain::clear()
+{
+    m_pimpl->m_header.clear();
+    m_pimpl->m_blockchain.clear();
+}
+
 void blockchain::update_state()
 {
     assert(0 != length());

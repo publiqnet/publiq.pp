@@ -29,6 +29,7 @@ public:
     void save();
     void commit();
     void discard();
+    void clear();
 
     BlockchainMessage::Coin get_balance(std::string const& key, state_layer layer) const;
     void set_balance(std::string const& key, coin const& amount, state_layer layer);
