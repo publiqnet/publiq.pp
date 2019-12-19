@@ -1196,6 +1196,11 @@ void block_worker(detail::node_internals& impl)
                 }
             }
 
+            impl.writeln_node("testing: " + it->second.headers.front().block_hash);
+            impl.writeln_node("full approve:" + approve.to_string());
+            impl.writeln_node("full reject:" + reject.to_string());
+            impl.writeln_node("scan_most_approved_revert:" + scan_most_approved_revert.to_string());
+
             if (approve > scan_most_approved_revert &&
                 approve > own_vote.stake &&
                 poll_participants > std::max(uint64_t(10), uint64_t(impl.m_p2p_peers.size() / 3)) &&
@@ -1206,9 +1211,10 @@ void block_worker(detail::node_internals& impl)
                 )
                )
             {
-                impl.writeln_node("choosing: " + it->second.headers.front().block_hash);
-                impl.writeln_node("full approve:" + approve.to_string());
-                impl.writeln_node("full reject:" + reject.to_string());
+                impl.writeln_node("\tchoosing: " + it->second.headers.front().block_hash);
+                impl.writeln_node("\tfull approve:" + approve.to_string());
+                impl.writeln_node("\tfull reject:" + reject.to_string());
+                impl.writeln_node("\tscan_most_approved_revert:" + scan_most_approved_revert.to_string());
 
                 it_scan_most_approved_revert = it;
                 scan_most_approved_revert = approve;
