@@ -1033,6 +1033,8 @@ void node::set_slave_node(storage_node& slave_node)
     m_pimpl->m_slave_node->m_pimpl->m_node_type = m_pimpl->m_node_type;
 }
 
+//#define log_log_log
+
 //  free functions
 void block_worker(detail::node_internals& impl)
 {
@@ -1087,8 +1089,9 @@ void block_worker(detail::node_internals& impl)
                           steady_clock_now};
         if (voting.stake <= replacing.stake)
             continue;
-
-        //impl.writeln_node("voting for: " + voting.block_hash + ", voter: " + item.first);
+#ifdef  log_log_log
+        impl.writeln_node("voting for: " + voting.block_hash + ", voter: " + item.first);
+#endif
 
         replacing = voting;
     }
@@ -1233,11 +1236,14 @@ void block_worker(detail::node_internals& impl)
                     reason_scan_least_revert_approved_winner.revert_coefficient = revert_coefficient;
                 }
             }
-
-            //impl.writeln_node("testing: " + it->second.headers.front().block_hash);
-            //impl.writeln_node("full approve:" + approve.to_string());
-            //impl.writeln_node("full reject:" + reject.to_string());
-            //impl.writeln_node("scan_most_approved_revert:" + scan_most_approved_revert.to_string());
+#ifdef log_log_log
+            auto approve = vote_results[it->second.headers.front().block_hash].approve;
+            auto reject = vote_results[it->second.headers.front().block_hash].reject;
+            impl.writeln_node("\t\ttesting: " + it->second.headers.front().block_hash);
+            impl.writeln_node("\t\tfull approve:" + approve.to_string());
+            impl.writeln_node("\t\tfull reject:" + reject.to_string());
+            impl.writeln_node("\t\tscan_most_approved_revert:" + scan_most_approved_revert.to_string());
+#endif
 
             if (scan_most_approved_revert_candidate == it->second.headers.front().block_hash &&
                 (
@@ -1246,10 +1252,12 @@ void block_worker(detail::node_internals& impl)
                 )
                )
             {
-                //impl.writeln_node("\tchoosing: " + it->second.headers.front().block_hash);
-                //impl.writeln_node("\tfull approve:" + approve.to_string());
-                //impl.writeln_node("\tfull reject:" + reject.to_string());
-                //impl.writeln_node("\tscan_most_approved_revert:" + scan_most_approved_revert.to_string());
+#ifdef log_log_log
+                impl.writeln_node("\tchoosing: " + it->second.headers.front().block_hash);
+                impl.writeln_node("\tfull approve:" + approve.to_string());
+                impl.writeln_node("\tfull reject:" + reject.to_string());
+                impl.writeln_node("\tscan_most_approved_revert:" + scan_most_approved_revert.to_string());
+#endif
 
                 it_scan_most_approved_revert = it;
                 reason_scan_most_approved_revert.v = session_action_block::reason::unsafe_better;
