@@ -1107,6 +1107,8 @@ void block_worker(detail::node_internals& impl)
         if (voting.stake <= replacing.stake)
             continue;
 
+        impl.writeln_node("voting for: " + voting.block_hash + ", voter: " + item.first);
+
         replacing = voting;
     }
 
@@ -1204,6 +1206,10 @@ void block_worker(detail::node_internals& impl)
                 )
                )
             {
+                impl.writeln_node("choosing: " + it->second.headers.front().block_hash);
+                impl.writeln_node("full approve:" + approve.to_string());
+                impl.writeln_node("full reject:" + reject.to_string());
+
                 it_scan_most_approved_revert = it;
                 scan_most_approved_revert = approve;
                 reason_scan_most_approved_revert.v = session_action_block::reason::unsafe_better;
