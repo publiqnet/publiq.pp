@@ -28,6 +28,7 @@ public:
     void save();
     void commit();
     void discard();
+    void clear();
 
     size_t length() const;
     void push_back(BlockchainMessage::SignedTransaction const& signed_transaction);

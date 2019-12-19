@@ -55,6 +55,11 @@ void transaction_pool::discard()
     m_pimpl->m_transactions.discard();
 }
 
+void transaction_pool::clear()
+{
+    m_pimpl->m_transactions.clear();
+}
+
 void transaction_pool::push_back(SignedTransaction const& signed_transaction)
 {
     m_pimpl->m_transactions.push_back(signed_transaction);

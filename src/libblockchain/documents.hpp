@@ -34,6 +34,7 @@ public:
     void save();
     void commit();
     void discard();
+    void clear();
 
     std::pair<bool, std::string> files_exist(std::unordered_set<std::string> const& uris) const;
     bool file_exists(std::string const& uri) const;

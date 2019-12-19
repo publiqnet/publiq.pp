@@ -108,6 +108,19 @@ void documents::discard()
     m_pimpl->m_sponsored_informations_hash_to_block.discard();
 }
 
+void documents::clear()
+{
+    if (nullptr == m_pimpl)
+        return;
+    m_pimpl->m_files.clear();
+    m_pimpl->m_units.clear();
+    m_pimpl->m_contents.clear();
+    m_pimpl->m_storages.clear();
+    m_pimpl->m_content_unit_sponsored_information.clear();
+    m_pimpl->m_sponsored_informations_expiring.clear();
+    m_pimpl->m_sponsored_informations_hash_to_block.clear();
+}
+
 pair<bool, string> documents::files_exist(unordered_set<string> const& uris) const
 {
     for (auto const& uri : uris)
