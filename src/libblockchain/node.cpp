@@ -1053,6 +1053,8 @@ void block_worker(detail::node_internals& impl)
     auto it_scan_least_revert_approved_winner = impl.all_sync_info.headers_actions_data.end();
     auto it_scan_most_approved_revert = impl.all_sync_info.headers_actions_data.end();
     coin scan_most_approved_revert;
+    size_t count_most_approved_revert_candidates = 0;
+    unordered_set<string> limit_most_approved_revert_candidates;
 
     session_action_block::reason reason_scan_least_revert;
     session_action_block::reason reason_scan_least_revert_approved_winner;
@@ -1155,6 +1157,8 @@ void block_worker(detail::node_internals& impl)
                 if (vote.stake != coin())
                     ++poll_participants_with_stake;
 
+                limit_most_approved_revert_candidates.insert(vote.block_hash);
+
                 if (vote.block_hash == it->second.headers.front().block_hash)
                     approve += vote.stake + coin(1,0);
                 else
@@ -1218,6 +1222,7 @@ void block_worker(detail::node_internals& impl)
 
                 it_scan_most_approved_revert = it;
                 scan_most_approved_revert = approve;
+                ++count_most_approved_revert_candidates;
                 reason_scan_most_approved_revert.v = session_action_block::reason::unsafe_better;
                 reason_scan_most_approved_revert.poll_participants = poll_participants;
                 reason_scan_most_approved_revert.poll_participants_with_stake = poll_participants_with_stake;
@@ -1258,7 +1263,8 @@ void block_worker(detail::node_internals& impl)
         it_chosen = it_scan_least_revert;
         t_reason = reason_scan_least_revert;
     }
-    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert)
+    else if (impl.all_sync_info.headers_actions_data.end() != it_scan_most_approved_revert &&
+             count_most_approved_revert_candidates >= limit_most_approved_revert_candidates.size())
     {
         it_chosen = it_scan_most_approved_revert;
         t_reason = reason_scan_most_approved_revert;
