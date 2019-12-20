@@ -32,7 +32,7 @@ public:
     ~storage_node();
 
     void wake();
-    bool run();
+    void run(bool& stop);
 
     beltpp::isocket::packets receive();
     void send(beltpp::packet&& pack);

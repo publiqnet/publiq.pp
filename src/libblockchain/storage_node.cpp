@@ -60,9 +60,9 @@ void storage_node::wake()
     m_pimpl->m_ptr_eh->wake();
 }
 
-bool storage_node::run()
+void storage_node::run(bool& stop)
 {
-    bool code = true;
+    stop = false;
 
     unordered_set<beltpp::ievent_item const*> wait_sockets;
 
@@ -355,8 +355,6 @@ bool storage_node::run()
         }
         }
     }
-
-    return code;
 }
 
 beltpp::isocket::packets storage_node::receive()
