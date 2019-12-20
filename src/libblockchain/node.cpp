@@ -587,10 +587,6 @@ bool node::run()
                     m_pimpl->service_counter.served(unit, unit_counter);
 
                     psk->send(peerid, beltpp::packet(Done()));
-#ifdef EXTRA_LOGGING
-                    m_pimpl->writeln_node("channel served");
-                    m_pimpl->writeln_node(msg.to_string());
-#endif
 
                     break;
                 }
@@ -828,11 +824,6 @@ bool node::run()
                         unit.content_unit_uri.clear(); // simulate the old behavior
 
                         m_pimpl->service_counter.served(unit, unit_counter);
-
-#ifdef EXTRA_LOGGING
-                        m_pimpl->writeln_node("storage served");
-                        m_pimpl->writeln_node(msg.to_string());
-#endif
                     }
 
                 }
@@ -949,25 +940,26 @@ bool node::run()
             sync_worker(*m_pimpl.get());
 
         uint64_t pending_count = 0;
-        vector<string> channel_file_uris_backup;
-        for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
-        {
-            pending_count += channel_file_uris.first.size();
-            channel_file_uris_backup.push_back(channel_file_uris.first);
-        }
+        uint64_t const pending_max = 5;// move to common.h
+        for (auto& it : m_pimpl->map_channel_to_file_uris)
+            pending_count += it.second.size();
 
-        if (pending_count < 5 && m_pimpl->m_transaction_pool.length() < 500) //TODO define constants and move to common.h
+        if (pending_count < pending_max && m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2)
         {
-            auto file_requests = m_pimpl->m_documents.get_file_requests(5 - pending_count);
+            auto file_requests = m_pimpl->m_documents.get_file_requests(pending_max - pending_count);
 
-            // new nequests are not included in channel_file_uris_backup
-            // vector, so they will be taken next time
             for (auto const& request : file_requests)
             {
                 auto& value = m_pimpl->map_channel_to_file_uris[request.channel_address];
-                value.insert(std::make_pair(request.file_uri, false));
+
+                if (value.find(request.file_uri) == value.end())
+                    value.insert(std::make_pair(request.file_uri, false));
             }
         }
+
+        vector<string> channel_file_uris_backup;
+        for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
+            channel_file_uris_backup.push_back(channel_file_uris.first);
 
         unordered_set<string> unresolved_channels;
         for (auto const& channel_address : channel_file_uris_backup)

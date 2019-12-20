@@ -1052,19 +1052,21 @@ session_action_request_file::session_action_request_file(string const& _file_uri
 
 session_action_request_file::~session_action_request_file()
 {
-    auto it = pimpl->map_channel_to_file_uris.find(nodeid);
-    if (it != pimpl->map_channel_to_file_uris.end())
-    {
-        auto item_it = it->second.find(file_uri);
-        if (item_it != it->second.end())
-        {
-            item_it->second = false;
-        }
-    }
+    //auto it = pimpl->map_channel_to_file_uris.find(nodeid);
+    //if (it != pimpl->map_channel_to_file_uris.end())
+    //{
+    //    auto item_it = it->second.find(file_uri);
+    //    if (item_it != it->second.end())
+    //    {
+    //        item_it->second = false;
+    //    }
+    //}
 }
 
 void session_action_request_file::initiate(meshpp::nodeid_session_header& header)
 {
+    //pimpl->writeln_node("Request init for -> " + file_uri);
+
     auto it = pimpl->map_channel_to_file_uris.find(nodeid);
     if (it == pimpl->map_channel_to_file_uris.end() ||
         0 == it->second.count(file_uri))
@@ -1077,11 +1079,11 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
             pimpl->m_ptr_rpc_socket->session_data(header.peerid);
     ssd.parser_unrecognized_limit = 1024 * 1024 * 10;
 
-    StorageFileRequest msg;
-    it->second.erase(file_uri);
-    if (it->second.empty())
-        pimpl->map_channel_to_file_uris.erase(it);
+    //it->second.erase(file_uri);
+    //if (it->second.empty())
+    //    pimpl->map_channel_to_file_uris.erase(it);
 
+    StorageFileRequest msg;
     msg.uri = file_uri;
     pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
 
@@ -1111,12 +1113,15 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             }
 
             auto& impl = *pimpl;
+            std::string _node_id = nodeid;
 
             vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
             actions.emplace_back(new session_action_save_file(impl,
                                                               std::move(storage_file),
-                                                              [&impl, header](beltpp::packet&& package)
+                                                              [&impl, _node_id, header](beltpp::packet&& package)
             {
+                std::string file_uri;
+
                 if (package.type() == StorageFileAddress::rtt)
                 {
                     StorageFileAddress* pfile_address;
@@ -1124,10 +1129,33 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
                     if (false == impl.m_documents.storage_has_uri(pfile_address->uri, impl.m_pb_key.to_string()))
                         broadcast_storage_update(impl, pfile_address->uri, UpdateType::store);
 
-                    // this can be moved to upper if operator scope
-                    // when we make sure single request for each file
-                    impl.m_documents.remove_file_request(pfile_address->uri);
+                    file_uri = pfile_address->uri;
                 }
+                else if (package.type() == UriError::rtt)
+                {
+                    UriError* msg;
+                    package.get(msg);
+
+                    file_uri = msg->uri;
+                }
+
+                if (false == file_uri.empty())
+                {
+                    //impl.writeln_node("Saved -> " + file_uri);
+
+                    // remove file request from local map and storage
+                    auto it = impl.map_channel_to_file_uris.find(_node_id);
+
+                    it->second.erase(file_uri);
+                    if (it->second.empty())
+                        impl.map_channel_to_file_uris.erase(it);
+
+                    beltpp::on_failure guard2([&impl] { impl.discard(); });
+                    impl.m_documents.remove_file_request(file_uri);
+                    impl.save(guard2);
+                }
+                //else
+                //    impl.writeln_node("Something unexpected happenes");
             }));
 
             meshpp::session_header slave_header;
@@ -1233,8 +1261,10 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
         if (package.type() == BlockchainMessage::UriError::rtt)
         {
             beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+
             if (callback)
                 callback(std::move(package));
+
             completed = true;
             expected_next_package_type = size_t(-1);
         }

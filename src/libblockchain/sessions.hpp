@@ -180,7 +180,7 @@ public:
 
     detail::node_internals* pimpl;
     std::string const file_uri;
-    std::string nodeid;
+    std::string const nodeid;
 };
 
 class session_action_save_file : public meshpp::session_action<meshpp::session_header>
