@@ -114,8 +114,8 @@ void documents::clear()
         return;
     m_pimpl->m_files.clear();
     m_pimpl->m_units.clear();
-    m_pimpl->m_contents.clear();
     m_pimpl->m_storages.clear();
+    m_pimpl->m_file_requests.clear();
     m_pimpl->m_content_unit_sponsored_information.clear();
     m_pimpl->m_sponsored_informations_expiring.clear();
     m_pimpl->m_sponsored_informations_hash_to_block.clear();
