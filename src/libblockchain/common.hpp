@@ -32,6 +32,9 @@
 // Action log max response count
 #define ACTION_LOG_MAX_RESPONSE 10000
 
+// Maximum number of parallelly requested files
+#define STORAGE_MAX_FILE_REQUESTS 5
+
 // Timers in seconds
 #define CHECK_TIMER 1
 #define SYNC_TIMER  30

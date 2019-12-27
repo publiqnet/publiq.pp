@@ -1052,15 +1052,15 @@ session_action_request_file::session_action_request_file(string const& _file_uri
 
 session_action_request_file::~session_action_request_file()
 {
-    //auto it = pimpl->map_channel_to_file_uris.find(nodeid);
-    //if (it != pimpl->map_channel_to_file_uris.end())
-    //{
-    //    auto item_it = it->second.find(file_uri);
-    //    if (item_it != it->second.end())
-    //    {
-    //        item_it->second = false;
-    //    }
-    //}
+    auto it = pimpl->map_channel_to_file_uris.find(nodeid);
+    if (it != pimpl->map_channel_to_file_uris.end())
+    {
+        auto item_it = it->second.find(file_uri);
+        if (item_it != it->second.end())
+        {
+            item_it->second = false;
+        }
+    }
 }
 
 void session_action_request_file::initiate(meshpp::nodeid_session_header& header)
@@ -1071,8 +1071,13 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
     if (it == pimpl->map_channel_to_file_uris.end() ||
         0 == it->second.count(file_uri))
     {
-        assert(false);
-        throw std::logic_error("file_uri not found");
+        //assert(false);
+        //throw std::logic_error("file_uri not found");
+
+        completed = true;
+        expected_next_package_type = size_t(-1);
+        
+        return;
     }
 
     beltpp::detail::session_special_data& ssd =
@@ -1141,21 +1146,21 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 
                 if (false == file_uri.empty())
                 {
-                    //impl.writeln_node("Saved -> " + file_uri);
-
                     // remove file request from local map and storage
                     auto it = impl.map_channel_to_file_uris.find(_node_id);
 
-                    it->second.erase(file_uri);
-                    if (it->second.empty())
-                        impl.map_channel_to_file_uris.erase(it);
+                    if (it != impl.map_channel_to_file_uris.end())
+                    {
+                        it->second.erase(file_uri);
+                        if (it->second.empty())
+                            impl.map_channel_to_file_uris.erase(it);
 
-                    beltpp::on_failure guard2([&impl] { impl.discard(); });
-                    impl.m_documents.remove_file_request(file_uri);
-                    impl.save(guard2);
+
+                        beltpp::on_failure guard2([&impl] { impl.discard(); });
+                        impl.m_documents.remove_file_request(file_uri);
+                        impl.save(guard2);
+                    }
                 }
-                //else
-                //    impl.writeln_node("Something unexpected happenes");
             }));
 
             meshpp::session_header slave_header;
@@ -1172,6 +1177,30 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
         default:
             assert(false);
             break;
+        }
+    }
+    else if (package.type() == UriError::rtt)
+    {
+        // TODO
+        // hannel storage is not providing file
+        // may be better broadcast storage update
+
+        UriError* msg;
+        package.get(msg);
+
+        // remove file request from local map and storage
+        auto it = pimpl->map_channel_to_file_uris.find(nodeid);
+
+        if (it != pimpl->map_channel_to_file_uris.end())
+        {
+            it->second.erase(msg->uri);
+            if (it->second.empty())
+                pimpl->map_channel_to_file_uris.erase(it);
+
+            auto& impl = *pimpl;
+            beltpp::on_failure guard2([&impl] { impl.discard(); });
+            pimpl->m_documents.remove_file_request(msg->uri);
+            pimpl->save(guard2);
         }
     }
     else

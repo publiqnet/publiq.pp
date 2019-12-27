@@ -940,20 +940,24 @@ bool node::run()
             sync_worker(*m_pimpl.get());
 
         uint64_t pending_count = 0;
-        uint64_t const pending_max = 5;// move to common.h
         for (auto& it : m_pimpl->map_channel_to_file_uris)
             pending_count += it.second.size();
 
-        if (pending_count < pending_max && m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2)
+        if (pending_count < STORAGE_MAX_FILE_REQUESTS && 
+            m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2)
         {
-            auto file_requests = m_pimpl->m_documents.get_file_requests(pending_max - pending_count);
+            auto file_requests = m_pimpl->m_documents.get_file_requests(STORAGE_MAX_FILE_REQUESTS);
 
             for (auto const& request : file_requests)
             {
                 auto& value = m_pimpl->map_channel_to_file_uris[request.channel_address];
 
-                if (value.find(request.file_uri) == value.end())
+                if (value.find(request.file_uri) == value.end() &&
+                    pending_count < STORAGE_MAX_FILE_REQUESTS)
+                {
+                    ++pending_count;
                     value.insert(std::make_pair(request.file_uri, false));
+                }
             }
         }
 
