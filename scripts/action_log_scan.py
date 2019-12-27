@@ -15,10 +15,9 @@ while work == 1:
         if i['logging_type'] == 'revert':
             ss = "revert"
             sv = -1
-        if i['action']['rtt'] == 11:
-            #print("{}\t{}\t{}\t{}\t{}".format(i['index'], ss, i['action']['block_number'], i['action']['block_hash'], i['action']['authority'])) # just print info about blocks
+        if i['action']['rtt'] == 11: # BlockLog
             for j in i['action']['unit_uri_impacts']:
-                if j['content_unit_uri'] == '44fYJECeAsapo2wAmrDWRq8Sc2XsHUQsgyznjEacv3RT': # the unit uri to count the views for
+                if j['content_unit_uri'] == 'particular_unit_uri_here': # the unit uri to count the views for
                     for k in j['views_per_channel']:
                         print("{}\t{}\t{}\t{}\t{}\t{}".format(i['index'], ss, i['action']['block_number'], i['action']['authority'], k['channel_address'], sv * k['view_count']))
     if not len(list):

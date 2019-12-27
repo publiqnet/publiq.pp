@@ -384,13 +384,15 @@ int main(int argc, char** argv)
 template <typename NODE>
 void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled)
 {
-    while (true)
+    bool stop_check = false;
+    while (false == stop_check)
     {
         try
         {
             if (termination_handled)
                 break;
-            if (false == node.run())
+            node.run(stop_check);
+            if (stop_check)
                 break;
         }
         catch (std::bad_alloc const& ex)

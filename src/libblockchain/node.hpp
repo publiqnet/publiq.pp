@@ -63,7 +63,7 @@ public:
 
     void wake();
     std::string name() const;
-    bool run();
+    void run(bool& stop);
     void set_slave_node(storage_node& slave_node);
 
 private:

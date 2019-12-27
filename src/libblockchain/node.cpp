@@ -114,9 +114,17 @@ string node::name() const
     return m_pimpl->m_ptr_p2p_socket->name();
 }
 
-bool node::run()
+void node::run(bool& stop)
 {
-    bool code = true;
+    stop = false;
+
+    if (m_pimpl->m_initialize)
+    {
+        beltpp::on_failure guard_initialize([&stop]{ stop = true; });
+        m_pimpl->initialize();
+        guard_initialize.dismiss();
+        return;
+    }
 
     if (m_pimpl->m_service_statistics_broadcast_triggered)
     {
@@ -1036,8 +1044,6 @@ bool node::run()
             unresolved_channels.erase(first_unresolved_channel);
         }
     }
-
-    return code;
 }
 
 void node::set_slave_node(storage_node& slave_node)
