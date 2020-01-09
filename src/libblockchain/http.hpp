@@ -94,7 +94,6 @@ beltpp::detail::pmsg_all message_list_load(
 
     auto protocol_error = [&iter_scan_begin, &iter_scan_end, &ssd]()
     {
-        ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
         ssd.session_specal_handler = nullptr;
         ssd.autoreply.clear();
         iter_scan_begin = iter_scan_end;
@@ -104,29 +103,20 @@ beltpp::detail::pmsg_all message_list_load(
     };
 
     string posted;
-    auto code = beltpp::http::protocol(ssd,
-                                       iter_scan_begin,
-                                       iter_scan_end,
-                                       it_fallback,
-                                       1000,
-                                       64 * 1024,
-                                       10 * 1024 * 1024,
-                                       posted);
-
-    beltpp::http::detail::scan_status* pss =
-            dynamic_cast<beltpp::http::detail::scan_status*>(ssd.ptr_data.get());
+    auto result = beltpp::http::protocol(ssd,
+                                         iter_scan_begin,
+                                         iter_scan_end,
+                                         it_fallback,
+                                         1000,
+                                         64 * 1024,
+                                         10 * 1024 * 1024,
+                                         posted);
+    auto code = result.first;
+    auto& ss = result.second;
 
     if (code == beltpp::e_three_state_result::error &&
-        (nullptr == pss ||
-         pss->status == beltpp::http::detail::scan_status::clean)
-        )
+        ss.status == beltpp::http::detail::scan_status::clean)
     {
-        if (pss)
-        {
-            ssd.parser_unrecognized_limit = pss->parser_unrecognized_limit_backup;
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-        }
-
         return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
     }
     else if (code == beltpp::e_three_state_result::error)
@@ -143,148 +133,139 @@ beltpp::detail::pmsg_all message_list_load(
         ssd.session_specal_handler = &response;
         ssd.autoreply.clear();
 
-        if (pss->type == beltpp::http::detail::scan_status::get &&
-            pss->resource.path.size() == 1 &&
-            pss->resource.path.front() == "storage")
+        if (ss.type == beltpp::http::detail::scan_status::get &&
+            ss.resource.path.size() == 1 &&
+            ss.resource.path.front() == "storage")
         {
             ssd.session_specal_handler = &file_response;
 
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFileRequest>();
             BlockchainMessage::StorageFileRequest& ref = *reinterpret_cast<BlockchainMessage::StorageFileRequest*>(p.get());
-            ref.uri = pss->resource.arguments["file"];
-            ref.storage_order_token = pss->resource.arguments["storage_order_token"];
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            ref.uri = ss.resource.arguments["file"];
+            ref.storage_order_token = ss.resource.arguments["storage_order_token"];
             return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFileRequest::rtt,
                                               std::move(p),
                                               &BlockchainMessage::StorageFileRequest::pvoid_saver);
         }
-        else if (pss->type == beltpp::http::detail::scan_status::post &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "storage")
+        else if (ss.type == beltpp::http::detail::scan_status::post &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "storage")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::StorageFile>();
             BlockchainMessage::StorageFile& ref = *reinterpret_cast<BlockchainMessage::StorageFile*>(p.get());
-            ref.mime_type = pss->resource.properties["Content-Type"];
-
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-
+            ref.mime_type = ss.resource.properties["Content-Type"];
             ref.data = std::move(posted);
 
             return ::beltpp::detail::pmsg_all(BlockchainMessage::StorageFile::rtt,
                                               std::move(p),
                                               &BlockchainMessage::StorageFile::pvoid_saver);
         }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 2 &&
-                 pss->resource.path.front() == "send")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 2 &&
+                 ss.resource.path.front() == "send")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::TransactionBroadcastRequest>();
             BlockchainMessage::TransactionBroadcastRequest& ref = *reinterpret_cast<BlockchainMessage::TransactionBroadcastRequest*>(p.get());
 
             size_t pos;
-            ref.private_key = pss->resource.path.back();
+            ref.private_key = ss.resource.path.back();
             meshpp::private_key pv(ref.private_key);
 
             BlockchainMessage::Transfer transfer;
-            transfer.amount.whole = beltpp::stoui64(pss->resource.arguments["whole"], pos);
-            transfer.amount.fraction = beltpp::stoui64(pss->resource.arguments["fraction"], pos);
+            transfer.amount.whole = beltpp::stoui64(ss.resource.arguments["whole"], pos);
+            transfer.amount.fraction = beltpp::stoui64(ss.resource.arguments["fraction"], pos);
             transfer.from = pv.get_public_key().to_string();
-            transfer.message = pss->resource.arguments["message"];
-            transfer.to = pss->resource.arguments["to"];
+            transfer.message = ss.resource.arguments["message"];
+            transfer.to = ss.resource.arguments["to"];
 
             ref.transaction_details.creation.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            ref.transaction_details.expiry.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::seconds(beltpp::stoui64(pss->resource.arguments["seconds"], pos)));
-            ref.transaction_details.fee.whole = beltpp::stoui64(pss->resource.arguments["fee_whole"], pos);
-            ref.transaction_details.fee.fraction = beltpp::stoui64(pss->resource.arguments["fee_fraction"], pos);
+            ref.transaction_details.expiry.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::seconds(beltpp::stoui64(ss.resource.arguments["seconds"], pos)));
+            ref.transaction_details.fee.whole = beltpp::stoui64(ss.resource.arguments["fee_whole"], pos);
+            ref.transaction_details.fee.fraction = beltpp::stoui64(ss.resource.arguments["fee_fraction"], pos);
             ref.transaction_details.action = std::move(transfer);
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(BlockchainMessage::TransactionBroadcastRequest::rtt,
                                               std::move(p),
                                               &BlockchainMessage::TransactionBroadcastRequest::pvoid_saver);
         }
-        else if (pss->type == beltpp::http::detail::scan_status::post &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "api")
+        else if (ss.type == beltpp::http::detail::scan_status::post &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "api")
         {
             std::string::const_iterator iter_scan_begin_temp = posted.cbegin();
             std::string::const_iterator const iter_scan_end_temp = posted.cend();
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            auto parser_unrecognized_limit_backup = ssd.parser_unrecognized_limit;
             ssd.parser_unrecognized_limit = 0;
 
             auto pmsgall = fallback_message_list_load(iter_scan_begin_temp, iter_scan_end_temp, ssd, putl);
+
+            ssd.parser_unrecognized_limit = parser_unrecognized_limit_backup;
 
             if (pmsgall.pmsg)
                 return pmsgall;
 
             return protocol_error();
         }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 3 &&
-                 pss->resource.path.front() == "key")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 3 &&
+                 ss.resource.path.front() == "key")
         {
             size_t pos;
 
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::KeyPairRequest>();
             BlockchainMessage::KeyPairRequest& ref = *reinterpret_cast<BlockchainMessage::KeyPairRequest*>(p.get());
 
-            ref.master_key = pss->resource.path[1];
-            ref.index = beltpp::stoui64(pss->resource.path[2], pos);
+            ref.master_key = ss.resource.path[1];
+            ref.index = beltpp::stoui64(ss.resource.path[2], pos);
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(BlockchainMessage::KeyPairRequest::rtt,
                                               std::move(p),
                                               &BlockchainMessage::KeyPairRequest::pvoid_saver);
         }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "seed")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "seed")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::MasterKeyRequest>();
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(BlockchainMessage::MasterKeyRequest::rtt,
                                               std::move(p),
                                               &BlockchainMessage::MasterKeyRequest::pvoid_saver);
         }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "dns")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "dns")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::PublicAddressesRequest>();
 
             BlockchainMessage::PublicAddressesRequest& ref = *reinterpret_cast<BlockchainMessage::PublicAddressesRequest*>(p.get());
             ref.address_type = BlockchainMessage::PublicAddressType::rpc;
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(BlockchainMessage::PublicAddressesRequest::rtt,
                                               std::move(p),
                                               &BlockchainMessage::PublicAddressesRequest::pvoid_saver);
         }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "peers")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "peers")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::PublicAddressesRequest>();
 
             BlockchainMessage::PublicAddressesRequest& ref = *reinterpret_cast<BlockchainMessage::PublicAddressesRequest*>(p.get());
             ref.address_type = BlockchainMessage::PublicAddressType::p2p;
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(BlockchainMessage::PublicAddressesRequest::rtt,
                                               std::move(p),
                                               &BlockchainMessage::PublicAddressesRequest::pvoid_saver);
         }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "protocol")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "protocol")
         {
             ssd.session_specal_handler = nullptr;
 
             ssd.autoreply = beltpp::http::http_response(ssd, BlockchainMessage::detail::storage_json_schema());
-
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
@@ -296,14 +277,14 @@ beltpp::detail::pmsg_all message_list_load(
 
             string message("noo! \r\n");
 
-            for (auto const& dir : pss->resource.path)
+            for (auto const& dir : ss.resource.path)
                 message += "/" + dir;
             message += "\r\n";
-            for (auto const& arg : pss->resource.arguments)
+            for (auto const& arg : ss.resource.arguments)
                 message += (arg.first + ": " + arg.second + "\r\n");
             message += "\r\n";
             message += "\r\n";
-            for (auto const& prop : pss->resource.properties)
+            for (auto const& prop : ss.resource.properties)
                 message += (prop.first + ": " + prop.second + "\r\n");
             message += "that's an error! \r\n";
             message += "here's the protocol, by the way \r\n";
@@ -311,8 +292,6 @@ beltpp::detail::pmsg_all message_list_load(
             ssd.autoreply = beltpp::http::http_not_found(ssd,
                                                          message +
                                                          BlockchainMessage::detail::storage_json_schema());
-
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
