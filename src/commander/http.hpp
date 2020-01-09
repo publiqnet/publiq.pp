@@ -42,8 +42,7 @@ string check_arguments(unordered_map<string, string>& arguments,
     return string();
 }
 
-beltpp::detail::pmsg_all request_failed(string const& message,
-                                        beltpp::detail::session_special_data& ssd)
+beltpp::detail::pmsg_all request_failed(string const& message)
 {
     auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Failed>();
     CommanderMessage::Failed & ref = *reinterpret_cast<CommanderMessage::Failed*>(p.get());
@@ -155,13 +154,13 @@ beltpp::detail::pmsg_all message_list_load(
             std::vector<string> args {ss.resource.path[1], ss.resource.path[2]};
             if (ss.resource.path[1].empty() ||
                 ss.resource.path[2].empty())
-                return request_failed("invalid argument: ", ssd);
+                return request_failed("invalid argument: ");
 
             for (auto const& it : args)
             {
                 beltpp::stoui64(it, pos);
                 if (it.size() != pos)
-                    return request_failed("invalid argument: " + it, ssd);
+                    return request_failed("invalid argument: " + it);
             }
 
             ref.start_block_index = beltpp::stoui64(ss.resource.path[1], pos);
@@ -204,13 +203,13 @@ beltpp::detail::pmsg_all message_list_load(
             size_t pos;
             std::vector<string> args {ss.resource.path.back()};
             if (ss.resource.path.back().empty())
-                return request_failed("invalid argument: ", ssd);
+                return request_failed("invalid argument: ");
 
             for (auto const& it : args)
             {
                 beltpp::stoui64(it, pos);
                 if (it.size() != pos)
-                    return request_failed("invalid argument: " + it, ssd);
+                    return request_failed("invalid argument: " + it);
             }
 
             ref.block_number = beltpp::stoui64(ss.resource.path.back(), pos);
@@ -231,7 +230,7 @@ beltpp::detail::pmsg_all message_list_load(
             ref.end_block_index = beltpp::stoui64(ss.resource.path[2], pos);
 
             if (ref.start_block_index > ref.end_block_index)
-                return request_failed("invalid arguments: ", ssd);
+                return request_failed("invalid arguments: ");
 
             return ::beltpp::detail::pmsg_all(CommanderMessage::MinersRequest::rtt,
                                               std::move(p),
@@ -246,7 +245,7 @@ beltpp::detail::pmsg_all message_list_load(
 
             string check_result = check_arguments(ss.resource.arguments, all_arguments, ui64_arguments);
             if (!check_result.empty())
-                return request_failed(check_result, ssd);
+                return request_failed(check_result);
 
             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::Send>();
             CommanderMessage::Send& ref = *reinterpret_cast<CommanderMessage::Send*>(p.get());
@@ -286,7 +285,7 @@ beltpp::detail::pmsg_all message_list_load(
 
             string check_result = check_arguments(ss.resource.arguments, all_arguments, ui64_arguments);
             if (!check_result.empty())
-                return request_failed(check_result, ssd);
+                return request_failed(check_result);
 
             auto p = ::beltpp::new_void_unique_ptr<CommanderMessage::StorageUpdateRequest>();
             CommanderMessage::StorageUpdateRequest& ref = *reinterpret_cast<CommanderMessage::StorageUpdateRequest*>(p.get());
