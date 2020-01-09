@@ -113,7 +113,6 @@ beltpp::detail::pmsg_all message_list_load(
 
     auto protocol_error = [&iter_scan_begin, &iter_scan_end, &ssd]()
     {
-        ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
         ssd.session_specal_handler = nullptr;
         ssd.autoreply.clear();
         iter_scan_begin = iter_scan_end;
@@ -123,29 +122,20 @@ beltpp::detail::pmsg_all message_list_load(
     };
 
     string posted;
-    auto code = beltpp::http::protocol(ssd,
-                                       iter_scan_begin,
-                                       iter_scan_end,
-                                       it_fallback,
-                                       1000,
-                                       64 * 1024,
-                                       10 * 1024 * 1024,
-                                       posted);
-
-    beltpp::http::detail::scan_status* pss =
-            dynamic_cast<beltpp::http::detail::scan_status*>(ssd.ptr_data.get());
+    auto result = beltpp::http::protocol(ssd,
+                                         iter_scan_begin,
+                                         iter_scan_end,
+                                         it_fallback,
+                                         1000,
+                                         64 * 1024,
+                                         10 * 1024 * 1024,
+                                         posted);
+    auto code = result.first;
+    auto& ss = result.second;
 
     if (code == beltpp::e_three_state_result::error &&
-        (nullptr == pss ||
-         pss->status == beltpp::http::detail::scan_status::clean)
-        )
+        ss.status == beltpp::http::detail::scan_status::clean)
     {
-        if (pss)
-        {
-            ssd.parser_unrecognized_limit = pss->parser_unrecognized_limit_backup;
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-        }
-
         return fallback_message_list_load(iter_scan_begin, iter_scan_end, ssd, putl);
     }
     else if (code == beltpp::e_three_state_result::error)
@@ -162,44 +152,40 @@ beltpp::detail::pmsg_all message_list_load(
         ssd.session_specal_handler = &json_response;
         ssd.autoreply.clear();
 
-        if (pss->type == beltpp::http::detail::scan_status::get &&
-            pss->resource.path.size() == 1 &&
-            pss->resource.path.front() == "storage_order")
+        if (ss.type == beltpp::http::detail::scan_status::get &&
+            ss.resource.path.size() == 1 &&
+            ss.resource.path.front() == "storage_order")
         {
             ssd.session_specal_handler = &storage_order_response;
-            ssd.autoreply.clear();
 
             auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignRequest>();
             StorageUtilityMessage::SignRequest& ref = *reinterpret_cast<StorageUtilityMessage::SignRequest*>(p.get());
 
-            ref.private_key =  pss->resource.arguments["private_key"];
-            ref.order.storage_address = pss->resource.arguments["storage_address"];
-            ref.order.file_uri = pss->resource.arguments["file_uri"];
-            ref.order.content_unit_uri = pss->resource.arguments["content_unit_uri"];
-            ref.order.session_id = pss->resource.arguments["session_id"];
+            ref.private_key =  ss.resource.arguments["private_key"];
+            ref.order.storage_address = ss.resource.arguments["storage_address"];
+            ref.order.file_uri = ss.resource.arguments["file_uri"];
+            ref.order.content_unit_uri = ss.resource.arguments["content_unit_uri"];
+            ref.order.session_id = ss.resource.arguments["session_id"];
             ref.order.seconds = SIGN_SECONDS;
             ref.order.time_point.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
             return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignRequest::rtt,
                                               std::move(p),
                                               &StorageUtilityMessage::SignRequest::pvoid_saver);
         }
-        if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 2 &&
-                 pss->resource.path.front() == "verify_order")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 2 &&
+                 ss.resource.path.front() == "verify_order")
         {
             ssd.session_specal_handler = &storage_verify_response;
-            ssd.autoreply.clear();
 
             auto p = ::beltpp::new_void_unique_ptr<StorageUtilityMessage::SignedStorageOrder>();
             StorageUtilityMessage::SignedStorageOrder& ref = *reinterpret_cast<StorageUtilityMessage::SignedStorageOrder*>(p.get());
 
             try
             {
-                ref.from_string(meshpp::from_base64(pss->resource.path.back()), putl);
+                ref.from_string(meshpp::from_base64(ss.resource.path.back()), putl);
 
-                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
                 return ::beltpp::detail::pmsg_all(StorageUtilityMessage::SignedStorageOrder::rtt,
                                                   std::move(p),
                                                   &StorageUtilityMessage::SignedStorageOrder::pvoid_saver);
@@ -213,40 +199,38 @@ beltpp::detail::pmsg_all message_list_load(
                 ssd.autoreply = beltpp::http::http_not_found(ssd,
                                                              message);
 
-                ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
-
                 return ::beltpp::detail::pmsg_all(size_t(-1),
                                                   ::beltpp::void_unique_nullptr(),
                                                   nullptr);
             }
 
         }
-        else if (pss->type == beltpp::http::detail::scan_status::post &&
-                pss->resource.path.size() == 1 &&
-                pss->resource.path.front() == "api")
+        else if (ss.type == beltpp::http::detail::scan_status::post &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "api")
         {
             std::string::const_iterator iter_scan_begin_temp = posted.cbegin();
             std::string::const_iterator const iter_scan_end_temp = posted.cend();
 
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
+            auto parser_unrecognized_limit_backup = ssd.parser_unrecognized_limit;
             ssd.parser_unrecognized_limit = 0;
 
             auto pmsgall = fallback_message_list_load(iter_scan_begin_temp, iter_scan_end_temp, ssd, putl);
+
+            ssd.parser_unrecognized_limit = parser_unrecognized_limit_backup;
 
             if (pmsgall.pmsg)
                 return pmsgall;
 
             return protocol_error();
         }
-        else if (pss->type == beltpp::http::detail::scan_status::get &&
-                 pss->resource.path.size() == 1 &&
-                 pss->resource.path.front() == "protocol")
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "protocol")
         {
             ssd.session_specal_handler = nullptr;
 
             ssd.autoreply = beltpp::http::http_response(ssd, StorageUtilityMessage::detail::storage_json_schema());
-
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
@@ -258,14 +242,14 @@ beltpp::detail::pmsg_all message_list_load(
 
             string message("noo! \r\n");
 
-            for (auto const& dir : pss->resource.path)
+            for (auto const& dir : ss.resource.path)
                 message += "/" + dir;
             message += "\r\n";
-            for (auto const& arg : pss->resource.arguments)
+            for (auto const& arg : ss.resource.arguments)
                 message += (arg.first + ": " + arg.second + "\r\n");
             message += "\r\n";
             message += "\r\n";
-            for (auto const& prop : pss->resource.properties)
+            for (auto const& prop : ss.resource.properties)
                 message += (prop.first + ": " + prop.second + "\r\n");
             message += "that's an error! \r\n";
             message += "here's the protocol, by the way \r\n";
@@ -273,8 +257,6 @@ beltpp::detail::pmsg_all message_list_load(
             ssd.autoreply = beltpp::http::http_not_found(ssd,
                                                          message +
                                                          StorageUtilityMessage::detail::storage_json_schema());
-
-            ssd.ptr_data = beltpp::t_unique_nullptr<beltpp::detail::iscan_status>();
 
             return ::beltpp::detail::pmsg_all(size_t(-1),
                                               ::beltpp::void_unique_nullptr(),
