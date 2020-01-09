@@ -5,6 +5,10 @@
 #include <belt.pp/parser.hpp>
 #include <belt.pp/http.hpp>
 
+#ifdef USE_BOOST_TLS
+#include <belt.pp/tls.hpp>
+#endif
+
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <string>

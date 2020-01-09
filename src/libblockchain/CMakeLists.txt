@@ -95,6 +95,11 @@ target_link_libraries(blockchain
         storage_utility
         log)
 
+#add_definitions(-DUSE_BOOST_TLS)
+#target_link_libraries(blockchain PRIVATE Boost::system)
+#find_package(OpenSSL REQUIRED SSL Crypto)
+#target_link_libraries(blockchain PRIVATE OpenSSL::SSL OpenSSL::Crypto)
+
 # what to do on make install
 install(TARGETS blockchain
         EXPORT publiq.pp.package
