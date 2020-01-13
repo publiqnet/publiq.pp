@@ -425,6 +425,7 @@ public:
                    bool transfer_only,
                    bool testnet,
                    bool resync,
+                   bool revert_blocks,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
                    std::chrono::steady_clock::duration const& sync_delay,
@@ -465,6 +466,7 @@ public:
         , m_transfer_only(transfer_only)
         , m_service_statistics_broadcast_triggered(false)
         , m_initialize(true)
+        , m_revert_blocks(revert_blocks)
         , m_freeze_before_block(freeze_before_block)
         , m_resync_blockchain(resync ? 10 : uint64_t(-1))
         , m_genesis_signed_block(genesis_signed_block)
@@ -474,6 +476,7 @@ public:
                                                    p_counts_per_channel_views :
                                                    &counts_per_channel_views)
     {
+
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
@@ -624,59 +627,7 @@ public:
         return last_block_age < chrono::seconds(BLOCK_MINE_DELAY);
     }
 
-    void initialize()
-    {
-        if (m_resync_blockchain != uint64_t(-1))
-        {
-            if (m_resync_blockchain)
-            {
-                writeln_node("blockchain data cleanup will start in: " + std::to_string(m_resync_blockchain) + " seconds");
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                --m_resync_blockchain;
-            }
-            else
-            {
-                beltpp::on_failure guard([this]
-                {
-                    discard();
-                });
-
-                m_state.clear();
-                m_documents.clear();
-                m_blockchain.clear();
-                m_action_log.clear();
-                m_transaction_pool.clear();
-
-                save(guard);
-
-                m_resync_blockchain = uint64_t(-1);
-                writeln_node("blockchain data cleaned up");
-            }
-        }
-        else
-        {
-            if (m_blockchain.length() == 0)
-                insert_genesis(m_genesis_signed_block);
-            else
-            {
-                SignedBlock const& signed_block = m_blockchain.at(0);
-                SignedBlock signed_block_hardcode;
-                signed_block_hardcode.from_string(m_genesis_signed_block);
-
-                if (signed_block.to_string() != signed_block_hardcode.to_string())
-                    throw std::runtime_error("the stored genesis is different from the one built in");
-            }
-
-            NodeType stored_node_type;
-            if (m_state.get_role(m_pb_key.to_string(), stored_node_type) &&
-                stored_node_type != m_node_type)
-                throw std::runtime_error("the stored node role is different");
-
-            load_transaction_cache(*this);
-
-            m_initialize = false;
-        }
-    }
+    bool initialize();
 
     storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
@@ -722,6 +673,7 @@ public:
     bool m_transfer_only;
     bool m_service_statistics_broadcast_triggered;
     bool m_initialize;
+    bool m_revert_blocks;
 
     uint64_t m_freeze_before_block;
     uint64_t m_resync_blockchain;

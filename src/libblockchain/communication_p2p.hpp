@@ -47,8 +47,8 @@ bool check_rewards(BlockchainMessage::Block const& block,
                    std::map<std::string, coin>& applied_sponsor_items);
 
 bool check_service_statistics(BlockchainMessage::Block const& block,
-                              vector<SignedTransaction> const& pool_transactions,
-                              vector<SignedTransaction> const& reverted_transactions,
+                              vector<BlockchainMessage::SignedTransaction> const& pool_transactions,
+                              vector<BlockchainMessage::SignedTransaction> const& reverted_transactions,
                               publiqpp::detail::node_internals& impl);
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);

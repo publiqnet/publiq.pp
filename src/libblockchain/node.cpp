@@ -68,6 +68,7 @@ node::node(string const& genesis_signed_block,
            bool transfer_only,
            bool testnet,
            bool resync,
+           bool revert_blocks,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
            std::chrono::steady_clock::duration const& sync_delay,
@@ -94,6 +95,7 @@ node::node(string const& genesis_signed_block,
                                          transfer_only,
                                          testnet,
                                          resync,
+                                         revert_blocks,
                                          mine_amount_threshhold,
                                          block_reward_array,
                                          sync_delay,
@@ -114,14 +116,14 @@ string node::name() const
     return m_pimpl->m_ptr_p2p_socket->name();
 }
 
-void node::run(bool& stop)
+void node::run(bool& stop_check)
 {
-    stop = false;
+    stop_check = false;
 
     if (m_pimpl->m_initialize)
     {
-        beltpp::on_failure guard_initialize([&stop]{ stop = true; });
-        m_pimpl->initialize();
+        beltpp::on_failure guard_initialize([&stop_check]{ stop_check = true; });
+        stop_check = m_pimpl->initialize();
         guard_initialize.dismiss();
         return;
     }
@@ -1535,7 +1537,6 @@ void sync_worker(detail::node_internals& impl)
         }
     }
 }
-
 }
 
 
