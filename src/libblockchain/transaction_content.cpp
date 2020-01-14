@@ -116,7 +116,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
     }
 
     if (impl.m_node_type == NodeType::storage &&
-        state_layer::chain == layer)
+        state_layer::chain == layer /*&& beltpp::chance_one_of(3)*/)
     {
         for (auto const& unit_uri : content.content_unit_uris)
         {
@@ -126,7 +126,6 @@ void action_apply(publiqpp::detail::node_internals& impl,
                 impl.m_documents.insert_file_request(file_uri, content.channel_address);
         }
     }
-
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,
