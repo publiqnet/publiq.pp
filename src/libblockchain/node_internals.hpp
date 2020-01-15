@@ -634,6 +634,7 @@ public:
     }
 
     bool initialize();
+    wait_result_item wait_and_receive_one();
 
     storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
@@ -690,7 +691,6 @@ public:
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;
     fp_counts_per_channel_views pcounts_per_channel_views;
-    //unordered_map<string, unordered_map<string, bool>> map_channel_to_file_uris;
 
     struct vote_info
     {
@@ -700,6 +700,7 @@ public:
     };
 
     unordered_map<string, vote_info> m_votes;
+    wait_result m_wait_result;
 };
 
 }

@@ -400,7 +400,10 @@ void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_ha
                 break;
             node.run(stop_check);
             if (stop_check)
+            {
+                termination_handler(0);
                 break;
+            }
         }
         catch (std::bad_alloc const& ex)
         {

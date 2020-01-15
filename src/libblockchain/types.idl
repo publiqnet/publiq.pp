@@ -72,5 +72,18 @@ module StorageTypes
     {
         Array String channel_addresses
     }
+
+    class FilesListRequest
+    {}
+
+    class ContainerMessage
+    {
+        Extension package
+    }
+
+    class FilesList
+    {
+        Set String file_uris
+    }
 }
 ////1

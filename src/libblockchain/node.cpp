@@ -136,52 +136,28 @@ void node::run(bool& stop_check)
         broadcast_service_statistics(*m_pimpl);
     }
 
-    unordered_set<beltpp::ievent_item const*> wait_sockets;
+    auto wait_result = m_pimpl->wait_and_receive_one();
 
-    auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
-
-    enum class interface_type {p2p, rpc};
-
-    if (wait_result & beltpp::event_handler::event)
+    if (wait_result.et == detail::wait_result_item::event)
     {
-        for (auto& pevent_item : wait_sockets)
+        auto peerid = wait_result.peerid;
+        auto received_packet = std::move(wait_result.packet);
+        auto it = wait_result.it;
+
+        beltpp::isocket* psk = nullptr;
+        if (it == detail::wait_result_item::interface_type::p2p)
+            psk = m_pimpl->m_ptr_p2p_socket.get();
+        else if (it == detail::wait_result_item::interface_type::rpc)
+            psk = m_pimpl->m_ptr_rpc_socket.get();
+
+        if (nullptr == psk)
+            throw std::logic_error("nullptr == psk");
+
+        try
         {
-            interface_type it = interface_type::rpc;
-            if (pevent_item == &m_pimpl->m_ptr_p2p_socket->worker())
-                it = interface_type::p2p;
-
-            auto str_receive = [it]
+            if (false == m_pimpl->m_nodeid_sessions.process(peerid, std::move(received_packet)) &&
+                false == m_pimpl->m_sync_sessions.process(peerid, std::move(received_packet)))
             {
-                if (it == interface_type::p2p)
-                    return "p2p_sk.receive";
-                return "rpc_sk.receive";
-            };
-            str_receive();
-
-            beltpp::socket::peer_id peerid;
-
-            beltpp::isocket* psk = nullptr;
-            if (pevent_item == &m_pimpl->m_ptr_p2p_socket->worker())
-                psk = m_pimpl->m_ptr_p2p_socket.get();
-            else if (pevent_item == m_pimpl->m_ptr_rpc_socket.get())
-                psk = m_pimpl->m_ptr_rpc_socket.get();
-
-            if (nullptr == psk)
-                throw std::logic_error("event handler behavior");
-
-            beltpp::socket::packets received_packets;
-            if (psk != nullptr)
-                received_packets = psk->receive(peerid);
-
-            for (auto& received_packet : received_packets)
-            {
-            try
-            {
-                if (m_pimpl->m_nodeid_sessions.process(peerid, std::move(received_packet)))
-                    continue;
-                if (m_pimpl->m_sync_sessions.process(peerid, std::move(received_packet)))
-                    continue;
-
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
@@ -201,11 +177,11 @@ void node::run(bool& stop_check)
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    if (it == interface_type::p2p)
+                    if (it == detail::wait_result_item::interface_type::p2p)
                         m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) + 
                                               " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
-                    if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                    if (it == detail::wait_result_item::interface_type::p2p)
                     {
                         beltpp::on_failure guard(
                             [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::isocket_drop())); });
@@ -226,7 +202,7 @@ void node::run(bool& stop_check)
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    if (it == interface_type::p2p)
+                    if (it == detail::wait_result_item::interface_type::p2p)
                     {
                         m_pimpl->remove_peer(peerid);
                         m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid) +
@@ -243,7 +219,7 @@ void node::run(bool& stop_check)
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
 
-                    if (it == interface_type::p2p)
+                    if (it == detail::wait_result_item::interface_type::p2p)
                         m_pimpl->remove_peer(peerid);
                     
                     break;
@@ -297,13 +273,13 @@ void node::run(bool& stop_check)
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
-                                          it == interface_type::rpc,
+                                          it == detail::wait_result_item::interface_type::rpc,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
                 
-                    if (it == interface_type::rpc)
+                    if (it == detail::wait_result_item::interface_type::rpc)
                         psk->send(peerid, beltpp::packet(Done()));
 
                     break;
@@ -313,7 +289,7 @@ void node::run(bool& stop_check)
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
-                    if (it != interface_type::p2p)
+                    if (it != detail::wait_result_item::interface_type::p2p)
                         throw wrong_request_exception("AddressInfo received through rpc!");
 
                     Broadcast* p_broadcast = nullptr;
@@ -426,7 +402,7 @@ void node::run(bool& stop_check)
                 }
                 case LoggedTransactionsRequest::rtt:
                 {
-                    if (it == interface_type::rpc)
+                    if (it == detail::wait_result_item::interface_type::rpc)
                     {
                         LoggedTransactionsRequest msg_get_actions;
                         std::move(ref_packet).get(msg_get_actions);
@@ -508,7 +484,7 @@ void node::run(bool& stop_check)
                 }
                 case BlockchainRequest::rtt:
                 {
-                    if (it != interface_type::p2p)
+                    if (it != detail::wait_result_item::interface_type::p2p)
                         throw wrong_request_exception("BlockchainRequest received through rpc!");
 
                     BlockchainRequest blockchain_request;
@@ -546,7 +522,7 @@ void node::run(bool& stop_check)
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
-                                          it == interface_type::rpc,
+                                          it == detail::wait_result_item::interface_type::rpc,
                                           //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
@@ -615,242 +591,244 @@ void node::run(bool& stop_check)
                     break;
                 }
                 }   // switch ref_packet.type()
-            }
-            catch (meshpp::exception_public_key const& e)
+            }   // if not processed by sessions
+        }
+        catch (meshpp::exception_public_key const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidPublicKey msg;
-                    msg.public_key = e.pub_key;
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                InvalidPublicKey msg;
+                msg.public_key = e.pub_key;
+                psk->send(peerid, beltpp::packet(msg));
             }
-            catch (meshpp::exception_private_key const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidPrivateKey msg;
-                    msg.private_key = e.priv_key;
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (meshpp::exception_signature const& e)
+            throw;
+        }
+        catch (meshpp::exception_private_key const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidSignature msg;
-                    msg.details.public_key = e.sgn.pb_key.to_string();
-                    msg.details.signature = e.sgn.base58;
-                    BlockchainMessage::detail::loader(msg.details.package,
-                                                      std::string(e.sgn.message.begin(), e.sgn.message.end()),
-                                                      nullptr);
+                InvalidPrivateKey msg;
+                msg.private_key = e.priv_key;
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (meshpp::exception_signature const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                InvalidSignature msg;
+                msg.details.public_key = e.sgn.pb_key.to_string();
+                msg.details.signature = e.sgn.base58;
+                BlockchainMessage::detail::loader(msg.details.package,
+                                                  std::string(e.sgn.message.begin(), e.sgn.message.end()),
+                                                  nullptr);
 
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(msg));
             }
-            catch (wrong_data_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError remote_error;
-                    remote_error.message = e.message;
-                    psk->send(peerid, beltpp::packet(remote_error));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (wrong_request_exception const& e)
+            throw;
+        }
+        catch (wrong_data_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError remote_error;
-                    remote_error.message = e.message;
-                    psk->send(peerid, beltpp::packet(remote_error));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
             }
-            catch (wrong_document_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError remote_error;
-                    remote_error.message = e.message;
-                    psk->send(peerid, beltpp::packet(remote_error));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (authority_exception const& e)
+            throw;
+        }
+        catch (wrong_request_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidAuthority msg;
-                    msg.authority_provided = e.authority_provided;
-                    msg.authority_required = e.authority_required;
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
             }
-            catch (not_enough_balance_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    NotEnoughBalance msg;
-                    e.balance.to_Coin(msg.balance);
-                    e.spending.to_Coin(msg.spending);
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (too_long_string_exception const& e)
+            throw;
+        }
+        catch (wrong_document_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    TooLongString msg;
-                    beltpp::assign(msg, e);
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
             }
-            catch (uri_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    UriError msg;
-                    beltpp::assign(msg, e);
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (std::exception const& e)
+            throw;
+        }
+        catch (authority_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError msg;
-                    msg.message = e.what();
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                throw;
+                InvalidAuthority msg;
+                msg.authority_provided = e.authority_provided;
+                msg.authority_required = e.authority_required;
+                psk->send(peerid, beltpp::packet(msg));
             }
-            catch (...)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError msg;
-                    msg.message = "unknown exception";
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            }   // for (auto& received_packet : received_packets)
-        }   // for (auto& pevent_item : wait_sockets)
+            throw;
+        }
+        catch (not_enough_balance_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                NotEnoughBalance msg;
+                e.balance.to_Coin(msg.balance);
+                e.spending.to_Coin(msg.spending);
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (too_long_string_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                TooLongString msg;
+                beltpp::assign(msg, e);
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (uri_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                UriError msg;
+                beltpp::assign(msg, e);
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (std::exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                RemoteError msg;
+                msg.message = e.what();
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            throw;
+        }
+        catch (...)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                RemoteError msg;
+                msg.message = "unknown exception";
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            throw;
+        }
     }
-
-    if (wait_result & beltpp::event_handler::timer_out)
+    else if (wait_result.et == detail::wait_result_item::timer)
     {
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
-
-    if (m_pimpl->m_slave_node && (wait_result & beltpp::event_handler::on_demand))
+    else if (m_pimpl->m_slave_node && wait_result.et == detail::wait_result_item::on_demand)
     {
         beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
 
-        for (auto& ref_packet : received_packets)
+        auto ref_packet = std::move(wait_result.packet);
+
+        if (false == m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
         {
-            if (m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
-                continue;
             switch (ref_packet.type())
             {
-            case Served::rtt:
+            case StorageTypes::ContainerMessage::rtt:
             {
-                Served msg;
+                StorageTypes::ContainerMessage msg_container;
+                std::move(ref_packet).get(msg_container);
 
-                std::move(ref_packet).get(msg);
-                if (m_pimpl->m_node_type == NodeType::storage)
+                if (msg_container.package.type() == Served::rtt)
                 {
-                    detail::service_counter::service_unit unit;
-                    detail::service_counter::service_unit_counter unit_counter;
-
-                    string& channel_address = unit.peer_address;
-                    string storage_address;
-
-                    if (storage_utility::rpc::verify_storage_order(msg.storage_order_token,
-                                                                   channel_address,
-                                                                   storage_address,
-                                                                   unit.file_uri,
-                                                                   unit.content_unit_uri,
-                                                                   unit_counter.session_id,
-                                                                   unit_counter.seconds,
-                                                                   unit_counter.time_point) &&
-                        storage_address == m_pimpl->m_pb_key.to_string() &&
-                        m_pimpl->m_documents.file_exists(unit.file_uri))
+                    Served msg;
+                    std::move(msg_container.package).get(msg);
+                    if (m_pimpl->m_node_type == NodeType::storage)
                     {
-                        unit.content_unit_uri.clear(); // simulate the old behavior
+                        detail::service_counter::service_unit unit;
+                        detail::service_counter::service_unit_counter unit_counter;
 
-                        m_pimpl->service_counter.served(unit, unit_counter);
+                        string& channel_address = unit.peer_address;
+                        string storage_address;
+
+                        if (storage_utility::rpc::verify_storage_order(msg.storage_order_token,
+                                                                       channel_address,
+                                                                       storage_address,
+                                                                       unit.file_uri,
+                                                                       unit.content_unit_uri,
+                                                                       unit_counter.session_id,
+                                                                       unit_counter.seconds,
+                                                                       unit_counter.time_point) &&
+                            storage_address == m_pimpl->m_pb_key.to_string() &&
+                            m_pimpl->m_documents.file_exists(unit.file_uri))
+                        {
+                            unit.content_unit_uri.clear(); // simulate the old behavior
+
+                            m_pimpl->service_counter.served(unit, unit_counter);
 #ifdef EXTRA_LOGGING
-                        m_pimpl->writeln_node("storage served");
-                        m_pimpl->writeln_node(msg.to_string());
+                            m_pimpl->writeln_node("storage served");
+                            m_pimpl->writeln_node(msg.to_string());
 #endif
-                    }
+                        }
 
+                    }
                 }
                 break;
             }
             }
-        }
+        }   // if not processed by sessions
     }
 
     m_pimpl->m_sessions.erase_all_pending();

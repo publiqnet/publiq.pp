@@ -1247,17 +1247,24 @@ void session_action_save_file::initiate(meshpp::session_header&/* header*/)
 bool session_action_save_file::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
 {
     bool code = true;
+    if (package.type() != StorageTypes::ContainerMessage::rtt)
+        return false;
+
     beltpp::on_failure guard([this]{ errored = true; });
 
-    if (expected_next_package_type == package.type() &&
+    StorageTypes::ContainerMessage* msg_container;
+    package.get(msg_container);
+    auto& msg_package = msg_container->package;
+
+    if (expected_next_package_type == msg_package.type() &&
         expected_next_package_type != size_t(-1))
     {
-        switch (package.type())
+        switch (msg_package.type())
         {
         case BlockchainMessage::StorageFileAddress::rtt:
         {
             BlockchainMessage::StorageFileAddress msg;
-            std::move(package).get(msg);
+            std::move(msg_package).get(msg);
 
             if (callback)
             {
@@ -1278,12 +1285,12 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
     }
     else
     {
-        if (package.type() == BlockchainMessage::UriError::rtt)
+        if (msg_package.type() == BlockchainMessage::UriError::rtt)
         {
             beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
 
             if (callback)
-                callback(std::move(package));
+                callback(std::move(msg_package));
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1341,12 +1348,18 @@ void session_action_delete_file::initiate(meshpp::session_header&/* header*/)
 bool session_action_delete_file::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
 {
     bool code = true;
+    if (package.type() != StorageTypes::ContainerMessage::rtt)
+        return false;
     beltpp::on_failure guard([this]{ errored = true; });
 
-    if (expected_next_package_type == package.type() &&
+    StorageTypes::ContainerMessage* msg_container;
+    package.get(msg_container);
+    auto& msg_package = msg_container->package;
+
+    if (expected_next_package_type == msg_package.type() &&
         expected_next_package_type != size_t(-1))
     {
-        switch (package.type())
+        switch (msg_package.type())
         {
         case BlockchainMessage::Done::rtt:
         {
@@ -1369,11 +1382,11 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
     }
     else
     {
-        if (package.type() == BlockchainMessage::UriError::rtt)
+        if (msg_package.type() == BlockchainMessage::UriError::rtt)
         {
             beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
             if (callback)
-                callback(std::move(package));
+                callback(std::move(msg_package));
             callback = std::function<void(beltpp::packet&&)>();
 
             completed = true;

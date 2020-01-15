@@ -5,8 +5,14 @@
 #include "coin.hpp"
 #include "message.hpp"
 
+#include <belt.pp/event.hpp>
+#include <belt.pp/socket.hpp>
+#include <belt.pp/packet.hpp>
+
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <utility>
 
 // Blocks and headers max count per one request - 1
 // corners are included
@@ -168,5 +174,64 @@ std::string peer_short_names(std::string const& peerid)
 
     return peerid;
 }
+
+class wait_result_item
+{
+public:
+    enum interface_type {p2p, rpc};
+    enum event_type {nothing, event, timer, on_demand};
+    event_type et = nothing;
+    interface_type it = rpc;
+    beltpp::socket::peer_id peerid;
+    beltpp::packet packet;
+
+    static wait_result_item event_result(interface_type it,
+                                         beltpp::socket::peer_id const& peerid,
+                                         beltpp::packet&& packet)
+    {
+        wait_result_item res;
+        res.et = event;
+        res.it = it;
+        res.peerid = peerid;
+        res.packet = std::move(packet);
+
+        return res;
+    }
+
+    static wait_result_item on_demand_result(beltpp::packet&& packet)
+    {
+        wait_result_item res;
+        res.et = on_demand;
+        res.packet = std::move(packet);
+
+        return res;
+    }
+
+    static wait_result_item timer_result()
+    {
+        wait_result_item res;
+        res.et = timer;
+
+        return res;
+    }
+
+    static wait_result_item empty_result()
+    {
+        wait_result_item res;
+        res.et = nothing;
+
+        return res;
+    }
+};
+
+class wait_result
+{
+public:
+    beltpp::event_handler::wait_result wait_result;
+    std::unordered_map<wait_result_item::interface_type, std::pair<beltpp::socket::peer_id, beltpp::socket::packets>> event_packets;
+
+    beltpp::socket::packets on_demand_packets;
+};
+
 }
 }
