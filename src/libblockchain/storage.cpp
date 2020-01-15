@@ -91,6 +91,11 @@ bool storage::remove(string const& uri)
     return true;
 }
 
+unordered_set<string> storage::get_file_uris() const
+{
+    return m_pimpl->map.keys();
+}
+
 namespace detail
 {
 inline

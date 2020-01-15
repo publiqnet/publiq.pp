@@ -29,6 +29,7 @@ public:
     bool put(BlockchainMessage::StorageFile&& file, std::string& uri);
     bool get(std::string const& uri, BlockchainMessage::StorageFile& file);
     bool remove(std::string const& uri);
+    std::unordered_set<std::string> get_file_uris() const;
 private:
     std::unique_ptr<detail::storage_internals> m_pimpl;
 };

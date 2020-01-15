@@ -73,7 +73,7 @@ module StorageTypes
         Array String channel_addresses
     }
 
-    class FilesListRequest
+    class FileUrisRequest
     {}
 
     class ContainerMessage
@@ -81,7 +81,7 @@ module StorageTypes
         Extension package
     }
 
-    class FilesList
+    class FileUris
     {
         Set String file_uris
     }

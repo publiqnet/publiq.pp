@@ -337,6 +337,16 @@ void storage_node::run(bool& stop)
                     m_pimpl->m_master_node->wake();
                     break;
                 }
+                case StorageTypes::FileUrisRequest::rtt:
+                {
+                    StorageTypes::FileUris msg_response;
+
+                    msg_response.file_uris = m_pimpl->m_storage.get_file_uris();
+
+                    response.set(std::move(msg_response));
+                    m_pimpl->m_master_node->wake();
+                    break;
+                }
                 }
             }
         }

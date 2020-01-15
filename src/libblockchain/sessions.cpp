@@ -1189,6 +1189,9 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 
         if (msg->uri == file_uri)
         {
+#ifdef EXTRA_LOGGING
+            pimpl->writeln_node(file_uri + " missing from channel");
+#endif
             pimpl->m_storage_controller.pop(file_uri, nodeid);
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1402,6 +1405,76 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
 }
 
 bool session_action_delete_file::permanent() const
+{
+    return false;
+}
+
+// --------------------------- session_action_get_file_uris ---------------------------
+
+session_action_get_file_uris::session_action_get_file_uris(detail::node_internals& impl,
+                                                           std::function<void(beltpp::packet&&)> const& _callback)
+    : meshpp::session_action<meshpp::session_header>()
+    , pimpl(&impl)
+    , callback(_callback)
+{}
+
+session_action_get_file_uris::~session_action_get_file_uris()
+{
+    if ((size_t(-1) != expected_next_package_type ||
+         errored) &&
+        callback)
+    {
+        BlockchainMessage::RemoteError msg;
+        msg.message = "unknown error getting the file uris";
+        callback(beltpp::packet(std::move(msg)));
+    }
+}
+
+void session_action_get_file_uris::initiate(meshpp::session_header&/* header*/)
+{
+    pimpl->m_slave_node->send(beltpp::packet(StorageTypes::FileUrisRequest()));
+    pimpl->m_slave_node->wake();
+    expected_next_package_type = StorageTypes::FileUris::rtt;
+}
+
+bool session_action_get_file_uris::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
+{
+    bool code = true;
+    beltpp::on_failure guard([this]{ errored = true; });
+
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
+    {
+        switch (package.type())
+        {
+        case StorageTypes::FileUris::rtt:
+        {
+            if (callback)
+            {
+                beltpp::on_failure guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
+                callback(std::move(package));
+                guard2.dismiss();
+            }
+
+            completed = true;
+            expected_next_package_type = size_t(-1);
+
+            break;
+        }
+        default:
+            assert(false);
+            break;
+        }
+    }
+    else
+        code = false;
+
+    guard.dismiss();
+
+    return code;
+}
+
+bool session_action_get_file_uris::permanent() const
 {
     return false;
 }
