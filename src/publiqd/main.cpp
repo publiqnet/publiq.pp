@@ -292,7 +292,10 @@ int main(int argc, char** argv)
                                                          fs_log / "storage_exceptions.txt");
 
         //__debugbreak();
-        
+        boost::filesystem::path fs_storage;
+        if (n_type == NodeType::storage)
+            fs_storage = meshpp::data_directory_path("storage");
+
         publiqpp::node node(genesis_signed_block(testnet),
                             public_address,
                             public_ssl_address,
@@ -305,6 +308,7 @@ int main(int argc, char** argv)
                             fs_state,
                             fs_documents,
                             fs_storages,
+                            fs_storage,
                             plogger_p2p.get(),
                             plogger_rpc.get(),
                             pv_key,
@@ -330,7 +334,7 @@ int main(int argc, char** argv)
         unique_ptr<publiqpp::storage_node> ptr_storage_node;
         if (n_type != NodeType::blockchain)
         {
-            auto fs_storage = meshpp::data_directory_path("storage");
+            fs_storage = meshpp::data_directory_path("storage");
             ptr_storage_node.reset(new publiqpp::storage_node(node,
                                                               slave_bind_to_address,
                                                               fs_storage,

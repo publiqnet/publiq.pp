@@ -7,6 +7,7 @@
 #include "documents.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
+#include "storage.hpp"
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
@@ -415,6 +416,7 @@ public:
                    filesystem::path const& fs_state,
                    filesystem::path const& fs_documents,
                    filesystem::path const& fs_storages,
+                   filesystem::path const& fs_storage,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
@@ -456,6 +458,7 @@ public:
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state, *this)
         , m_documents(fs_documents, fs_storages)
+        , m_storage_controller(fs_storage)
         , all_sync_info(*this)
         , m_node_type(n_type)
         , m_fee_transactions(std::move(coin_from_fractions(fractions)))
@@ -536,6 +539,7 @@ public:
         m_blockchain.save();
         m_action_log.save();
         m_transaction_pool.save();
+        m_storage_controller.save();
 
         guard.dismiss();
 
@@ -544,6 +548,7 @@ public:
         m_blockchain.commit();
         m_action_log.commit();
         m_transaction_pool.commit();
+        m_storage_controller.commit();
     }
 
     void discard()
@@ -553,6 +558,7 @@ public:
         m_blockchain.discard();
         m_action_log.discard();
         m_transaction_pool.discard();
+        m_storage_controller.discard();
     }
 
     void clean_transaction_cache()
@@ -701,6 +707,7 @@ public:
     publiqpp::transaction_pool m_transaction_pool;
     publiqpp::state m_state;
     publiqpp::documents m_documents;
+    publiqpp::storage_controller m_storage_controller;
 
     node_synchronization all_sync_info;
     detail::service_counter service_counter;
@@ -731,7 +738,7 @@ public:
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;
     fp_counts_per_channel_views pcounts_per_channel_views;
-    unordered_map<string, unordered_map<string, bool>> map_channel_to_file_uris;
+    //unordered_map<string, unordered_map<string, bool>> map_channel_to_file_uris;
 
     struct vote_info
     {

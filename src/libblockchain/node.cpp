@@ -58,6 +58,7 @@ node::node(string const& genesis_signed_block,
            filesystem::path const& fs_state,
            filesystem::path const& fs_documents,
            filesystem::path const& fs_storages,
+           filesystem::path const& fs_storage,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
@@ -84,6 +85,7 @@ node::node(string const& genesis_signed_block,
                                          fs_state,
                                          fs_documents,
                                          fs_storages,
+                                         fs_storage,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
@@ -593,6 +595,10 @@ void node::run(bool& stop)
                         throw wrong_request_exception("channel_address != m_pimpl->m_pb_key.to_string()");
 
                     m_pimpl->service_counter.served(unit, unit_counter);
+#ifdef EXTRA_LOGGING
+                    m_pimpl->writeln_node("channel served");
+                    m_pimpl->writeln_node(msg.to_string());
+#endif
 
                     psk->send(peerid, beltpp::packet(Done()));
 
@@ -832,6 +838,10 @@ void node::run(bool& stop)
                         unit.content_unit_uri.clear(); // simulate the old behavior
 
                         m_pimpl->service_counter.served(unit, unit_counter);
+#ifdef EXTRA_LOGGING
+                        m_pimpl->writeln_node("storage served");
+                        m_pimpl->writeln_node(msg.to_string());
+#endif
                     }
 
                 }
@@ -947,101 +957,54 @@ void node::run(bool& stop)
             m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
             sync_worker(*m_pimpl.get());
 
-        uint64_t pending_count = 0;
-        for (auto& it : m_pimpl->map_channel_to_file_uris)
-            pending_count += it.second.size();
-
-        if (pending_count < STORAGE_MAX_FILE_REQUESTS && 
+        if (m_pimpl->blockchain_updated() &&
             m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2)
         {
-            auto file_requests = m_pimpl->m_documents.get_file_requests(STORAGE_MAX_FILE_REQUESTS);
+            m_pimpl->writeln_node("can download now");
+            unordered_map<string, beltpp::ip_address> map_channnel_ip_address;
+            unordered_set<string> set_resolved_channels;
 
-            for (auto const& request : file_requests)
-            {
-                auto& value = m_pimpl->map_channel_to_file_uris[request.channel_address];
-
-                if (value.find(request.file_uri) == value.end() &&
-                    pending_count < STORAGE_MAX_FILE_REQUESTS)
-                {
-                    ++pending_count;
-                    value.insert(std::make_pair(request.file_uri, false));
-                }
-            }
-        }
-
-        vector<string> channel_file_uris_backup;
-        for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
-            channel_file_uris_backup.push_back(channel_file_uris.first);
-
-        unordered_set<string> unresolved_channels;
-        for (auto const& channel_address : channel_file_uris_backup)
-        {
-            auto channel_it = m_pimpl->map_channel_to_file_uris.find(channel_address);
-            if (channel_it == m_pimpl->map_channel_to_file_uris.end())
-                continue;
-
-            auto& map_file_uris = channel_it->second;
-            assert(false == map_file_uris.empty());
-            if (map_file_uris.empty())
-                throw std::logic_error("map_file_uris.empty()");
-
-            beltpp::ip_address channel_ip_address;
             PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
             for (auto const& item : public_addresses.addresses_info)
             {
                 if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
                     break;
 
-                if (item.node_address == channel_address)
-                {
-                    beltpp::assign(channel_ip_address, item.ip_address);
-                    break;
-                }
+                set_resolved_channels.insert(item.node_address);
+                beltpp::assign(map_channnel_ip_address[item.node_address], item.ip_address);
             }
 
-            if (channel_ip_address.local.empty())
-                unresolved_channels.insert(channel_address);
-            else
+            auto file_to_channel =
+                    m_pimpl->m_storage_controller.get_file_requests(set_resolved_channels);
+
+            using actions_vector = vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>>;
+            unordered_map<string, actions_vector> map_actions;
+
+            for (auto const& item : file_to_channel)
             {
-                //  session_action_request_file is allowed to modify this map
-                //  that's why we need this tricks here
-                auto map_file_uris_backup = map_file_uris;
-                for (auto const& file_uri_item_bak : map_file_uris_backup)
+                auto& actions = map_actions[item.second];
+
+                if (actions.empty())
                 {
-                    auto it = map_file_uris.find(file_uri_item_bak.first);
-                    if (it == map_file_uris.end())
-                        continue;
-
-                    bool& requested = it->second;
-                    string const& file_uri = it->first;
-
-                    if (requested)
-                        continue;
-
-                    vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
                     actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
                     actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
                                                                        m_pimpl->m_nodeid_service));
-                    actions.emplace_back(new session_action_request_file(file_uri,
-                                                                         channel_address,
-                                                                         *m_pimpl.get()));
-
-                    meshpp::nodeid_session_header header;
-                    header.nodeid = channel_address;
-                    header.address = channel_ip_address;
-                    m_pimpl->m_nodeid_sessions.add(header,
-                                                   std::move(actions),
-                                                   chrono::minutes(3));
-                    requested = true;
                 }
-            }
-        }
 
-        while (unresolved_channels.size() > 10)
-        {
-            auto const& first_unresolved_channel = *unresolved_channels.begin();
-            m_pimpl->map_channel_to_file_uris.erase(first_unresolved_channel);
-            unresolved_channels.erase(first_unresolved_channel);
+                actions.emplace_back(new session_action_request_file(item.first,
+                                                                     item.second,
+                                                                     *m_pimpl.get()));
+            }
+
+            for (auto& actions : map_actions)
+            {
+                meshpp::nodeid_session_header header;
+                header.nodeid = actions.first;
+                header.address = map_channnel_ip_address[actions.first];
+                m_pimpl->m_nodeid_sessions.add(header,
+                                               std::move(actions.second),
+                                               chrono::minutes(3));
+            }
         }
     }
 }

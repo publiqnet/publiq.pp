@@ -72,7 +72,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
     NodeType node_type;
     if (false == impl.m_state.get_role(storage_update.storage_address, node_type) ||
         node_type != NodeType::storage)
-        throw wrong_data_exception("action_apply(StorageUpdate) -> wrong authority type : " + storage_update.storage_address);
+        throw wrong_data_exception("action_apply(StorageUpdate) -> wrong authority type : " + storage_update.storage_address + ", " + storage_update.file_uri);
 
     if (false == impl.m_documents.file_exists(storage_update.file_uri))
         throw uri_exception(storage_update.file_uri, uri_exception::missing);

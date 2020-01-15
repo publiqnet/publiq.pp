@@ -8,6 +8,8 @@
 
 #include <vector>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace publiqpp
 {
@@ -15,6 +17,7 @@ namespace publiqpp
 namespace detail
 {
 class storage_internals;
+class storage_controller_internals;
 }
 
 class storage
@@ -28,6 +31,28 @@ public:
     bool remove(std::string const& uri);
 private:
     std::unique_ptr<detail::storage_internals> m_pimpl;
+};
+
+class storage_controller
+{
+public:
+    storage_controller(boost::filesystem::path const& fs_storage);
+    ~storage_controller();
+
+    void save();
+    void commit();
+    void discard();
+    void clear();
+
+    void enqueue(std::string const& file_uri, std::string const& channel_address);
+    void pop(std::string const& file_uri, std::string const& channel_address);
+    enum initiate_type {check, revert};
+    bool initiate(std::string const& file_uri,
+                  std::string const& channel_address,
+                  initiate_type e_initiate_type);
+    std::unordered_map<std::string, std::string> get_file_requests(std::unordered_set<std::string> const& resolved_channels);
+private:
+    std::unique_ptr<detail::storage_controller_internals> m_pimpl;
 };
 
 }

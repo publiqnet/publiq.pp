@@ -123,7 +123,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
             auto const& unit = impl.m_documents.get_unit(unit_uri);
 
             for (auto const& file_uri : unit.file_uris)
-                impl.m_documents.insert_file_request(file_uri, content.channel_address);
+                impl.m_storage_controller.enqueue(file_uri, content.channel_address);
         }
     }
 }
