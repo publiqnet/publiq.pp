@@ -1,15 +1,15 @@
 #include "node_internals.hpp"
 #include "common.hpp"
 #include "communication_p2p.hpp"
+#include "message.tmpl.hpp"
 
 namespace publiqpp
 {
 namespace detail
 {
-
     bool node_internals::initialize()
     {
-        bool stop_check = false;;
+        bool stop_check = false;
 
         if (m_revert_blocks)
         {

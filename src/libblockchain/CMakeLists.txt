@@ -40,8 +40,8 @@ add_library(blockchain
     message.gen.hpp
     node.cpp
     node.hpp
-    node_internals.hpp
     node_internals.cpp
+    node_internals.hpp
     node_synchronization.cpp
     node_synchronization.hpp
     nodeid_service.cpp
