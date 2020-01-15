@@ -56,8 +56,8 @@ bool process_command_line(int argc, char** argv,
                           std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet,
-                          bool& resync);
-
+                          bool& resync,
+                          bool& revert_blocks);
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
 vector<publiqpp::coin> block_reward_array();
@@ -207,6 +207,7 @@ int main(int argc, char** argv)
     bool log_enabled;
     bool testnet;
     bool resync;
+    bool revert_blocks;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
     std::chrono::steady_clock::duration sync_delay;
@@ -226,7 +227,8 @@ int main(int argc, char** argv)
                                       sync_delay,
                                       log_enabled,
                                       testnet,
-                                      resync))
+                                      resync,
+                                      revert_blocks))
         return 1;
 
     if (testnet)
@@ -319,6 +321,7 @@ int main(int argc, char** argv)
                             false,
                             testnet,
                             resync,
+                            revert_blocks,
                             mine_amount_threshhold(),
                             block_reward_array(),
                             sync_delay,
@@ -449,7 +452,8 @@ bool process_command_line(int argc, char** argv,
                           std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet,
-                          bool& resync)
+                          bool& resync,
+                          bool& revert_blocks)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -491,7 +495,8 @@ bool process_command_line(int argc, char** argv,
             ("sync_after_seconds", program_options::value<size_t>(&seconds_sync_delay),
                             "Node start mode")
             ("testnet", "Work in testnet blockchain")
-            ("resync_blockchain", "resync blockchain");
+            ("resync_blockchain", "resync blockchain")
+            ("revert_blocks", "revert blocks");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -508,6 +513,7 @@ bool process_command_line(int argc, char** argv,
         }
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
+        revert_blocks = options.count("revert_blocks");
 
         p2p_bind_to_address.from_string(p2p_local_interface);
         if (false == rpc_local_interface.empty())
