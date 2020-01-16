@@ -53,7 +53,6 @@ bool process_command_line(int argc, char** argv,
                           NodeType& n_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
-                          std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
@@ -210,7 +209,6 @@ int main(int argc, char** argv)
     bool revert_blocks;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
-    std::chrono::steady_clock::duration sync_delay;
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
@@ -224,7 +222,6 @@ int main(int argc, char** argv)
                                       n_type,
                                       fractions,
                                       freeze_before_block,
-                                      sync_delay,
                                       log_enabled,
                                       testnet,
                                       resync,
@@ -324,7 +321,6 @@ int main(int argc, char** argv)
                             revert_blocks,
                             mine_amount_threshhold(),
                             block_reward_array(),
-                            sync_delay,
                             &counts_per_channel_views);
 
         cout << endl;
@@ -452,7 +448,6 @@ bool process_command_line(int argc, char** argv,
                           NodeType& n_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
-                          std::chrono::steady_clock::duration& sync_delay,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
@@ -465,7 +460,6 @@ bool process_command_line(int argc, char** argv,
     string str_public_ssl_address;
     string str_pv_key;
     string str_n_type;
-    size_t seconds_sync_delay = 0;
     vector<string> hosts;
     program_options::options_description options_description;
     try
@@ -495,8 +489,6 @@ bool process_command_line(int argc, char** argv,
                             "fractions to set for statinfo fee")
             ("freeze_before_block,b", program_options::value<uint64_t>(&freeze_before_block),
                             "limit the blockchain")
-            ("sync_after_seconds", program_options::value<size_t>(&seconds_sync_delay),
-                            "Node start mode")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
             ("revert_blocks", "revert blocks");
@@ -579,8 +571,6 @@ bool process_command_line(int argc, char** argv,
             fractions = 0;
         if (0 == options.count("freeze_before_block"))
             freeze_before_block = uint64_t(-1);
-
-        sync_delay = std::chrono::seconds(seconds_sync_delay);
     }
     catch (std::exception const& ex)
     {

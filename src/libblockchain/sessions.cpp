@@ -815,6 +815,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     auto now = system_clock::now();
     beltpp::on_failure guard([this]
     {
+        pimpl->m_storage_controller.discard();
         pimpl->discard();
         pimpl->m_transaction_cache.restore();
     });
@@ -1005,7 +1006,9 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         }
     }
 
+    pimpl->m_storage_controller.save();
     pimpl->save(guard);
+    pimpl->m_storage_controller.commit();
 
     // request new chain if the process was stopped
     // by BLOCK_INSERT_LENGTH restriction

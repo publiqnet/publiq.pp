@@ -72,7 +72,6 @@ node::node(string const& genesis_signed_block,
            bool revert_blocks,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
-           std::chrono::steady_clock::duration const& sync_delay,
            detail::fp_counts_per_channel_views p_counts_per_channel_views)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
@@ -100,7 +99,6 @@ node::node(string const& genesis_signed_block,
                                          revert_blocks,
                                          mine_amount_threshhold,
                                          block_reward_array,
-                                         sync_delay,
                                          p_counts_per_channel_views))
 {}
 
@@ -880,10 +878,6 @@ void node::run(bool& stop_check)
         m_pimpl->clean_transaction_cache();
 
         //  temp place
-        broadcast_node_type(m_pimpl);
-        broadcast_address_info(m_pimpl);
-
-        //  yes temp place still
         m_pimpl->m_nodeid_service.take_actions([this](std::string const& node_address,
                                                       beltpp::ip_address const& address,
                                                       std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)
@@ -926,6 +920,10 @@ void node::run(bool& stop_check)
             m_pimpl->m_slave_node->send(beltpp::packet(std::move(set_channels)));
             m_pimpl->m_slave_node->wake();
         }
+
+        //  yes temp place still
+        broadcast_node_type(m_pimpl);
+        broadcast_address_info(m_pimpl);
     }
 
     // init sync process and block mining
@@ -933,29 +931,39 @@ void node::run(bool& stop_check)
     {
         m_pimpl->m_check_timer.update();
 
-        if (m_pimpl->m_sync_delay.expired() &&
-            m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
+        if (m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
             sync_worker(*m_pimpl.get());
 
-        if (m_pimpl->blockchain_updated() &&
+        if (m_pimpl->m_storage_sync_delay.expired() &&
+            m_pimpl->blockchain_updated() &&
             m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2)
         {
+#ifdef EXTRA_LOGGING
             m_pimpl->writeln_node("can download now");
-            unordered_map<string, beltpp::ip_address> map_channnel_ip_address;
-            unordered_set<string> set_resolved_channels;
+#endif
+            unordered_map<string, beltpp::ip_address> map_nodeid_ip_address;
+            unordered_set<string> set_resolved_nodeids;
 
             PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
             for (auto const& item : public_addresses.addresses_info)
             {
-                if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                if (item.seconds_since_checked > 2 * PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
                     break;
 
-                set_resolved_channels.insert(item.node_address);
-                beltpp::assign(map_channnel_ip_address[item.node_address], item.ip_address);
+                NodeType check_role;
+                if (m_pimpl->m_state.get_role(item.node_address, check_role) &&
+                    check_role == NodeType::channel)
+                {
+                    set_resolved_nodeids.insert(item.node_address);
+                    beltpp::assign(map_nodeid_ip_address[item.node_address], item.ip_address);
+                }
             }
+#ifdef EXTRA_LOGGING
+            m_pimpl->writeln_node("verified channels: " + std::to_string(map_nodeid_ip_address.size()));
+#endif
 
             auto file_to_channel =
-                    m_pimpl->m_storage_controller.get_file_requests(set_resolved_channels);
+                    m_pimpl->m_storage_controller.get_file_requests(set_resolved_nodeids);
 
             using actions_vector = vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>>;
             unordered_map<string, actions_vector> map_actions;
@@ -980,7 +988,7 @@ void node::run(bool& stop_check)
             {
                 meshpp::nodeid_session_header header;
                 header.nodeid = actions.first;
-                header.address = map_channnel_ip_address[actions.first];
+                header.address = map_nodeid_ip_address[actions.first];
                 m_pimpl->m_nodeid_sessions.add(header,
                                                std::move(actions.second),
                                                chrono::minutes(3));

@@ -176,7 +176,13 @@ void storage_controller::pop(string const& file_uri, string const& channel_addre
 
     auto const& fr = m_pimpl->map.as_const().at(file_uri);
     if (fr.channel_address == channel_address)
+    {
+        beltpp::on_failure guard([this]{ discard(); });
         m_pimpl->map.erase(file_uri);
+        save();
+        guard.dismiss();
+        commit();
+    }
 }
 
 bool storage_controller::initiate(string const& file_uri,

@@ -430,7 +430,6 @@ public:
                    bool revert_blocks,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
-                   std::chrono::steady_clock::duration const& sync_delay,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
@@ -450,7 +449,7 @@ public:
         , m_sync_timer()
         , m_check_timer()
         , m_summary_report_timer()
-        , m_sync_delay()
+        , m_storage_sync_delay()
         , m_public_address(public_address)
         , m_public_ssl_address(public_ssl_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
@@ -485,7 +484,7 @@ public:
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
-        m_sync_delay.set(sync_delay, true);
+        m_storage_sync_delay.set(chrono::seconds(2 * CACHE_CLEANUP_TIMER), true);
 
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
@@ -542,7 +541,6 @@ public:
         m_blockchain.save();
         m_action_log.save();
         m_transaction_pool.save();
-        m_storage_controller.save();
 
         guard.dismiss();
 
@@ -551,7 +549,6 @@ public:
         m_blockchain.commit();
         m_action_log.commit();
         m_transaction_pool.commit();
-        m_storage_controller.commit();
     }
 
     void discard()
@@ -561,7 +558,6 @@ public:
         m_blockchain.discard();
         m_action_log.discard();
         m_transaction_pool.discard();
-        m_storage_controller.discard();
     }
 
     void clean_transaction_cache()
@@ -648,7 +644,7 @@ public:
     beltpp::timer m_broadcast_timer;
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
-    beltpp::timer m_sync_delay;
+    beltpp::timer m_storage_sync_delay;
 
     beltpp::ip_address m_public_address;
     beltpp::ip_address m_public_ssl_address;

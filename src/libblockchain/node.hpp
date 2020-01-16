@@ -58,7 +58,6 @@ public:
          bool revert_blocks,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
-         std::chrono::steady_clock::duration const& sync_delay,
          detail::fp_counts_per_channel_views p_counts_per_channel_views);
     node(node&& other) noexcept;
     ~node();
