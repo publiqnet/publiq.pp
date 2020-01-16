@@ -415,9 +415,13 @@ module BlockchainMessage
         Coin amount 
         String transaction_hash
     }
-    
-    class ApiReserve8 {}
-    class ApiReserve9 {}
+
+    class FileUrisRequest {}
+    class FileUris
+    {
+        Array String file_uris
+    }
+
     class ApiReserve10 {}
     class ApiReserve11 {}
 
@@ -451,7 +455,7 @@ module BlockchainMessage
         UriProblemType uri_problem_type
     }
 
-    class ResponseCodeReserve1 {}
+    class TransactionPoolFull {}
     class ResponseCodeReserve2 {}
     class ResponseCodeReserve3 {}
     class ResponseCodeReserve4 {}

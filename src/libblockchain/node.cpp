@@ -344,7 +344,7 @@ void node::run(bool& stop_check)
                             StorageFileAddress* pfile_address;
                             package.get(pfile_address);
                             if (false == pimpl->m_documents.storage_has_uri(pfile_address->uri,
-                                                                              pimpl->m_pb_key.to_string()))
+                                                                            pimpl->m_pb_key.to_string()))
                                 broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
                         }
                         psk->send(peerid, std::move(package));
@@ -389,6 +389,31 @@ void node::run(bool& stop_check)
                     actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
                                                                         storage_file_delete.uri,
                                                                         callback_lambda));
+
+                    meshpp::session_header header;
+                    header.peerid = "slave";
+                    m_pimpl->m_sessions.add(header,
+                                            std::move(actions),
+                                            chrono::minutes(1));
+
+                    break;
+                }
+                case FileUrisRequest::rtt:
+                {
+                    //  need to fix the security hole here
+                    if (NodeType::blockchain == m_pimpl->m_node_type ||
+                        nullptr == m_pimpl->m_slave_node)
+                        throw wrong_request_exception("Do not disturb!");
+
+                    std::function<void(beltpp::packet&&)> callback_lambda =
+                            [psk, peerid](beltpp::packet&& package)
+                    {
+                        psk->send(peerid, std::move(package));
+                    };
+
+                    vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                    actions.emplace_back(new session_action_get_file_uris(*m_pimpl.get(),
+                                                                          callback_lambda));
 
                     meshpp::session_header header;
                     header.peerid = "slave";
@@ -936,62 +961,152 @@ void node::run(bool& stop_check)
 
         if (m_pimpl->m_storage_sync_delay.expired() &&
             m_pimpl->blockchain_updated() &&
-            m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2)
+            m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2 &&
+            NodeType::storage == m_pimpl->m_node_type &&
+            m_pimpl->m_slave_node)
         {
-#ifdef EXTRA_LOGGING
-            m_pimpl->writeln_node("can download now");
-#endif
+            auto& impl = *m_pimpl.get();
+
             unordered_map<string, beltpp::ip_address> map_nodeid_ip_address;
             unordered_set<string> set_resolved_nodeids;
 
-            PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
+            PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
             for (auto const& item : public_addresses.addresses_info)
             {
                 if (item.seconds_since_checked > 2 * PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
                     break;
 
                 NodeType check_role;
-                if (m_pimpl->m_state.get_role(item.node_address, check_role) &&
+                if (impl.m_state.get_role(item.node_address, check_role) &&
                     check_role == NodeType::channel)
                 {
                     set_resolved_nodeids.insert(item.node_address);
                     beltpp::assign(map_nodeid_ip_address[item.node_address], item.ip_address);
                 }
             }
-#ifdef EXTRA_LOGGING
-            m_pimpl->writeln_node("verified channels: " + std::to_string(map_nodeid_ip_address.size()));
-#endif
 
             auto file_to_channel =
-                    m_pimpl->m_storage_controller.get_file_requests(set_resolved_nodeids);
+                    impl.m_storage_controller.get_file_requests(set_resolved_nodeids);
 
-            using actions_vector = vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>>;
-            unordered_map<string, actions_vector> map_actions;
-
-            for (auto const& item : file_to_channel)
+            auto get_file_uris_callback = [&impl, file_to_channel, map_nodeid_ip_address](beltpp::packet&& package)
             {
-                auto& actions = map_actions[item.second];
-
-                if (actions.empty())
+                if (package.type() == BlockchainMessage::FileUris::rtt)
                 {
-                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
-                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                       m_pimpl->m_nodeid_service));
+                    BlockchainMessage::FileUris file_uris;
+                    std::move(package).get(file_uris);
+
+                    unordered_set<string> set_file_uris;
+                    set_file_uris.reserve(file_uris.file_uris.size());
+
+                    for (auto& file_uri : file_uris.file_uris)
+                        set_file_uris.insert(std::move(file_uri));
+
+                    using actions_vector = vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>>;
+                    unordered_map<string, actions_vector> map_actions;
+                    unordered_map<string, string> map_broadcast;
+
+                    for (auto const& item : file_to_channel)
+                    {
+                        auto const& file_uri = item.first;
+                        auto const& channel_address = item.second;
+
+                        if (0 == set_file_uris.count(file_uri))
+                        {
+                            auto& actions = map_actions[channel_address];
+                            if (actions.empty())
+                            {
+                                actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
+                                actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
+                                                                                   impl.m_nodeid_service));
+                            }
+
+                            actions.emplace_back(new session_action_request_file(file_uri,
+                                                                                 item.second,
+                                                                                 impl));
+                        }
+                        else
+                        {
+                            map_broadcast[file_uri] = channel_address;
+                        }
+                    }
+
+                    beltpp::finally guard_map_broadcast([&impl, &map_broadcast]
+                    {
+                        for (auto const& item : map_broadcast)
+                        {
+                            auto const& file_uri = item.first;
+                            auto const& channel_address = item.second;
+
+                            impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
+
+                            impl.writeln_node(file_uri + " session_action_get_file_uris callback calling initiate revert");
+                        }
+                    });
+
+                    for (auto& actions : map_actions)
+                    {
+                        meshpp::nodeid_session_header header;
+                        header.nodeid = actions.first;
+                        header.address = map_nodeid_ip_address.at(actions.first);
+                        impl.m_nodeid_sessions.add(header,
+                                                   std::move(actions.second),
+                                                   chrono::minutes(3));
+                    }
+
+                    for (auto const& item : map_broadcast)
+                    {
+                        auto const& file_uri = item.first;
+                        auto const& channel_address = item.second;
+#ifdef EXTRA_LOGGING
+                        beltpp::on_failure guard([&impl, file_uri]{impl.writeln_node(file_uri + " flew");});
+#endif
+                        if (false == impl.m_documents.storage_has_uri(file_uri, impl.m_pb_key.to_string()))
+                            broadcast_storage_update(impl, file_uri, UpdateType::store);
+
+                        impl.writeln_node(file_uri + " session_action_get_file_uris callback calling pop");
+                        impl.m_storage_controller.pop(file_uri, channel_address);
+#ifdef EXTRA_LOGGING
+                        guard.dismiss();
+#endif
+                    }
                 }
+                else
+                {
+                    if (package.type() == BlockchainMessage::RemoteError::rtt)
+                    {
+                        BlockchainMessage::RemoteError remote_error;
+                        std::move(package).get(remote_error);
+#ifdef EXTRA_LOGGING
+                        impl.writeln_node(remote_error.message);
+#endif
+                    }
+                    else
+                    {
+                        //assert(false);
+#ifdef EXTRA_LOGGING
+                        impl.writeln_node("cannot get the files list");
+#endif
+                    }
 
-                actions.emplace_back(new session_action_request_file(item.first,
-                                                                     item.second,
-                                                                     *m_pimpl.get()));
-            }
+                    for (auto const& item : file_to_channel)
+                        impl.m_storage_controller.initiate(item.first, item.second, storage_controller::revert);
+                }
+            };
 
-            for (auto& actions : map_actions)
+            if (false == file_to_channel.empty())
             {
-                meshpp::nodeid_session_header header;
-                header.nodeid = actions.first;
-                header.address = map_nodeid_ip_address[actions.first];
-                m_pimpl->m_nodeid_sessions.add(header,
-                                               std::move(actions.second),
-                                               chrono::minutes(3));
+#ifdef EXTRA_LOGGING
+                m_pimpl->writeln_node("can download now: " + std::to_string(file_to_channel.size()));
+                impl.writeln_node("verified channels: " + std::to_string(map_nodeid_ip_address.size()));
+#endif
+                vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                actions.emplace_back(new session_action_get_file_uris(impl, get_file_uris_callback));
+
+                meshpp::session_header header;
+                header.peerid = "slave";
+                m_pimpl->m_sessions.add(header,
+                                        std::move(actions),
+                                        chrono::minutes(1));
             }
         }
     }

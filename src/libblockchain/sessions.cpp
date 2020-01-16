@@ -1048,6 +1048,7 @@ session_action_request_file::session_action_request_file(string const& _file_uri
                                                          string const& _nodeid,
                                                          detail::node_internals& impl)
     : meshpp::session_action<meshpp::nodeid_session_header>()
+    , delegated_to_save(false)
     , pimpl(&impl)
     , file_uri(_file_uri)
     , nodeid(_nodeid)
@@ -1055,7 +1056,8 @@ session_action_request_file::session_action_request_file(string const& _file_uri
 
 session_action_request_file::~session_action_request_file()
 {
-    pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
+    if (false == delegated_to_save)
+        pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
 }
 
 void session_action_request_file::initiate(meshpp::nodeid_session_header& header)
@@ -1118,6 +1120,9 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
                                                               [&impl, nodeid_local, file_uri_local, header](beltpp::packet&& package)
             {
                 bool stored = false;
+
+                impl.m_storage_controller.initiate(file_uri_local, nodeid_local, storage_controller::revert);
+
                 if (package.type() == StorageFileAddress::rtt)
                 {
 #ifdef EXTRA_LOGGING
@@ -1164,6 +1169,8 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 #endif
                 impl.m_storage_controller.pop(file_uri_local, nodeid_local);
             }));
+
+            delegated_to_save = true;
 
             meshpp::session_header slave_header;
             slave_header.peerid = "slave";
@@ -1428,7 +1435,9 @@ session_action_get_file_uris::~session_action_get_file_uris()
         callback)
     {
         BlockchainMessage::RemoteError msg;
-        msg.message = "unknown error getting the file uris";
+        msg.message = "unknown error getting the file uris " +
+                      std::to_string(expected_next_package_type) + ", " +
+                      std::to_string(errored);
         callback(beltpp::packet(std::move(msg)));
     }
 }
@@ -1437,25 +1446,34 @@ void session_action_get_file_uris::initiate(meshpp::session_header&/* header*/)
 {
     pimpl->m_slave_node->send(beltpp::packet(StorageTypes::FileUrisRequest()));
     pimpl->m_slave_node->wake();
-    expected_next_package_type = StorageTypes::FileUris::rtt;
+    expected_next_package_type = BlockchainMessage::FileUris::rtt;
 }
 
 bool session_action_get_file_uris::process(beltpp::packet&& package, meshpp::session_header&/* header*/)
 {
     bool code = true;
+    if (package.type() != StorageTypes::ContainerMessage::rtt)
+        return false;
     beltpp::on_failure guard([this]{ errored = true; });
 
-    if (expected_next_package_type == package.type() &&
+    StorageTypes::ContainerMessage* msg_container;
+    package.get(msg_container);
+    auto& msg_package = msg_container->package;
+
+    if (expected_next_package_type == msg_package.type() &&
         expected_next_package_type != size_t(-1))
     {
-        switch (package.type())
+        switch (msg_package.type())
         {
-        case StorageTypes::FileUris::rtt:
+        case BlockchainMessage::FileUris::rtt:
         {
+            BlockchainMessage::FileUris msg;
+            std::move(msg_package).get(msg);
+
             if (callback)
             {
                 beltpp::on_failure guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
-                callback(std::move(package));
+                callback(beltpp::packet(std::move(msg)));
                 guard2.dismiss();
             }
 
@@ -1479,7 +1497,7 @@ bool session_action_get_file_uris::process(beltpp::packet&& package, meshpp::ses
 
 bool session_action_get_file_uris::permanent() const
 {
-    return false;
+    return true;
 }
 
 }

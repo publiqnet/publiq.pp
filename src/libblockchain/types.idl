@@ -80,10 +80,5 @@ module StorageTypes
     {
         Extension package
     }
-
-    class FileUris
-    {
-        Set String file_uris
-    }
 }
 ////1

@@ -339,10 +339,15 @@ void storage_node::run(bool& stop)
                 }
                 case StorageTypes::FileUrisRequest::rtt:
                 {
-                    StorageTypes::FileUris msg_response;
+                    FileUris msg;
 
-                    msg_response.file_uris = m_pimpl->m_storage.get_file_uris();
+                    auto set_file_uris = m_pimpl->m_storage.get_file_uris();
+                    msg.file_uris.reserve(set_file_uris.size());
+                    for (auto& item : set_file_uris)
+                        msg.file_uris.push_back(std::move(item));
 
+                    StorageTypes::ContainerMessage msg_response;
+                    msg_response.package.set(msg);
                     response.set(std::move(msg_response));
                     m_pimpl->m_master_node->wake();
                     break;
