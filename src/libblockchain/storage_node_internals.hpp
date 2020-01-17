@@ -100,7 +100,7 @@ public:
 
     wait_result_item wait_and_receive_one()
     {
-        auto& wait_result = m_wait_result.wait_result;
+        auto& wait_result = m_wait_result.m_wait_result;
 
         if (wait_result == beltpp::event_handler::wait_result::nothing)
         {

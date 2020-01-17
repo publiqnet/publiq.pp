@@ -227,7 +227,7 @@ public:
 class wait_result
 {
 public:
-    beltpp::event_handler::wait_result wait_result = beltpp::event_handler::wait_result::nothing;
+    beltpp::event_handler::wait_result m_wait_result = beltpp::event_handler::wait_result::nothing;
     std::unordered_map<wait_result_item::interface_type, std::pair<beltpp::socket::peer_id, beltpp::socket::packets>> event_packets;
     beltpp::socket::packets on_demand_packets;
 };

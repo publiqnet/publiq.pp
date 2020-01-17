@@ -241,7 +241,7 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
             0 == m_pimpl->channels_files_requesting.count(file_request.channel_address))
             continue;
 
-        auto insert_res = m_pimpl->channels_files_requesting[file_request.channel_address].insert({file_uri, false});
+        auto insert_res = m_pimpl->channels_files_requesting[file_request.channel_address].insert(file_uri);
 
         if (insert_res.second)
             file_to_channel[file_uri] = file_request.channel_address;

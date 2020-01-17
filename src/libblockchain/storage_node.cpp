@@ -343,8 +343,8 @@ void storage_node::run(bool& stop)
 
                     auto set_file_uris = m_pimpl->m_storage.get_file_uris();
                     msg.file_uris.reserve(set_file_uris.size());
-                    for (auto& item : set_file_uris)
-                        msg.file_uris.push_back(std::move(item));
+                    for (auto& file_uri : set_file_uris)
+                        msg.file_uris.push_back(std::move(file_uri));
 
                     StorageTypes::ContainerMessage msg_response;
                     msg_response.package.set(msg);
