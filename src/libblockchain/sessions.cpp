@@ -1245,6 +1245,11 @@ session_action_save_file::~session_action_save_file()
                       std::to_string(errored);
         callback(beltpp::packet(std::move(msg)));
     }
+    else if (callback)
+    {
+        assert(false == initiated);
+        callback(beltpp::packet());
+    }
 }
 
 void session_action_save_file::initiate(meshpp::session_header&/* header*/)
@@ -1343,6 +1348,11 @@ session_action_delete_file::~session_action_delete_file()
         msg.message = "unknown error deleting the file";
         callback(beltpp::packet(std::move(msg)));
     }
+    else if (callback)
+    {
+        assert(false == initiated);
+        callback(beltpp::packet());
+    }
 }
 
 void session_action_delete_file::initiate(meshpp::session_header&/* header*/)
@@ -1440,6 +1450,11 @@ session_action_get_file_uris::~session_action_get_file_uris()
                       std::to_string(errored);
         callback(beltpp::packet(std::move(msg)));
     }
+    else if (callback)
+    {
+        assert(false == initiated);
+        callback(beltpp::packet());
+    }
 }
 
 void session_action_get_file_uris::initiate(meshpp::session_header&/* header*/)
@@ -1497,7 +1512,7 @@ bool session_action_get_file_uris::process(beltpp::packet&& package, meshpp::ses
 
 bool session_action_get_file_uris::permanent() const
 {
-    return true;
+    return false;
 }
 
 }

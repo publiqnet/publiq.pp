@@ -216,6 +216,12 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
     if (nullptr == m_pimpl)
         return file_to_channel;
 
+    /*size_t count_all = 0;
+    for (auto const& item : m_pimpl->channels_files_requesting)
+        count_all += item.second.size();
+    if (count_all)
+        return file_to_channel;*/
+
     auto file_uris = m_pimpl->map.as_const().keys();
 
     unordered_set<string> unresolved_channels;
@@ -237,6 +243,9 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
             continue;
         }
 
+        /*if (count_all == 100)
+            continue;*/
+
         if (STORAGE_MAX_FILE_REQUESTS == m_pimpl->channels_files_requesting.size() &&
             0 == m_pimpl->channels_files_requesting.count(file_request.channel_address))
             continue;
@@ -244,7 +253,10 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
         auto insert_res = m_pimpl->channels_files_requesting[file_request.channel_address].insert(file_uri);
 
         if (insert_res.second)
+        {
+            //++count_all;
             file_to_channel[file_uri] = file_request.channel_address;
+        }
     }
 
     return file_to_channel;

@@ -347,7 +347,9 @@ void node::run(bool& stop_check)
                                                                             pimpl->m_pb_key.to_string()))
                                 broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
                         }
-                        psk->send(peerid, std::move(package));
+
+                        if (false == package.empty())
+                            psk->send(peerid, std::move(package));
                     };
 
                     vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
@@ -382,7 +384,9 @@ void node::run(bool& stop_check)
                         {
                             broadcast_storage_update(*pimpl, storage_file_delete.uri, UpdateType::remove);
                         }
-                        psk->send(peerid, std::move(package));
+
+                        if (false == package.empty())
+                            psk->send(peerid, std::move(package));
                     };
 
                     vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
@@ -1063,7 +1067,9 @@ void node::run(bool& stop_check)
                         if (false == impl.m_documents.storage_has_uri(file_uri, impl.m_pb_key.to_string()))
                             broadcast_storage_update(impl, file_uri, UpdateType::store);
 
+#ifdef EXTRA_LOGGING
                         impl.writeln_node(file_uri + " session_action_get_file_uris callback calling pop");
+#endif
                         impl.m_storage_controller.pop(file_uri, channel_address);
 #ifdef EXTRA_LOGGING
                         guard.dismiss();
@@ -1082,12 +1088,15 @@ void node::run(bool& stop_check)
                     }
                     else
                     {
-                        //assert(false);
+                        assert(false);
 #ifdef EXTRA_LOGGING
                         impl.writeln_node("cannot get the files list");
 #endif
                     }
 
+#ifdef EXTRA_LOGGING
+                    impl.writeln_node("session_action_get_file_uris callback calling initiate revert " + std::to_string(file_to_channel.size()));
+#endif
                     for (auto const& item : file_to_channel)
                         impl.m_storage_controller.initiate(item.first, item.second, storage_controller::revert);
                 }
