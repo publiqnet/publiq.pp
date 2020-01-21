@@ -1041,7 +1041,9 @@ void node::run(bool& stop_check)
 
                             if (item.second.second)
                             {
+#ifdef EXTRA_LOGGING
                                 impl.writeln_node(file_uri + " session_action_get_file_uris callback calling initiate revert");
+#endif
                                 impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
                             }
                         }
