@@ -805,8 +805,6 @@ void node::run(bool& stop_check)
     }
     else if (m_pimpl->m_slave_node && wait_result.et == detail::wait_result_item::on_demand)
     {
-        beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
-
         auto ref_packet = std::move(wait_result.packet);
 
         if (false == m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
@@ -1007,7 +1005,7 @@ void node::run(bool& stop_check)
 
                     using actions_vector = vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>>;
                     unordered_map<string, actions_vector> map_actions;
-                    unordered_map<string, string> map_broadcast;
+                    unordered_map<string, pair<string, bool>> map_broadcast;
 
                     for (auto const& item : file_to_channel)
                     {
@@ -1030,7 +1028,7 @@ void node::run(bool& stop_check)
                         }
                         else
                         {
-                            map_broadcast[file_uri] = channel_address;
+                            map_broadcast[file_uri] = {channel_address, true};
                         }
                     }
 
@@ -1039,11 +1037,13 @@ void node::run(bool& stop_check)
                         for (auto const& item : map_broadcast)
                         {
                             auto const& file_uri = item.first;
-                            auto const& channel_address = item.second;
+                            auto const& channel_address = item.second.first;
 
-                            impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
-
-                            impl.writeln_node(file_uri + " session_action_get_file_uris callback calling initiate revert");
+                            if (item.second.second)
+                            {
+                                impl.writeln_node(file_uri + " session_action_get_file_uris callback calling initiate revert");
+                                impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
+                            }
                         }
                     });
 
@@ -1057,10 +1057,10 @@ void node::run(bool& stop_check)
                                                    chrono::minutes(3));
                     }
 
-                    for (auto const& item : map_broadcast)
+                    for (auto& item : map_broadcast)
                     {
                         auto const& file_uri = item.first;
-                        auto const& channel_address = item.second;
+                        auto const& channel_address = item.second.first;
 #ifdef EXTRA_LOGGING
                         beltpp::on_failure guard([&impl, file_uri]{impl.writeln_node(file_uri + " flew");});
 #endif
@@ -1070,6 +1070,8 @@ void node::run(bool& stop_check)
 #ifdef EXTRA_LOGGING
                         impl.writeln_node(file_uri + " session_action_get_file_uris callback calling pop");
 #endif
+                        impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
+                        item.second.second = false;
                         impl.m_storage_controller.pop(file_uri, channel_address);
 #ifdef EXTRA_LOGGING
                         guard.dismiss();
@@ -1086,15 +1088,11 @@ void node::run(bool& stop_check)
                         impl.writeln_node(remote_error.message);
 #endif
                     }
+#ifdef EXTRA_LOGGING
                     else
                     {
-                        assert(false);
-#ifdef EXTRA_LOGGING
-                        impl.writeln_node("cannot get the files list");
-#endif
+                        impl.writeln_node("cannot get the files list - " + package.to_string());
                     }
-
-#ifdef EXTRA_LOGGING
                     impl.writeln_node("session_action_get_file_uris callback calling initiate revert " + std::to_string(file_to_channel.size()));
 #endif
                     for (auto const& item : file_to_channel)

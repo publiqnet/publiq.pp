@@ -339,7 +339,6 @@ void storage_node::run(bool& stop)
                 }
                 case StorageTypes::FileUrisRequest::rtt:
                 {
-                    //std::this_thread::sleep_for(std::chrono::seconds(10));
                     FileUris msg;
 
                     auto set_file_uris = m_pimpl->m_storage.get_file_uris();

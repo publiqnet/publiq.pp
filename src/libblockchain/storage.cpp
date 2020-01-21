@@ -118,7 +118,7 @@ public:
     {}
 
     meshpp::map_loader<StorageTypes::FileRequest> map;
-    unordered_map<string, unordered_set<string>> channels_files_requesting;
+    unordered_map<string, unordered_map<string, bool>> channels_files_requesting;
 };
 
 }
@@ -174,6 +174,14 @@ void storage_controller::pop(string const& file_uri, string const& channel_addre
     if (nullptr == m_pimpl)
         return;
 
+    auto it_channel = m_pimpl->channels_files_requesting.find(channel_address);
+    if (it_channel != m_pimpl->channels_files_requesting.end())
+    {
+        auto it_file = it_channel->second.find(file_uri);
+        if (it_file != it_channel->second.end())
+            throw std::logic_error("pop: it_file != it_channel->second.end()");
+    }
+
     auto const& fr = m_pimpl->map.as_const().at(file_uri);
     if (fr.channel_address == channel_address)
     {
@@ -185,29 +193,34 @@ void storage_controller::pop(string const& file_uri, string const& channel_addre
     }
 }
 
-bool storage_controller::initiate(string const& file_uri,
+void storage_controller::initiate(string const& file_uri,
                                   string const& channel_address,
                                   initiate_type e_initiate_type)
 {
     if (nullptr == m_pimpl)
-        return false;
+        return;
 
     auto it_channel = m_pimpl->channels_files_requesting.find(channel_address);
     if (it_channel == m_pimpl->channels_files_requesting.end())
-        return false;
+        throw std::logic_error("initiate: it_channel == m_pimpl->channels_files_requesting.end()");
 
     auto it_file = it_channel->second.find(file_uri);
     if (it_file == it_channel->second.end())
-        return false;
+        throw std::logic_error("initiate: it_file == it_channel->second.end()");
 
-    if (e_initiate_type == revert)
+    if (check == e_initiate_type)
+    {
+        if (it_file->second)
+            throw std::logic_error("initiate: false != it_file->second");
+
+        it_file->second = true;
+    }
+    else
     {
         it_channel->second.erase(it_file);
         if (it_channel->second.empty())
             m_pimpl->channels_files_requesting.erase(it_channel);
     }
-
-    return true;
 }
 
 unordered_map<string, string> storage_controller::get_file_requests(unordered_set<string> const& resolved_channels)
@@ -216,11 +229,11 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
     if (nullptr == m_pimpl)
         return file_to_channel;
 
-    /*size_t count_all = 0;
+    size_t count_all = 0;
     for (auto const& item : m_pimpl->channels_files_requesting)
         count_all += item.second.size();
     if (count_all)
-        return file_to_channel;*/
+        return file_to_channel;
 
     auto file_uris = m_pimpl->map.as_const().keys();
 
@@ -243,18 +256,18 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
             continue;
         }
 
-        /*if (count_all == 100)
+        if (count_all == STORAGE_MAX_FILE_REQUESTS)
+            continue;   //  might as well break, but will let to collect the unresolved channels
+
+        /*if (STORAGE_MAX_FILE_REQUESTS == m_pimpl->channels_files_requesting.size() &&
+            0 == m_pimpl->channels_files_requesting.count(file_request.channel_address))
             continue;*/
 
-        if (STORAGE_MAX_FILE_REQUESTS == m_pimpl->channels_files_requesting.size() &&
-            0 == m_pimpl->channels_files_requesting.count(file_request.channel_address))
-            continue;
-
-        auto insert_res = m_pimpl->channels_files_requesting[file_request.channel_address].insert(file_uri);
+        auto insert_res = m_pimpl->channels_files_requesting[file_request.channel_address].insert({file_uri, false});
 
         if (insert_res.second)
         {
-            //++count_all;
+            ++count_all;
             file_to_channel[file_uri] = file_request.channel_address;
         }
     }
