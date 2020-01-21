@@ -178,9 +178,10 @@ public:
     bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
+    bool need_to_revert_initiate;
     detail::node_internals* pimpl;
     std::string const file_uri;
-    std::string nodeid;
+    std::string const nodeid;
 };
 
 class session_action_save_file : public meshpp::session_action<meshpp::session_header>
@@ -214,6 +215,21 @@ public:
 
     detail::node_internals* pimpl;
     std::string uri;
+    std::function<void(beltpp::packet&&)> callback;
+};
+
+class session_action_get_file_uris : public meshpp::session_action<meshpp::session_header>
+{
+public:
+    session_action_get_file_uris(detail::node_internals& impl,
+                                 std::function<void(beltpp::packet&&)> const& callback);
+    ~session_action_get_file_uris() override;
+
+    void initiate(meshpp::session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    bool permanent() const override;
+
+    detail::node_internals* pimpl;
     std::function<void(beltpp::packet&&)> callback;
 };
 

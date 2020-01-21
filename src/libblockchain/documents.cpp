@@ -45,7 +45,6 @@ public:
                         filesystem::path const& path_storages)
         : m_files("file", path_documents, 10000, detail::get_putl())
         , m_units("unit", path_documents, 10000, detail::get_putl())
-        , m_contents("content", path_documents, 10000, detail::get_putl())
         , m_storages("storages", path_storages, 10000, get_putl_types())
         , m_content_unit_sponsored_information("content_unit_info", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_expiring("sponsored_info_expiring", path_documents, 10000, get_putl_types())
@@ -54,7 +53,6 @@ public:
 
     meshpp::map_loader<File> m_files;
     meshpp::map_loader<ContentUnit> m_units;
-    meshpp::map_loader<Content> m_contents;
     meshpp::map_loader<StorageTypes::FileUriHolders> m_storages;
     meshpp::map_loader<StorageTypes::ContentUnitSponsoredInformation> m_content_unit_sponsored_information;
     meshpp::map_loader<StorageTypes::SponsoredInformationHeaders> m_sponsored_informations_expiring;
@@ -75,7 +73,6 @@ void documents::save()
         return;
     m_pimpl->m_files.save();
     m_pimpl->m_units.save();
-    m_pimpl->m_contents.save();
     m_pimpl->m_storages.save();
     m_pimpl->m_content_unit_sponsored_information.save();
     m_pimpl->m_sponsored_informations_expiring.save();
@@ -88,7 +85,6 @@ void documents::commit()
         return;
     m_pimpl->m_files.commit();
     m_pimpl->m_units.commit();
-    m_pimpl->m_contents.commit();
     m_pimpl->m_storages.commit();
     m_pimpl->m_content_unit_sponsored_information.commit();
     m_pimpl->m_sponsored_informations_expiring.commit();
@@ -101,7 +97,6 @@ void documents::discard()
         return;
     m_pimpl->m_files.discard();
     m_pimpl->m_units.discard();
-    m_pimpl->m_contents.discard();
     m_pimpl->m_storages.discard();
     m_pimpl->m_content_unit_sponsored_information.discard();
     m_pimpl->m_sponsored_informations_expiring.discard();
@@ -114,7 +109,6 @@ void documents::clear()
         return;
     m_pimpl->m_files.clear();
     m_pimpl->m_units.clear();
-    m_pimpl->m_contents.clear();
     m_pimpl->m_storages.clear();
     m_pimpl->m_content_unit_sponsored_information.clear();
     m_pimpl->m_sponsored_informations_expiring.clear();

@@ -823,6 +823,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
     impl.m_transaction_cache.backup();
     beltpp::on_failure guard([&impl]
     {
+        impl.m_storage_controller.discard();
         impl.discard();
         impl.m_transaction_cache.restore();
     });
@@ -1226,7 +1227,9 @@ void mine_block(publiqpp::detail::node_internals& impl)
         }
     }
 
+    impl.m_storage_controller.save();
     impl.save(guard);
+    impl.m_storage_controller.commit();
 
     impl.writeln_node("I did it ! " + std::to_string(block_header.block_number) + " block mined :)");
 }

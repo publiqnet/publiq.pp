@@ -44,6 +44,7 @@ public:
          boost::filesystem::path const& fs_state,
          boost::filesystem::path const& fs_documents,
          boost::filesystem::path const& fs_storages,
+         boost::filesystem::path const& fs_storage,
          beltpp::ilog* plogger_p2p,
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,
@@ -57,7 +58,6 @@ public:
          bool revert_blocks,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
-         std::chrono::steady_clock::duration const& sync_delay,
          detail::fp_counts_per_channel_views p_counts_per_channel_views);
     node(node&& other) noexcept;
     ~node();

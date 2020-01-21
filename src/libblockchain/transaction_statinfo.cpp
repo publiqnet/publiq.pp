@@ -240,9 +240,11 @@ void action_apply(publiqpp::detail::node_internals& impl,
         if (server_address.empty() && service_statistics.server_address == impl.m_pb_key.to_string())
             server_address = service_statistics.server_address;
 
-        if (server_address.empty() ||
-            peers_set.size() != addresses_set.size() ||
-            addresses_set.count(server_address) > 0)
+        if (server_address.empty())
+            throw wrong_data_exception("service statistics creator address is not verified");
+        else if(peers_set.size() != addresses_set.size())
+            throw wrong_data_exception("service statistics some channels and storages are not verified");
+        else if(addresses_set.count(server_address) > 0)
             throw wrong_data_exception("service statistics contains channel and storage with same address");
     }
 

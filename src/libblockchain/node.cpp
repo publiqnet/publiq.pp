@@ -58,6 +58,7 @@ node::node(string const& genesis_signed_block,
            filesystem::path const& fs_state,
            filesystem::path const& fs_documents,
            filesystem::path const& fs_storages,
+           filesystem::path const& fs_storage,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
@@ -71,7 +72,6 @@ node::node(string const& genesis_signed_block,
            bool revert_blocks,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
-           std::chrono::steady_clock::duration const& sync_delay,
            detail::fp_counts_per_channel_views p_counts_per_channel_views)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
@@ -85,6 +85,7 @@ node::node(string const& genesis_signed_block,
                                          fs_state,
                                          fs_documents,
                                          fs_storages,
+                                         fs_storage,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
@@ -98,7 +99,6 @@ node::node(string const& genesis_signed_block,
                                          revert_blocks,
                                          mine_amount_threshhold,
                                          block_reward_array,
-                                         sync_delay,
                                          p_counts_per_channel_views))
 {}
 
@@ -134,52 +134,28 @@ void node::run(bool& stop_check)
         broadcast_service_statistics(*m_pimpl);
     }
 
-    unordered_set<beltpp::ievent_item const*> wait_sockets;
+    auto wait_result = m_pimpl->wait_and_receive_one();
 
-    auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
-
-    enum class interface_type {p2p, rpc};
-
-    if (wait_result & beltpp::event_handler::event)
+    if (wait_result.et == detail::wait_result_item::event)
     {
-        for (auto& pevent_item : wait_sockets)
+        auto peerid = wait_result.peerid;
+        auto received_packet = std::move(wait_result.packet);
+        auto it = wait_result.it;
+
+        beltpp::isocket* psk = nullptr;
+        if (it == detail::wait_result_item::interface_type::p2p)
+            psk = m_pimpl->m_ptr_p2p_socket.get();
+        else if (it == detail::wait_result_item::interface_type::rpc)
+            psk = m_pimpl->m_ptr_rpc_socket.get();
+
+        if (nullptr == psk)
+            throw std::logic_error("nullptr == psk");
+
+        try
         {
-            interface_type it = interface_type::rpc;
-            if (pevent_item == &m_pimpl->m_ptr_p2p_socket->worker())
-                it = interface_type::p2p;
-
-            auto str_receive = [it]
+            if (false == m_pimpl->m_nodeid_sessions.process(peerid, std::move(received_packet)) &&
+                false == m_pimpl->m_sync_sessions.process(peerid, std::move(received_packet)))
             {
-                if (it == interface_type::p2p)
-                    return "p2p_sk.receive";
-                return "rpc_sk.receive";
-            };
-            str_receive();
-
-            beltpp::socket::peer_id peerid;
-
-            beltpp::isocket* psk = nullptr;
-            if (pevent_item == &m_pimpl->m_ptr_p2p_socket->worker())
-                psk = m_pimpl->m_ptr_p2p_socket.get();
-            else if (pevent_item == m_pimpl->m_ptr_rpc_socket.get())
-                psk = m_pimpl->m_ptr_rpc_socket.get();
-
-            if (nullptr == psk)
-                throw std::logic_error("event handler behavior");
-
-            beltpp::socket::packets received_packets;
-            if (psk != nullptr)
-                received_packets = psk->receive(peerid);
-
-            for (auto& received_packet : received_packets)
-            {
-            try
-            {
-                if (m_pimpl->m_nodeid_sessions.process(peerid, std::move(received_packet)))
-                    continue;
-                if (m_pimpl->m_sync_sessions.process(peerid, std::move(received_packet)))
-                    continue;
-
                 vector<packet*> composition;
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
@@ -199,11 +175,11 @@ void node::run(bool& stop_check)
                 {
                 case beltpp::isocket_join::rtt:
                 {
-                    if (it == interface_type::p2p)
+                    if (it == detail::wait_result_item::interface_type::p2p)
                         m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) + 
                                               " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
-                    if (psk == m_pimpl->m_ptr_p2p_socket.get())
+                    if (it == detail::wait_result_item::interface_type::p2p)
                     {
                         beltpp::on_failure guard(
                             [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::isocket_drop())); });
@@ -224,7 +200,7 @@ void node::run(bool& stop_check)
                 }
                 case beltpp::isocket_drop::rtt:
                 {
-                    if (it == interface_type::p2p)
+                    if (it == detail::wait_result_item::interface_type::p2p)
                     {
                         m_pimpl->remove_peer(peerid);
                         m_pimpl->writeln_node("dropped: " + detail::peer_short_names(peerid) +
@@ -241,7 +217,7 @@ void node::run(bool& stop_check)
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
 
-                    if (it == interface_type::p2p)
+                    if (it == detail::wait_result_item::interface_type::p2p)
                         m_pimpl->remove_peer(peerid);
                     
                     break;
@@ -295,13 +271,13 @@ void node::run(bool& stop_check)
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
-                                          it == interface_type::rpc,
+                                          it == detail::wait_result_item::interface_type::rpc,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
                 
-                    if (it == interface_type::rpc)
+                    if (it == detail::wait_result_item::interface_type::rpc)
                         psk->send(peerid, beltpp::packet(Done()));
 
                     break;
@@ -311,7 +287,7 @@ void node::run(bool& stop_check)
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
-                    if (it != interface_type::p2p)
+                    if (it != detail::wait_result_item::interface_type::p2p)
                         throw wrong_request_exception("AddressInfo received through rpc!");
 
                     Broadcast* p_broadcast = nullptr;
@@ -368,10 +344,12 @@ void node::run(bool& stop_check)
                             StorageFileAddress* pfile_address;
                             package.get(pfile_address);
                             if (false == pimpl->m_documents.storage_has_uri(pfile_address->uri,
-                                                                              pimpl->m_pb_key.to_string()))
+                                                                            pimpl->m_pb_key.to_string()))
                                 broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
                         }
-                        psk->send(peerid, std::move(package));
+
+                        if (false == package.empty())
+                            psk->send(peerid, std::move(package));
                     };
 
                     vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
@@ -406,7 +384,9 @@ void node::run(bool& stop_check)
                         {
                             broadcast_storage_update(*pimpl, storage_file_delete.uri, UpdateType::remove);
                         }
-                        psk->send(peerid, std::move(package));
+
+                        if (false == package.empty())
+                            psk->send(peerid, std::move(package));
                     };
 
                     vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
@@ -422,9 +402,34 @@ void node::run(bool& stop_check)
 
                     break;
                 }
+                case FileUrisRequest::rtt:
+                {
+                    //  need to fix the security hole here
+                    if (NodeType::blockchain == m_pimpl->m_node_type ||
+                        nullptr == m_pimpl->m_slave_node)
+                        throw wrong_request_exception("Do not disturb!");
+
+                    std::function<void(beltpp::packet&&)> callback_lambda =
+                            [psk, peerid](beltpp::packet&& package)
+                    {
+                        psk->send(peerid, std::move(package));
+                    };
+
+                    vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                    actions.emplace_back(new session_action_get_file_uris(*m_pimpl.get(),
+                                                                          callback_lambda));
+
+                    meshpp::session_header header;
+                    header.peerid = "slave";
+                    m_pimpl->m_sessions.add(header,
+                                            std::move(actions),
+                                            chrono::minutes(1));
+
+                    break;
+                }
                 case LoggedTransactionsRequest::rtt:
                 {
-                    if (it == interface_type::rpc)
+                    if (it == detail::wait_result_item::interface_type::rpc)
                     {
                         LoggedTransactionsRequest msg_get_actions;
                         std::move(ref_packet).get(msg_get_actions);
@@ -506,7 +511,7 @@ void node::run(bool& stop_check)
                 }
                 case BlockchainRequest::rtt:
                 {
-                    if (it != interface_type::p2p)
+                    if (it != detail::wait_result_item::interface_type::p2p)
                         throw wrong_request_exception("BlockchainRequest received through rpc!");
 
                     BlockchainRequest blockchain_request;
@@ -544,7 +549,7 @@ void node::run(bool& stop_check)
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           peerid,
-                                          it == interface_type::rpc,
+                                          it == detail::wait_result_item::interface_type::rpc,
                                           //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
@@ -595,12 +600,12 @@ void node::run(bool& stop_check)
                         throw wrong_request_exception("channel_address != m_pimpl->m_pb_key.to_string()");
 
                     m_pimpl->service_counter.served(unit, unit_counter);
-
-                    psk->send(peerid, beltpp::packet(Done()));
 #ifdef EXTRA_LOGGING
                     m_pimpl->writeln_node("channel served");
                     m_pimpl->writeln_node(msg.to_string());
 #endif
+
+                    psk->send(peerid, beltpp::packet(Done()));
 
                     break;
                 }
@@ -613,243 +618,242 @@ void node::run(bool& stop_check)
                     break;
                 }
                 }   // switch ref_packet.type()
-            }
-            catch (meshpp::exception_public_key const& e)
+            }   // if not processed by sessions
+        }
+        catch (meshpp::exception_public_key const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidPublicKey msg;
-                    msg.public_key = e.pub_key;
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                InvalidPublicKey msg;
+                msg.public_key = e.pub_key;
+                psk->send(peerid, beltpp::packet(msg));
             }
-            catch (meshpp::exception_private_key const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidPrivateKey msg;
-                    msg.private_key = e.priv_key;
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (meshpp::exception_signature const& e)
+            throw;
+        }
+        catch (meshpp::exception_private_key const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidSignature msg;
-                    msg.details.public_key = e.sgn.pb_key.to_string();
-                    msg.details.signature = e.sgn.base58;
-                    BlockchainMessage::detail::loader(msg.details.package,
-                                                      std::string(e.sgn.message.begin(), e.sgn.message.end()),
-                                                      nullptr);
+                InvalidPrivateKey msg;
+                msg.private_key = e.priv_key;
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (meshpp::exception_signature const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                InvalidSignature msg;
+                msg.details.public_key = e.sgn.pb_key.to_string();
+                msg.details.signature = e.sgn.base58;
+                BlockchainMessage::detail::loader(msg.details.package,
+                                                  std::string(e.sgn.message.begin(), e.sgn.message.end()),
+                                                  nullptr);
 
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(msg));
             }
-            catch (wrong_data_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError remote_error;
-                    remote_error.message = e.message;
-                    psk->send(peerid, beltpp::packet(remote_error));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (wrong_request_exception const& e)
+            throw;
+        }
+        catch (wrong_data_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError remote_error;
-                    remote_error.message = e.message;
-                    psk->send(peerid, beltpp::packet(remote_error));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
             }
-            catch (wrong_document_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError remote_error;
-                    remote_error.message = e.message;
-                    psk->send(peerid, beltpp::packet(remote_error));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (authority_exception const& e)
+            throw;
+        }
+        catch (wrong_request_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    InvalidAuthority msg;
-                    msg.authority_provided = e.authority_provided;
-                    msg.authority_required = e.authority_required;
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
             }
-            catch (not_enough_balance_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    NotEnoughBalance msg;
-                    e.balance.to_Coin(msg.balance);
-                    e.spending.to_Coin(msg.spending);
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (too_long_string_exception const& e)
+            throw;
+        }
+        catch (wrong_document_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    TooLongString msg;
-                    beltpp::assign(msg, e);
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                RemoteError remote_error;
+                remote_error.message = e.message;
+                psk->send(peerid, beltpp::packet(remote_error));
             }
-            catch (uri_exception const& e)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    UriError msg;
-                    beltpp::assign(msg, e);
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                else
-                {
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
-                    m_pimpl->remove_peer(peerid);
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            catch (std::exception const& e)
+            throw;
+        }
+        catch (authority_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError msg;
-                    msg.message = e.what();
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                throw;
+                InvalidAuthority msg;
+                msg.authority_provided = e.authority_provided;
+                msg.authority_required = e.authority_required;
+                psk->send(peerid, beltpp::packet(msg));
             }
-            catch (...)
+            else
             {
-                if (it == interface_type::rpc)
-                {
-                    RemoteError msg;
-                    msg.message = "unknown exception";
-                    psk->send(peerid, beltpp::packet(msg));
-                }
-                throw;
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
             }
-            }   // for (auto& received_packet : received_packets)
-        }   // for (auto& pevent_item : wait_sockets)
+            throw;
+        }
+        catch (not_enough_balance_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                NotEnoughBalance msg;
+                e.balance.to_Coin(msg.balance);
+                e.spending.to_Coin(msg.spending);
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (too_long_string_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                TooLongString msg;
+                beltpp::assign(msg, e);
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (uri_exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                UriError msg;
+                beltpp::assign(msg, e);
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            else
+            {
+                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                m_pimpl->remove_peer(peerid);
+            }
+            throw;
+        }
+        catch (std::exception const& e)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                RemoteError msg;
+                msg.message = e.what();
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            throw;
+        }
+        catch (...)
+        {
+            if (it == detail::wait_result_item::interface_type::rpc)
+            {
+                RemoteError msg;
+                msg.message = "unknown exception";
+                psk->send(peerid, beltpp::packet(msg));
+            }
+            throw;
+        }
     }
-
-    if (wait_result & beltpp::event_handler::timer_out)
+    else if (wait_result.et == detail::wait_result_item::timer)
     {
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
-
-    if (m_pimpl->m_slave_node && (wait_result & beltpp::event_handler::on_demand))
+    else if (m_pimpl->m_slave_node && wait_result.et == detail::wait_result_item::on_demand)
     {
-        beltpp::socket::packets received_packets = m_pimpl->m_slave_node->receive();
+        auto ref_packet = std::move(wait_result.packet);
 
-        for (auto& ref_packet : received_packets)
+        if (false == m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
         {
-            if (m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
-                continue;
             switch (ref_packet.type())
             {
-            case Served::rtt:
+            case StorageTypes::ContainerMessage::rtt:
             {
-                Served msg;
+                StorageTypes::ContainerMessage msg_container;
+                std::move(ref_packet).get(msg_container);
 
-                std::move(ref_packet).get(msg);
-                if (m_pimpl->m_node_type == NodeType::storage)
+                if (msg_container.package.type() == Served::rtt)
                 {
-                    detail::service_counter::service_unit unit;
-                    detail::service_counter::service_unit_counter unit_counter;
-
-                    string& channel_address = unit.peer_address;
-                    string storage_address;
-
-                    if (storage_utility::rpc::verify_storage_order(msg.storage_order_token,
-                                                                   channel_address,
-                                                                   storage_address,
-                                                                   unit.file_uri,
-                                                                   unit.content_unit_uri,
-                                                                   unit_counter.session_id,
-                                                                   unit_counter.seconds,
-                                                                   unit_counter.time_point) &&
-                        storage_address == m_pimpl->m_pb_key.to_string() &&
-                        m_pimpl->m_documents.file_exists(unit.file_uri))
+                    Served msg;
+                    std::move(msg_container.package).get(msg);
+                    if (m_pimpl->m_node_type == NodeType::storage)
                     {
-                        unit.content_unit_uri.clear(); // simulate the old behavior
+                        detail::service_counter::service_unit unit;
+                        detail::service_counter::service_unit_counter unit_counter;
 
-                        m_pimpl->service_counter.served(unit, unit_counter);
+                        string& channel_address = unit.peer_address;
+                        string storage_address;
 
+                        if (storage_utility::rpc::verify_storage_order(msg.storage_order_token,
+                                                                       channel_address,
+                                                                       storage_address,
+                                                                       unit.file_uri,
+                                                                       unit.content_unit_uri,
+                                                                       unit_counter.session_id,
+                                                                       unit_counter.seconds,
+                                                                       unit_counter.time_point) &&
+                            storage_address == m_pimpl->m_pb_key.to_string() &&
+                            m_pimpl->m_documents.file_exists(unit.file_uri))
+                        {
+                            unit.content_unit_uri.clear(); // simulate the old behavior
+
+                            m_pimpl->service_counter.served(unit, unit_counter);
 #ifdef EXTRA_LOGGING
-                        m_pimpl->writeln_node("storage served");
-                        m_pimpl->writeln_node(msg.to_string());
+                            m_pimpl->writeln_node("storage served");
+                            m_pimpl->writeln_node(msg.to_string());
 #endif
-                    }
+                        }
 
+                    }
                 }
                 break;
             }
             }
-        }
+        }   // if not processed by sessions
     }
 
     m_pimpl->m_sessions.erase_all_pending();
@@ -901,10 +905,6 @@ void node::run(bool& stop_check)
         m_pimpl->clean_transaction_cache();
 
         //  temp place
-        broadcast_node_type(m_pimpl);
-        broadcast_address_info(m_pimpl);
-
-        //  yes temp place still
         m_pimpl->m_nodeid_service.take_actions([this](std::string const& node_address,
                                                       beltpp::ip_address const& address,
                                                       std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)
@@ -947,6 +947,10 @@ void node::run(bool& stop_check)
             m_pimpl->m_slave_node->send(beltpp::packet(std::move(set_channels)));
             m_pimpl->m_slave_node->wake();
         }
+
+        //  yes temp place still
+        broadcast_node_type(m_pimpl);
+        broadcast_address_info(m_pimpl);
     }
 
     // init sync process and block mining
@@ -954,83 +958,163 @@ void node::run(bool& stop_check)
     {
         m_pimpl->m_check_timer.update();
 
-        if (m_pimpl->m_sync_delay.expired() &&
-            m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
+        if (m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
             sync_worker(*m_pimpl.get());
 
-        vector<string> channel_file_uris_backup;
-        for (auto& channel_file_uris : m_pimpl->map_channel_to_file_uris)
-            channel_file_uris_backup.push_back(channel_file_uris.first);
-
-        unordered_set<string> unresolved_channels;
-        for (auto const& channel_address : channel_file_uris_backup)
+        if (m_pimpl->m_storage_sync_delay.expired() &&
+            m_pimpl->blockchain_updated() &&
+            m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2 &&
+            NodeType::storage == m_pimpl->m_node_type &&
+            m_pimpl->m_slave_node)
         {
-            auto channel_it = m_pimpl->map_channel_to_file_uris.find(channel_address);
-            if (channel_it == m_pimpl->map_channel_to_file_uris.end())
-                continue;
+            auto& impl = *m_pimpl.get();
 
-            auto& map_file_uris = channel_it->second;
-            assert(false == map_file_uris.empty());
-            if (map_file_uris.empty())
-                throw std::logic_error("map_file_uris.empty()");
+            unordered_map<string, beltpp::ip_address> map_nodeid_ip_address;
+            unordered_set<string> set_resolved_nodeids;
 
-            beltpp::ip_address channel_ip_address;
-            PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
+            PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
             for (auto const& item : public_addresses.addresses_info)
             {
-                if (item.seconds_since_checked > PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                if (item.seconds_since_checked > 2 * PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
                     break;
 
-                if (item.node_address == channel_address)
+                NodeType check_role;
+                if (impl.m_state.get_role(item.node_address, check_role) &&
+                    check_role == NodeType::channel)
                 {
-                    beltpp::assign(channel_ip_address, item.ip_address);
-                    break;
+                    set_resolved_nodeids.insert(item.node_address);
+                    beltpp::assign(map_nodeid_ip_address[item.node_address], item.ip_address);
                 }
             }
 
-            if (channel_ip_address.local.empty())
-                unresolved_channels.insert(channel_address);
-            else
+            auto file_to_channel =
+                    impl.m_storage_controller.get_file_requests(set_resolved_nodeids);
+
+            auto get_file_uris_callback = [&impl, file_to_channel, map_nodeid_ip_address](beltpp::packet&& package)
             {
-                //  session_action_request_file is allowed to modify this map
-                //  that's why we need this tricks here
-                auto map_file_uris_backup = map_file_uris;
-                for (auto const& file_uri_item_bak : map_file_uris_backup)
+                if (package.type() == BlockchainMessage::FileUris::rtt)
                 {
-                    auto it = map_file_uris.find(file_uri_item_bak.first);
-                    if (it == map_file_uris.end())
-                        continue;
+                    BlockchainMessage::FileUris file_uris;
+                    std::move(package).get(file_uris);
 
-                    bool& requested = it->second;
-                    string const& file_uri = it->first;
+                    unordered_set<string> set_file_uris;
+                    set_file_uris.reserve(file_uris.file_uris.size());
 
-                    if (requested)
-                        continue;
+                    for (auto& file_uri : file_uris.file_uris)
+                        set_file_uris.insert(std::move(file_uri));
 
-                    vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
-                    actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
-                    actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                       m_pimpl->m_nodeid_service));
-                    actions.emplace_back(new session_action_request_file(file_uri,
-                                                                         channel_address,
-                                                                         *m_pimpl.get()));
+                    using actions_vector = vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>>;
+                    unordered_map<string, actions_vector> map_actions;
+                    unordered_map<string, pair<string, bool>> map_broadcast;
 
-                    meshpp::nodeid_session_header header;
-                    header.nodeid = channel_address;
-                    header.address = channel_ip_address;
-                    m_pimpl->m_nodeid_sessions.add(header,
-                                                   std::move(actions),
+                    for (auto const& item : file_to_channel)
+                    {
+                        auto const& file_uri = item.first;
+                        auto const& channel_address = item.second;
+
+                        if (0 == set_file_uris.count(file_uri))
+                        {
+                            auto& actions = map_actions[channel_address];
+                            if (actions.empty())
+                            {
+                                actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
+                                actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
+                                                                                   impl.m_nodeid_service));
+                            }
+
+                            actions.emplace_back(new session_action_request_file(file_uri,
+                                                                                 item.second,
+                                                                                 impl));
+                        }
+                        else
+                        {
+                            map_broadcast[file_uri] = {channel_address, true};
+                        }
+                    }
+
+                    beltpp::finally guard_map_broadcast([&impl, &map_broadcast]
+                    {
+                        for (auto const& item : map_broadcast)
+                        {
+                            auto const& file_uri = item.first;
+                            auto const& channel_address = item.second.first;
+
+                            if (item.second.second)
+                            {
+                                impl.writeln_node(file_uri + " session_action_get_file_uris callback calling initiate revert");
+                                impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
+                            }
+                        }
+                    });
+
+                    for (auto& actions : map_actions)
+                    {
+                        meshpp::nodeid_session_header header;
+                        header.nodeid = actions.first;
+                        header.address = map_nodeid_ip_address.at(actions.first);
+                        impl.m_nodeid_sessions.add(header,
+                                                   std::move(actions.second),
                                                    chrono::minutes(3));
-                    requested = true;
-                }
-            }
-        }
+                    }
 
-        while (unresolved_channels.size() > 10)
-        {
-            auto const& first_unresolved_channel = *unresolved_channels.begin();
-            m_pimpl->map_channel_to_file_uris.erase(first_unresolved_channel);
-            unresolved_channels.erase(first_unresolved_channel);
+                    for (auto& item : map_broadcast)
+                    {
+                        auto const& file_uri = item.first;
+                        auto const& channel_address = item.second.first;
+#ifdef EXTRA_LOGGING
+                        beltpp::on_failure guard([&impl, file_uri]{impl.writeln_node(file_uri + " flew");});
+#endif
+                        if (false == impl.m_documents.storage_has_uri(file_uri, impl.m_pb_key.to_string()))
+                            broadcast_storage_update(impl, file_uri, UpdateType::store);
+
+#ifdef EXTRA_LOGGING
+                        impl.writeln_node(file_uri + " session_action_get_file_uris callback calling pop");
+#endif
+                        impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
+                        item.second.second = false;
+                        impl.m_storage_controller.pop(file_uri, channel_address);
+#ifdef EXTRA_LOGGING
+                        guard.dismiss();
+#endif
+                    }
+                }
+                else
+                {
+                    if (package.type() == BlockchainMessage::RemoteError::rtt)
+                    {
+                        BlockchainMessage::RemoteError remote_error;
+                        std::move(package).get(remote_error);
+#ifdef EXTRA_LOGGING
+                        impl.writeln_node(remote_error.message);
+#endif
+                    }
+#ifdef EXTRA_LOGGING
+                    else
+                    {
+                        impl.writeln_node("cannot get the files list - " + package.to_string());
+                    }
+                    impl.writeln_node("session_action_get_file_uris callback calling initiate revert " + std::to_string(file_to_channel.size()));
+#endif
+                    for (auto const& item : file_to_channel)
+                        impl.m_storage_controller.initiate(item.first, item.second, storage_controller::revert);
+                }
+            };
+
+            if (false == file_to_channel.empty())
+            {
+#ifdef EXTRA_LOGGING
+                m_pimpl->writeln_node("can download now: " + std::to_string(file_to_channel.size()));
+                impl.writeln_node("verified channels: " + std::to_string(map_nodeid_ip_address.size()));
+#endif
+                vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                actions.emplace_back(new session_action_get_file_uris(impl, get_file_uris_callback));
+
+                meshpp::session_header header;
+                header.peerid = "slave";
+                m_pimpl->m_sessions.add(header,
+                                        std::move(actions),
+                                        chrono::minutes(1));
+            }
         }
     }
 }

@@ -52,6 +52,8 @@ public:
     void storage_update(std::string const& uri, std::string const& address, BlockchainMessage::UpdateType status);
     bool storage_has_uri(std::string const& uri, std::string const& address) const;
 
+public:
+
     void sponsor_content_unit_apply(publiqpp::detail::node_internals& impl,
                                     BlockchainMessage::SponsorContentUnit const& spi,
                                     std::string const& transaction_hash);

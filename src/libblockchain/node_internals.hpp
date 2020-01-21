@@ -7,6 +7,7 @@
 #include "documents.hpp"
 #include "action_log.hpp"
 #include "blockchain.hpp"
+#include "storage.hpp"
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
@@ -415,6 +416,7 @@ public:
                    filesystem::path const& fs_state,
                    filesystem::path const& fs_documents,
                    filesystem::path const& fs_storages,
+                   filesystem::path const& fs_storage,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
@@ -428,7 +430,6 @@ public:
                    bool revert_blocks,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
-                   std::chrono::steady_clock::duration const& sync_delay,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
@@ -448,7 +449,7 @@ public:
         , m_sync_timer()
         , m_check_timer()
         , m_summary_report_timer()
-        , m_sync_delay()
+        , m_storage_sync_delay()
         , m_public_address(public_address)
         , m_public_ssl_address(public_ssl_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
@@ -457,6 +458,7 @@ public:
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state, *this)
         , m_documents(fs_documents, fs_storages)
+        , m_storage_controller(fs_storage)
         , all_sync_info(*this)
         , m_node_type(n_type)
         , m_fee_transactions(std::move(coin_from_fractions(fractions)))
@@ -482,7 +484,7 @@ public:
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
-        m_sync_delay.set(sync_delay, true);
+        m_storage_sync_delay.set(chrono::seconds(2 * CACHE_CLEANUP_TIMER), true);
 
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
@@ -628,6 +630,7 @@ public:
     }
 
     bool initialize();
+    wait_result_item wait_and_receive_one();
 
     storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
@@ -641,7 +644,7 @@ public:
     beltpp::timer m_broadcast_timer;
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
-    beltpp::timer m_sync_delay;
+    beltpp::timer m_storage_sync_delay;
 
     beltpp::ip_address m_public_address;
     beltpp::ip_address m_public_ssl_address;
@@ -652,6 +655,7 @@ public:
     publiqpp::transaction_pool m_transaction_pool;
     publiqpp::state m_state;
     publiqpp::documents m_documents;
+    publiqpp::storage_controller m_storage_controller;
 
     node_synchronization all_sync_info;
     detail::service_counter service_counter;
@@ -683,7 +687,6 @@ public:
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;
     fp_counts_per_channel_views pcounts_per_channel_views;
-    unordered_map<string, unordered_map<string, bool>> map_channel_to_file_uris;
 
     struct vote_info
     {
@@ -693,6 +696,7 @@ public:
     };
 
     unordered_map<string, vote_info> m_votes;
+    wait_result m_wait_result;
 };
 
 }

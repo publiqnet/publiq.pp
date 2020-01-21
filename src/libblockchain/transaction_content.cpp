@@ -116,20 +116,16 @@ void action_apply(publiqpp::detail::node_internals& impl,
     }
 
     if (impl.m_node_type == NodeType::storage &&
-        state_layer::chain == layer)
+        state_layer::chain == layer /*&& beltpp::chance_one_of(3)*/)
     {
         for (auto const& unit_uri : content.content_unit_uris)
         {
             auto const& unit = impl.m_documents.get_unit(unit_uri);
 
             for (auto const& file_uri : unit.file_uris)
-            {
-                auto& value = impl.map_channel_to_file_uris[content.channel_address];
-                value.insert(std::make_pair(file_uri, false));
-            }
+                impl.m_storage_controller.enqueue(file_uri, content.channel_address);
         }
     }
-
 }
 
 void action_revert(publiqpp::detail::node_internals& /*impl*/,

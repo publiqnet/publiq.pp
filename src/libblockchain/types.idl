@@ -28,6 +28,7 @@ module StorageTypes
     {
         Hash String SponsoredInformationHeader expirations
     }
+
     class SponsoredInformationHeader
     {
         String uri
@@ -48,6 +49,12 @@ module StorageTypes
         UInt64 block_number
     }
 
+    class FileRequest
+    {
+        String file_uri
+        String channel_address
+    }
+
     ///
     // Slave message types below
     ///
@@ -64,6 +71,14 @@ module StorageTypes
     class SetVerifiedChannels
     {
         Array String channel_addresses
+    }
+
+    class FileUrisRequest
+    {}
+
+    class ContainerMessage
+    {
+        Extension package
     }
 }
 ////1
