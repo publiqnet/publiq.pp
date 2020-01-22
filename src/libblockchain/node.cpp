@@ -326,9 +326,10 @@ void node::run(bool& stop_check)
                 }
                 case StorageFile::rtt:
                 {
-                    //  need to fix the security hole here
                     if (NodeType::blockchain == m_pimpl->m_node_type ||
-                        nullptr == m_pimpl->m_slave_node)
+                        nullptr == m_pimpl->m_slave_node ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     StorageFile storage_file;
@@ -367,9 +368,10 @@ void node::run(bool& stop_check)
                 }
                 case StorageFileDelete::rtt:
                 {
-                    //  need to fix the security hole here
                     if (NodeType::blockchain == m_pimpl->m_node_type ||
-                        nullptr == m_pimpl->m_slave_node)
+                        nullptr == m_pimpl->m_slave_node ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     StorageFileDelete storage_file_delete;
@@ -404,9 +406,10 @@ void node::run(bool& stop_check)
                 }
                 case FileUrisRequest::rtt:
                 {
-                    //  need to fix the security hole here
                     if (NodeType::blockchain == m_pimpl->m_node_type ||
-                        nullptr == m_pimpl->m_slave_node)
+                        nullptr == m_pimpl->m_slave_node ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     std::function<void(beltpp::packet&&)> callback_lambda =
@@ -574,7 +577,9 @@ void node::run(bool& stop_check)
                 }
                 case Served::rtt:
                 {
-                    if (NodeType::channel != m_pimpl->m_node_type)
+                    if (NodeType::channel != m_pimpl->m_node_type ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     Served msg;
