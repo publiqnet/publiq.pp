@@ -44,13 +44,13 @@ void blockchain::save()
     m_pimpl->m_blockchain.save();
 }
 
-void blockchain::commit()
+void blockchain::commit() noexcept
 {
     m_pimpl->m_header.commit();
     m_pimpl->m_blockchain.commit();
 }
 
-void blockchain::discard()
+void blockchain::discard() noexcept
 {
     m_pimpl->m_header.discard();
     m_pimpl->m_blockchain.discard();

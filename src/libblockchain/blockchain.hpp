@@ -24,8 +24,8 @@ public:
     ~blockchain();
 
     void save();
-    void commit();
-    void discard();
+    void commit() noexcept;
+    void discard() noexcept;
     void clear();
     void update_state();
 

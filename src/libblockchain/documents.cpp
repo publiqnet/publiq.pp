@@ -79,7 +79,7 @@ void documents::save()
     m_pimpl->m_sponsored_informations_hash_to_block.save();
 }
 
-void documents::commit()
+void documents::commit() noexcept
 {
     if (nullptr == m_pimpl)
         return;
@@ -91,7 +91,7 @@ void documents::commit()
     m_pimpl->m_sponsored_informations_hash_to_block.commit();
 }
 
-void documents::discard()
+void documents::discard() noexcept
 {
     if (nullptr == m_pimpl)
         return;

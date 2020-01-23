@@ -27,8 +27,8 @@ public:
     ~state();
 
     void save();
-    void commit();
-    void discard();
+    void commit() noexcept;
+    void discard() noexcept;
     void clear();
 
     BlockchainMessage::Coin get_balance(std::string const& key, state_layer layer) const;
