@@ -543,6 +543,11 @@ void node::run(bool& stop_check)
                     TransactionDone transaction_done;
                     transaction_done.transaction_hash = meshpp::hash(signed_transaction.to_string());
 
+                    signed_transaction_validate(signed_transaction,
+                                                std::chrono::system_clock::now(),
+                                                std::chrono::seconds(NODES_TIME_SHIFT),
+                                                *m_pimpl.get());
+
                     if (action_process_on_chain(signed_transaction, *m_pimpl.get()))
                     {
                         BlockchainMessage::Broadcast broadcast;
@@ -1406,8 +1411,12 @@ void block_worker(detail::node_internals& impl)
     }
     else
     {
-        if (last_block_age_blocks > 3)
+        if (last_block_age_blocks > 3 &&
+            impl.m_stuck_on_old_blockchain_timer.expired())
+        {
+            impl.m_stuck_on_old_blockchain_timer.update();
             impl.writeln_node_warning("has stuck on an old blockchain");
+        }
     }
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)
