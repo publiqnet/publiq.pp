@@ -24,8 +24,8 @@ public:
     ~action_log();
 
     void save();
-    void commit();
-    void discard();
+    void commit() noexcept;
+    void discard() noexcept;
     void clear();
 
     size_t length() const;

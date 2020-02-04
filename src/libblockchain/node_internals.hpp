@@ -449,8 +449,11 @@ public:
                                ))
         , m_sync_timer()
         , m_check_timer()
+        , m_broadcast_timer()
+        , m_cache_cleanup_timer()
         , m_summary_report_timer()
         , m_storage_sync_delay()
+        , m_stuck_on_old_blockchain_timer()
         , m_public_address(public_address)
         , m_public_ssl_address(public_ssl_address)
         , m_rpc_bind_to_address(rpc_bind_to_address)
@@ -480,17 +483,18 @@ public:
                                                    p_counts_per_channel_views :
                                                    &counts_per_channel_views)
     {
-
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
         m_broadcast_timer.set(chrono::seconds(BROADCAST_TIMER));
         m_cache_cleanup_timer.set(chrono::seconds(CACHE_CLEANUP_TIMER));
         m_summary_report_timer.set(chrono::seconds(SUMMARY_REPORT_TIMER));
-        m_storage_sync_delay.set(chrono::seconds(2 * CACHE_CLEANUP_TIMER), true);
+        m_storage_sync_delay.set(chrono::seconds(2 * CACHE_CLEANUP_TIMER));
+        m_stuck_on_old_blockchain_timer.set(chrono::seconds(BLOCK_MINE_DELAY));
 
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
         m_broadcast_timer.update();
+        m_storage_sync_delay.update();
 
         if (false == rpc_bind_to_address.local.empty())
             m_ptr_rpc_socket->listen(rpc_bind_to_address);
@@ -647,6 +651,7 @@ public:
     beltpp::timer m_cache_cleanup_timer;
     beltpp::timer m_summary_report_timer;
     beltpp::timer m_storage_sync_delay;
+    beltpp::timer m_stuck_on_old_blockchain_timer;
 
     beltpp::ip_address m_public_address;
     beltpp::ip_address m_public_ssl_address;

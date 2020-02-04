@@ -41,14 +41,14 @@ public:
     ~storage_controller();
 
     void save();
-    void commit();
-    void discard();
+    void commit() noexcept;
+    void discard() noexcept;
     void clear();
 
     void enqueue(std::string const& file_uri, std::string const& channel_address);
     void pop(std::string const& file_uri, std::string const& channel_address);
     enum initiate_type {check, revert};
-    bool initiate(std::string const& file_uri,
+    void initiate(std::string const& file_uri,
                   std::string const& channel_address,
                   initiate_type e_initiate_type);
     std::unordered_map<std::string, std::string> get_file_requests(std::unordered_set<std::string> const& resolved_channels);

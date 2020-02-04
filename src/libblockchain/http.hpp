@@ -113,9 +113,9 @@ beltpp::detail::pmsg_all message_list_load(
                                          iter_scan_begin,
                                          iter_scan_end,
                                          it_fallback,
-                                         1000,
-                                         64 * 1024,
-                                         10 * 1024 * 1024,
+                                         10 * 1024,         //  enough length
+                                         64 * 1024,         //  header max size
+                                         10 * 1024 * 1024,  //  content max size
                                          posted);
     auto code = result.first;
     auto& ss = result.second;

@@ -178,7 +178,7 @@ public:
     bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
-    bool delegated_to_save;
+    bool need_to_revert_initiate;
     detail::node_internals* pimpl;
     std::string const file_uri;
     std::string const nodeid;

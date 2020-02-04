@@ -42,12 +42,12 @@ void action_log::save()
     m_pimpl->m_actions.save();
 }
 
-void action_log::commit()
+void action_log::commit() noexcept
 {
     m_pimpl->m_actions.commit();
 }
 
-void action_log::discard()
+void action_log::discard() noexcept
 {
     m_pimpl->m_actions.discard();
     m_pimpl->m_revert_index = length() - 1;

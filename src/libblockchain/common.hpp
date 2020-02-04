@@ -38,8 +38,8 @@
 // Action log max response count
 #define ACTION_LOG_MAX_RESPONSE 10000
 
-// Maximum number of parallelly requested files
-#define STORAGE_MAX_FILE_REQUESTS 5
+// Max chunk size of files to request and process at a time
+#define STORAGE_MAX_FILE_REQUESTS 100
 
 // Timers in seconds
 #define CHECK_TIMER 1
@@ -227,8 +227,16 @@ public:
 class wait_result
 {
 public:
+    struct key_hash
+    {
+        size_t operator()(wait_result_item::interface_type const& value) const noexcept
+        {
+            return static_cast<size_t>(value);
+        }
+    };
+
     beltpp::event_handler::wait_result m_wait_result = beltpp::event_handler::wait_result::nothing;
-    std::unordered_map<wait_result_item::interface_type, std::pair<beltpp::socket::peer_id, beltpp::socket::packets>> event_packets;
+    std::unordered_map<wait_result_item::interface_type, std::pair<beltpp::socket::peer_id, beltpp::socket::packets>, key_hash> event_packets;
     beltpp::socket::packets on_demand_packets;
 };
 

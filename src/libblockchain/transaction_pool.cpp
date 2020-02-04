@@ -45,12 +45,12 @@ void transaction_pool::save()
     m_pimpl->m_transactions.save();
 }
 
-void transaction_pool::commit()
+void transaction_pool::commit() noexcept
 {
     m_pimpl->m_transactions.commit();
 }
 
-void transaction_pool::discard()
+void transaction_pool::discard() noexcept
 {
     m_pimpl->m_transactions.discard();
 }
