@@ -47,12 +47,14 @@ int main(int argc, char** argv)
     catch (...)
     {}  //  don't care for exception, for now
 
+    string prefix;
+    string str_pv_key;
     beltpp::ip_address connect_to_address;
     beltpp::ip_address rpc_address;
-    string prefix;
 
     if (false == process_command_line(argc, argv,
                                       prefix,
+                                      str_pv_key,
                                       connect_to_address,
                                       rpc_address))
         return 1;
@@ -96,7 +98,7 @@ int main(int argc, char** argv)
             dda.save();
         }
 
-        rpc server(rpc_address, connect_to_address);
+        rpc server(str_pv_key, rpc_address, connect_to_address);
 
         while (true)
         {

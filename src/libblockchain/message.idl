@@ -197,6 +197,7 @@ module BlockchainMessage
         String file_uri
         String storage_address
     }
+
     enum UpdateType {store remove}
 
     class ServiceStatistics
@@ -501,6 +502,14 @@ module BlockchainMessage
         String uri
         String mime_type
         UInt64 size
+    }
+
+    class StorageUpdateCommand
+    {
+        UpdateType status
+        String file_uri
+        String storage_address
+        String channel_address
     }
 
     class GenericModelReserve1 {}

@@ -17,11 +17,20 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+bool process_update_command(BlockchainMessage::SignedTransaction const& signed_tx,
+                            BlockchainMessage::StorageUpdateCommand const& update_command,
+                            std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+
 void broadcast_service_statistics(publiqpp::detail::node_internals& impl);
 
 void broadcast_storage_update(publiqpp::detail::node_internals& impl,
                               std::string const& uri,
                               BlockchainMessage::UpdateType const& status);
+
+void delete_storage_file(publiqpp::detail::node_internals& impl,
+                         beltpp::isocket* psk,
+                         std::string const& peerid,
+                         std::string const& uri);
 
 bool apply_transaction(BlockchainMessage::SignedTransaction const& signed_transaction,
                        publiqpp::detail::node_internals& impl,

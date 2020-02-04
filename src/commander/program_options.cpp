@@ -12,7 +12,8 @@ using std::string;
 namespace program_options = boost::program_options;
 
 bool process_command_line(int argc, char** argv,
-                          std::string& prefix,
+                          string& prefix,
+                          string& str_pv_key,
                           beltpp::ip_address& connect_to_address,
                           beltpp::ip_address& listen_on_address)
 {
@@ -29,7 +30,9 @@ bool process_command_line(int argc, char** argv,
             ("listen_on_address,l", program_options::value<string>(&str_listen_on_address)->required(),
                             "commander rpc address")
             ("prefix,p", program_options::value<string>(&prefix)->required(),
-                            "blockchain prefix");
+                            "blockchain prefix")
+            ("manage_private_key,k", program_options::value<string>(&str_pv_key),
+                            "commander private key to sign commands");
         (void)(desc_init);
 
         program_options::variables_map options;

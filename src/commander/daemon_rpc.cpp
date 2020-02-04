@@ -207,6 +207,7 @@ void process_transaction(uint64_t block_index,
 
         string str_block_index = std::to_string(block_index);
         LogIndexLoader& idxlogloader = idx_insert_res.first->second;
+
         if (LoggingType::apply == type)
         {
             size_t current_tx_index = tlogloader.size() - 1;
@@ -217,12 +218,13 @@ void process_transaction(uint64_t block_index,
             if (false == idxlogloader.insert(str_block_index, value))
             {
                 auto& stored_value = idxlogloader.at(str_block_index);
+
                 bool verify = stored_value.first + stored_value.second == current_tx_index;
                 assert(verify);
-                ++stored_value.second;
-
                 if (false == verify)
                     throw std::logic_error("cannot add to transaction index");
+
+                ++stored_value.second;
             }
         }
         else
@@ -231,7 +233,6 @@ void process_transaction(uint64_t block_index,
 
             bool verify = idxlogloader.contains(str_block_index);
             assert(verify);
-
             if (false == verify)
                 throw std::logic_error("cannot remove from transaction index");
 
@@ -249,6 +250,7 @@ void process_transaction(uint64_t block_index,
         }
     }
 }
+
 void process_reward(uint64_t block_index,
                     string const& str_account,
                     BlockchainMessage::RewardLog const& reward_log,
@@ -274,6 +276,7 @@ void process_reward(uint64_t block_index,
 
         string str_block_index = std::to_string(block_index);
         LogIndexLoader& idxlogloader = idx_insert_res.first->second;
+
         if (LoggingType::apply == type)
         {
             size_t current_rw_index = rlogloader.size() - 1;
@@ -284,12 +287,13 @@ void process_reward(uint64_t block_index,
             if (false == idxlogloader.insert(str_block_index, value))
             {
                 auto& stored_value = idxlogloader.at(str_block_index);
+
                 bool verify = stored_value.first + stored_value.second == current_rw_index;
                 assert(verify);
-                ++stored_value.second;
-
                 if (false == verify)
                     throw std::logic_error("cannot add to reward index");
+
+                ++stored_value.second;
             }
         }
         else
@@ -298,7 +302,6 @@ void process_reward(uint64_t block_index,
 
             bool verify = idxlogloader.contains(str_block_index);
             assert(verify);
-
             if (false == verify)
                 throw std::logic_error("cannot remove from reward index");
 
@@ -624,6 +627,7 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
             }
         }
     }
+
     if (Content::rtt == transaction_log.action.type())
     {
         Content content;
@@ -767,6 +771,37 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
                     content_histories.erase(approved_iter);
                 }
             }
+        }
+    }
+}
+
+void process_statistics_tansactions(BlockchainMessage::TransactionLog const& transaction_log,
+                                    rpc& rpc_server,
+                                    LoggingType type)
+{
+    if (ServiceStatistics::rtt == transaction_log.action.type())
+    {
+        uint64_t block_number = rpc_server.head_block_index.as_const()->value;
+
+        ServiceStatistics statistics;
+        transaction_log.action.get(statistics);
+
+        if (LoggingType::apply == type)
+        {
+            for (auto const& file_item : statistics.file_items)
+            {
+                // here take only channel provided statistocs
+                if (false == file_item.unit_uri.empty())
+                {
+                    for (auto const& count_item : file_item.count_items)
+                        rpc_server.m_file_usage_map[block_number][file_item.file_uri] += count_item.count;
+                }
+            }
+        }
+        else //if (LoggingType::revert == type)
+        {
+            if (rpc_server.m_file_usage_map.find(block_number) != rpc_server.m_file_usage_map.end())
+                rpc_server.m_file_usage_map.erase(block_number);
         }
     }
 }
@@ -974,11 +1009,11 @@ void daemon_rpc::sync(rpc& rpc_server,
                                ]()
     {
         log_index.discard();
+        rpc_server.head_block_index.discard();
         rpc_server.accounts.discard();
         rpc_server.blocks.discard();
         rpc_server.storages.discard();
         rpc_server.channels.discard();
-        rpc_server.head_block_index.discard();
 
         for (auto& tr : transactions)
             tr.second.discard();
@@ -988,7 +1023,6 @@ void daemon_rpc::sync(rpc& rpc_server,
             tr.second.discard();
         for (auto& rw : index_rewards)
             rw.second.discard();
-
     });
 
     uint64_t local_start_index = 0;

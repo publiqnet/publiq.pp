@@ -4,6 +4,7 @@
 
 #include "coin.hpp"
 #include "common.hpp"
+#include "sessions.hpp"
 #include "exception.hpp"
 #include "message.tmpl.hpp"
 #include "types.hpp"
@@ -1356,7 +1357,7 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
     if (signed_authority != address_info.node_address)
         throw authority_exception(signed_authority, address_info.node_address);
 
-    // Check pool and cache
+    // Check cache
     if (pimpl->m_transaction_cache.contains(signed_transaction))
         return false;
 
@@ -1370,6 +1371,50 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
 
     //  this is not added to pool, because we don't store it in blockchain
         //  pimpl->m_transaction_pool.push_back(signed_transaction);
+    pimpl->m_transaction_cache.add_pool(signed_transaction, true);
+
+    guard.dismiss();
+
+    return true;
+}
+
+bool process_update_command(BlockchainMessage::SignedTransaction const& signed_transaction,
+                            BlockchainMessage::StorageUpdateCommand const& update_command,
+                            std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
+{
+    // Check data and authority
+    NodeType node_type;
+
+    if (false != update_command.file_uri.empty())
+        throw wrong_request_exception("StorageUpdateCommand containes empty file uri!");
+
+    if (update_command.status == UpdateType::store && update_command.channel_address.empty())
+        throw wrong_request_exception("StorageUpdateCommand containes wrong data!");
+
+    if (false == pimpl->m_state.get_role(update_command.storage_address, node_type) || node_type != NodeType::storage)
+        throw wrong_request_exception("StorageUpdateCommand containes wrong storage address!");
+
+    if (false == update_command.channel_address.empty() &&
+        (false == pimpl->m_state.get_role(update_command.channel_address, node_type) || node_type != NodeType::channel))
+        throw wrong_request_exception("StorageUpdateCommand containes wrong channel address!");
+
+    if (signed_transaction.authorizations.size() != 1)
+        throw wrong_data_exception("transaction authorizations error");
+
+    // Check cache
+    if (pimpl->m_transaction_cache.contains(signed_transaction))
+        return false;
+
+    pimpl->m_transaction_cache.backup();
+
+    beltpp::on_failure guard([&pimpl]
+    {
+        //pimpl->discard(); // not working with other state
+        pimpl->m_transaction_cache.restore();
+    });
+
+    //  this is not added to pool, because we don't store it in blockchain
+    //  pimpl->m_transaction_pool.push_back(signed_transaction);
     pimpl->m_transaction_cache.add_pool(signed_transaction, true);
 
     guard.dismiss();
@@ -1461,5 +1506,33 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
             impl.m_p2p_peers,
             impl.m_ptr_p2p_socket.get());
     }
+}
+
+void delete_storage_file(publiqpp::detail::node_internals& impl,
+                         beltpp::isocket* psk,
+                         string const& peerid,
+                         string const& uri)
+{
+    auto* pimpl = &impl;
+    std::function<void(beltpp::packet&&)> callback_lambda =
+        [psk, peerid, uri, pimpl](beltpp::packet&& package)
+    {
+        if (NodeType::storage == pimpl->m_node_type && package.type() == Done::rtt)
+            broadcast_storage_update(*pimpl, uri, UpdateType::remove);
+
+        if (false == package.empty())
+            psk->send(peerid, std::move(package));
+    };
+
+    vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+    actions.emplace_back(new session_action_delete_file(impl,
+                                                        uri,
+                                                        callback_lambda));
+
+    meshpp::session_header header;
+    header.peerid = "slave";
+    impl.m_sessions.add(header,
+                        std::move(actions),
+                        chrono::minutes(1));
 }
 }// end of namespace publiqpp

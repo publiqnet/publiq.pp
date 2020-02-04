@@ -62,9 +62,10 @@ node::node(string const& genesis_signed_block,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
-           NodeType& n_type,
+           NodeType const& n_type,
            uint64_t fractions,
            uint64_t freeze_before_block,
+           string const& manager_address,
            bool log_enabled,
            bool transfer_only,
            bool testnet,
@@ -92,6 +93,7 @@ node::node(string const& genesis_signed_block,
                                          n_type,
                                          fractions,
                                          freeze_before_block,
+                                         manager_address,
                                          log_enabled,
                                          transfer_only,
                                          testnet,
@@ -248,6 +250,7 @@ void node::run(bool& stop_check)
                 {
                     if (m_pimpl->m_blockchain.length() >= m_pimpl->m_freeze_before_block)
                         break;
+
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
@@ -324,6 +327,69 @@ void node::run(bool& stop_check)
 
                     break;
                 }
+                case StorageUpdateCommand::rtt:
+                {
+                    if (broadcast_signed_transaction.items.empty())
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
+
+                    if (it != detail::wait_result_item::interface_type::p2p)
+                        throw wrong_request_exception("StorageUpdateCommand received through rpc!");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    StorageUpdateCommand* p_update_command = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_update_command);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_update_command);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_tx = *p_signed_tx;
+                    StorageUpdateCommand& update_command = *p_update_command;
+
+                    if (process_update_command(signed_tx, update_command, m_pimpl))
+                    {
+                        if (update_command.storage_address == m_pimpl->m_pb_key.to_string())
+                        {
+                            // command is addressed to me
+                            if (signed_tx.authorizations[0].address == m_pimpl->m_manager_address)
+                            {
+                                if (update_command.status == UpdateType::remove)
+                                {
+                                    delete_storage_file(*m_pimpl.get(), psk, peerid, update_command.file_uri);
+                                }
+                                else // update_command.status == UpdateType::save
+                                {
+                                    m_pimpl->m_storage_controller.enqueue(update_command.file_uri, update_command.channel_address);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // rebroadcast command direct peer or to all
+                            std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
+
+                            if (0 == m_pimpl->m_p2p_peers.count(update_command.storage_address))//???
+                                broadcast_peers = m_pimpl->m_p2p_peers;
+                            else
+                                broadcast_peers.insert(update_command.storage_address);
+
+                            broadcast_message(std::move(broadcast),
+                                              m_pimpl->m_ptr_p2p_socket->name(),
+                                              peerid,
+                                              true,
+                                              nullptr,
+                                              broadcast_peers,
+                                              m_pimpl->m_ptr_p2p_socket.get());
+                        }
+                    }
+
+                    break;
+                }
                 case StorageFile::rtt:
                 {
                     //  need to fix the security hole here
@@ -373,28 +439,32 @@ void node::run(bool& stop_check)
                     StorageFileDelete storage_file_delete;
                     std::move(ref_packet).get(storage_file_delete);
 
-                    auto* pimpl = m_pimpl.get();
-                    std::function<void(beltpp::packet&&)> callback_lambda =
-                            [psk, peerid, storage_file_delete, pimpl](beltpp::packet&& package)
-                    {
-                        if (NodeType::storage == pimpl->m_node_type &&
-                            package.type() == Done::rtt)
-                        {
-                            broadcast_storage_update(*pimpl, storage_file_delete.uri, UpdateType::remove);
-                        }
-                        psk->send(peerid, std::move(package));
-                    };
+                    delete_storage_file(*m_pimpl.get(), psk, peerid, storage_file_delete.uri);
 
-                    vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
-                    actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
-                                                                        storage_file_delete.uri,
-                                                                        callback_lambda));
-
-                    meshpp::session_header header;
-                    header.peerid = "slave";
-                    m_pimpl->m_sessions.add(header,
-                                            std::move(actions),
-                                            chrono::minutes(1));
+                    //auto* pimpl = m_pimpl.get();
+                    //std::function<void(beltpp::packet&&)> callback_lambda =
+                    //        [psk, peerid, storage_file_delete, pimpl](beltpp::packet&& package)
+                    //{
+                    //    if (NodeType::storage == pimpl->m_node_type &&
+                    //        package.type() == Done::rtt)
+                    //    {
+                    //        broadcast_storage_update(*pimpl, storage_file_delete.uri, UpdateType::remove);
+                    //    }
+                    //
+                    //    if (false == package.empty())
+                    //        psk->send(peerid, std::move(package));
+                    //};
+                    //
+                    //vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+                    //actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
+                    //                                                    storage_file_delete.uri,
+                    //                                                    callback_lambda));
+                    //
+                    //meshpp::session_header header;
+                    //header.peerid = "slave";
+                    //m_pimpl->m_sessions.add(header,
+                    //                        std::move(actions),
+                    //                        chrono::minutes(1));
 
                     break;
                 }

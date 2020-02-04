@@ -420,9 +420,10 @@ public:
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
-                   NodeType& n_type,
+                   NodeType const& n_type,
                    uint64_t fractions,
                    uint64_t freeze_before_block,
+                   string const& manager_address,
                    bool log_enabled,
                    bool transfer_only,
                    bool testnet,
@@ -470,6 +471,7 @@ public:
         , m_initialize(true)
         , m_revert_blocks(revert_blocks)
         , m_freeze_before_block(freeze_before_block)
+        , m_manager_address(manager_address)
         , m_resync_blockchain(resync ? 10 : uint64_t(-1))
         , m_genesis_signed_block(genesis_signed_block)
         , m_mine_amount_threshhold(mine_amount_threshhold)
@@ -680,6 +682,7 @@ public:
     bool m_revert_blocks;
 
     uint64_t m_freeze_before_block;
+    string m_manager_address;
     uint64_t m_resync_blockchain;
 
     string m_genesis_signed_block;

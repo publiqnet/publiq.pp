@@ -9,6 +9,7 @@
 #include <mesh.pp/cryptoutility.hpp>
 
 #include <publiq.pp/coin.hpp>
+
 #include <algorithm>
 #include <memory>
 #include <chrono>
@@ -16,6 +17,7 @@
 #include <set>
 #include <map>
 
+using std::string;
 using std::unordered_set;
 using std::set;
 using std::unique_ptr;
@@ -40,7 +42,8 @@ beltpp::void_unique_ptr get_putl()
     return ptr_utl;
 }
 
-rpc::rpc(beltpp::ip_address const& rpc_address,
+rpc::rpc(string const& str_pv_key,
+         beltpp::ip_address const& rpc_address,
          beltpp::ip_address const& connect_to_address)
     : eh()
     , rpc_socket(beltpp::getsocket<sf>(eh))
@@ -49,10 +52,13 @@ rpc::rpc(beltpp::ip_address const& rpc_address,
     , blocks("block", meshpp::data_directory_path("blocks"), 1000, 1, get_putl())
     , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
     , channels("channels", meshpp::data_directory_path("channels"), 100, get_putl())
+    , m_str_pv_key(str_pv_key)
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(10));
     eh.add(rpc_socket);
+
+    m_storage_update_timer.set(chrono::seconds(600));
 
     rpc_socket.listen(rpc_address);
 }
@@ -735,6 +741,68 @@ void rpc::run()
         dm.open(connect_to_address);
         beltpp::finally finally_close([&dm]{ dm.close(); });
 
+        // sync data from node
         dm.sync(*this, accounts.keys(), false);
+
+        // send broadcast packet with storage management command
+        if (false != m_str_pv_key.empty() &&
+            m_storage_update_timer.expired())
+        {
+            m_storage_update_timer.update();
+
+            unordered_map<string, uint64_t> usage_map;
+            uint64_t block_number = head_block_index.as_const()->value;
+
+            for (auto index = block_number; index > 0 && index > block_number - 144; --index)
+                for (auto const& item : m_file_usage_map[index])
+                    usage_map[item.first] += item.second;
+
+            std::multimap<uint64_t, string> ordered_map;
+
+            for (auto it = usage_map.begin(); it != usage_map.end(); ++it)
+                ordered_map.insert({ it->second, it->first });
+
+            auto count = ordered_map.size();
+            count = count == 0 ? 0 : 1 + 2 * count / 3;
+
+            auto it = ordered_map.begin();
+            while (count > 0 && it != ordered_map.end())
+            {
+                // TODO need file storage and channel here
+
+                // send to storage
+                BlockchainMessage::StorageUpdateCommand update_command;
+                update_command.status = BlockchainMessage::UpdateType::store;
+                update_command.file_uri = it->second;
+
+                //TODO
+                //update_command.storage_address = storage_address;
+                //update_command.channel_address = channel_address;
+
+                BlockchainMessage::Transaction transaction;
+                transaction.action = std::move(update_command);
+                transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+                transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
+
+                meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
+
+                BlockchainMessage::Authority authorization;
+                authorization.address = pv_key.get_public_key().to_string();
+                authorization.signature = pv_key.sign(transaction.to_string()).base58;
+
+                BlockchainMessage::SignedTransaction signed_transaction;
+                signed_transaction.authorizations.push_back(authorization);
+                signed_transaction.transaction_details = transaction;
+
+                BlockchainMessage::Broadcast broadcast;
+                broadcast.echoes = 2;
+                broadcast.package = signed_transaction;
+
+                rpc_socket.send(dm.peerid, beltpp::packet(signed_transaction));
+
+                ++it;
+                --count;
+            }
+        }
     }
 }

@@ -1,19 +1,27 @@
 #pragma once
 
 #include "commander_message.hpp"
+
 #include <publiq.pp/message.hpp>
 #include <publiq.pp/message.tmpl.hpp>
+
+#include <belt.pp/timer.hpp>
 #include <belt.pp/socket.hpp>
+
 #include <mesh.pp/fileutility.hpp>
+
+#include <unordered_map>
 
 class rpc
 {
 public:
-    rpc(beltpp::ip_address const& rpc_address,
+    rpc(std::string const& str_pv_key,
+        beltpp::ip_address const& rpc_address,
         beltpp::ip_address const& connect_to_address);
 
     void run();
 
+    std::string m_str_pv_key;
     beltpp::event_handler eh;
     beltpp::socket rpc_socket;
     meshpp::file_loader<CommanderMessage::NumberValue, &CommanderMessage::NumberValue::from_string, &CommanderMessage::NumberValue::to_string> head_block_index;
@@ -23,6 +31,9 @@ public:
     meshpp::map_loader<CommanderMessage::ChannelsResponseItem> channels;
 
     beltpp::ip_address const& connect_to_address;
+
+    beltpp::timer m_storage_update_timer;
+    std::unordered_map<uint64_t, std::unordered_map<std::string, uint64_t>> m_file_usage_map;
 };
 
 inline

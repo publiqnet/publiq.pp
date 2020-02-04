@@ -53,6 +53,7 @@ bool process_command_line(int argc, char** argv,
                           NodeType& n_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
+                          string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
@@ -203,6 +204,7 @@ int main(int argc, char** argv)
     NodeType n_type;
     uint64_t fractions;
     uint64_t freeze_before_block;
+    string manager_address;
     bool log_enabled;
     bool testnet;
     bool resync;
@@ -222,6 +224,7 @@ int main(int argc, char** argv)
                                       n_type,
                                       fractions,
                                       freeze_before_block,
+                                      manager_address,  
                                       log_enabled,
                                       testnet,
                                       resync,
@@ -314,6 +317,7 @@ int main(int argc, char** argv)
                             n_type,
                             fractions,
                             freeze_before_block,
+                            manager_address,
                             log_enabled,
                             false,
                             testnet,
@@ -448,6 +452,7 @@ bool process_command_line(int argc, char** argv,
                           NodeType& n_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
+                          string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
@@ -489,6 +494,8 @@ bool process_command_line(int argc, char** argv,
                             "fractions to set for statinfo fee")
             ("freeze_before_block,b", program_options::value<uint64_t>(&freeze_before_block),
                             "limit the blockchain")
+            ("manager_account,m", program_options::value<string>(&manager_address),
+                            "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
             ("revert_blocks", "revert blocks");
