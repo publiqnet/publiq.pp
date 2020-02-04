@@ -41,8 +41,8 @@ public:
     ~storage_controller();
 
     void save();
-    void commit();
-    void discard();
+    void commit() noexcept;
+    void discard() noexcept;
     void clear();
 
     void enqueue(std::string const& file_uri, std::string const& channel_address);

@@ -137,14 +137,14 @@ void storage_controller::save()
     m_pimpl->map.save();
 }
 
-void storage_controller::commit()
+void storage_controller::commit() noexcept
 {
     if (nullptr == m_pimpl)
         return;
     m_pimpl->map.commit();
 }
 
-void storage_controller::discard()
+void storage_controller::discard() noexcept
 {
     if (nullptr == m_pimpl)
         return;

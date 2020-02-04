@@ -326,9 +326,10 @@ void node::run(bool& stop_check)
                 }
                 case StorageFile::rtt:
                 {
-                    //  need to fix the security hole here
                     if (NodeType::blockchain == m_pimpl->m_node_type ||
-                        nullptr == m_pimpl->m_slave_node)
+                        nullptr == m_pimpl->m_slave_node ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     StorageFile storage_file;
@@ -367,9 +368,10 @@ void node::run(bool& stop_check)
                 }
                 case StorageFileDelete::rtt:
                 {
-                    //  need to fix the security hole here
                     if (NodeType::blockchain == m_pimpl->m_node_type ||
-                        nullptr == m_pimpl->m_slave_node)
+                        nullptr == m_pimpl->m_slave_node ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     StorageFileDelete storage_file_delete;
@@ -404,9 +406,10 @@ void node::run(bool& stop_check)
                 }
                 case FileUrisRequest::rtt:
                 {
-                    //  need to fix the security hole here
                     if (NodeType::blockchain == m_pimpl->m_node_type ||
-                        nullptr == m_pimpl->m_slave_node)
+                        nullptr == m_pimpl->m_slave_node ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     std::function<void(beltpp::packet&&)> callback_lambda =
@@ -540,6 +543,11 @@ void node::run(bool& stop_check)
                     TransactionDone transaction_done;
                     transaction_done.transaction_hash = meshpp::hash(signed_transaction.to_string());
 
+                    signed_transaction_validate(signed_transaction,
+                                                std::chrono::system_clock::now(),
+                                                std::chrono::seconds(NODES_TIME_SHIFT),
+                                                *m_pimpl.get());
+
                     if (action_process_on_chain(signed_transaction, *m_pimpl.get()))
                     {
                         BlockchainMessage::Broadcast broadcast;
@@ -574,7 +582,9 @@ void node::run(bool& stop_check)
                 }
                 case Served::rtt:
                 {
-                    if (NodeType::channel != m_pimpl->m_node_type)
+                    if (NodeType::channel != m_pimpl->m_node_type ||
+                        it != detail::wait_result_item::interface_type::rpc ||
+                        m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
 
                     Served msg;
@@ -1041,7 +1051,9 @@ void node::run(bool& stop_check)
 
                             if (item.second.second)
                             {
+#ifdef EXTRA_LOGGING
                                 impl.writeln_node(file_uri + " session_action_get_file_uris callback calling initiate revert");
+#endif
                                 impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
                             }
                         }
@@ -1399,8 +1411,12 @@ void block_worker(detail::node_internals& impl)
     }
     else
     {
-        if (last_block_age_blocks > 3)
+        if (last_block_age_blocks > 3 &&
+            impl.m_stuck_on_old_blockchain_timer.expired())
+        {
+            impl.m_stuck_on_old_blockchain_timer.update();
             impl.writeln_node_warning("has stuck on an old blockchain");
+        }
     }
 
     if (impl.all_sync_info.headers_actions_data.end() != it_chosen)

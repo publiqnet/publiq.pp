@@ -50,14 +50,14 @@ void state::save()
     m_pimpl->m_roles.save();
 }
 
-void state::commit()
+void state::commit() noexcept
 {
     m_pimpl->m_accounts.commit();
     m_pimpl->m_node_accounts.commit();
     m_pimpl->m_roles.commit();
 }
 
-void state::discard()
+void state::discard() noexcept
 {
     m_pimpl->m_accounts.discard();
     m_pimpl->m_node_accounts.discard();

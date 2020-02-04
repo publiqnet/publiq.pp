@@ -155,7 +155,9 @@ wait_result_item node_internals::wait_and_receive_one()
                 beltpp::socket::peer_id peerid;
                 received_packets = psk->receive(peerid);
 
-                auto insert_res = m_wait_result.event_packets.insert({it, std::make_pair(peerid, std::move(received_packets))});
+                auto insert_res = m_wait_result.event_packets.insert(std::make_pair(it,
+                                                                                    std::make_pair(peerid,
+                                                                                                   std::move(received_packets))));
                 assert(insert_res.second);
                 if (false == insert_res.second)
                     throw std::logic_error("auto insert_res = m_wait_result.event_packets.insert({it, std::move(received_packets)});");

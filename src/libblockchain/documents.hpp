@@ -31,8 +31,8 @@ public:
     ~documents();
 
     void save();
-    void commit();
-    void discard();
+    void commit() noexcept;
+    void discard() noexcept;
     void clear();
 
     std::pair<bool, std::string> files_exist(std::unordered_set<std::string> const& uris) const;
