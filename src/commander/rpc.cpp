@@ -45,14 +45,14 @@ beltpp::void_unique_ptr get_putl()
 rpc::rpc(string const& str_pv_key,
          beltpp::ip_address const& rpc_address,
          beltpp::ip_address const& connect_to_address)
-    : eh()
+    : m_str_pv_key(str_pv_key)
+    , eh()
     , rpc_socket(beltpp::getsocket<sf>(eh))
     , head_block_index(meshpp::data_file_path("head_block_index.txt"))
     , accounts("accounts", meshpp::data_directory_path("accounts"), 100, get_putl())
     , blocks("block", meshpp::data_directory_path("blocks"), 1000, 1, get_putl())
     , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
-    , channels("channels", meshpp::data_directory_path("channels"), 100, get_putl())
-    , m_str_pv_key(str_pv_key)
+    , channels("channels", meshpp::data_directory_path("channels"), 100, get_putl()) 
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(10));
@@ -480,6 +480,33 @@ beltpp::packet process_storage_update_request(StorageUpdateRequest const& update
     return dm.process_storage_update_request(update, rpc_server);
 }
 
+
+bool search_file(rpc const& rpc_server,
+                 string const& file_uri,
+                 string& storgae_address,
+                 string& channel_address)
+{
+    for (auto const& storage : rpc_server.storages.keys())
+        for (auto const& storage_file_uri : rpc_server.storages.as_const().at(storage).file_uris)
+            if (file_uri == storage_file_uri.first &&
+                    !storage_file_uri.second)
+                for (auto const& channel : rpc_server.channels.keys())
+                    for (auto const& content : rpc_server.channels.as_const().at(channel).contents)
+                        for (auto const& content_history : content.second.content_histories)
+                            for (auto const& content_unit : content_history.content_units)
+                                for (auto const& channel_file_uri : content_unit.second.file_uris)
+                                    if (file_uri == channel_file_uri)
+                                    {
+                                        storgae_address = storage;
+                                        channel_address = channel;
+
+                                        return true;
+                                    }
+
+    return false;
+
+}
+
 void rpc::run()
 {
     unordered_set<beltpp::ievent_item const*> wait_sockets;
@@ -768,37 +795,41 @@ void rpc::run()
             auto it = ordered_map.begin();
             while (count > 0 && it != ordered_map.end())
             {
-                // TODO need file storage and channel here
+                string storage_address;
+                string channel_address;
 
-                // send to storage
-                BlockchainMessage::StorageUpdateCommand update_command;
-                update_command.status = BlockchainMessage::UpdateType::store;
-                update_command.file_uri = it->second;
+                if (search_file(*this,
+                                it->second,
+                                storage_address,
+                                channel_address))
+                {
+                    BlockchainMessage::StorageUpdateCommand update_command;
+                    update_command.status = BlockchainMessage::UpdateType::store;
+                    update_command.file_uri = it->second;
+                    update_command.storage_address = storage_address;
+                    update_command.channel_address = channel_address;
 
-                //TODO
-                //update_command.storage_address = storage_address;
-                //update_command.channel_address = channel_address;
+                    BlockchainMessage::Transaction transaction;
+                    transaction.action = std::move(update_command);
+                    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+                    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
 
-                BlockchainMessage::Transaction transaction;
-                transaction.action = std::move(update_command);
-                transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-                transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
+                    meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
 
-                meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
+                    BlockchainMessage::Authority authorization;
+                    authorization.address = pv_key.get_public_key().to_string();
+                    authorization.signature = pv_key.sign(transaction.to_string()).base58;
 
-                BlockchainMessage::Authority authorization;
-                authorization.address = pv_key.get_public_key().to_string();
-                authorization.signature = pv_key.sign(transaction.to_string()).base58;
+                    BlockchainMessage::SignedTransaction signed_transaction;
+                    signed_transaction.authorizations.push_back(authorization);
+                    signed_transaction.transaction_details = transaction;
 
-                BlockchainMessage::SignedTransaction signed_transaction;
-                signed_transaction.authorizations.push_back(authorization);
-                signed_transaction.transaction_details = transaction;
+                    BlockchainMessage::Broadcast broadcast;
+                    broadcast.echoes = 2;
+                    broadcast.package = signed_transaction;
 
-                BlockchainMessage::Broadcast broadcast;
-                broadcast.echoes = 2;
-                broadcast.package = signed_transaction;
-
-                rpc_socket.send(dm.peerid, beltpp::packet(signed_transaction));
+                    rpc_socket.send(dm.peerid, beltpp::packet(signed_transaction));
+                }
 
                 ++it;
                 --count;
