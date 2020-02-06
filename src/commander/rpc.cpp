@@ -490,9 +490,7 @@ bool search_file(rpc const& rpc_server,
     auto const& channels = rpc_server.channels;
 
     for (auto const& storage : storages.keys())
-        for (auto const& storage_file_uri : storages.as_const().at(storage).file_uris)
-            if (file_uri == storage_file_uri.first &&
-                    !storage_file_uri.second)
+            if (!storages.as_const().at(storage).file_uris.count(file_uri))
                 for (auto const& channel : channels.keys())
                     for (auto const& content : channels.as_const().at(channel).contents)
                         for (auto const& content_history : content.second.content_histories)
