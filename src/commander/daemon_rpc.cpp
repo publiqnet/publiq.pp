@@ -1152,6 +1152,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     rpc_server,
                                                                     LoggingType::apply);
 
+                                        process_statistics_tansactions(transaction_log,
+                                                                       rpc_server,
+                                                                       LoggingType::apply);
+
                                         update_balances(set_accounts,
                                                         rpc_server,
                                                         transaction_log,
@@ -1243,6 +1247,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::revert);
+
+                                        process_statistics_tansactions(transaction_log,
+                                                                       rpc_server,
+                                                                       LoggingType::revert);
 
                                         update_balances(set_accounts,
                                                         rpc_server,

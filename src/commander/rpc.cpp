@@ -59,6 +59,7 @@ rpc::rpc(string const& str_pv_key,
     eh.add(rpc_socket);
 
     m_storage_update_timer.set(chrono::seconds(600));
+    m_storage_update_timer.update();
 
     rpc_socket.listen(rpc_address);
 }
@@ -488,20 +489,20 @@ bool search_file(rpc const& rpc_server,
 {
     for (auto const& storage : rpc_server.storages.keys())
         for (auto const& storage_file_uri : rpc_server.storages.as_const().at(storage).file_uris)
-            if (file_uri == storage_file_uri.first &&
-                    !storage_file_uri.second)
-                for (auto const& channel : rpc_server.channels.keys())
-                    for (auto const& content : rpc_server.channels.as_const().at(channel).contents)
-                        for (auto const& content_history : content.second.content_histories)
-                            for (auto const& content_unit : content_history.content_units)
-                                for (auto const& channel_file_uri : content_unit.second.file_uris)
-                                    if (file_uri == channel_file_uri)
-                                    {
-                                        storgae_address = storage;
-                                        channel_address = channel;
+            if (file_uri == storage_file_uri.first)
+                if (!storage_file_uri.second)
+                    for (auto const& channel : rpc_server.channels.keys())
+                        for (auto const& content : rpc_server.channels.as_const().at(channel).contents)
+                            for (auto const& content_history : content.second.content_histories)
+                                for (auto const& content_unit : content_history.content_units)
+                                    for (auto const& channel_file_uri : content_unit.second.file_uris)
+                                        if (file_uri == channel_file_uri)
+                                        {
+                                            storgae_address = storage;
+                                            channel_address = channel;
 
-                                        return true;
-                                    }
+                                            return true;
+                                        }
 
     return false;
 
@@ -772,7 +773,7 @@ void rpc::run()
         dm.sync(*this, accounts.keys(), false);
 
         // send broadcast packet with storage management command
-        if (false != m_str_pv_key.empty() &&
+        if (false == m_str_pv_key.empty() &&
             m_storage_update_timer.expired())
         {
             m_storage_update_timer.update();
@@ -792,8 +793,8 @@ void rpc::run()
             auto count = ordered_map.size();
             count = count == 0 ? 0 : 1 + 2 * count / 3;
 
-            auto it = ordered_map.begin();
-            while (count > 0 && it != ordered_map.end())
+            auto it = ordered_map.rbegin();
+            while (count > 0 && it != ordered_map.rend())
             {
                 string storage_address;
                 string channel_address;
