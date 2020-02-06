@@ -30,6 +30,7 @@ public:
                                                   rpc& rpc_server);
     beltpp::packet send(CommanderMessage::Send const& send,
                         rpc& rpc_server);
+    beltpp::packet wait_response(std::string const& transaction_hash);
     void sync(rpc& rpc_server,
               std::unordered_set<std::string> const& set_accounts,
               bool const new_import);

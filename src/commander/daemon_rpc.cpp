@@ -890,50 +890,10 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
     return result;
 }
 
-beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
-                                rpc& rpc_server)
+beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
 {
-    B_UNUSED(rpc_server);
-
-    if (peerid.empty())
-        throw std::runtime_error("no daemon_rpc connection to work");
-
     beltpp::packet result;
-    string transaction_hash;
-
-    meshpp::private_key pv(send.private_key);
-    //meshpp::public_key pb(send.to);
-
-    BlockchainMessage::Transfer tf;
-    tf.amount = send.amount;
-    //publiqpp::coin(send.amount).to_Coin(tf.amount);
-    tf.from = pv.get_public_key().to_string();
-    tf.message = send.message;
-    tf.to = send.to;
-
-    BlockchainMessage::Transaction tx;
-    tx.action = std::move(tf);
-    tx.fee = send.fee;
-    //publiqpp::coin(send.fee).to_Coin(tx.fee);
-    tx.creation.tm = chrono::system_clock::to_time_t(chrono::system_clock::now());
-    tx.expiry.tm =  chrono::system_clock::to_time_t(chrono::system_clock::now() + chrono::seconds(send.seconds_to_expire));
-
-    Authority authorization;
-    authorization.address = pv.get_public_key().to_string();
-    authorization.signature = pv.sign(tx.to_string()).base58;
-
-    BlockchainMessage::SignedTransaction stx;
-    stx.transaction_details = std::move(tx);
-    stx.authorizations.push_back(authorization);
-
-    transaction_hash = meshpp::hash(stx.to_string());
-
-    BlockchainMessage::Broadcast bc;
-    bc.echoes = 2;
-    bc.package = std::move(stx);
-
-    socket.send(peerid, beltpp::packet(std::move(bc)));
-
+    
     bool keep_trying = true;
     while (keep_trying)
     {
@@ -985,7 +945,54 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
             }
         }
     }
+
     return result;
+}
+
+beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
+                                rpc& rpc_server)
+{
+    B_UNUSED(rpc_server);
+
+    if (peerid.empty())
+        throw std::runtime_error("no daemon_rpc connection to work");
+
+    string transaction_hash;
+
+    meshpp::private_key pv(send.private_key);
+    //meshpp::public_key pb(send.to);
+
+    BlockchainMessage::Transfer tf;
+    tf.amount = send.amount;
+    //publiqpp::coin(send.amount).to_Coin(tf.amount);
+    tf.from = pv.get_public_key().to_string();
+    tf.message = send.message;
+    tf.to = send.to;
+
+    BlockchainMessage::Transaction tx;
+    tx.action = std::move(tf);
+    tx.fee = send.fee;
+    //publiqpp::coin(send.fee).to_Coin(tx.fee);
+    tx.creation.tm = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    tx.expiry.tm =  chrono::system_clock::to_time_t(chrono::system_clock::now() + chrono::seconds(send.seconds_to_expire));
+
+    Authority authorization;
+    authorization.address = pv.get_public_key().to_string();
+    authorization.signature = pv.sign(tx.to_string()).base58;
+
+    BlockchainMessage::SignedTransaction stx;
+    stx.transaction_details = std::move(tx);
+    stx.authorizations.push_back(authorization);
+
+    transaction_hash = meshpp::hash(stx.to_string());
+
+    BlockchainMessage::Broadcast bc;
+    bc.echoes = 2;
+    bc.package = std::move(stx);
+
+    socket.send(peerid, beltpp::packet(std::move(bc)));
+
+    return wait_response(transaction_hash);
 }
 
 void daemon_rpc::sync(rpc& rpc_server,

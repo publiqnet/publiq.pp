@@ -491,19 +491,22 @@ bool search_file(rpc const& rpc_server,
     auto const& channels = rpc_server.channels;
 
     for (auto const& storage : storages.keys())
-            if (!storages.as_const().at(storage).file_uris.count(file_uri))
-                for (auto const& channel : channels.keys())
-                    for (auto const& content : channels.as_const().at(channel).contents)
-                        for (auto const& content_history : content.second.content_histories)
-                            for (auto const& content_unit : content_history.content_units)
-                                for (auto const& channel_file_uri : content_unit.second.file_uris)
-                                    if (file_uri == channel_file_uri)
-                                    {
-                                        storgae_address = storage;
-                                        channel_address = channel;
+    {
+        auto const& files = storages.as_const().at(storage).file_uris;
+        if(files.find(file_uri) == files.end() || !files.find(file_uri)->second)
+            for (auto const& channel : channels.keys())
+                for (auto const& content : channels.as_const().at(channel).contents)
+                    for (auto const& content_history : content.second.content_histories)
+                        for (auto const& content_unit : content_history.content_units)
+                            for (auto const& channel_file_uri : content_unit.second.file_uris)
+                                if (file_uri == channel_file_uri)
+                                {
+                                    storgae_address = storage;
+                                    channel_address = channel;
 
-                                            return true;
-                                        }
+                                    return true;
+                                }
+    }
 
     return false;
 
@@ -830,7 +833,8 @@ void rpc::run()
                     broadcast.echoes = 2;
                     broadcast.package = signed_transaction;
 
-                    rpc_socket.send(dm.peerid, beltpp::packet(signed_transaction));
+                    dm.socket.send(dm.peerid, beltpp::packet(broadcast));
+                    dm.wait_response(string());
                 }
 
                 ++it;

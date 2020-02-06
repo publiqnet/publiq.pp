@@ -332,9 +332,6 @@ void node::run(bool& stop_check)
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
-                    if (it != detail::wait_result_item::interface_type::p2p)
-                        throw wrong_request_exception("StorageUpdateCommand received through rpc!");
-
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
                     StorageUpdateCommand* p_update_command = nullptr;
