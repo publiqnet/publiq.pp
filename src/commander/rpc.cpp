@@ -487,19 +487,22 @@ bool search_file(rpc const& rpc_server,
                  string& storgae_address,
                  string& channel_address)
 {
-    for (auto const& storage : rpc_server.storages.keys())
-        for (auto const& storage_file_uri : rpc_server.storages.as_const().at(storage).file_uris)
-            if (file_uri == storage_file_uri.first)
-                if (!storage_file_uri.second)
-                    for (auto const& channel : rpc_server.channels.keys())
-                        for (auto const& content : rpc_server.channels.as_const().at(channel).contents)
-                            for (auto const& content_history : content.second.content_histories)
-                                for (auto const& content_unit : content_history.content_units)
-                                    for (auto const& channel_file_uri : content_unit.second.file_uris)
-                                        if (file_uri == channel_file_uri)
-                                        {
-                                            storgae_address = storage;
-                                            channel_address = channel;
+    auto const& storages = rpc_server.storages;
+    auto const& channels = rpc_server.channels;
+
+    for (auto const& storage : storages.keys())
+        for (auto const& storage_file_uri : storages.as_const().at(storage).file_uris)
+            if (file_uri == storage_file_uri.first &&
+                    !storage_file_uri.second)
+                for (auto const& channel : channels.keys())
+                    for (auto const& content : channels.as_const().at(channel).contents)
+                        for (auto const& content_history : content.second.content_histories)
+                            for (auto const& content_unit : content_history.content_units)
+                                for (auto const& channel_file_uri : content_unit.second.file_uris)
+                                    if (file_uri == channel_file_uri)
+                                    {
+                                        storgae_address = storage;
+                                        channel_address = channel;
 
                                             return true;
                                         }
