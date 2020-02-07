@@ -370,7 +370,7 @@ void node::run(bool& stop_check)
                             // rebroadcast command direct peer or to all
                             std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
 
-                            if (0 == m_pimpl->m_p2p_peers.count(update_command.storage_address))//???
+                            if (0 == m_pimpl->m_p2p_peers.count(update_command.storage_address))
                                 broadcast_peers = m_pimpl->m_p2p_peers;
                             else
                                 broadcast_peers.insert(update_command.storage_address);

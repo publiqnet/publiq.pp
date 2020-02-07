@@ -819,8 +819,6 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
 
 void mine_block(publiqpp::detail::node_internals& impl)
 {
-    auto now = system_clock::now();
-
     impl.m_transaction_cache.backup();
     beltpp::on_failure guard([&impl]
     {
@@ -883,11 +881,12 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    vector<SignedTransaction> pool_reverted_transactions = revert_pool(system_clock::to_time_t(now), impl);
+    vector<SignedTransaction> pool_reverted_transactions = revert_pool(block_header.time_signed.tm, impl);
 
     for (auto& signed_tr : pool_reverted_transactions)
     {
-        if (signed_tr.transaction_details.action.type() == ServiceStatistics::rtt)
+        if (signed_tr.transaction_details.action.type() == ServiceStatistics::rtt &&
+            signed_tr.transaction_details.creation.tm < block_header.time_signed.tm)
         {
             ServiceStatistics* service_statistics;
             signed_tr.transaction_details.action.get(service_statistics);
@@ -1115,6 +1114,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
     {
         auto& signed_transaction = reverted_transactions_ex[index].stx;
         bool can_put_in_block = true;
+        
         if (signed_transaction.transaction_details.action.type() == ServiceStatistics::rtt)
         {
             ServiceStatistics* paction;
@@ -1124,7 +1124,9 @@ void mine_block(publiqpp::detail::node_internals& impl)
                 paction->end_time_point.tm != system_clock::to_time_t(tp_end))
                 can_put_in_block = false;
         }
-        if (block_transactions.size() < size_t(BLOCK_MAX_TRANSACTIONS) && can_put_in_block)
+
+        if (block_transactions.size() < size_t(BLOCK_MAX_TRANSACTIONS) && can_put_in_block &&
+            signed_transaction.transaction_details.creation.tm < block_header.time_signed.tm)
             block_transactions.push_back(std::move(signed_transaction));
         else
             pool_transactions.push_back(std::move(signed_transaction));

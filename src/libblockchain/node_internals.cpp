@@ -13,15 +13,18 @@ bool node_internals::initialize()
 
     if (m_revert_blocks)
     {
-        m_transaction_cache.backup();
+        // m_transaction_cache management is useless, the program is going to stop soon
+
+//        m_transaction_cache.backup();
         beltpp::on_failure guard([this]
         {
             discard();
-            m_transaction_cache.restore();
+//            m_transaction_cache.restore();
         });
 
         //  revert transactions from pool
-        vector<SignedTransaction> pool_transactions = revert_pool(system_clock::to_time_t(system_clock::now()), *this);
+        //vector<SignedTransaction> pool_transactions = revert_pool(system_clock::to_time_t(system_clock::now()), *this);
+        revert_pool(system_clock::to_time_t(system_clock::now()), *this);
 
         //  revert last block
         //  calculate back
@@ -51,10 +54,10 @@ bool node_internals::initialize()
 
         // calculate back transactions
         for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
-        {
+//        {
             revert_transaction(*it, *this, signed_block.authorization.address);
-            m_transaction_cache.erase_chain(*it);
-        }
+//            m_transaction_cache.erase_chain(*it);
+//        }
 
         writeln_node("Last (" + std::to_string(block.header.block_number) + ") block reverted");
 
