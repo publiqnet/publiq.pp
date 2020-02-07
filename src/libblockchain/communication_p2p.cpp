@@ -818,8 +818,6 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
 
 void mine_block(publiqpp::detail::node_internals& impl)
 {
-    auto now = system_clock::now();
-
     impl.m_transaction_cache.backup();
     beltpp::on_failure guard([&impl]
     {
@@ -882,9 +880,29 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     //  collect transactions to be reverted from pool
     //  revert transactions from pool
-    vector<SignedTransaction> pool_reverted_transactions = revert_pool(system_clock::to_time_t(now), impl);
+    reverted_transactions = revert_pool(block_header.time_signed.tm, impl);
 
-    for (auto& signed_tr : pool_reverted_transactions)
+    auto reverted_transactions_it_end =
+            std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
+                           [&block_header,
+                           &pool_transactions](SignedTransaction& signed_transaction)
+    {
+        if (signed_transaction.transaction_details.creation >= block_header.time_signed)
+        {
+            pool_transactions.push_back(std::move(signed_transaction));
+            return true;
+        }
+        return false;
+    });
+    reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
+
+    reverted_transactions_it_end =
+            std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
+                           [&tp_start,
+                            &tp_end,
+                            &impl,
+                            &channel_statistics,
+                            &storage_statistics](SignedTransaction& signed_tr)
     {
         if (signed_tr.transaction_details.action.type() == ServiceStatistics::rtt)
         {
@@ -901,14 +919,15 @@ void mine_block(publiqpp::detail::node_internals& impl)
                         channel_statistics.push_back(std::move(signed_tr));
                     else
                         storage_statistics.push_back(std::move(signed_tr));
+
+                    return true;
                 }
             }
-            else
-                reverted_transactions.push_back(std::move(signed_tr));
         }
-        else
-            reverted_transactions.push_back(std::move(signed_tr));
-    }
+
+        return false;
+    });
+    reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
 
     auto reserve_statistics = [&block_transactions, &reverted_transactions](vector<SignedTransaction>& statistics)
     {
@@ -938,20 +957,6 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     reserve_statistics(channel_statistics);
     reserve_statistics(storage_statistics);
-
-    auto reverted_transactions_it_end =
-            std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
-                           [&block_header,
-                           &pool_transactions](SignedTransaction& signed_transaction)
-    {
-        if (signed_transaction.transaction_details.creation >= block_header.time_signed)
-        {
-            pool_transactions.push_back(std::move(signed_transaction));
-            return true;
-        }
-        return false;
-    });
-    reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
 
     //  here we collect incomplete transactions and try to find
     //  if they form a complete transaction already

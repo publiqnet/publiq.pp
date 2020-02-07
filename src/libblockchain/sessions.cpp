@@ -932,7 +932,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
                 return set_errored("blockchain response. transaction double use!", throw_for_debugging_only);
 
             if (!apply_transaction(tr_item, *pimpl, signed_block.authorization.address))
-                return set_errored("blockchain response. apply_transaction().", throw_for_debugging_only);
+                return set_errored("blockchain response. apply_transaction(). " + block.to_string(), throw_for_debugging_only);
 
             if (prev_transaction_time > tr_item.transaction_details.creation.tm)
                 return set_errored("blockchain response. transaction time sorting!", throw_for_debugging_only);
