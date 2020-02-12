@@ -995,6 +995,13 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
     return wait_response(transaction_hash);
 }
 
+std::string time_now()
+{
+    std::time_t time_t_now = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string str = beltpp::gm_time_t_to_lc_string(time_t_now);
+    return str.substr(string("0000-00-00 ").length());
+}
+
 void daemon_rpc::sync(rpc& rpc_server,
                       unordered_set<string> const& set_accounts,
                       bool const new_import)
@@ -1039,6 +1046,7 @@ void daemon_rpc::sync(rpc& rpc_server,
     {
         if (new_import)
             return local_start_index;
+
         return log_index.as_const()->value;
     };
 
@@ -1057,6 +1065,7 @@ void daemon_rpc::sync(rpc& rpc_server,
         else
             return rpc_server.head_block_index->value;
     };
+
     auto increment_head_block_index = [new_import, &rpc_server, &local_head_block_index]()
     {
         if (new_import)
@@ -1064,6 +1073,7 @@ void daemon_rpc::sync(rpc& rpc_server,
         else
             ++rpc_server.head_block_index->value;
     };
+
     auto decrement_head_block_index = [new_import, &rpc_server, &local_head_block_index]()
     {
         if (new_import)
@@ -1078,10 +1088,16 @@ void daemon_rpc::sync(rpc& rpc_server,
         LoggedTransactionsRequest req;
         req.max_count = max_count;
         req.start_index = start_index();
+
+        if (new_import && log_index.as_const()->value - local_start_index <= max_count + 1000)//aprox
+            req.max_count = 1;
+
         socket.send(peerid, beltpp::packet(req));
 
         size_t count = 0;
         bool new_import_done = false;
+
+        std::cout << std::endl << std::endl << time_now() << "  LoggedTransactionsRequest -> ";
 
         while (true)
         {
@@ -1101,53 +1117,110 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                     switch (ref_packet.type())
                     {
-                    case LoggedTransactions::rtt:
-                    {
-                        LoggedTransactions msg;
-                        std::move(ref_packet).get(msg);
-
-                        for (auto& action_info : msg.actions)
+                        case LoggedTransactions::rtt:
                         {
-                            ++count;
+                            LoggedTransactions msg;
+                            std::move(ref_packet).get(msg);
 
-                            bool dont_increment_head_block_index = false;
-                            if (start_index() == 0)
-                                dont_increment_head_block_index = true;
-
-                            set_start_index(action_info.index + 1);
-
-                            auto action_type = action_info.action.type();
-
-
-                            if (action_info.logging_type == LoggingType::apply)
+                            for (auto& action_info : msg.actions)
                             {
-                                if (action_type == BlockLog::rtt)
+                                ++count;
+
+                                bool dont_increment_head_block_index = false;
+                                if (start_index() == 0)
+                                    dont_increment_head_block_index = true;
+
+                                set_start_index(action_info.index + 1);
+
+                                auto action_type = action_info.action.type();
+
+                                if (action_info.logging_type == LoggingType::apply)
                                 {
-                                    if (false == dont_increment_head_block_index)
-                                        increment_head_block_index();
-
-                                    BlockLog block_log;
-                                    std::move(action_info.action).get(block_log);
-
-                                    uint64_t block_index = head_block_index();
-
-                                    if (!new_import)
+                                    if (action_type == BlockLog::rtt)
                                     {
-                                        CommanderMessage::BlockInfo block_info;
+                                        if (false == dont_increment_head_block_index)
+                                            increment_head_block_index();
 
-                                        block_info.authority = block_log.authority;
-                                        block_info.block_hash = block_log.block_hash;
-                                        block_info.block_number = block_log.block_number;
-                                        block_info.block_size = block_log.block_size;
-                                        block_info.time_signed.tm = block_log.time_signed.tm;
+                                        BlockLog block_log;
+                                        std::move(action_info.action).get(block_log);
 
-                                        assert(block_log.block_number == block_index);
-                                        rpc_server.blocks.push_back(block_info);
+                                        uint64_t block_index = head_block_index();
+
+                                        count += block_log.rewards.size() +
+                                                 block_log.transactions.size() +
+                                                 block_log.unit_uri_impacts.size() + 
+                                                 block_log.applied_sponsor_items.size();
+
+                                        std::cout << "+" << std::to_string(block_index) + ", ";
+
+                                        if (!new_import)
+                                        {
+                                            CommanderMessage::BlockInfo block_info;
+
+                                            block_info.authority = block_log.authority;
+                                            block_info.block_hash = block_log.block_hash;
+                                            block_info.block_number = block_log.block_number;
+                                            block_info.block_size = block_log.block_size;
+                                            block_info.time_signed.tm = block_log.time_signed.tm;
+
+                                            assert(block_log.block_number == block_index);
+                                            rpc_server.blocks.push_back(block_info);
+                                        }
+
+                                        for (auto& transaction_log: block_log.transactions)
+                                        {
+                                            process_storage_tansactions(set_accounts,
+                                                                        transaction_log,
+                                                                        rpc_server,
+                                                                        LoggingType::apply);
+
+                                            process_channel_tansactions(set_accounts,
+                                                                        transaction_log,
+                                                                        rpc_server,
+                                                                        LoggingType::apply);
+
+                                            process_statistics_tansactions(transaction_log,
+                                                                           rpc_server,
+                                                                           LoggingType::apply);
+
+                                            update_balances(set_accounts,
+                                                            rpc_server,
+                                                            transaction_log,
+                                                            block_log.authority,
+                                                            LoggingType::apply);
+
+                                            process_transactions(block_index,
+                                                                 transaction_log,
+                                                                 set_accounts,
+                                                                 transactions,
+                                                                 index_transactions,
+                                                                 block_log.authority,
+                                                                 LoggingType::apply);
+                                        }
+
+                                        for (auto& reward_info : block_log.rewards)
+                                        {
+                                            update_balance(reward_info.to,
+                                                           reward_info.amount,
+                                                           set_accounts,
+                                                           rpc_server.accounts,
+                                                           update_balance_type::increase);
+
+                                            process_reward(block_index,
+                                                           reward_info.to,
+                                                           reward_info,
+                                                           set_accounts,
+                                                           rewards,
+                                                           index_rewards,
+                                                           LoggingType::apply);
+                                        }
                                     }
-
-                                    for (auto& transaction_log: block_log.transactions)
+                                    else if (action_type == TransactionLog::rtt)
                                     {
-                                        ++count;
+                                        uint64_t block_index = head_block_index() + 1;
+
+                                        TransactionLog transaction_log;
+                                        std::move(action_info.action).get(transaction_log);
 
                                         process_storage_tansactions(set_accounts,
                                                                     transaction_log,
@@ -1159,14 +1232,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     rpc_server,
                                                                     LoggingType::apply);
 
-                                        process_statistics_tansactions(transaction_log,
-                                                                       rpc_server,
-                                                                       LoggingType::apply);
-
                                         update_balances(set_accounts,
                                                         rpc_server,
                                                         transaction_log,
-                                                        block_log.authority,
+                                                        string(),
                                                         LoggingType::apply);
 
                                         process_transactions(block_index,
@@ -1174,76 +1243,87 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                              set_accounts,
                                                              transactions,
                                                              index_transactions,
-                                                             block_log.authority,
+                                                             string(),
                                                              LoggingType::apply);
                                     }
-
-                                    for (auto& reward_info : block_log.rewards)
+                                }
+                                else// if (action_info.logging_type == LoggingType::revert)
+                                {
+                                    if (action_type == BlockLog::rtt)
                                     {
-                                        B_UNUSED(reward_info);
-                                        ++count;
+                                        uint64_t block_index = head_block_index();
 
-                                        update_balance(reward_info.to,
-                                                       reward_info.amount,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::increase);
+                                        decrement_head_block_index();
 
-                                        process_reward(block_index,
-                                                       reward_info.to,
-                                                       reward_info,
-                                                       set_accounts,
-                                                       rewards,
-                                                       index_rewards,
-                                                       LoggingType::apply);
+                                        BlockLog block_log;
+                                        std::move(action_info.action).get(block_log);
+
+                                        count += block_log.rewards.size() +
+                                                 block_log.transactions.size() +
+                                                 block_log.unit_uri_impacts.size() +
+                                                 block_log.applied_sponsor_items.size();
+
+                                        std::cout << "-" << std::to_string(block_index) + ", ";
+
+                                        for (auto& transaction_log : block_log.transactions)
+                                        {
+                                            process_storage_tansactions(set_accounts,
+                                                                        transaction_log,
+                                                                        rpc_server,
+                                                                        LoggingType::revert);
+
+                                            process_channel_tansactions(set_accounts,
+                                                                        transaction_log,
+                                                                        rpc_server,
+                                                                        LoggingType::revert);
+
+                                            process_statistics_tansactions(transaction_log,
+                                                                           rpc_server,
+                                                                           LoggingType::revert);
+
+                                            update_balances(set_accounts,
+                                                            rpc_server,
+                                                            transaction_log,
+                                                            block_log.authority,
+                                                            LoggingType::revert);
+
+                                            process_transactions(block_index,
+                                                                 transaction_log,
+                                                                 set_accounts,
+                                                                 transactions,
+                                                                 index_transactions,
+                                                                 block_log.authority,
+                                                                 LoggingType::revert);
+                                        }
+
+                                        for (auto& reward_info : block_log.rewards)
+                                        {
+                                            update_balance(reward_info.to,
+                                                           reward_info.amount,
+                                                           set_accounts,
+                                                           rpc_server.accounts,
+                                                           update_balance_type::decrease);
+
+                                            process_reward(block_index,
+                                                           reward_info.to,
+                                                           reward_info,
+                                                           set_accounts,
+                                                           rewards,
+                                                           index_rewards,
+                                                           LoggingType::revert);
+                                        }
+
+                                        if (!new_import)
+                                        {
+                                            rpc_server.blocks.pop_back();
+                                        }
                                     }
-                                }
-                                else if (action_type == TransactionLog::rtt)
-                                {
-                                    uint64_t block_index = head_block_index() + 1;
-
-                                    TransactionLog transaction_log;
-                                    std::move(action_info.action).get(transaction_log);
-
-                                    process_storage_tansactions(set_accounts,
-                                                                transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::apply);
-
-                                    process_channel_tansactions(set_accounts,
-                                                                transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::apply);
-
-                                    update_balances(set_accounts,
-                                                    rpc_server,
-                                                    transaction_log,
-                                                    string(),
-                                                    LoggingType::apply);
-
-                                    process_transactions(block_index,
-                                                         transaction_log,
-                                                         set_accounts,
-                                                         transactions,
-                                                         index_transactions,
-                                                         string(),
-                                                         LoggingType::apply);
-                                }
-                            }
-                            else// if (action_info.logging_type == LoggingType::revert)
-                            {
-                                if (action_type == BlockLog::rtt)
-                                {
-                                    uint64_t block_index = head_block_index();
-
-                                    decrement_head_block_index();
-
-                                    BlockLog block_log;
-                                    std::move(action_info.action).get(block_log);
-
-                                    for (auto& transaction_log : block_log.transactions)
+                                    else if (action_type == TransactionLog::rtt)
                                     {
-                                        ++count;
+                                        TransactionLog transaction_log;
+                                        std::move(action_info.action).get(transaction_log);
+
+                                        uint64_t block_index = head_block_index() + 1;
 
                                         process_storage_tansactions(set_accounts,
                                                                     transaction_log,
@@ -1255,14 +1335,10 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                     rpc_server,
                                                                     LoggingType::revert);
 
-                                        process_statistics_tansactions(transaction_log,
-                                                                       rpc_server,
-                                                                       LoggingType::revert);
-
                                         update_balances(set_accounts,
                                                         rpc_server,
                                                         transaction_log,
-                                                        block_log.authority,
+                                                        string(),
                                                         LoggingType::revert);
 
                                         process_transactions(block_index,
@@ -1270,86 +1346,37 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                              set_accounts,
                                                              transactions,
                                                              index_transactions,
-                                                             block_log.authority,
+                                                             string(),
                                                              LoggingType::revert);
                                     }
-
-                                    for (auto& reward_info : block_log.rewards)
-                                    {
-                                        B_UNUSED(reward_info);
-                                        ++count;
-
-                                        update_balance(reward_info.to,
-                                                       reward_info.amount,
-                                                       set_accounts,
-                                                       rpc_server.accounts,
-                                                       update_balance_type::decrease);
-
-                                        process_reward(block_index,
-                                                       reward_info.to,
-                                                       reward_info,
-                                                       set_accounts,
-                                                       rewards,
-                                                       index_rewards,
-                                                       LoggingType::revert);
-                                    }
-
-                                    if (!new_import)
-                                    {
-                                        rpc_server.blocks.pop_back();
-                                    }
                                 }
-                                else if (action_type == TransactionLog::rtt)
+
+                                if (new_import && local_start_index == log_index.as_const()->value)
                                 {
-                                    TransactionLog transaction_log;
-                                    std::move(action_info.action).get(transaction_log);
-
-                                    uint64_t block_index = head_block_index() + 1;
-
-                                    process_storage_tansactions(set_accounts,
-                                                                transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::revert);
-
-                                    process_channel_tansactions(set_accounts,
-                                                                transaction_log,
-                                                                rpc_server,
-                                                                LoggingType::revert);
-
-                                    update_balances(set_accounts,
-                                                    rpc_server,
-                                                    transaction_log,
-                                                    string(),
-                                                    LoggingType::revert);
-
-                                    process_transactions(block_index,
-                                                         transaction_log,
-                                                         set_accounts,
-                                                         transactions,
-                                                         index_transactions,
-                                                         string(),
-                                                         LoggingType::revert);
+                                    new_import_done = true;
+                                    break;  //  breaks for()
                                 }
-                            }
-                            if (new_import && local_start_index == log_index.as_const()->value)
-                            {
-                                new_import_done = true;
-                                break;  //  breaks for()
-                            }
-                        }// for (auto& action_info : msg.actions)
-                        break;  //  breaks switch case
+                            }// for (auto& action_info : msg.actions)
+
+                            break;  //  breaks switch case
+                        }
+                        default:
+                            throw std::runtime_error(std::to_string(ref_packet.type()) + " - sync cannot handle");
                     }
-                    default:
-                        throw std::runtime_error(std::to_string(ref_packet.type()) + " - sync cannot handle");
-                    }
-                }
-                if (false == received_packets.empty())
+                }//for (auto& received_packet : received_packets)
+
+                if (!received_packets.empty())
                     break;  //  breaks while() that calls receive()
             }
         }
 
-        if ((false == new_import && count < max_count) ||
-            new_import_done)
+        //std::cout << std::endl << "req = " << std::to_string(req.max_count);
+        //std::cout << std::endl << "count = " << std::to_string(count);
+        //std::cout << std::endl << "loc_index = " << std::to_string(local_start_index);
+        //std::cout << std::endl << "log_index = " << std::to_string(log_index.as_const()->value);
+        //std::cout << std::endl << "import = " << std::to_string(new_import) << "  import_done = " << std::to_string(new_import_done);
+
+        if ( new_import_done || (!new_import && count < max_count))
             break;
     }
 
