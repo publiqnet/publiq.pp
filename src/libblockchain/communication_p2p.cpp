@@ -884,9 +884,9 @@ void mine_block(publiqpp::detail::node_internals& impl)
     reverted_transactions = revert_pool(block_header.time_signed.tm, impl);
 
     auto reverted_transactions_it_end =
-        std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
-            [&block_header,
-            &pool_transactions](SignedTransaction& signed_transaction)
+            std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
+                           [&block_header,
+                           &pool_transactions](SignedTransaction& signed_transaction)
     {
         if (signed_transaction.transaction_details.creation >= block_header.time_signed)
         {
@@ -898,12 +898,12 @@ void mine_block(publiqpp::detail::node_internals& impl)
     reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
 
     reverted_transactions_it_end =
-        std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
-            [&tp_start,
-            &tp_end,
-            &impl,
-            &channel_statistics,
-            &storage_statistics](SignedTransaction& signed_tr)
+            std::remove_if(reverted_transactions.begin(), reverted_transactions.end(),
+                           [&tp_start,
+                            &tp_end,
+                            &impl,
+                            &channel_statistics,
+                            &storage_statistics](SignedTransaction& signed_tr)
     {
         if (signed_tr.transaction_details.action.type() == ServiceStatistics::rtt)
         {
