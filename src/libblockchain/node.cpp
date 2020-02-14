@@ -385,6 +385,9 @@ void node::run(bool& stop_check)
                         }
                     }
 
+                    if (it == detail::wait_result_item::interface_type::rpc)
+                        psk->send(peerid, beltpp::packet(Done()));
+
                     break;
                 }
                 case StorageFile::rtt:
