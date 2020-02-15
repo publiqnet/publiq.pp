@@ -21,7 +21,8 @@ bool node_internals::initialize()
         });
 
         //  revert transactions from pool
-        vector<SignedTransaction> pool_transactions = revert_pool(system_clock::to_time_t(system_clock::now()), *this);
+        load_transaction_cache(*this, m_revert_blocks);
+        revert_pool(system_clock::to_time_t(system_clock::now()), *this);
 
         //  revert last block
         //  calculate back
@@ -109,7 +110,7 @@ bool node_internals::initialize()
             stored_node_type != m_node_type)
             throw std::runtime_error("the stored node role is different");
 
-        load_transaction_cache(*this);
+        load_transaction_cache(*this, m_revert_blocks);
 
         m_initialize = false;
     }

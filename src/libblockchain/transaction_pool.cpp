@@ -84,34 +84,38 @@ size_t transaction_pool::length() const
     return m_pimpl->m_transactions.size();
 }
 
-void load_transaction_cache(publiqpp::detail::node_internals& impl)
+void load_transaction_cache(publiqpp::detail::node_internals& impl,
+                            bool only_pool)
 {
-    impl.writeln_node("Loading recent blocks to cache");
-
-    std::chrono::system_clock::time_point time_signed_head;
-
-    uint64_t block_count = impl.m_blockchain.length();
-    for (uint64_t block_index = block_count - 1;
-         block_index < block_count;
-         --block_index)
+    if (!only_pool)
     {
-        SignedBlock const& signed_block = impl.m_blockchain.at(block_index);
+        impl.writeln_node("Loading recent blocks to cache");
 
-        Block const& block = signed_block.block_details;
+        std::chrono::system_clock::time_point time_signed_head;
 
-        std::chrono::system_clock::time_point time_signed =
-                std::chrono::system_clock::from_time_t(block.header.time_signed.tm);
-        if (block_index == block_count - 1)
-            time_signed_head = time_signed;
-        else if (time_signed_head - time_signed >
-                 std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS) +
-                 std::chrono::seconds(NODES_TIME_SHIFT))
-            break; //   because all transactions in this block must be expired
-
-        for (auto& item : block.signed_transactions)
+        uint64_t block_count = impl.m_blockchain.length();
+        for (uint64_t block_index = block_count - 1;
+             block_index < block_count;
+             --block_index)
         {
-            if (false == impl.m_transaction_cache.add_chain(item))
-                throw std::logic_error("inconsistent stored blockchain");
+            SignedBlock const& signed_block = impl.m_blockchain.at(block_index);
+
+            Block const& block = signed_block.block_details;
+
+            std::chrono::system_clock::time_point time_signed =
+                    std::chrono::system_clock::from_time_t(block.header.time_signed.tm);
+            if (block_index == block_count - 1)
+                time_signed_head = time_signed;
+            else if (time_signed_head - time_signed >
+                     std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS) +
+                     std::chrono::seconds(NODES_TIME_SHIFT))
+                break; //   because all transactions in this block must be expired
+
+            for (auto& item : block.signed_transactions)
+            {
+                if (false == impl.m_transaction_cache.add_chain(item))
+                    throw std::logic_error("inconsistent stored blockchain");
+            }
         }
     }
 
