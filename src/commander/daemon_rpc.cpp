@@ -445,7 +445,7 @@ void process_transactions(uint64_t block_index,
                             type);
 }
 
-void process_storage_tansactions(unordered_set<string> const& set_accounts,
+void process_storage_transactions(unordered_set<string> const& set_accounts,
                                  BlockchainMessage::TransactionLog const& transaction_log,
                                  rpc& rpc_server,
                                  LoggingType type)
@@ -498,7 +498,7 @@ void process_storage_tansactions(unordered_set<string> const& set_accounts,
     }
 }
 
-void process_channel_tansactions(unordered_set<string> const& set_accounts,
+void process_channel_transactions(unordered_set<string> const& set_accounts,
                                  BlockchainMessage::TransactionLog const& transaction_log,
                                  rpc& rpc_server,
                                  LoggingType type)
@@ -775,7 +775,7 @@ void process_channel_tansactions(unordered_set<string> const& set_accounts,
     }
 }
 
-void process_statistics_tansactions(BlockchainMessage::TransactionLog const& transaction_log,
+void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
                                     rpc& rpc_server,
                                     LoggingType type)
 {
@@ -1169,17 +1169,17 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                         for (auto& transaction_log: block_log.transactions)
                                         {
-                                            process_storage_tansactions(set_accounts,
+                                            process_storage_transactions(set_accounts,
                                                                         transaction_log,
                                                                         rpc_server,
                                                                         LoggingType::apply);
 
-                                            process_channel_tansactions(set_accounts,
+                                            process_channel_transactions(set_accounts,
                                                                         transaction_log,
                                                                         rpc_server,
                                                                         LoggingType::apply);
 
-                                            process_statistics_tansactions(transaction_log,
+                                            process_statistics_transactions(transaction_log,
                                                                            rpc_server,
                                                                            LoggingType::apply);
 
@@ -1222,12 +1222,12 @@ void daemon_rpc::sync(rpc& rpc_server,
                                         TransactionLog transaction_log;
                                         std::move(action_info.action).get(transaction_log);
 
-                                        process_storage_tansactions(set_accounts,
+                                        process_storage_transactions(set_accounts,
                                                                     transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::apply);
 
-                                        process_channel_tansactions(set_accounts,
+                                        process_channel_transactions(set_accounts,
                                                                     transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::apply);
@@ -1267,17 +1267,17 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                         for (auto& transaction_log : block_log.transactions)
                                         {
-                                            process_storage_tansactions(set_accounts,
+                                            process_storage_transactions(set_accounts,
                                                                         transaction_log,
                                                                         rpc_server,
                                                                         LoggingType::revert);
 
-                                            process_channel_tansactions(set_accounts,
+                                            process_channel_transactions(set_accounts,
                                                                         transaction_log,
                                                                         rpc_server,
                                                                         LoggingType::revert);
 
-                                            process_statistics_tansactions(transaction_log,
+                                            process_statistics_transactions(transaction_log,
                                                                            rpc_server,
                                                                            LoggingType::revert);
 
@@ -1325,12 +1325,12 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                         uint64_t block_index = head_block_index() + 1;
 
-                                        process_storage_tansactions(set_accounts,
+                                        process_storage_transactions(set_accounts,
                                                                     transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::revert);
 
-                                        process_channel_tansactions(set_accounts,
+                                        process_channel_transactions(set_accounts,
                                                                     transaction_log,
                                                                     rpc_server,
                                                                     LoggingType::revert);
