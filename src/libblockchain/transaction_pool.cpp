@@ -87,7 +87,7 @@ size_t transaction_pool::length() const
 void load_transaction_cache(publiqpp::detail::node_internals& impl,
                             bool only_pool)
 {
-    if (!only_pool)
+    if (false == only_pool)
     {
         impl.writeln_node("Loading recent blocks to cache");
 
