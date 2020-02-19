@@ -40,6 +40,7 @@ private:
     std::unique_ptr<detail::transaction_pool_internals> m_pimpl;
 };
 
-void load_transaction_cache(publiqpp::detail::node_internals& impl);
+void load_transaction_cache(publiqpp::detail::node_internals& impl,
+                            bool only_pool);
 
 }

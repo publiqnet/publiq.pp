@@ -1048,7 +1048,7 @@ session_action_request_file::session_action_request_file(string const& _file_uri
                                                          string const& _nodeid,
                                                          detail::node_internals& impl)
     : meshpp::session_action<meshpp::nodeid_session_header>()
-    , need_to_revert_initiate(false)
+    , need_to_revert_initiate(true)
     , pimpl(&impl)
     , file_uri(_file_uri)
     , nodeid(_nodeid)
@@ -1066,11 +1066,10 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
     pimpl->writeln_node(file_uri + " requesting from " + nodeid);
 #endif
     pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::check);
-    need_to_revert_initiate = true;
 
     beltpp::detail::session_special_data& ssd =
             pimpl->m_ptr_rpc_socket->session_data(header.peerid);
-    ssd.parser_unrecognized_limit = 1024 * 1024 * 10;
+    ssd.parser_unrecognized_limit = 1024 * 1024 * 30;
 
     StorageFileRequest msg;
     msg.uri = file_uri;

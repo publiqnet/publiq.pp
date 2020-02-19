@@ -167,7 +167,7 @@ void storage_node::run(bool& stop)
                 else
                 {
                     UriError error;
-                    error.uri = file_info.uri;
+                    error.uri = file_uri;
                     error.uri_problem_type = UriProblemType::missing;
                     psk->send(peerid, beltpp::packet(std::move(error)));
                 }
