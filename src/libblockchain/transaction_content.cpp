@@ -115,13 +115,14 @@ void action_apply(publiqpp::detail::node_internals& impl,
             throw wrong_data_exception("the content and the content unit do not correspond to each other");
     }
 
-    if (impl.m_node_type == NodeType::storage &&
+    if (impl.m_manager_address.empty() && 
+        impl.m_node_type == NodeType::storage &&
         state_layer::chain == layer /*&& beltpp::chance_one_of(3)*/)
     {
         for (auto const& unit_uri : content.content_unit_uris)
         {
             auto const& unit = impl.m_documents.get_unit(unit_uri);
-
+        
             for (auto const& file_uri : unit.file_uris)
                 impl.m_storage_controller.enqueue(file_uri, content.channel_address);
         }

@@ -1084,13 +1084,13 @@ void daemon_rpc::sync(rpc& rpc_server,
 
     while (true)
     {
-        size_t const max_count = 3000;
+        size_t const max_count = 10000;
         LoggedTransactionsRequest req;
         req.max_count = max_count;
         req.start_index = start_index();
 
-        if (new_import && log_index.as_const()->value - local_start_index <= max_count + 1000)//aprox
-            req.max_count = 1;
+        //if (new_import && log_index.as_const()->value - local_start_index <= max_count + 1000)//aprox
+        //    req.max_count = 1;
 
         socket.send(peerid, beltpp::packet(req));
 
