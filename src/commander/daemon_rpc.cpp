@@ -1265,30 +1265,30 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                         std::cout << "-" << std::to_string(block_index) + ", ";
 
-                                        for (auto& transaction_log : block_log.transactions)
+                                        for (auto log_it = block_log.transactions.crbegin(); log_it != block_log.transactions.crend(); ++log_it)
                                         {
                                             process_storage_transactions(set_accounts,
-                                                                        transaction_log,
+                                                                        *log_it,
                                                                         rpc_server,
                                                                         LoggingType::revert);
 
                                             process_channel_transactions(set_accounts,
-                                                                        transaction_log,
+                                                                        *log_it,
                                                                         rpc_server,
                                                                         LoggingType::revert);
 
-                                            process_statistics_transactions(transaction_log,
+                                            process_statistics_transactions(*log_it,
                                                                            rpc_server,
                                                                            LoggingType::revert);
 
                                             update_balances(set_accounts,
                                                             rpc_server,
-                                                            transaction_log,
+                                                            *log_it,
                                                             block_log.authority,
                                                             LoggingType::revert);
 
                                             process_transactions(block_index,
-                                                                 transaction_log,
+                                                                 *log_it,
                                                                  set_accounts,
                                                                  transactions,
                                                                  index_transactions,
@@ -1296,17 +1296,17 @@ void daemon_rpc::sync(rpc& rpc_server,
                                                                  LoggingType::revert);
                                         }
 
-                                        for (auto& reward_info : block_log.rewards)
+                                        for (auto reward_it = block_log.rewards.crbegin(); reward_it != block_log.rewards.crend(); ++reward_it)
                                         {
-                                            update_balance(reward_info.to,
-                                                           reward_info.amount,
+                                            update_balance(reward_it->to,
+                                                           reward_it->amount,
                                                            set_accounts,
                                                            rpc_server.accounts,
                                                            update_balance_type::decrease);
 
                                             process_reward(block_index,
-                                                           reward_info.to,
-                                                           reward_info,
+                                                           reward_it->to,
+                                                           *reward_it,
                                                            set_accounts,
                                                            rewards,
                                                            index_rewards,
