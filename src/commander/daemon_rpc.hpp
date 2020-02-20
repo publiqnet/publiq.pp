@@ -31,9 +31,11 @@ public:
     beltpp::packet send(CommanderMessage::Send const& send,
                         rpc& rpc_server);
     beltpp::packet wait_response(std::string const& transaction_hash);
-    void sync(rpc& rpc_server,
+    bool sync(rpc& rpc_server,
               std::unordered_set<std::string> const& set_accounts,
-              bool const new_import);
+              bool const new_import,
+              uint64_t& local_start_index,
+              uint64_t& local_head_block_index);
 
     static
     TransactionLogLoader get_transaction_log(std::string const& address);

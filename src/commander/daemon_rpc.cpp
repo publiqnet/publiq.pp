@@ -1002,12 +1002,16 @@ std::string time_now()
     return str.substr(string("0000-00-00 ").length());
 }
 
-void daemon_rpc::sync(rpc& rpc_server,
+bool daemon_rpc::sync(rpc& rpc_server,
                       unordered_set<string> const& set_accounts,
-                      bool const new_import)
+                      bool const new_import,
+                      uint64_t& local_start_index,
+                      uint64_t& local_head_block_index)
 {
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to work");
+
+    bool result = new_import;
 
     unordered_map<string, TransactionLogLoader> transactions;
     unordered_map<string, RewardLogLoader> rewards;
@@ -1038,9 +1042,6 @@ void daemon_rpc::sync(rpc& rpc_server,
         for (auto& rw : index_rewards)
             rw.second.discard();
     });
-
-    uint64_t local_start_index = 0;
-    uint64_t local_head_block_index = 0;
 
     auto start_index = [new_import, this, &local_start_index]()
     {
@@ -1089,9 +1090,6 @@ void daemon_rpc::sync(rpc& rpc_server,
         req.max_count = max_count;
         req.start_index = start_index();
 
-        //if (new_import && log_index.as_const()->value - local_start_index <= max_count + 1000)//aprox
-        //    req.max_count = 1;
-
         socket.send(peerid, beltpp::packet(req));
 
         size_t count = 0;
@@ -1121,6 +1119,9 @@ void daemon_rpc::sync(rpc& rpc_server,
                         {
                             LoggedTransactions msg;
                             std::move(ref_packet).get(msg);
+
+                            if (new_import && msg.actions.size() == 0)
+                                new_import_done = true;
 
                             for (auto& action_info : msg.actions)
                             {
@@ -1353,7 +1354,9 @@ void daemon_rpc::sync(rpc& rpc_server,
 
                                 if (new_import && local_start_index == log_index.as_const()->value)
                                 {
+                                    result = false;
                                     new_import_done = true;
+
                                     break;  //  breaks for()
                                 }
                             }// for (auto& action_info : msg.actions)
@@ -1369,12 +1372,6 @@ void daemon_rpc::sync(rpc& rpc_server,
                     break;  //  breaks while() that calls receive()
             }
         }
-
-        //std::cout << std::endl << "req = " << std::to_string(req.max_count);
-        //std::cout << std::endl << "count = " << std::to_string(count);
-        //std::cout << std::endl << "loc_index = " << std::to_string(local_start_index);
-        //std::cout << std::endl << "log_index = " << std::to_string(log_index.as_const()->value);
-        //std::cout << std::endl << "import = " << std::to_string(new_import) << "  import_done = " << std::to_string(new_import_done);
 
         if ( new_import_done || (!new_import && count < max_count))
             break;
@@ -1413,4 +1410,6 @@ void daemon_rpc::sync(rpc& rpc_server,
         tr.second.commit();
     for (auto& rw : index_rewards)
         rw.second.commit();
+
+    return result;
 }
