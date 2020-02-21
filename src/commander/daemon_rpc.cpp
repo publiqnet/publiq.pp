@@ -1120,9 +1120,6 @@ bool daemon_rpc::sync(rpc& rpc_server,
                             LoggedTransactions msg;
                             std::move(ref_packet).get(msg);
 
-                            if (new_import && msg.actions.size() == 0)
-                                new_import_done = true;
-
                             for (auto& action_info : msg.actions)
                             {
                                 ++count;
@@ -1351,15 +1348,19 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                                              LoggingType::revert);
                                     }
                                 }
+                            }// for (auto& action_info : msg.actions)
 
-                                if (new_import && local_start_index == log_index.as_const()->value)
+                            if (new_import)
+                            {
+                                if(msg.actions.size() == 0)
+                                    new_import_done = true;
+
+                                if (local_start_index == log_index.as_const()->value)
                                 {
                                     result = false;
                                     new_import_done = true;
-
-                                    break;  //  breaks for()
                                 }
-                            }// for (auto& action_info : msg.actions)
+                            }
 
                             break;  //  breaks switch case
                         }
