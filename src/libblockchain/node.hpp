@@ -56,7 +56,7 @@ public:
          bool transfer_only,
          bool testnet,
          bool resync,
-         bool revert_blocks,
+         uint64_t revert_blocks_count,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
          detail::fp_counts_per_channel_views p_counts_per_channel_views);

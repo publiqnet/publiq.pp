@@ -428,7 +428,7 @@ public:
                    bool transfer_only,
                    bool testnet,
                    bool resync,
-                   bool revert_blocks,
+                   uint64_t revert_blocks_count,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views)
@@ -472,7 +472,7 @@ public:
         , m_transfer_only(transfer_only)
         , m_service_statistics_broadcast_triggered(false)
         , m_initialize(true)
-        , m_revert_blocks(revert_blocks)
+        , m_revert_blocks_count(revert_blocks_count)
         , m_freeze_before_block(freeze_before_block)
         , m_manager_address(manager_address)
         , m_resync_blockchain(resync ? 10 : uint64_t(-1))
@@ -684,7 +684,7 @@ public:
     bool m_transfer_only;
     bool m_service_statistics_broadcast_triggered;
     bool m_initialize;
-    bool m_revert_blocks;
+    uint64_t m_revert_blocks_count;
 
     uint64_t m_freeze_before_block;
     string m_manager_address;

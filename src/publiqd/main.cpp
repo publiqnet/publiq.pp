@@ -57,7 +57,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
-                          bool& revert_blocks);
+                          uint64_t& m_revert_blocks_count);
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
 vector<publiqpp::coin> block_reward_array();
@@ -208,7 +208,7 @@ int main(int argc, char** argv)
     bool log_enabled;
     bool testnet;
     bool resync;
-    bool revert_blocks;
+    uint64_t revert_blocks_count = 0;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
 
@@ -228,7 +228,7 @@ int main(int argc, char** argv)
                                       log_enabled,
                                       testnet,
                                       resync,
-                                      revert_blocks))
+                                      revert_blocks_count))
         return 1;
 
     if (testnet)
@@ -322,7 +322,7 @@ int main(int argc, char** argv)
                             false,
                             testnet,
                             resync,
-                            revert_blocks,
+                            revert_blocks_count,
                             mine_amount_threshhold(),
                             block_reward_array(),
                             &counts_per_channel_views);
@@ -456,7 +456,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
-                          bool& revert_blocks)
+                          uint64_t& revert_blocks_count)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -498,7 +498,7 @@ bool process_command_line(int argc, char** argv,
                             "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
-            ("revert_blocks", "revert blocks");
+            ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -515,7 +515,6 @@ bool process_command_line(int argc, char** argv,
         }
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
-        revert_blocks = options.count("revert_blocks");
 
         p2p_bind_to_address.from_string(p2p_local_interface);
         if (false == rpc_local_interface.empty())
