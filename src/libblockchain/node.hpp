@@ -51,12 +51,12 @@ public:
          BlockchainMessage::NodeType const& n_type,
          uint64_t fractions,
          uint64_t freeze_before_block,
+         uint64_t revert_blocks_count,
          std::string const& manager_address,
          bool log_enabled,
          bool transfer_only,
          bool testnet,
          bool resync,
-         uint64_t revert_blocks_count,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
          detail::fp_counts_per_channel_views p_counts_per_channel_views);

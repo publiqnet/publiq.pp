@@ -13,61 +13,53 @@ bool node_internals::initialize()
 
     if (0 != m_revert_blocks_count)
     {
-        // m_transaction_cache management is useless, the program is going to stop soon
+        //  revert transactions from pool
+        load_transaction_cache(*this, true);
+        revert_pool(system_clock::to_time_t(system_clock::now()), *this);
 
-//        m_transaction_cache.backup();
-        beltpp::on_failure guard([this]
+        //  revert last block
+        //  calculate back
+        SignedBlock const& signed_block = m_blockchain.at(m_blockchain.last_header().block_number);
+        m_blockchain.remove_last_block();
+        m_action_log.revert();
+
+        Block const& block = signed_block.block_details;
+
+        map<string, map<string, uint64_t>> unit_uri_view_counts;
+        map<string, coin> unit_sponsor_applied;
+        // verify block rewards before reverting, this also reclaims advertisement coins
+        if (check_rewards(block,
+                          signed_block.authorization.address,
+                          rewards_type::revert,
+                          *this,
+                          unit_uri_view_counts,
+                          unit_sponsor_applied))
+            writeln_node(std::to_string(block.header.block_number) + ") block rewards reverting error!");
+
+        B_UNUSED(unit_uri_view_counts);
+        B_UNUSED(unit_sponsor_applied);
+
+        // decrease all reward amounts from balances and revert reward
+        for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
+            m_state.decrease_balance(it->to, it->amount, state_layer::chain);
+
+        // calculate back transactions
+        for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
+            revert_transaction(*it, *this, signed_block.authorization.address);
+
+        writeln_node(std::to_string(block.header.block_number) + " block reverted");
+
+        if (m_revert_blocks_count % BLOCK_REVERT_LENGTH == 0 || 1 == m_revert_blocks_count)
         {
-            discard();
-//            m_transaction_cache.restore();
-        });
-
-        while( 0 != m_revert_blocks_count)
-        {
-            //  revert transactions from pool
-            load_transaction_cache(*this, true);
-            revert_pool(system_clock::to_time_t(system_clock::now()), *this);
-
-            //  revert last block
-            //  calculate back
-            SignedBlock const& signed_block = m_blockchain.at(m_blockchain.last_header().block_number);
-            m_blockchain.remove_last_block();
-            m_action_log.revert();
-
-            Block const& block = signed_block.block_details;
-
-            map<string, map<string, uint64_t>> unit_uri_view_counts;
-            map<string, coin> unit_sponsor_applied;
-            // verify block rewards before reverting, this also reclaims advertisement coins
-            if (check_rewards(block,
-                              signed_block.authorization.address,
-                              rewards_type::revert,
-                              *this,
-                              unit_uri_view_counts,
-                              unit_sponsor_applied))
-                writeln_node("Last (" + std::to_string(block.header.block_number) + ") block rewards reverting error!");
-
-            B_UNUSED(unit_uri_view_counts);
-            B_UNUSED(unit_sponsor_applied);
-
-            // decrease all reward amounts from balances and revert reward
-            for (auto it = block.rewards.crbegin(); it != block.rewards.crend(); ++it)
-                m_state.decrease_balance(it->to, it->amount, state_layer::chain);
-
-            // calculate back transactions
-            for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
-    //        {
-                revert_transaction(*it, *this, signed_block.authorization.address);
-    //            m_transaction_cache.erase_chain(*it);
-    //        }
-
-            writeln_node(std::to_string(block.header.block_number) + " block reverted");
-            --m_revert_blocks_count;
+            beltpp::on_failure guard([this]
+            {
+                discard();
+            });
+            save(guard);
         }
 
-        save(guard);
-
-        stop_check = true;
+        if (1 == m_revert_blocks_count)
+            stop_check = true;
     }
     else if (m_resync_blockchain != uint64_t(-1))
     {

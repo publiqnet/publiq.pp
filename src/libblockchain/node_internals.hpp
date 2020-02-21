@@ -423,12 +423,12 @@ public:
                    NodeType const& n_type,
                    uint64_t fractions,
                    uint64_t freeze_before_block,
+                   uint64_t revert_blocks_count,
                    string const& manager_address,
                    bool log_enabled,
                    bool transfer_only,
                    bool testnet,
                    bool resync,
-                   uint64_t revert_blocks_count,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views)
@@ -472,10 +472,10 @@ public:
         , m_transfer_only(transfer_only)
         , m_service_statistics_broadcast_triggered(false)
         , m_initialize(true)
-        , m_revert_blocks_count(revert_blocks_count)
         , m_freeze_before_block(freeze_before_block)
         , m_manager_address(manager_address)
         , m_resync_blockchain(resync ? 10 : uint64_t(-1))
+        , m_revert_blocks_count(revert_blocks_count)
         , m_genesis_signed_block(genesis_signed_block)
         , m_mine_amount_threshhold(mine_amount_threshhold)
         , m_block_reward_array(block_reward_array)
@@ -684,11 +684,11 @@ public:
     bool m_transfer_only;
     bool m_service_statistics_broadcast_triggered;
     bool m_initialize;
-    uint64_t m_revert_blocks_count;
 
     uint64_t m_freeze_before_block;
     string m_manager_address;
     uint64_t m_resync_blockchain;
+    uint64_t m_revert_blocks_count;
 
     string m_genesis_signed_block;
 

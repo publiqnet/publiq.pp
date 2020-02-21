@@ -317,12 +317,12 @@ int main(int argc, char** argv)
                             n_type,
                             fractions,
                             freeze_before_block,
+                            revert_blocks_count,
                             manager_address,
                             log_enabled,
                             false,
                             testnet,
                             resync,
-                            revert_blocks_count,
                             mine_amount_threshhold(),
                             block_reward_array(),
                             &counts_per_channel_views);

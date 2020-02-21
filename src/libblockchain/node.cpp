@@ -65,12 +65,12 @@ node::node(string const& genesis_signed_block,
            NodeType const& n_type,
            uint64_t fractions,
            uint64_t freeze_before_block,
+           uint64_t revert_blocks_count,
            string const& manager_address,
            bool log_enabled,
            bool transfer_only,
            bool testnet,
            bool resync,
-           uint64_t revert_blocks_count,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
            detail::fp_counts_per_channel_views p_counts_per_channel_views)
@@ -93,12 +93,12 @@ node::node(string const& genesis_signed_block,
                                          n_type,
                                          fractions,
                                          freeze_before_block,
+                                        revert_blocks_count,
                                          manager_address,
                                          log_enabled,
                                          transfer_only,
                                          testnet,
                                          resync,
-                                         revert_blocks_count,
                                          mine_amount_threshhold,
                                          block_reward_array,
                                          p_counts_per_channel_views))
@@ -126,6 +126,7 @@ void node::run(bool& stop_check)
     {
         beltpp::on_failure guard_initialize([&stop_check]{ stop_check = true; });
         stop_check = m_pimpl->initialize();
+        --m_pimpl->m_revert_blocks_count;
         guard_initialize.dismiss();
         return;
     }

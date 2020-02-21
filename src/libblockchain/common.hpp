@@ -22,6 +22,7 @@
 // Maximum buffer length of blocks
 // that can be collected per sync
 #define BLOCK_INSERT_LENGTH 50
+#define BLOCK_REVERT_LENGTH 50
 
 // Block mine delay in seconds
 #define BLOCK_MINE_DELAY 600
