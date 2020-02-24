@@ -579,7 +579,7 @@ bool process_command_line(int argc, char** argv,
         if (0 == options.count("freeze_before_block"))
             freeze_before_block = uint64_t(-1);
         if (0 == options.count("revert_blocks"))
-            revert_blocks_count = uint64_t(-1);
+            revert_blocks_count = 0;
     }
     catch (std::exception const& ex)
     {
