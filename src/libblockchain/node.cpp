@@ -126,7 +126,6 @@ void node::run(bool& stop_check)
     {
         beltpp::on_failure guard_initialize([&stop_check]{ stop_check = true; });
         stop_check = m_pimpl->initialize();
-        --m_pimpl->m_revert_blocks_count;
         guard_initialize.dismiss();
         return;
     }

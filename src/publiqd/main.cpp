@@ -53,11 +53,12 @@ bool process_command_line(int argc, char** argv,
                           NodeType& n_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
+                          uint64_t& m_revert_blocks_count,
                           string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
-                          bool& resync,
-                          uint64_t& m_revert_blocks_count);
+                          bool& resync
+                          );
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
 vector<publiqpp::coin> block_reward_array();
@@ -204,11 +205,11 @@ int main(int argc, char** argv)
     NodeType n_type;
     uint64_t fractions;
     uint64_t freeze_before_block;
+    uint64_t revert_blocks_count;
     string manager_address;
     bool log_enabled;
     bool testnet;
     bool resync;
-    uint64_t revert_blocks_count = 0;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
 
@@ -224,11 +225,11 @@ int main(int argc, char** argv)
                                       n_type,
                                       fractions,
                                       freeze_before_block,
+                                      revert_blocks_count,
                                       manager_address,  
                                       log_enabled,
                                       testnet,
-                                      resync,
-                                      revert_blocks_count))
+                                      resync))
         return 1;
 
     if (testnet)
@@ -452,11 +453,11 @@ bool process_command_line(int argc, char** argv,
                           NodeType& n_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
+                          uint64_t& revert_blocks_count,
                           string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
-                          bool& resync,
-                          uint64_t& revert_blocks_count)
+                          bool& resync)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -577,6 +578,8 @@ bool process_command_line(int argc, char** argv,
             fractions = 0;
         if (0 == options.count("freeze_before_block"))
             freeze_before_block = uint64_t(-1);
+        if (0 == options.count("revert_blocks"))
+            revert_blocks_count = uint64_t(-1);
     }
     catch (std::exception const& ex)
     {
