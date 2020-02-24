@@ -59,11 +59,8 @@ bool node_internals::initialize()
             save(guard);
         }
 
-        if (!m_revert_blocks_count)
-        {
+        if (0 == m_revert_blocks_count)
             stop_check = true;
-            writeln_node("Last block number : " + std::to_string(m_blockchain.last_header().block_number));
-        }
     }
     else if (m_resync_blockchain != uint64_t(-1))
     {
