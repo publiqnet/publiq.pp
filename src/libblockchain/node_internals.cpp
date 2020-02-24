@@ -59,9 +59,8 @@ bool node_internals::initialize()
             writeln_node("Last block number : " + std::to_string(m_blockchain.last_header().block_number));
         }
 
-        if (m_revert_blocks_count % BLOCK_REVERT_LENGTH <= 0)
+        if (m_revert_blocks_count % BLOCK_REVERT_LENGTH == 0)
         {
-
             beltpp::on_failure guard([this]
             {
                 discard();
