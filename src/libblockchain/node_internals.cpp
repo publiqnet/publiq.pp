@@ -13,6 +13,9 @@ bool node_internals::initialize()
 
     if (0 != m_revert_blocks_count)
     {
+        if (m_revert_blocks_count > m_blockchain.last_header().block_number)
+            m_revert_blocks_count = m_blockchain.last_header().block_number;
+
         //  revert transactions from pool
         load_transaction_cache(*this, true);
         revert_pool(system_clock::to_time_t(system_clock::now()), *this);
