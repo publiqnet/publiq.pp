@@ -11,7 +11,7 @@ bool node_internals::initialize()
 {
     bool stop_check = false;
 
-    if (m_revert_blocks_count)
+    if (0 == m_revert_blocks_count)
     {
         //  revert transactions from pool
         load_transaction_cache(*this, true);
