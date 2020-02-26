@@ -1372,11 +1372,11 @@ bool daemon_rpc::sync(rpc& rpc_server,
                 if (!received_packets.empty())
                     break;  //  breaks while() that calls receive()
             }
-        }
+        } // wait while
 
         if ( new_import_done || (!new_import && count < max_count))
             break;
-    }
+    } // send whilw
 
     rpc_server.head_block_index.save();
     rpc_server.accounts.save();

@@ -102,22 +102,29 @@ int main(int argc, char** argv)
 
         while (true)
         {
-        try
-        {
-            if (g_termination_handled)
+            try
+            {
+                if (g_termination_handled)
+                    break;
+                server.run();
+            }
+            catch (std::logic_error const& ex)
+            {
+                cout << "logic error cought: " << ex.what() << endl;
+                cout << "will exit now" << endl;
+                termination_handler(0);
                 break;
-            server.run();
-        }
-        catch(std::exception const& ex)
-        {
-            cout << "exception cought: " << ex.what() << endl;
-        }
-        catch(...)
-        {
-            cout << "always throw std::exceptions" << endl;
-            termination_handler(0);
-            break;
-        }
+            }
+            catch(std::exception const& ex)
+            {
+                cout << "exception cought: " << ex.what() << endl;
+            }
+            catch(...)
+            {
+                cout << "always throw std::exceptions" << endl;
+                termination_handler(0);
+                break;
+            }
         }
 
         dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());

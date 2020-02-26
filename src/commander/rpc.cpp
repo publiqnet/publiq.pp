@@ -446,15 +446,16 @@ void import_account_if_needed(string const& address,
 
         uint64_t local_start_index = 0;
         uint64_t local_head_block_index = 0;
-        unordered_set<string> set_accounts = {address};
+        unordered_set<string> set_new_accounts = {address};
+        unordered_set<string> set_old_accounts = rpc_server.accounts.keys();
 
         // if in new import case sync will not reach the same index as in regular import case
         // it will call regular sync untill reach same log index
-        while (dm.sync(rpc_server, set_accounts, true, local_start_index, local_head_block_index))
+        while (dm.sync(rpc_server, set_new_accounts, true, local_start_index, local_head_block_index))
         {
             uint64_t temp_index = 0;
 
-            dm.sync(rpc_server, rpc_server.accounts.keys(), false, temp_index, temp_index);
+            dm.sync(rpc_server, set_old_accounts, false, temp_index, temp_index);
         }
     }
 
