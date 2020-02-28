@@ -448,14 +448,12 @@ void import_account_if_needed(string const& address,
         auto context_sync = dm.start_sync(rpc_server, rpc_server.accounts.keys());
         // if in new import case sync will not reach the same index as in regular import case
         // it will call regular sync untill reach same log index
-        while (true)
+        do
         {
             dm.sync(rpc_server, context_new_import);
             dm.sync(rpc_server, context_sync);
-
-            if (context_sync.start_index() == context_new_import.start_index())
-                break;
         }
+        while (context_sync.start_index() != context_new_import.start_index());
 
         context_new_import.save();
         context_sync.save();
