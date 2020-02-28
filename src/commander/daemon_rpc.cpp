@@ -187,7 +187,7 @@ public:
     uint64_t& head_block_index() override
     {
         return m_rpc_server->head_block_index->value;
-    };
+    }
     unordered_set<string> set_accounts() const override
     {
         return m_set_accounts;
