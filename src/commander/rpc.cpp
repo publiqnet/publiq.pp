@@ -66,8 +66,8 @@ rpc::rpc(string const& str_pv_key,
 
 void process_history_rewards(uint64_t head_block_index,
                              uint64_t block_index,
-                             daemon_rpc::LogIndexLoader& reward_index,
-                             daemon_rpc::RewardLogLoader& reward_logs,
+                             sync_context::LogIndexLoader& reward_index,
+                             sync_context::RewardLogLoader& reward_logs,
                              AccountHistory& result,
                              rpc const& rpc_server)
 {
@@ -101,8 +101,8 @@ void process_history_rewards(uint64_t head_block_index,
 void process_history_transactions(uint64_t head_block_index,
                                   uint64_t block_index,
                                   string const& address,
-                                  daemon_rpc::LogIndexLoader& transaction_index,
-                                  daemon_rpc::TransactionLogLoader const& transaction_logs,
+                                  sync_context::LogIndexLoader& transaction_index,
+                                  sync_context::TransactionLogLoader const& transaction_logs,
                                   AccountHistory& result,
                                   rpc const& rpc_server)
 {
@@ -444,19 +444,24 @@ void import_account_if_needed(string const& address,
         dm.open(connect_to_address);
         beltpp::finally finally_close([&dm]{ dm.close(); });
 
-        uint64_t local_start_index = 0;
-        uint64_t local_head_block_index = 0;
-        unordered_set<string> set_new_accounts = {address};
-        unordered_set<string> set_old_accounts = rpc_server.accounts.keys();
-
+        auto context_new_import = dm.start_new_import(rpc_server, address);
+        auto context_sync = dm.start_sync(rpc_server, rpc_server.accounts.keys());
         // if in new import case sync will not reach the same index as in regular import case
         // it will call regular sync untill reach same log index
-        while (dm.sync(rpc_server, set_new_accounts, true, local_start_index, local_head_block_index))
+        while (true)
         {
-            uint64_t temp_index = 0;
+            dm.sync(rpc_server, context_new_import);
+            dm.sync(rpc_server, context_sync);
 
-            dm.sync(rpc_server, set_old_accounts, false, temp_index, temp_index);
+            if (context_sync.start_index() == context_new_import.start_index())
+                break;
         }
+
+        context_new_import.save();
+        context_sync.save();
+
+        context_new_import.commit();
+        context_sync.commit();
     }
 
     if (false == rpc_server.accounts.contains(address))
@@ -491,7 +496,6 @@ beltpp::packet process_storage_update_request(StorageUpdateRequest const& update
 
     return dm.process_storage_update_request(update, rpc_server);
 }
-
 
 bool search_file(rpc const& rpc_server,
                  string const& file_uri,
@@ -784,9 +788,13 @@ void rpc::run()
         dm.open(connect_to_address);
         beltpp::finally finally_close([&dm]{ dm.close(); });
 
-        uint64_t temp_index = 0;
         // sync data from node
-        dm.sync(*this, accounts.keys(), false, temp_index, temp_index);
+        auto context_sync = dm.start_sync(*this, accounts.keys());
+
+        dm.sync(*this, context_sync);
+
+        context_sync.save();
+        context_sync.commit();
 
         // send broadcast packet with storage management command
         if (false == m_str_pv_key.empty() &&

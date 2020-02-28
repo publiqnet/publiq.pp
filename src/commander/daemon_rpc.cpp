@@ -13,7 +13,10 @@
 #include <unordered_map>
 #include <exception>
 #include <chrono>
+#define LOGGING
+#ifdef LOGGING
 #include <iostream>
+#endif
 
 using beltpp::packet;
 using peer_id = beltpp::socket::peer_id;
@@ -48,43 +51,258 @@ beltpp::void_unique_ptr cm_get_putl()
     return ptr_utl;
 }
 
-using TransactionLogLoader = daemon_rpc::TransactionLogLoader;
-using RewardLogLoader = daemon_rpc::RewardLogLoader;
-using LogIndexLoader = daemon_rpc::LogIndexLoader;
+using TransactionLogLoader = sync_context::TransactionLogLoader;
+using RewardLogLoader = sync_context::RewardLogLoader;
+using LogIndexLoader = sync_context::LogIndexLoader;
 
-TransactionLogLoader daemon_rpc::get_transaction_log(std::string const& address)
+namespace detail
 {
-    return
-    TransactionLogLoader("tx",
-                         meshpp::data_directory_path("accounts_log", address),
-                         1000,
-                         10,
-                         bm_get_putl());
+class sync_context_detail
+{
+public:
+    sync_context_detail() = default;
+    virtual ~sync_context_detail() = default;
+
+    virtual bool is_new_import() const = 0;
+    virtual uint64_t& start_index() = 0;
+    virtual uint64_t& head_block_index() = 0;
+    virtual unordered_set<string> set_accounts() const = 0;
+    virtual void save() = 0;
+    virtual void commit() = 0;
+
+    std::unordered_map<std::string, TransactionLogLoader> transactions;
+    std::unordered_map<std::string, RewardLogLoader> rewards;
+    std::unordered_map<std::string, LogIndexLoader> index_transactions;
+    std::unordered_map<std::string, LogIndexLoader> index_rewards;
+};
+
+class sync_context_new_import : public sync_context_detail
+{
+public:
+    sync_context_new_import(rpc& ref_rpc_server, string const& account)
+        : sync_context_detail()
+        , m_rpc_server(&ref_rpc_server)
+        , m_start_index(0)
+        , m_head_block_index(0)
+        , m_account(account)
+        , m_guard([this]()
+                    {
+                        for (auto& tr : transactions)
+                            tr.second.discard();
+                        for (auto& rw : rewards)
+                            rw.second.discard();
+                        for (auto& tr : index_transactions)
+                            tr.second.discard();
+                        for (auto& rw : index_rewards)
+                            rw.second.discard();
+                    })
+    {}
+
+    bool is_new_import() const override
+    {
+        return true;
+    }
+    uint64_t& start_index() override
+    {
+        return m_start_index;
+    }
+    uint64_t& head_block_index() override
+    {
+        return m_head_block_index;
+    }
+    unordered_set<string> set_accounts() const override
+    {
+        return unordered_set<string>{m_account};
+    }
+    void save() override
+    {
+        for (auto& tr : transactions)
+            tr.second.save();
+        for (auto& rw : rewards)
+            rw.second.save();
+        for (auto& tr : index_transactions)
+            tr.second.save();
+        for (auto& rw : index_rewards)
+            rw.second.save();
+    }
+    void commit() override
+    {
+        m_guard.dismiss();
+
+        for (auto& tr : transactions)
+            tr.second.commit();
+        for (auto& rw : rewards)
+            rw.second.save();
+        for (auto& tr : index_transactions)
+            tr.second.commit();
+        for (auto& rw : index_rewards)
+            rw.second.commit();
+    }
+
+    rpc* m_rpc_server;
+    uint64_t m_start_index;
+    uint64_t m_head_block_index;
+    string m_account;
+    beltpp::on_failure m_guard;
+};
+
+class sync_context_existing : public sync_context_detail
+{
+public:
+    sync_context_existing(rpc& ref_rpc_server,
+                          daemon_rpc& ref_daemon_rpc,
+                          unordered_set<string> const& set_accounts)
+        : sync_context_detail()
+        , m_daemon_rpc(&ref_daemon_rpc)
+        , m_rpc_server(&ref_rpc_server)
+        , m_set_accounts(set_accounts)
+        , m_guard([this]()
+                    {
+                        m_daemon_rpc->log_index.discard();
+                        m_rpc_server->head_block_index.discard();
+                        m_rpc_server->accounts.discard();
+                        m_rpc_server->blocks.discard();
+                        m_rpc_server->storages.discard();
+                        m_rpc_server->channels.discard();
+
+                        for (auto& tr : transactions)
+                            tr.second.discard();
+                        for (auto& rw : rewards)
+                            rw.second.discard();
+                        for (auto& tr : index_transactions)
+                            tr.second.discard();
+                        for (auto& rw : index_rewards)
+                            rw.second.discard();
+                    })
+    {}
+
+    bool is_new_import() const override
+    {
+        return false;
+    }
+    uint64_t& start_index() override
+    {
+        return m_daemon_rpc->log_index->value;
+    }
+    uint64_t& head_block_index() override
+    {
+        return m_rpc_server->head_block_index->value;
+    };
+    unordered_set<string> set_accounts() const override
+    {
+        return m_set_accounts;
+    }
+    void save() override
+    {
+        m_rpc_server->head_block_index.save();
+        m_rpc_server->accounts.save();
+        m_rpc_server->blocks.save();
+        m_rpc_server->storages.save();
+        m_rpc_server->channels.save();
+        m_daemon_rpc->log_index.save();
+
+        for (auto& tr : transactions)
+            tr.second.save();
+        for (auto& rw : rewards)
+            rw.second.save();
+        for (auto& tr : index_transactions)
+            tr.second.save();
+        for (auto& rw : index_rewards)
+            rw.second.save();
+    }
+    void commit() override
+    {
+        m_guard.dismiss();
+
+        m_rpc_server->head_block_index.commit();
+        m_rpc_server->accounts.commit();
+        m_rpc_server->blocks.commit();
+        m_rpc_server->storages.commit();
+        m_rpc_server->channels.commit();
+        m_daemon_rpc->log_index.commit();
+
+        for (auto& tr : transactions)
+            tr.second.commit();
+        for (auto& rw : rewards)
+            rw.second.save();
+        for (auto& tr : index_transactions)
+            tr.second.commit();
+        for (auto& rw : index_rewards)
+            rw.second.commit();
+    }
+
+    daemon_rpc* m_daemon_rpc;
+    rpc* m_rpc_server;
+
+    unordered_set<string> m_set_accounts;
+    beltpp::on_failure m_guard;
+};
 }
-RewardLogLoader daemon_rpc::get_reward_log(std::string const& address)
+
+sync_context::sync_context(rpc& ref_rpc_server, string const& account)
+    : m_pimpl(new ::detail::sync_context_new_import(ref_rpc_server, account))
+{}
+sync_context::sync_context(rpc& ref_rpc_server,
+                           daemon_rpc& ref_daemon_rpc,
+                           unordered_set<string> const& set_accounts)
+    : m_pimpl(new ::detail::sync_context_existing(ref_rpc_server, ref_daemon_rpc, set_accounts))
+{}
+
+sync_context::sync_context(sync_context&&) = default;
+sync_context::~sync_context() = default;
+uint64_t sync_context::start_index() const
 {
-    return
-    RewardLogLoader("rw",
-                    meshpp::data_directory_path("accounts_log", address),
-                    1000,
-                    10,
-                    bm_get_putl());
+    return m_pimpl->start_index();
 }
-LogIndexLoader daemon_rpc::get_transaction_log_index(std::string const& address)
+void sync_context::save()
 {
-    return
-    LogIndexLoader("index_tx",
-                   meshpp::data_directory_path("accounts_log", address),
-                   1000,
-                   cm_get_putl());
+    return m_pimpl->save();
 }
-LogIndexLoader daemon_rpc::get_reward_log_index(std::string const& address)
+void sync_context::commit()
 {
-    return
-    LogIndexLoader("index_rw",
-                   meshpp::data_directory_path("accounts_log", address),
-                   1000,
-                   cm_get_putl());
+    return m_pimpl->commit();
+}
+
+TransactionLogLoader& sync_context::transactions(string const& account)
+{
+    if (0 == m_pimpl->set_accounts().count(account))
+        throw std::logic_error("0 == m_pimpl->set_accounts().count(account)");
+
+    auto tl_insert_res = m_pimpl->transactions.emplace(std::make_pair(account,
+                                                                      daemon_rpc::get_transaction_log(account)));
+
+    return tl_insert_res.first->second;
+}
+RewardLogLoader& sync_context::rewards(string const& account)
+{
+    if (0 == m_pimpl->set_accounts().count(account))
+        throw std::logic_error("0 == m_pimpl->set_accounts().count(account)");
+
+    auto rw_insert_res = m_pimpl->rewards.emplace(std::make_pair(account,
+                                                                 daemon_rpc::get_reward_log(account)));
+
+    return rw_insert_res.first->second;
+}
+
+LogIndexLoader& sync_context::index_transactions(string const& account)
+{
+    if (0 == m_pimpl->set_accounts().count(account))
+        throw std::logic_error("0 == m_pimpl->set_accounts().count(account)");
+
+    auto idx_insert_res = m_pimpl->index_transactions.emplace(std::make_pair(account,
+                                                                             daemon_rpc::get_transaction_log_index(account)));
+
+    return idx_insert_res.first->second;
+}
+LogIndexLoader& sync_context::index_rewards(string const& account)
+{
+    if (0 == m_pimpl->set_accounts().count(account))
+        throw std::logic_error("0 == m_pimpl->set_accounts().count(account)");
+
+    auto idx_insert_res = m_pimpl->index_rewards.emplace(std::make_pair(account,
+                                                                        daemon_rpc::get_reward_log_index(account)));
+
+    return idx_insert_res.first->second;
 }
 
 daemon_rpc::daemon_rpc()
@@ -154,7 +372,7 @@ enum class update_balance_type {increase, decrease};
 void update_balance(string const& str_account,
                     BlockchainMessage::Coin const& update_by,
                     unordered_set<string> const& set_accounts,
-                    meshpp::map_loader<CommanderMessage::Account>& accounts,
+                    rpc& rpc_server,
                     update_balance_type type)
 {
     if (set_accounts.count(str_account))
@@ -165,10 +383,10 @@ void update_balance(string const& str_account,
 
             meshpp::public_key pb(account.address);
 
-            accounts.insert(account.address, account);
+            rpc_server.accounts.insert(account.address, account);
         }
 
-        auto& account = accounts.at(str_account);
+        auto& account = rpc_server.accounts.at(str_account);
 
         publiqpp::coin balance(account.balance);
         publiqpp::coin change(update_by);
@@ -185,28 +403,20 @@ void update_balance(string const& str_account,
 void process_transaction(uint64_t block_index,
                          string const& str_account,
                          BlockchainMessage::TransactionLog const& transaction_log,
-                         unordered_set<string> const& set_accounts,
-                         unordered_map<string, TransactionLogLoader>& transactions,
-                         unordered_map<string, LogIndexLoader>& index_transactions,
+                         sync_context& context,
                          LoggingType type)
 {
-    if (set_accounts.count(str_account))
+    if (context.m_pimpl->set_accounts().count(str_account))
     {
-        auto tl_insert_res = transactions.emplace(std::make_pair(str_account,
-                                                                 daemon_rpc::get_transaction_log(str_account)));
-
-        TransactionLogLoader& tlogloader = tl_insert_res.first->second;
+        auto& tlogloader = context.transactions(str_account);
+        auto& idxlogloader = context.index_transactions(str_account);
 
         if (LoggingType::apply == type)
             tlogloader.push_back(transaction_log);
         else
             tlogloader.pop_back();
 
-        auto idx_insert_res = index_transactions.emplace(std::make_pair(str_account,
-                                                                        daemon_rpc::get_transaction_log_index(str_account)));
-
         string str_block_index = std::to_string(block_index);
-        LogIndexLoader& idxlogloader = idx_insert_res.first->second;
 
         if (LoggingType::apply == type)
         {
@@ -254,28 +464,20 @@ void process_transaction(uint64_t block_index,
 void process_reward(uint64_t block_index,
                     string const& str_account,
                     BlockchainMessage::RewardLog const& reward_log,
-                    unordered_set<string> const& set_accounts,
-                    unordered_map<string, RewardLogLoader>& rewards,
-                    unordered_map<string, LogIndexLoader>& index_rewards,
+                    sync_context& context,
                     LoggingType type)
 {
-    if (set_accounts.count(str_account))
+    if (context.m_pimpl->set_accounts().count(str_account))
     {
-        auto rw_insert_res = rewards.emplace(std::make_pair(str_account,
-                                                            daemon_rpc::get_reward_log(str_account)));
-
-        RewardLogLoader& rlogloader = rw_insert_res.first->second;
+        auto& rlogloader = context.rewards(str_account);
+        auto& idxlogloader = context.index_rewards(str_account);
 
         if (LoggingType::apply == type)
             rlogloader.push_back(reward_log);
         else
             rlogloader.pop_back();
 
-        auto idx_insert_res = index_rewards.emplace(std::make_pair(str_account,
-                                                                   daemon_rpc::get_reward_log_index(str_account)));
-
         string str_block_index = std::to_string(block_index);
-        LogIndexLoader& idxlogloader = idx_insert_res.first->second;
 
         if (LoggingType::apply == type)
         {
@@ -321,10 +523,10 @@ void process_reward(uint64_t block_index,
 }
 
 void update_balances(unordered_set<string> const& set_accounts,
-                    rpc& rpc_server,
-                    TransactionLog const& transaction_log,
-                    string  const& authority,
-                    LoggingType type)
+                     rpc& rpc_server,
+                     TransactionLog const& transaction_log,
+                     string  const& authority,
+                     LoggingType type)
 {
     const TransactionInfo transaction_info = TransactionInfo(transaction_log);
 
@@ -336,14 +538,14 @@ void update_balances(unordered_set<string> const& set_accounts,
                 update_balance(transaction_info.from,
                                transaction_info.amount,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::decrease);
 
             if (!transaction_info.to.empty())
                 update_balance(transaction_info.to,
                                transaction_info.amount,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::increase);
         }
 
@@ -353,14 +555,14 @@ void update_balances(unordered_set<string> const& set_accounts,
                 update_balance(transaction_info.from,
                                transaction_info.fee,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::decrease);
 
             if (!authority.empty())
                 update_balance(authority,
                                transaction_info.fee,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::increase);
         }
     }
@@ -372,14 +574,14 @@ void update_balances(unordered_set<string> const& set_accounts,
                 update_balance(transaction_info.from,
                                transaction_info.amount,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::increase);
 
             if (!transaction_info.to.empty())
                 update_balance(transaction_info.to,
                                transaction_info.amount,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::decrease);
         }
 
@@ -389,14 +591,14 @@ void update_balances(unordered_set<string> const& set_accounts,
                 update_balance(transaction_info.from,
                                transaction_info.fee,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::increase);
 
             if (!authority.empty())
                 update_balance(authority,
                                transaction_info.fee,
                                set_accounts,
-                               rpc_server.accounts,
+                               rpc_server,
                                update_balance_type::decrease);
         }
     }
@@ -405,10 +607,8 @@ void update_balances(unordered_set<string> const& set_accounts,
 
 void process_transactions(uint64_t block_index,
                           BlockchainMessage::TransactionLog const& transaction_log,
-                          unordered_set<string> const& set_accounts,
-                          unordered_map<string, TransactionLogLoader>& transactions,
-                          unordered_map<string, LogIndexLoader>& index_transactions,
-                          string  const& authority,
+                          sync_context& context,
+                          string const& authority,
                           LoggingType type)
 {
 
@@ -418,9 +618,7 @@ void process_transactions(uint64_t block_index,
         process_transaction(block_index,
                             transaction_info.from,
                             transaction_log,
-                            set_accounts,
-                            transactions,
-                            index_transactions,
+                            context,
                             type);
 
     if (!authority.empty() &&
@@ -428,9 +626,7 @@ void process_transactions(uint64_t block_index,
         process_transaction(block_index,
                             authority,
                             transaction_log,
-                            set_accounts,
-                            transactions,
-                            index_transactions,
+                            context,
                             type);
 
     if (!transaction_info.to.empty() &&
@@ -439,16 +635,14 @@ void process_transactions(uint64_t block_index,
         process_transaction(block_index,
                             transaction_info.to,
                             transaction_log,
-                            set_accounts,
-                            transactions,
-                            index_transactions,
+                            context,
                             type);
 }
 
 void process_storage_transactions(unordered_set<string> const& set_accounts,
-                                 BlockchainMessage::TransactionLog const& transaction_log,
-                                 rpc& rpc_server,
-                                 LoggingType type)
+                                  BlockchainMessage::TransactionLog const& transaction_log,
+                                  rpc& rpc_server,
+                                  LoggingType type)
 {
     if (StorageUpdate::rtt == transaction_log.action.type())
     {
@@ -806,6 +1000,41 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
     }
 }
 
+TransactionLogLoader daemon_rpc::get_transaction_log(string const& address)
+{
+    return
+    TransactionLogLoader("tx",
+                         meshpp::data_directory_path("accounts_log", address),
+                         1000,
+                         10,
+                         bm_get_putl());
+}
+RewardLogLoader daemon_rpc::get_reward_log(string const& address)
+{
+    return
+    RewardLogLoader("rw",
+                    meshpp::data_directory_path("accounts_log", address),
+                    1000,
+                    10,
+                    bm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_transaction_log_index(string const& address)
+{
+    return
+    LogIndexLoader("index_tx",
+                   meshpp::data_directory_path("accounts_log", address),
+                   1000,
+                   cm_get_putl());
+}
+LogIndexLoader daemon_rpc::get_reward_log_index(string const& address)
+{
+    return
+    LogIndexLoader("index_rw",
+                   meshpp::data_directory_path("accounts_log", address),
+                   1000,
+                   cm_get_putl());
+}
+
 beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::StorageUpdateRequest const& update,
                                                           rpc& rpc_server)
 {
@@ -949,6 +1178,17 @@ beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
     return result;
 }
 
+sync_context daemon_rpc::start_new_import(rpc& rpc_server, string const& account)
+{
+    return sync_context(rpc_server, account);
+}
+
+sync_context daemon_rpc::start_sync(rpc& rpc_server,
+                                    unordered_set<string> const& set_accounts)
+{
+    return sync_context(rpc_server, *this, set_accounts);
+}
+
 beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
                                 rpc& rpc_server)
 {
@@ -1002,100 +1242,25 @@ std::string time_now()
     return str.substr(string("0000-00-00 ").length());
 }
 
-bool daemon_rpc::sync(rpc& rpc_server,
-                      unordered_set<string> const& set_accounts,
-                      bool const new_import,
-                      uint64_t& local_start_index,
-                      uint64_t& local_head_block_index)
+void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 {
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to work");
-
-    bool result = new_import;
-
-    unordered_map<string, TransactionLogLoader> transactions;
-    unordered_map<string, RewardLogLoader> rewards;
-    unordered_map<string, LogIndexLoader> index_transactions;
-    unordered_map<string, LogIndexLoader> index_rewards;
-
-    beltpp::on_failure discard([this,
-                               &rpc_server,
-                               &transactions,
-                               &rewards,
-                               &index_transactions,
-                               &index_rewards
-                               ]()
-    {
-        log_index.discard();
-        rpc_server.head_block_index.discard();
-        rpc_server.accounts.discard();
-        rpc_server.blocks.discard();
-        rpc_server.storages.discard();
-        rpc_server.channels.discard();
-
-        for (auto& tr : transactions)
-            tr.second.discard();
-        for (auto& rw : rewards)
-            rw.second.discard();
-        for (auto& tr : index_transactions)
-            tr.second.discard();
-        for (auto& rw : index_rewards)
-            rw.second.discard();
-    });
-
-    auto start_index = [new_import, this, &local_start_index]()
-    {
-        if (new_import)
-            return local_start_index;
-
-        return log_index.as_const()->value;
-    };
-
-    auto set_start_index = [new_import, this, &local_start_index](uint64_t index)
-    {
-        if (new_import)
-            local_start_index = index;
-        else
-            log_index->value = index;
-    };
-
-    auto head_block_index = [new_import, &rpc_server, &local_head_block_index]()
-    {
-        if (new_import)
-            return local_head_block_index;
-        else
-            return rpc_server.head_block_index->value;
-    };
-
-    auto increment_head_block_index = [new_import, &rpc_server, &local_head_block_index]()
-    {
-        if (new_import)
-            ++local_head_block_index;
-        else
-            ++rpc_server.head_block_index->value;
-    };
-
-    auto decrement_head_block_index = [new_import, &rpc_server, &local_head_block_index]()
-    {
-        if (new_import)
-            --local_head_block_index;
-        else
-            --rpc_server.head_block_index->value;
-    };
 
     while (true)
     {
         size_t const max_count = 10000;
         LoggedTransactionsRequest req;
         req.max_count = max_count;
-        req.start_index = start_index();
+        req.start_index = context.m_pimpl->start_index();
 
         socket.send(peerid, beltpp::packet(req));
 
         size_t count = 0;
-        bool new_import_done = false;
 
+#ifdef LOGGING
         std::cout << std::endl << std::endl << time_now() << "  LoggedTransactionsRequest -> ";
+#endif
 
         while (true)
         {
@@ -1125,10 +1290,10 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                 ++count;
 
                                 bool dont_increment_head_block_index = false;
-                                if (start_index() == 0)
+                                if (context.m_pimpl->start_index() == 0)
                                     dont_increment_head_block_index = true;
 
-                                set_start_index(action_info.index + 1);
+                                context.m_pimpl->start_index() = action_info.index + 1;
 
                                 auto action_type = action_info.action.type();
 
@@ -1137,21 +1302,23 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                     if (action_type == BlockLog::rtt)
                                     {
                                         if (false == dont_increment_head_block_index)
-                                            increment_head_block_index();
+                                            ++context.m_pimpl->head_block_index();
 
                                         BlockLog block_log;
                                         std::move(action_info.action).get(block_log);
 
-                                        uint64_t block_index = head_block_index();
+                                        uint64_t block_index = context.m_pimpl->head_block_index();
 
                                         count += block_log.rewards.size() +
                                                  block_log.transactions.size() +
                                                  block_log.unit_uri_impacts.size() + 
                                                  block_log.applied_sponsor_items.size();
 
+#ifdef LOGGING
                                         std::cout << "+" << std::to_string(block_index) + ", ";
+#endif
 
-                                        if (!new_import)
+                                        if (false == context.m_pimpl->is_new_import())
                                         {
                                             CommanderMessage::BlockInfo block_info;
 
@@ -1167,21 +1334,21 @@ bool daemon_rpc::sync(rpc& rpc_server,
 
                                         for (auto& transaction_log: block_log.transactions)
                                         {
-                                            process_storage_transactions(set_accounts,
-                                                                        transaction_log,
-                                                                        rpc_server,
-                                                                        LoggingType::apply);
+                                            process_storage_transactions(context.m_pimpl->set_accounts(),
+                                                                         transaction_log,
+                                                                         rpc_server,
+                                                                         LoggingType::apply);
 
-                                            process_channel_transactions(set_accounts,
-                                                                        transaction_log,
-                                                                        rpc_server,
-                                                                        LoggingType::apply);
+                                            process_channel_transactions(context.m_pimpl->set_accounts(),
+                                                                         transaction_log,
+                                                                         rpc_server,
+                                                                         LoggingType::apply);
 
                                             process_statistics_transactions(transaction_log,
-                                                                           rpc_server,
-                                                                           LoggingType::apply);
+                                                                            rpc_server,
+                                                                            LoggingType::apply);
 
-                                            update_balances(set_accounts,
+                                            update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
                                                             transaction_log,
                                                             block_log.authority,
@@ -1189,9 +1356,7 @@ bool daemon_rpc::sync(rpc& rpc_server,
 
                                             process_transactions(block_index,
                                                                  transaction_log,
-                                                                 set_accounts,
-                                                                 transactions,
-                                                                 index_transactions,
+                                                                 context,
                                                                  block_log.authority,
                                                                  LoggingType::apply);
                                         }
@@ -1200,37 +1365,35 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                         {
                                             update_balance(reward_info.to,
                                                            reward_info.amount,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
+                                                           context.m_pimpl->set_accounts(),
+                                                           rpc_server,
                                                            update_balance_type::increase);
 
                                             process_reward(block_index,
                                                            reward_info.to,
                                                            reward_info,
-                                                           set_accounts,
-                                                           rewards,
-                                                           index_rewards,
+                                                           context,
                                                            LoggingType::apply);
                                         }
                                     }
                                     else if (action_type == TransactionLog::rtt)
                                     {
-                                        uint64_t block_index = head_block_index() + 1;
+                                        uint64_t block_index = context.m_pimpl->head_block_index() + 1;
 
                                         TransactionLog transaction_log;
                                         std::move(action_info.action).get(transaction_log);
 
-                                        process_storage_transactions(set_accounts,
-                                                                    transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::apply);
+                                        process_storage_transactions(context.m_pimpl->set_accounts(),
+                                                                     transaction_log,
+                                                                     rpc_server,
+                                                                     LoggingType::apply);
 
-                                        process_channel_transactions(set_accounts,
-                                                                    transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::apply);
+                                        process_channel_transactions(context.m_pimpl->set_accounts(),
+                                                                     transaction_log,
+                                                                     rpc_server,
+                                                                     LoggingType::apply);
 
-                                        update_balances(set_accounts,
+                                        update_balances(context.m_pimpl->set_accounts(),
                                                         rpc_server,
                                                         transaction_log,
                                                         string(),
@@ -1238,9 +1401,7 @@ bool daemon_rpc::sync(rpc& rpc_server,
 
                                         process_transactions(block_index,
                                                              transaction_log,
-                                                             set_accounts,
-                                                             transactions,
-                                                             index_transactions,
+                                                             context,
                                                              string(),
                                                              LoggingType::apply);
                                     }
@@ -1249,9 +1410,9 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                 {
                                     if (action_type == BlockLog::rtt)
                                     {
-                                        uint64_t block_index = head_block_index();
+                                        uint64_t block_index = context.m_pimpl->head_block_index();
 
-                                        decrement_head_block_index();
+                                        --context.m_pimpl->head_block_index();
 
                                         BlockLog block_log;
                                         std::move(action_info.action).get(block_log);
@@ -1261,25 +1422,27 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                                  block_log.unit_uri_impacts.size() +
                                                  block_log.applied_sponsor_items.size();
 
+#ifdef LOGGING
                                         std::cout << "-" << std::to_string(block_index) + ", ";
+#endif
 
                                         for (auto log_it = block_log.transactions.crbegin(); log_it != block_log.transactions.crend(); ++log_it)
                                         {
-                                            process_storage_transactions(set_accounts,
-                                                                        *log_it,
-                                                                        rpc_server,
-                                                                        LoggingType::revert);
+                                            process_storage_transactions(context.m_pimpl->set_accounts(),
+                                                                         *log_it,
+                                                                         rpc_server,
+                                                                         LoggingType::revert);
 
-                                            process_channel_transactions(set_accounts,
-                                                                        *log_it,
-                                                                        rpc_server,
-                                                                        LoggingType::revert);
+                                            process_channel_transactions(context.m_pimpl->set_accounts(),
+                                                                         *log_it,
+                                                                         rpc_server,
+                                                                         LoggingType::revert);
 
                                             process_statistics_transactions(*log_it,
-                                                                           rpc_server,
-                                                                           LoggingType::revert);
+                                                                            rpc_server,
+                                                                            LoggingType::revert);
 
-                                            update_balances(set_accounts,
+                                            update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
                                                             *log_it,
                                                             block_log.authority,
@@ -1287,9 +1450,7 @@ bool daemon_rpc::sync(rpc& rpc_server,
 
                                             process_transactions(block_index,
                                                                  *log_it,
-                                                                 set_accounts,
-                                                                 transactions,
-                                                                 index_transactions,
+                                                                 context,
                                                                  block_log.authority,
                                                                  LoggingType::revert);
                                         }
@@ -1298,20 +1459,18 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                         {
                                             update_balance(reward_it->to,
                                                            reward_it->amount,
-                                                           set_accounts,
-                                                           rpc_server.accounts,
+                                                           context.m_pimpl->set_accounts(),
+                                                           rpc_server,
                                                            update_balance_type::decrease);
 
                                             process_reward(block_index,
                                                            reward_it->to,
                                                            *reward_it,
-                                                           set_accounts,
-                                                           rewards,
-                                                           index_rewards,
+                                                           context,
                                                            LoggingType::revert);
                                         }
 
-                                        if (!new_import)
+                                        if (false == context.m_pimpl->is_new_import())
                                         {
                                             rpc_server.blocks.pop_back();
                                         }
@@ -1321,19 +1480,19 @@ bool daemon_rpc::sync(rpc& rpc_server,
                                         TransactionLog transaction_log;
                                         std::move(action_info.action).get(transaction_log);
 
-                                        uint64_t block_index = head_block_index() + 1;
+                                        uint64_t block_index = context.m_pimpl->head_block_index() + 1;
 
-                                        process_storage_transactions(set_accounts,
-                                                                    transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::revert);
+                                        process_storage_transactions(context.m_pimpl->set_accounts(),
+                                                                     transaction_log,
+                                                                     rpc_server,
+                                                                     LoggingType::revert);
 
-                                        process_channel_transactions(set_accounts,
-                                                                    transaction_log,
-                                                                    rpc_server,
-                                                                    LoggingType::revert);
+                                        process_channel_transactions(context.m_pimpl->set_accounts(),
+                                                                     transaction_log,
+                                                                     rpc_server,
+                                                                     LoggingType::revert);
 
-                                        update_balances(set_accounts,
+                                        update_balances(context.m_pimpl->set_accounts(),
                                                         rpc_server,
                                                         transaction_log,
                                                         string(),
@@ -1341,26 +1500,12 @@ bool daemon_rpc::sync(rpc& rpc_server,
 
                                         process_transactions(block_index,
                                                              transaction_log,
-                                                             set_accounts,
-                                                             transactions,
-                                                             index_transactions,
+                                                             context,
                                                              string(),
                                                              LoggingType::revert);
                                     }
                                 }
-                            }// for (auto& action_info : msg.actions)
-
-                            if (new_import)
-                            {
-                                if(msg.actions.size() == 0)
-                                    new_import_done = true;
-
-                                if (local_start_index == log_index.as_const()->value)
-                                {
-                                    result = false;
-                                    new_import_done = true;
-                                }
-                            }
+                            }//  for (auto& action_info : msg.actions)
 
                             break;  //  breaks switch case
                         }
@@ -1369,48 +1514,12 @@ bool daemon_rpc::sync(rpc& rpc_server,
                     }
                 }//for (auto& received_packet : received_packets)
 
-                if (!received_packets.empty())
-                    break;  //  breaks while() that calls receive()
+                if (false == received_packets.empty())
+                    break;  //  breaks while() that calls receive(), may send another request
             }
-        } // wait while
+        }//  while (true) and call eh.wait(wait_sockets)
 
-        if ( new_import_done || (!new_import && count < max_count))
-            break;
-    } // send whilw
-
-    rpc_server.head_block_index.save();
-    rpc_server.accounts.save();
-    rpc_server.blocks.save();
-    rpc_server.storages.save();
-    rpc_server.channels.save();
-    log_index.save();
-
-    for (auto& tr : transactions)
-        tr.second.save();
-    for (auto& rw : rewards)
-        rw.second.save();
-    for (auto& tr : index_transactions)
-        tr.second.save();
-    for (auto& rw : index_rewards)
-        rw.second.save();
-
-    discard.dismiss();
-
-    rpc_server.head_block_index.commit();
-    rpc_server.accounts.commit();
-    rpc_server.blocks.commit();
-    rpc_server.storages.commit();
-    rpc_server.channels.commit();
-    log_index.commit();
-
-    for (auto& tr : transactions)
-        tr.second.commit();
-    for (auto& rw : rewards)
-        rw.second.save();
-    for (auto& tr : index_transactions)
-        tr.second.commit();
-    for (auto& rw : index_rewards)
-        rw.second.commit();
-
-    return result;
+        if (count < max_count)
+            break; //   will not send any more requests
+    }//  while (true) and socket.send(peerid, beltpp::packet(req));
 }
