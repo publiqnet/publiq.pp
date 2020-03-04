@@ -7,6 +7,8 @@
 #include <stack>
 
 using std::stack;
+using std::vector;
+using std::unordered_set;
 
 namespace publiqpp
 {
@@ -184,68 +186,147 @@ void verify_signature(Signature const& msg,
     sk.send(peerid, beltpp::packet(Done()));
 }
 
-void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
-                       beltpp::isocket::peer_id const& self,
-                       beltpp::isocket::peer_id const& from,
-                       bool full_broadcast,
-                       beltpp::ilog* plog,
-                       std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
-                       beltpp::isocket* psk)
+struct Kbucket_slot
 {
-    auto str_compare = [](string const& first, string const& second)
+    Kbucket_slot(string const& origin, unordered_set<beltpp::isocket::peer_id> const& all_peers)
     {
-        auto res = first.compare(second);
-        if (res > 0)
-            res = 1;
-        if (res < 0)
-            res = -1;
-        return res;
-    };
+        for (auto i = 0; i < bucket_length; ++i)
+            slots.push_back(unordered_set<string>());
 
-    int direction = 0;
-    if (false == full_broadcast)
-    {
-        direction = str_compare(self, from);
-        if (plog)
-            plog->message(self.substr(0, 8) + ", " + from.substr(0, 8) + ": " + std::to_string(direction));
-
-        if (0 == direction)
-            return;
+        B_UNUSED(origin);
+        B_UNUSED(all_peers);
+        //TODO fill slots with meaningfull peers
     }
 
+    void filter_peers(string const& me, bool updown, unordered_set<string>& peers)
+    {
+        peers.clear();
+
+        auto max_count = 10; // max peers to broadcast
+        auto equal_count = max_count / 2;
+
+        auto index = 0;
+        for (; index < bucket_length; ++index)
+            if (slots[index].find(me) != slots[index].end())
+                break;
+
+        if (updown) // broadcast to all
+        {
+            while (index < bucket_length)
+            {
+                auto it = slots[index].cbegin();
+                while (it != slots[index].cend() && peers.size() < equal_count)
+                {
+                    peers.insert(*it);
+                    ++it;
+                }
+
+                ++index;
+                if (peers.size() == equal_count)
+                    break;
+            }
+
+            while (index < bucket_length)
+            {
+                auto it = slots[index].cbegin();
+                while (it != slots[index].cend() && peers.size() < equal_count)
+                {
+                    peers.insert(*it);
+                    ++it;
+                }
+
+                ++index;
+                if (peers.size() == max_count)
+                    break;
+            }
+        }
+        else // send message to address
+        {
+            while (index > 0)
+            {
+                auto it = slots[index].cbegin();
+                while (it != slots[index].cend() && peers.size() < equal_count)
+                {
+                    peers.insert(*it);
+                    ++it;
+                }
+
+                --index;
+                if (peers.size() == equal_count)
+                    break;
+            }
+
+            while (index > 0)
+            {
+                auto it = slots[index].cbegin();
+                while (it != slots[index].cend() && peers.size() < equal_count)
+                {
+                    peers.insert(*it);
+                    ++it;
+                }
+
+                --index;
+                if (peers.size() == max_count)
+                    break;
+            }
+        }
+    }
+
+    const uint64_t bucket_length = 20;
+    vector<unordered_set<string>> slots;
+};
+
+void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
+                       beltpp::isocket::peer_id const& self,
+                       //beltpp::isocket::peer_id const& from,
+                       bool full_broadcast,
+                       beltpp::ilog* plog,
+                       unordered_set<beltpp::isocket::peer_id> const& all_peers,
+                       beltpp::isocket* psk)
+{
+    auto const& originator = broadcast.originator;
+    auto const& destination = broadcast.destination;
     bool chance_to_reflect = beltpp::chance_one_of(10);
+
+    if (self == destination)
+        return;
+
+    if (broadcast.echoes > 2)
+        broadcast.echoes = 2;
+
+    unordered_set<string> filtered_peers;
 
     if (full_broadcast)
     {
         if (plog)
             plog->message("will broadcast to all");
+
         broadcast.echoes = 2;
+        filtered_peers = all_peers;
     }
+    else
+    {
+        if (destination.empty())
+            Kbucket_slot(originator, all_peers).filter_peers(self, false, filtered_peers);
+        else
+            Kbucket_slot(destination, all_peers).filter_peers(self, true, filtered_peers);
+    }
+
     if (chance_to_reflect)
     {
         if (plog)
             plog->message("can reflect, 1 chance out of 10");
+
         if (broadcast.echoes == 0)
         {
             if (plog)
                 plog->message("    oh no! reflections are expired");
+
             chance_to_reflect = false;
         }
     }
-    if (broadcast.echoes > 2)
-        broadcast.echoes = 2;
 
-    auto filtered_peers = all_peers;
-    for (auto const& peer : all_peers)
-    {
-        auto direction2 = str_compare(self, peer);
-        if (false == full_broadcast &&
-            direction == direction2)
-            filtered_peers.erase(peer);
-    }
-
-    if (filtered_peers.empty() &&
-        chance_to_reflect)
+    if (filtered_peers.empty() && chance_to_reflect)
     {
         if (plog)
             plog->message("since all peers would be skipped by reflection, "

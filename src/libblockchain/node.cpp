@@ -273,7 +273,7 @@ void node::run(bool& stop_check)
                     {
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
+                                          //peerid,
                                           it == detail::wait_result_item::interface_type::rpc,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
@@ -377,7 +377,7 @@ void node::run(bool& stop_check)
 
                             broadcast_message(std::move(broadcast),
                                               m_pimpl->m_ptr_p2p_socket->name(),
-                                              peerid,
+                                              //peerid,
                                               true,
                                               nullptr,
                                               broadcast_peers,
@@ -624,7 +624,7 @@ void node::run(bool& stop_check)
 
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
+                                          //peerid,
                                           it == detail::wait_result_item::interface_type::rpc,
                                           //m_pimpl->plogger_node,
                                           nullptr,
@@ -964,7 +964,7 @@ void node::run(bool& stop_check)
 
                     broadcast_message(std::move(broadcast),
                                       m_pimpl->m_ptr_p2p_socket->name(),
-                                      m_pimpl->m_ptr_p2p_socket->name(),
+                                      //m_pimpl->m_ptr_p2p_socket->name(),
                                       true, // like from rpc
                                       nullptr, // no logger
                                       m_pimpl->m_p2p_peers,

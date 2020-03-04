@@ -1287,7 +1287,7 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
 
         broadcast_message(std::move(broadcast),
                           m_pimpl->m_ptr_p2p_socket->name(),
-                          m_pimpl->m_ptr_p2p_socket->name(),
+                          //m_pimpl->m_ptr_p2p_socket->name(),
                           true, // broadcast to all peers
                           nullptr, // log disabled
                           m_pimpl->m_p2p_peers,
@@ -1327,12 +1327,12 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     broadcast.package = signed_transaction;
 
     broadcast_message(std::move(broadcast),
-        m_pimpl->m_ptr_p2p_socket->name(),
-        m_pimpl->m_ptr_p2p_socket->name(),
-        true, // broadcast to all peers
-        nullptr, // log disabled
-        m_pimpl->m_p2p_peers,
-        m_pimpl->m_ptr_p2p_socket.get());
+                      m_pimpl->m_ptr_p2p_socket->name(),
+                      //m_pimpl->m_ptr_p2p_socket->name(),
+                      true, // broadcast to all peers
+                      nullptr, // log disabled
+                      m_pimpl->m_p2p_peers,
+                      m_pimpl->m_ptr_p2p_socket.get());
 }
 
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
@@ -1465,12 +1465,12 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
         broadcast.package = signed_transaction;
 
         broadcast_message(std::move(broadcast),
-            impl.m_ptr_p2p_socket->name(),
-            impl.m_ptr_p2p_socket->name(),
-            true, // broadcast to all peers
-            nullptr, // log disabled
-            impl.m_p2p_peers,
-            impl.m_ptr_p2p_socket.get());
+                          impl.m_ptr_p2p_socket->name(),
+                          //impl.m_ptr_p2p_socket->name(),
+                          true, // broadcast to all peers
+                          nullptr, // log disabled
+                          impl.m_p2p_peers,
+                          impl.m_ptr_p2p_socket.get());
     }
 }
 
@@ -1505,12 +1505,12 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
         broadcast.package = signed_transaction;
 
         broadcast_message(std::move(broadcast),
-            impl.m_ptr_p2p_socket->name(),
-            impl.m_ptr_p2p_socket->name(),
-            true, // broadcast to all peers
-            nullptr, // log disabled
-            impl.m_p2p_peers,
-            impl.m_ptr_p2p_socket.get());
+                          impl.m_ptr_p2p_socket->name(),
+                          //impl.m_ptr_p2p_socket->name(),
+                          true, // broadcast to all peers
+                          nullptr, // log disabled
+                          impl.m_p2p_peers,
+                          impl.m_ptr_p2p_socket.get());
     }
 }
 
