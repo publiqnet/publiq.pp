@@ -12,6 +12,8 @@ module BlockchainMessage
     {
         UInt64 echoes
         Object package
+        String originator
+        String destination
     }
 
     ///
@@ -22,7 +24,7 @@ module BlockchainMessage
         TimePoint creation
         TimePoint expiry
         Coin fee
-        Object action  //  Transfer, File
+        Object action
     }
 
     class Authority
@@ -30,6 +32,7 @@ module BlockchainMessage
         String address
         String signature
     }
+
     class SignedTransaction
     {
         Transaction transaction_details
@@ -184,12 +187,7 @@ module BlockchainMessage
         NodeType node_type
     }
 
-    class AddressInfo
-    {
-        String node_address
-        IPAddress ip_address
-        IPAddress ssl_ip_address
-    }
+    class TransactionReserve16{}
 
     class StorageUpdate
     {
@@ -229,7 +227,6 @@ module BlockchainMessage
         UInt64 hours
         Coin amount
     }
-
     class CancelSponsorContentUnit
     {
         String sponsor_address
@@ -330,6 +327,7 @@ module BlockchainMessage
         Transaction transaction_details
         String private_key
     }
+
     class TransactionDone
     {
         String transaction_hash
@@ -502,6 +500,15 @@ module BlockchainMessage
         String uri
         String mime_type
         UInt64 size
+    }
+
+    //  broadcast messages
+
+    class AddressInfo
+    {
+        String node_address
+        IPAddress ip_address
+        IPAddress ssl_ip_address
     }
 
     class StorageUpdateCommand
