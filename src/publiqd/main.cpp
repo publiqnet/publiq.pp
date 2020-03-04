@@ -56,6 +56,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
+                          bool& discovery_server,
                           bool& revert_blocks);
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
@@ -206,6 +207,7 @@ int main(int argc, char** argv)
     bool log_enabled;
     bool testnet;
     bool resync;
+    bool discovery_server;
     bool revert_blocks;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
@@ -225,6 +227,7 @@ int main(int argc, char** argv)
                                       log_enabled,
                                       testnet,
                                       resync,
+                                      discovery_server,
                                       revert_blocks))
         return 1;
 
@@ -318,6 +321,7 @@ int main(int argc, char** argv)
                             false,
                             testnet,
                             resync,
+                            discovery_server,
                             revert_blocks,
                             mine_amount_threshhold(),
                             block_reward_array(),
@@ -451,6 +455,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
+                          bool& discovery_server,
                           bool& revert_blocks)
 {
     string p2p_local_interface;
@@ -491,6 +496,7 @@ bool process_command_line(int argc, char** argv,
                             "limit the blockchain")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
+            ("discovery_server", "discovery server")
             ("revert_blocks", "revert blocks");
         (void)(desc_init);
 
@@ -508,6 +514,7 @@ bool process_command_line(int argc, char** argv,
         }
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
+        discovery_server = options.count("discovery_server");
         revert_blocks = options.count("revert_blocks");
 
         p2p_bind_to_address.from_string(p2p_local_interface);

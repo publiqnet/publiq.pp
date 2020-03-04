@@ -427,6 +427,7 @@ public:
                    bool transfer_only,
                    bool testnet,
                    bool resync,
+                   bool discovery_server,
                    bool revert_blocks,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
@@ -441,7 +442,8 @@ public:
                                                     p2p_connect_to_addresses,
                                                     get_putl(),
                                                     _plogger_p2p,
-                                                    pv_key)
+                                                    pv_key,
+                                                    discovery_server)
         ))
         , m_ptr_rpc_socket(new beltpp::socket(
                                beltpp::getsocket<rpc_sf>(*m_ptr_eh)
