@@ -266,6 +266,32 @@ beltpp::detail::pmsg_all message_list_load(
                                               &BlockchainMessage::PublicAddressesRequest::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 2 &&
+                 ss.resource.path.front() == "message")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::BlackBox>();
+            BlockchainMessage::BlackBox& ref = *reinterpret_cast<BlockchainMessage::BlackBox*>(p.get());
+
+            ref.from = ss.resource.arguments["from"];
+            ref.to = ss.resource.arguments["to"];
+            //TODO message length checking
+            ref.message = ss.resource.arguments["message"];
+
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::BlackBox::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::BlackBox::pvoid_saver);
+        }
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "box")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::BlackBoxRequest>();
+
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::BlackBoxRequest::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::BlackBoxRequest::pvoid_saver);
+        }
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
                  ss.resource.path.front() == "protocol")
         {

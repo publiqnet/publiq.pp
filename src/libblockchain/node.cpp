@@ -59,6 +59,7 @@ node::node(string const& genesis_signed_block,
            filesystem::path const& fs_documents,
            filesystem::path const& fs_storages,
            filesystem::path const& fs_storage,
+           filesystem::path const& fs_black_box,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
@@ -87,13 +88,14 @@ node::node(string const& genesis_signed_block,
                                          fs_documents,
                                          fs_storages,
                                          fs_storage,
+                                         fs_black_box,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
                                          n_type,
                                          fractions,
                                          freeze_before_block,
-                                        revert_blocks_count,
+                                         revert_blocks_count,
                                          manager_address,
                                          log_enabled,
                                          transfer_only,
@@ -634,6 +636,16 @@ void node::run(bool& stop_check)
 
                     psk->send(peerid, beltpp::packet(std::move(transaction_done)));
 
+                    break;
+                }
+                case BlackBox::rtt:
+                {
+                    //TODO
+                    break;
+                }
+                case BlackBoxRequest::rtt:
+                {
+                    //TODO
                     break;
                 }
                 case Ping::rtt:

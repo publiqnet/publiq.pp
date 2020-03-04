@@ -11,6 +11,7 @@
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
+#include "black_box.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -417,6 +418,7 @@ public:
                    filesystem::path const& fs_documents,
                    filesystem::path const& fs_storages,
                    filesystem::path const& fs_storage,
+                   filesystem::path const& fs_black_box,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
@@ -463,6 +465,7 @@ public:
         , m_state(fs_state, *this)
         , m_documents(fs_documents, fs_storages)
         , m_storage_controller(fs_storage)
+        , m_black_box(fs_black_box)
         , all_sync_info(*this)
         , m_node_type(n_type)
         , m_fee_transactions(std::move(coin_from_fractions(fractions)))
@@ -547,6 +550,7 @@ public:
         m_blockchain.save();
         m_action_log.save();
         m_transaction_pool.save();
+        m_black_box.save();
 
         guard.dismiss();
 
@@ -555,6 +559,7 @@ public:
         m_blockchain.commit();
         m_action_log.commit();
         m_transaction_pool.commit();
+        m_black_box.commit();
     }
 
     void discard()
@@ -564,6 +569,7 @@ public:
         m_blockchain.discard();
         m_action_log.discard();
         m_transaction_pool.discard();
+        m_black_box.discard();
     }
 
     void clean_transaction_cache()
@@ -663,6 +669,7 @@ public:
     publiqpp::state m_state;
     publiqpp::documents m_documents;
     publiqpp::storage_controller m_storage_controller;
+    publiqpp::black_box m_black_box;
 
     node_synchronization all_sync_info;
     detail::service_counter service_counter;
