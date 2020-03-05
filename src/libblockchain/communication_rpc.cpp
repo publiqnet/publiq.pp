@@ -186,20 +186,31 @@ void verify_signature(Signature const& msg,
     sk.send(peerid, beltpp::packet(Done()));
 }
 
-struct Kbucket_slot
+void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
+                       beltpp::isocket::peer_id const& self,
+                       //beltpp::isocket::peer_id const& from,
+                       bool full_broadcast,
+                       beltpp::ilog* plog,
+                       unordered_set<beltpp::isocket::peer_id> const& all_peers,
+                       beltpp::isocket* psk)
 {
-    Kbucket_slot(string const& origin, unordered_set<beltpp::isocket::peer_id> const& all_peers)
+    auto const& originator = broadcast.originator;
+    auto const& destination = broadcast.destination;
+    bool chance_to_reflect = beltpp::chance_one_of(10);
+
+    if (self == destination)
+        return;
+
+    auto filter_peers = [&self, &all_peers](const string& origin, bool updown, unordered_set<string>& peers)
     {
+        const uint64_t bucket_length = 20;
+        vector<unordered_set<string>> slots;
+
         for (auto i = 0; i < bucket_length; ++i)
             slots.push_back(unordered_set<string>());
 
-        B_UNUSED(origin);
-        B_UNUSED(all_peers);
         //TODO fill slots with meaningfull peers
-    }
 
-    void filter_peers(string const& me, bool updown, unordered_set<string>& peers)
-    {
         peers.clear();
 
         auto max_count = 10; // max peers to broadcast
@@ -207,7 +218,7 @@ struct Kbucket_slot
 
         auto index = 0;
         for (; index < bucket_length; ++index)
-            if (slots[index].find(me) != slots[index].end())
+            if (slots[index].find(self) != slots[index].end())
                 break;
 
         if (updown) // broadcast to all
@@ -270,26 +281,7 @@ struct Kbucket_slot
                     break;
             }
         }
-    }
-
-    const uint64_t bucket_length = 20;
-    vector<unordered_set<string>> slots;
-};
-
-void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
-                       beltpp::isocket::peer_id const& self,
-                       //beltpp::isocket::peer_id const& from,
-                       bool full_broadcast,
-                       beltpp::ilog* plog,
-                       unordered_set<beltpp::isocket::peer_id> const& all_peers,
-                       beltpp::isocket* psk)
-{
-    auto const& originator = broadcast.originator;
-    auto const& destination = broadcast.destination;
-    bool chance_to_reflect = beltpp::chance_one_of(10);
-
-    if (self == destination)
-        return;
+    };
 
     if (broadcast.echoes > 2)
         broadcast.echoes = 2;
@@ -307,9 +299,9 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
     else
     {
         if (destination.empty())
-            Kbucket_slot(originator, all_peers).filter_peers(self, false, filtered_peers);
+            filter_peers(originator, false, filtered_peers);
         else
-            Kbucket_slot(destination, all_peers).filter_peers(self, true, filtered_peers);
+            filter_peers(destination, true, filtered_peers);
     }
 
     if (chance_to_reflect)
