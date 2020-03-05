@@ -233,7 +233,7 @@ int main(int argc, char** argv)
                                       log_enabled,
                                       testnet,
                                       resync,
-                                      enable_black_box
+                                      enable_black_box,
                                       discovery_server))
         return 1;
 
@@ -469,7 +469,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
-                          bool& enable_black_box
+                          bool& enable_black_box,
                           bool& discovery_server)
 {
     string p2p_local_interface;
