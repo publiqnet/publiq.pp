@@ -203,19 +203,12 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
 
     auto filter_peers = [&self, &all_peers](const string& origin, bool updown, unordered_set<string>& peers)
     {
-        const uint64_t bucket_length = 20;
-        vector<unordered_set<string>> slots;
-
-        for (auto i = 0; i < bucket_length; ++i)
-            slots.push_back(unordered_set<string>());
-
-        B_UNUSED(origin);
-        //TODO fill slots with meaningfull peers
-
         peers.clear();
-
-        auto max_count = 10; // max peers to broadcast
+        auto max_count = 10;
         auto equal_count = max_count / 2;
+
+        const uint64_t bucket_length = 20;
+        vector<unordered_set<string>> slots = meshpp::peers_distance(origin, peers);
 
         auto index = 0;
         for (; index < bucket_length; ++index)
