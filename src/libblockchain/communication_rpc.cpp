@@ -209,6 +209,7 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
         for (auto i = 0; i < bucket_length; ++i)
             slots.push_back(unordered_set<string>());
 
+        B_UNUSED(origin);
         //TODO fill slots with meaningfull peers
 
         peers.clear();
