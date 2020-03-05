@@ -289,7 +289,12 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
 
     unordered_set<string> filtered_peers;
 
-    if (full_broadcast)
+    if (!destination.empty() && all_peers.count(destination) == 1)
+    {
+        chance_to_reflect = false;
+        filtered_peers.insert(destination);
+    }
+    else if (full_broadcast)
     {
         if (plog)
             plog->message("will broadcast to all");
