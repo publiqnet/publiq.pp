@@ -26,7 +26,7 @@ public:
 
     size_t length() const;
     void insert(BlockchainMessage::HoldedBox const& holded_box);
-    void at(size_t number, BlockchainMessage::HoldedBox& holded_box) const;
+    BlockchainMessage::HoldedBox const& at(size_t number) const;
 
 private:
     std::unique_ptr<detail::black_box_internals> m_pimpl;

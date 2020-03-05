@@ -2,7 +2,6 @@
 #include "common.hpp"
 
 #include <belt.pp/utility.hpp>
-
 #include <mesh.pp/fileutility.hpp>
 
 using namespace BlockchainMessage;
@@ -69,8 +68,9 @@ void black_box::insert(BlockchainMessage::HoldedBox const& holded_box)
     m_pimpl->m_black_box.push_back(holded_box);
 }
 
-void black_box::at(size_t number, BlockchainMessage::HoldedBox& holded_box) const
+BlockchainMessage::HoldedBox const& black_box::at(size_t number) const
 {
-    holded_box = m_pimpl->m_black_box.as_const().at(number);
+     return m_pimpl->m_black_box.as_const().at(number);
 }
+
 }

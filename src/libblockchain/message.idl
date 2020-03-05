@@ -519,12 +519,6 @@ module BlockchainMessage
         String message
     }
 
-    class SignedBlackBox
-    {
-        BlackBox black_box_details
-        Authority authorization
-    }
-
     class BlackBoxRequest
     {
     }
