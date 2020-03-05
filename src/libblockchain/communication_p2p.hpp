@@ -21,6 +21,12 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
                             BlockchainMessage::StorageUpdateCommand const& update_command,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
+bool process_black_box(BlockchainMessage::SignedBlackBox const& signed_black_box,
+                       std::unique_ptr<publiqpp::detail::node_internals>& pimpl);
+
+void save_black_box(BlackBox const& black_box,
+                    std::unique_ptr<publiqpp::detail::node_internals>& pimpl);
+
 void broadcast_service_statistics(publiqpp::detail::node_internals& impl);
 
 void broadcast_storage_update(publiqpp::detail::node_internals& impl,

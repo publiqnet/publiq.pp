@@ -519,13 +519,30 @@ module BlockchainMessage
         String message
     }
 
+    class SignedBlackBox
+    {
+        BlackBox black_box_details
+        Authority authorization
+    }
+
     class BlackBoxRequest
     {
     }
 
+    class HoldedBox
+    {
+        String from
+        String message
+    }
+
     class BlackBoxResponse
     {
-        Array BlackBox black_boxes
+        Array HoldedBox holded_boxes
+    }
+
+    class BlackBoxBroadcastRequest
+    {
+        BlackBox broadcast_black_box
     }
 
     class GenericModelReserve1 {}

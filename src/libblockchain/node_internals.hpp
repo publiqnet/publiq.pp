@@ -550,7 +550,6 @@ public:
         m_blockchain.save();
         m_action_log.save();
         m_transaction_pool.save();
-        m_black_box.save();
 
         guard.dismiss();
 
@@ -559,7 +558,6 @@ public:
         m_blockchain.commit();
         m_action_log.commit();
         m_transaction_pool.commit();
-        m_black_box.commit();
     }
 
     void discard()
@@ -569,7 +567,6 @@ public:
         m_blockchain.discard();
         m_action_log.discard();
         m_transaction_pool.discard();
-        m_black_box.discard();
     }
 
     void clean_transaction_cache()

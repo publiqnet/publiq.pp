@@ -5,8 +5,6 @@
 
 #include <boost/filesystem/path.hpp>
 
-#include <vector>
-
 namespace publiqpp
 {
 
@@ -25,6 +23,10 @@ public:
     void commit() noexcept;
     void discard() noexcept;
     void clear();
+
+    size_t length() const;
+    void insert(BlockchainMessage::HoldedBox const& holded_box);
+    void at(size_t number, BlockchainMessage::HoldedBox& holded_box) const;
 
 private:
     std::unique_ptr<detail::black_box_internals> m_pimpl;

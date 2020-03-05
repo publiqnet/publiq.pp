@@ -640,12 +640,133 @@ void node::run(bool& stop_check)
                 }
                 case BlackBox::rtt:
                 {
-                    //TODO
+                    if (it != detail::wait_result_item::interface_type::p2p)
+                        throw wrong_request_exception("BlackBox received through rpc!");
+
+                    if (broadcast_signed_transaction.items.empty())
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedBlackBox* p_signed_bb = nullptr;
+                    BlackBox* p_black_box = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_bb);
+                    ref_packet.get(p_black_box);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_black_box);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedBlackBox& signed_black_box = *p_signed_bb;
+                    BlackBox& black_box = *p_black_box;
+
+//                    signed_transaction_validate(signed_transaction,
+//                                                std::chrono::system_clock::now(),
+//                                                std::chrono::seconds(NODES_TIME_SHIFT),
+//                                                *m_pimpl.get());
+
+                    if (process_black_box(signed_black_box, m_pimpl))
+                    {
+                        if (black_box.to == m_pimpl->m_pb_key.to_string())
+                        {
+                            // message is addressed to me
+                            save_black_box(black_box, m_pimpl);
+                        }
+                        else
+                        {
+                            // rebroadcast message direct peer or to all
+                            std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
+
+                            if (0 == m_pimpl->m_p2p_peers.count(black_box.to))
+                                broadcast_peers = m_pimpl->m_p2p_peers;
+                            else
+                                broadcast_peers.insert(black_box.to);
+
+                            broadcast_message(std::move(broadcast),
+                                              m_pimpl->m_ptr_p2p_socket->name(),
+                                              peerid,
+                                              true,
+                                              nullptr,
+                                              broadcast_peers,
+                                              m_pimpl->m_ptr_p2p_socket.get());
+                        }
+                    }
+
+                    //psk->send(peerid, beltpp::packet(std::move(signed_transaction)));
+
+                    break;
+                }
+                case BlackBoxBroadcastRequest::rtt:
+                {
+                    if (it != detail::wait_result_item::interface_type::rpc)
+                        throw wrong_request_exception("BlackBoxBroadcastRequest received through p2p!");
+
+                    BlackBoxBroadcastRequest black_box_boadcast_request;
+                    std::move(ref_packet).get(black_box_boadcast_request);
+
+                    Authority authorization;
+                    meshpp::private_key pv(m_pimpl->m_pb_key.to_string());
+                    authorization.address = pv.get_public_key().to_string();
+                    authorization.signature = pv.sign(black_box_boadcast_request.broadcast_black_box.message).base58;
+
+                    BlockchainMessage::SignedBlackBox signed_black_box;
+                    signed_black_box.black_box_details = black_box_boadcast_request.broadcast_black_box;
+                    signed_black_box.authorization = authorization;
+
+                    TransactionDone transaction_done;
+                    transaction_done.transaction_hash = meshpp::hash(signed_black_box.to_string());
+
+//                    signed_transaction_validate(signed_black_box,
+//                                                std::chrono::system_clock::now(),
+//                                                std::chrono::seconds(NODES_TIME_SHIFT),
+//                                                *m_pimpl.get()); ??
+
+                    if (process_black_box(signed_black_box, m_pimpl))
+                    {
+                        BlockchainMessage::Broadcast broadcast;
+                        broadcast.echoes = 2;
+                        broadcast.package = std::move(signed_black_box);
+
+                        broadcast_message(std::move(broadcast),
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          peerid,
+                                          it == detail::wait_result_item::interface_type::rpc,
+                                          //m_pimpl->plogger_node,
+                                          nullptr,
+                                          m_pimpl->m_p2p_peers,
+                                          m_pimpl->m_ptr_p2p_socket.get());
+                    }
+
+                    psk->send(peerid, beltpp::packet(std::move(transaction_done)));
+
                     break;
                 }
                 case BlackBoxRequest::rtt:
                 {
-                    //TODO
+                    BlackBoxResponse response;
+                    HoldedBox box;
+
+                    for (size_t it = 0; it != m_pimpl->m_black_box.length(); ++it)
+                    {
+                        m_pimpl->m_black_box.at(it, box);
+                        response.holded_boxes.push_back(box);
+                    }
+
+                    beltpp::on_failure guard([this]
+                    {
+                        m_pimpl->m_black_box.discard();
+                    });
+
+                    m_pimpl->m_black_box.clear();
+
+                    guard.dismiss();
+
+                    m_pimpl->m_black_box.commit();
+
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+
                     break;
                 }
                 case Ping::rtt:

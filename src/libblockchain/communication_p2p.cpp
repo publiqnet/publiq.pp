@@ -1428,6 +1428,68 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     return true;
 }
 
+bool process_black_box(BlockchainMessage::SignedBlackBox const& signed_black_box,
+                        std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
+{
+    //verify sig ?
+
+    if (signed_black_box.black_box_details.message.size() > 4 * 1024 * 1024)
+        throw too_long_string_exception(signed_black_box.black_box_details.message, 4 * 1024 * 1024);
+
+    if (signed_black_box.black_box_details.from.empty())
+        throw wrong_data_exception("black_box.from.empty()");
+
+    if (signed_black_box.black_box_details.to.empty())
+        throw wrong_data_exception("black_box.to.empty()");
+
+    if (signed_black_box.authorization.address != signed_black_box.black_box_details.from)
+        throw authority_exception(signed_black_box.authorization.address, signed_black_box.black_box_details.from);
+
+    if (signed_black_box.black_box_details.to == signed_black_box.black_box_details.from)
+        throw wrong_data_exception("self message");
+
+    // Check cache
+//    if (pimpl->m_transaction_cache.contains(signed_black_box)) //?
+//        return false;
+
+//    pimpl->m_transaction_cache.backup();
+
+//    beltpp::on_failure guard([&pimpl]
+//    {
+//        //pimpl->discard(); // not working with other state
+//        pimpl->m_transaction_cache.restore();
+//    });
+
+//    //  this is not added to pool, because we don't store it in blockchain
+//    //  pimpl->m_transaction_pool.push_back(signed_transaction);
+//    pimpl->m_transaction_cache.add_pool(signed_black_box, true); //?
+
+//    guard.dismiss();
+
+    return true;
+}
+
+void save_black_box(BlackBox const& black_box,
+                    std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
+{
+    HoldedBox holded_box;
+    holded_box.from = black_box.from;
+    holded_box.message = black_box.message;
+
+    pimpl->m_black_box.insert(holded_box);
+
+    beltpp::on_failure guard([&pimpl]
+    {
+        pimpl->m_black_box.discard();
+    });
+
+    pimpl->m_black_box.save();
+
+    guard.dismiss();
+
+    pimpl->m_black_box.commit();
+}
+
 void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
 {
     if (impl.m_node_type == NodeType::blockchain)

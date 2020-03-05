@@ -57,7 +57,8 @@ bool process_command_line(int argc, char** argv,
                           string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
-                          bool& resync
+                          bool& resync,
+                          bool& enable_black_box
                           );
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
@@ -210,6 +211,7 @@ int main(int argc, char** argv)
     bool log_enabled;
     bool testnet;
     bool resync;
+    bool enable_black_box;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
 
@@ -229,7 +231,8 @@ int main(int argc, char** argv)
                                       manager_address,  
                                       log_enabled,
                                       testnet,
-                                      resync))
+                                      resync,
+                                      enable_black_box))
         return 1;
 
     if (testnet)
@@ -278,7 +281,6 @@ int main(int argc, char** argv)
         auto fs_log = meshpp::data_directory_path("log");
         auto fs_documents = meshpp::data_directory_path("documents");
         auto fs_storages = meshpp::data_directory_path("storages");
-        auto fs_black_box = meshpp::data_directory_path("black_box");
 
         cout << "p2p local address: " << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
@@ -299,6 +301,10 @@ int main(int argc, char** argv)
         boost::filesystem::path fs_storage;
         if (n_type == NodeType::storage)
             fs_storage = meshpp::data_directory_path("storage");
+
+        boost::filesystem::path fs_black_box;
+        if (enable_black_box)
+            fs_black_box = meshpp::data_directory_path("black_box");
 
         publiqpp::node node(genesis_signed_block(testnet),
                             public_address,
@@ -459,7 +465,8 @@ bool process_command_line(int argc, char** argv,
                           string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
-                          bool& resync)
+                          bool& resync,
+                          bool& enable_black_box)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -501,6 +508,7 @@ bool process_command_line(int argc, char** argv,
                             "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
+            ("enable_black_box", "enable black box")
             ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks");
         (void)(desc_init);
 
@@ -518,6 +526,7 @@ bool process_command_line(int argc, char** argv,
         }
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
+        enable_black_box = options.count("enable_black_box");
 
         p2p_bind_to_address.from_string(p2p_local_interface);
         if (false == rpc_local_interface.empty())
