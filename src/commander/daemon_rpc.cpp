@@ -971,12 +971,12 @@ void process_channel_transactions(unordered_set<string> const& set_accounts,
 
 void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
                                     rpc& rpc_server,
+                                    uint64_t block_index,
                                     LoggingType type)
 {
-    if (ServiceStatistics::rtt == transaction_log.action.type())
+    if (false == rpc_server.m_str_pv_key.empty() &&
+        ServiceStatistics::rtt == transaction_log.action.type())
     {
-        uint64_t block_number = rpc_server.head_block_index.as_const()->value;
-
         ServiceStatistics statistics;
         transaction_log.action.get(statistics);
 
@@ -988,14 +988,14 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
                 if (false == file_item.unit_uri.empty())
                 {
                     for (auto const& count_item : file_item.count_items)
-                        rpc_server.m_file_usage_map[block_number][file_item.file_uri] += count_item.count;
+                        rpc_server.m_file_usage_map[block_index][file_item.file_uri] += count_item.count;
                 }
             }
         }
         else //if (LoggingType::revert == type)
         {
-            if (rpc_server.m_file_usage_map.find(block_number) != rpc_server.m_file_usage_map.end())
-                rpc_server.m_file_usage_map.erase(block_number);
+            if (rpc_server.m_file_usage_map.find(block_index) != rpc_server.m_file_usage_map.end())
+                rpc_server.m_file_usage_map.erase(block_index);
         }
     }
 }
@@ -1346,6 +1346,7 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                             process_statistics_transactions(transaction_log,
                                                                             rpc_server,
+                                                                            block_index,
                                                                             LoggingType::apply);
 
                                             update_balances(context.m_pimpl->set_accounts(),
@@ -1440,6 +1441,7 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                             process_statistics_transactions(*log_it,
                                                                             rpc_server,
+                                                                            block_index,
                                                                             LoggingType::revert);
 
                                             update_balances(context.m_pimpl->set_accounts(),
