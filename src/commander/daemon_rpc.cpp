@@ -970,8 +970,8 @@ void process_channel_transactions(unordered_set<string> const& set_accounts,
 }
 
 void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                    rpc& rpc_server,
-                                    LoggingType type)
+                                     rpc& rpc_server,
+                                     LoggingType type)
 {
     if (ServiceStatistics::rtt == transaction_log.action.type())
     {
@@ -1428,28 +1428,30 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                         for (auto log_it = block_log.transactions.crbegin(); log_it != block_log.transactions.crend(); ++log_it)
                                         {
+                                            auto& transaction_log = *log_it;
+
                                             process_storage_transactions(context.m_pimpl->set_accounts(),
-                                                                         *log_it,
+                                                                         transaction_log,
                                                                          rpc_server,
                                                                          LoggingType::revert);
 
                                             process_channel_transactions(context.m_pimpl->set_accounts(),
-                                                                         *log_it,
+                                                                         transaction_log,
                                                                          rpc_server,
                                                                          LoggingType::revert);
 
-                                            process_statistics_transactions(*log_it,
+                                            process_statistics_transactions(transaction_log,
                                                                             rpc_server,
                                                                             LoggingType::revert);
 
                                             update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
-                                                            *log_it,
+                                                            transaction_log,
                                                             block_log.authority,
                                                             LoggingType::revert);
 
                                             process_transactions(block_index,
-                                                                 *log_it,
+                                                                 transaction_log,
                                                                  context,
                                                                  block_log.authority,
                                                                  LoggingType::revert);
