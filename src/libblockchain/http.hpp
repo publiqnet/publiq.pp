@@ -266,13 +266,12 @@ beltpp::detail::pmsg_all message_list_load(
                                               &BlockchainMessage::PublicAddressesRequest::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
-                 ss.resource.path.size() == 2 &&
+                 ss.resource.path.size() == 1 &&
                  ss.resource.path.front() == "message")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::BlackBoxBroadcastRequest>();
             BlockchainMessage::BlackBoxBroadcastRequest& ref = *reinterpret_cast<BlockchainMessage::BlackBoxBroadcastRequest*>(p.get());
 
-            ref.broadcast_black_box.from = ss.resource.arguments["from"];
             ref.broadcast_black_box.to = ss.resource.arguments["to"];
             ref.broadcast_black_box.message = ss.resource.arguments["message"];
 

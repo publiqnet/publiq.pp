@@ -182,7 +182,7 @@ void node::run(bool& stop_check)
                 case beltpp::isocket_join::rtt:
                 {
                     if (it == detail::wait_result_item::interface_type::p2p)
-                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) + 
+                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) +
                                               " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
                     if (it == detail::wait_result_item::interface_type::p2p)
@@ -225,7 +225,7 @@ void node::run(bool& stop_check)
 
                     if (it == detail::wait_result_item::interface_type::p2p)
                         m_pimpl->remove_peer(peerid);
-                    
+
                     break;
                 }
                 case beltpp::isocket_open_refused::rtt:
@@ -283,7 +283,7 @@ void node::run(bool& stop_check)
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
-                
+
                     if (it == detail::wait_result_item::interface_type::rpc)
                         psk->send(peerid, beltpp::packet(Done()));
 
@@ -433,7 +433,7 @@ void node::run(bool& stop_check)
                     m_pimpl->m_sessions.add(header,
                                             std::move(actions),
                                             chrono::minutes(1));
-                    
+
                     break;
                 }
                 case StorageFileDelete::rtt:
@@ -705,7 +705,6 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(black_box_boadcast_request);
 
                     Transaction transaction;
-                    transaction.action = std::move(black_box_boadcast_request.broadcast_black_box);
                     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
                     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
                     m_pimpl->m_fee_transactions.to_Coin(transaction.fee);
@@ -714,6 +713,9 @@ void node::run(bool& stop_check)
                     meshpp::private_key pv(m_pimpl->m_pb_key.to_string());
                     authorization.address = pv.get_public_key().to_string();
                     authorization.signature = pv.sign(transaction.to_string()).base58;
+
+                    black_box_boadcast_request.broadcast_black_box.from = authorization.address;
+                    transaction.action = std::move(black_box_boadcast_request.broadcast_black_box);
 
                     BlockchainMessage::SignedTransaction signed_transaction;
                     signed_transaction.transaction_details = transaction;
