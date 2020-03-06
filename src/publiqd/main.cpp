@@ -503,7 +503,7 @@ bool process_command_line(int argc, char** argv,
                             "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
-            ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks");
+            ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks")
             ("discovery_server", "discovery server");
         (void)(desc_init);
 
