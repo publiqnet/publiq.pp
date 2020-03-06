@@ -136,6 +136,7 @@ int main(int argc, char** argv)
         Broadcast broadcast;
         broadcast.echoes = 2;
         broadcast.package = signed_transaction;
+        broadcast.originator = authorization.address;
 
         Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
 

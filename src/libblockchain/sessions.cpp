@@ -243,7 +243,6 @@ void session_action_broadcast_address_info::initiate(meshpp::nodeid_session_head
 {
     broadcast_message(std::move(msg),
                       pimpl->m_ptr_p2p_socket->name(),
-                      //source_peer,
                       true,
                       nullptr,
                       pimpl->m_p2p_peers,

@@ -850,6 +850,7 @@ void rpc::run()
                     BlockchainMessage::Broadcast broadcast;
                     broadcast.echoes = 2;
                     broadcast.package = signed_transaction;
+                    broadcast.originator = authorization.address;
 
                     dm.socket.send(dm.peerid, beltpp::packet(broadcast));
                     dm.wait_response(string());

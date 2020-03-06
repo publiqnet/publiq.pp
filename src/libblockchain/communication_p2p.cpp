@@ -1284,10 +1284,10 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
         Broadcast broadcast;
         broadcast.echoes = 2;
         broadcast.package = signed_transaction;
+        broadcast.originator = authorization.address;
 
         broadcast_message(std::move(broadcast),
                           m_pimpl->m_ptr_p2p_socket->name(),
-                          //m_pimpl->m_ptr_p2p_socket->name(),
                           true, // broadcast to all peers
                           nullptr, // log disabled
                           m_pimpl->m_p2p_peers,
@@ -1325,10 +1325,10 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     Broadcast broadcast;
     broadcast.echoes = 2;
     broadcast.package = signed_transaction;
+    broadcast.originator = authorization.address;
 
     broadcast_message(std::move(broadcast),
                       m_pimpl->m_ptr_p2p_socket->name(),
-                      //m_pimpl->m_ptr_p2p_socket->name(),
                       true, // broadcast to all peers
                       nullptr, // log disabled
                       m_pimpl->m_p2p_peers,
@@ -1463,10 +1463,10 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
         Broadcast broadcast;
         broadcast.echoes = 2;
         broadcast.package = signed_transaction;
+        broadcast.originator = authorization.address;
 
         broadcast_message(std::move(broadcast),
                           impl.m_ptr_p2p_socket->name(),
-                          //impl.m_ptr_p2p_socket->name(),
                           true, // broadcast to all peers
                           nullptr, // log disabled
                           impl.m_p2p_peers,
@@ -1503,10 +1503,10 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
         Broadcast broadcast;
         broadcast.echoes = 2;
         broadcast.package = signed_transaction;
+        broadcast.originator = authorization.address;
 
         broadcast_message(std::move(broadcast),
                           impl.m_ptr_p2p_socket->name(),
-                          //impl.m_ptr_p2p_socket->name(),
                           true, // broadcast to all peers
                           nullptr, // log disabled
                           impl.m_p2p_peers,

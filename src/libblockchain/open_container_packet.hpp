@@ -44,6 +44,9 @@ inline packet& contained_member(TaskRequest& task_request, meshpp::public_key co
 
 inline packet& contained_member(Broadcast& pck, detail::node_internals& /*impl*/)
 {
+    if (pck.originator.empty() && pck.destination.empty())
+        throw wrong_data_exception("Invalid broadcast package!");
+
     return pck.package;
 }
 

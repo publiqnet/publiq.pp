@@ -275,7 +275,6 @@ void node::run(bool& stop_check)
                     {
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
-                                          //peerid,
                                           it == detail::wait_result_item::interface_type::rpc,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
@@ -379,7 +378,6 @@ void node::run(bool& stop_check)
 
                             broadcast_message(std::move(broadcast),
                                               m_pimpl->m_ptr_p2p_socket->name(),
-                                              //peerid,
                                               true,
                                               nullptr,
                                               broadcast_peers,
@@ -623,13 +621,12 @@ void node::run(bool& stop_check)
                         BlockchainMessage::Broadcast broadcast;
                         broadcast.echoes = 2;
                         broadcast.package = std::move(signed_transaction);
+                        broadcast.originator = m_pimpl->m_pb_key.to_string();
 
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
-                                          //peerid,
                                           it == detail::wait_result_item::interface_type::rpc,
-                                          //m_pimpl->plogger_node,
-                                          nullptr,
+                                          nullptr, //m_pimpl->plogger_node,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
@@ -963,10 +960,10 @@ void node::run(bool& stop_check)
                     Broadcast broadcast;
                     broadcast.echoes = 2;
                     broadcast.package = signed_transaction;
+                    broadcast.originator = m_pimpl->m_pb_key.to_string();
 
                     broadcast_message(std::move(broadcast),
                                       m_pimpl->m_ptr_p2p_socket->name(),
-                                      //m_pimpl->m_ptr_p2p_socket->name(),
                                       true, // like from rpc
                                       nullptr, // no logger
                                       m_pimpl->m_p2p_peers,
