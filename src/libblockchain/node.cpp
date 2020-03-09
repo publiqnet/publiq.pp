@@ -710,12 +710,12 @@ void node::run(bool& stop_check)
                     m_pimpl->m_fee_transactions.to_Coin(transaction.fee);
 
                     Authority authorization;
-                    meshpp::private_key pv(m_pimpl->m_pb_key.to_string());
+                    meshpp::private_key pv(m_pimpl->m_pv_key);
                     authorization.address = pv.get_public_key().to_string();
                     authorization.signature = pv.sign(transaction.to_string()).base58;
 
-                    black_box_boadcast_request.broadcast_black_box.from = authorization.address;
-                    transaction.action = std::move(black_box_boadcast_request.broadcast_black_box);
+                    black_box_boadcast_request.broadcast_black_box.from = pv.get_public_key().to_string();
+                    transaction.action = black_box_boadcast_request.broadcast_black_box;
 
                     BlockchainMessage::SignedTransaction signed_transaction;
                     signed_transaction.transaction_details = transaction;
@@ -732,8 +732,8 @@ void node::run(bool& stop_check)
 
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          it == detail::wait_result_item::interface_type::rpc,
+                                          m_pimpl->m_ptr_p2p_socket->name(),
+                                          true,
                                           //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
