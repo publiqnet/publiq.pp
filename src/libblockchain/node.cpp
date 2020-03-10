@@ -361,7 +361,7 @@ void node::run(bool& stop_check)
                                 {
                                     delete_storage_file(*m_pimpl.get(), psk, peerid, update_command.file_uri);
                                 }
-                                else // update_command.status == UpdateType::save
+                                else //(update_command.status == UpdateType::save)
                                 {
                                     m_pimpl->m_storage_controller.enqueue(update_command.file_uri, update_command.channel_address);
                                 }

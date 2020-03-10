@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <exception>
 #include <chrono>
-#define LOGGING
+
+//#define LOGGING
 #ifdef LOGGING
 #include <iostream>
 #endif
@@ -693,9 +694,9 @@ void process_storage_transactions(unordered_set<string> const& set_accounts,
 }
 
 void process_channel_transactions(unordered_set<string> const& set_accounts,
-                                 BlockchainMessage::TransactionLog const& transaction_log,
-                                 rpc& rpc_server,
-                                 LoggingType type)
+                                  BlockchainMessage::TransactionLog const& transaction_log,
+                                  rpc& rpc_server,
+                                  LoggingType type)
 {
     if (ContentUnit::rtt == transaction_log.action.type())
     {
@@ -994,7 +995,7 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
         }
         else //if (LoggingType::revert == type)
         {
-            if (rpc_server.m_file_usage_map.find(block_index) != rpc_server.m_file_usage_map.end())
+            if (rpc_server.m_file_usage_map.count(block_index))
                 rpc_server.m_file_usage_map.erase(block_index);
         }
     }
@@ -1344,10 +1345,11 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
                                                                          rpc_server,
                                                                          LoggingType::apply);
 
-                                            process_statistics_transactions(transaction_log,
-                                                                            rpc_server,
-                                                                            block_index,
-                                                                            LoggingType::apply);
+                                            if (false == context.m_pimpl->is_new_import())
+                                                process_statistics_transactions(transaction_log,
+                                                                                rpc_server,
+                                                                                block_index,
+                                                                                LoggingType::apply);
 
                                             update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
@@ -1441,10 +1443,11 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
                                                                          rpc_server,
                                                                          LoggingType::revert);
 
-                                            process_statistics_transactions(transaction_log,
-                                                                            rpc_server,
-                                                                            block_index,
-                                                                            LoggingType::revert);
+                                            if (false == context.m_pimpl->is_new_import())
+                                                process_statistics_transactions(transaction_log,
+                                                                                rpc_server,
+                                                                                block_index,
+                                                                                LoggingType::revert);
 
                                             update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
@@ -1461,15 +1464,17 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                         for (auto reward_it = block_log.rewards.crbegin(); reward_it != block_log.rewards.crend(); ++reward_it)
                                         {
-                                            update_balance(reward_it->to,
-                                                           reward_it->amount,
+                                            auto& reward_info = *reward_it;
+
+                                            update_balance(reward_info.to,
+                                                           reward_info.amount,
                                                            context.m_pimpl->set_accounts(),
                                                            rpc_server,
                                                            update_balance_type::decrease);
 
                                             process_reward(block_index,
-                                                           reward_it->to,
-                                                           *reward_it,
+                                                           reward_info.to,
+                                                           reward_info,
                                                            context,
                                                            LoggingType::revert);
                                         }
