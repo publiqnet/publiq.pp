@@ -691,9 +691,6 @@ void node::run(bool& stop_check)
                         }
                     }
 
-                    if (it == detail::wait_result_item::interface_type::rpc)
-                        psk->send(peerid, beltpp::packet(Done()));
-
                     break;
                 }
                 case BlackBoxBroadcastRequest::rtt:
@@ -703,19 +700,17 @@ void node::run(bool& stop_check)
 
                     BlackBoxBroadcastRequest black_box_boadcast_request;
                     std::move(ref_packet).get(black_box_boadcast_request);
+                    black_box_boadcast_request.broadcast_black_box.from = m_pimpl->m_pb_key.to_string();
 
                     Transaction transaction;
+                    transaction.action = black_box_boadcast_request.broadcast_black_box;
                     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
                     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
                     m_pimpl->m_fee_transactions.to_Coin(transaction.fee);
 
                     Authority authorization;
-                    meshpp::private_key pv(m_pimpl->m_pv_key);
-                    authorization.address = pv.get_public_key().to_string();
-                    authorization.signature = pv.sign(transaction.to_string()).base58;
-
-                    black_box_boadcast_request.broadcast_black_box.from = pv.get_public_key().to_string();
-                    transaction.action = black_box_boadcast_request.broadcast_black_box;
+                    authorization.address = m_pimpl->m_pb_key.to_string();
+                    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
 
                     BlockchainMessage::SignedTransaction signed_transaction;
                     signed_transaction.transaction_details = transaction;
@@ -723,6 +718,11 @@ void node::run(bool& stop_check)
 
                     TransactionDone transaction_done;
                     transaction_done.transaction_hash = meshpp::hash(signed_transaction.to_string());
+
+                    signed_transaction_validate(signed_transaction,
+                                                std::chrono::system_clock::now(),
+                                                std::chrono::seconds(NODES_TIME_SHIFT),
+                                                *m_pimpl.get());
 
                     if (process_black_box(signed_transaction, black_box_boadcast_request.broadcast_black_box, m_pimpl))
                     {
@@ -734,20 +734,18 @@ void node::run(bool& stop_check)
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           m_pimpl->m_ptr_p2p_socket->name(),
                                           true,
-                                          //m_pimpl->plogger_node,
                                           nullptr,
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
 
-                    psk->send(peerid, beltpp::packet(std::move(transaction_done)));
+                   psk->send(peerid, beltpp::packet(std::move(transaction_done)));
 
                     break;
                 }
                 case BlackBoxRequest::rtt:
                 {
                     BlackBoxResponse response;
-
                     for (size_t it = 0; it != m_pimpl->m_black_box.length(); ++it)
                         response.holded_boxes.push_back(m_pimpl->m_black_box.at(it));
 
@@ -755,11 +753,8 @@ void node::run(bool& stop_check)
                     {
                         m_pimpl->m_black_box.discard();
                     });
-
                     m_pimpl->m_black_box.clear();
-
                     guard.dismiss();
-
                     m_pimpl->m_black_box.commit();
 
                     psk->send(peerid, beltpp::packet(std::move(response)));
