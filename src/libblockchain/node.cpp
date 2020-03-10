@@ -74,7 +74,8 @@ node::node(string const& genesis_signed_block,
            bool discovery_server,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
-           detail::fp_counts_per_channel_views p_counts_per_channel_views)
+           detail::fp_counts_per_channel_views p_counts_per_channel_views,
+           detail::fp_content_unit_validate_check p_content_unit_validate_check)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          public_ssl_address,
@@ -103,7 +104,8 @@ node::node(string const& genesis_signed_block,
                                          discovery_server,
                                          mine_amount_threshhold,
                                          block_reward_array,
-                                         p_counts_per_channel_views))
+                                         p_counts_per_channel_views,
+                                         p_content_unit_validate_check))
 {}
 
 node::node(node&&) noexcept = default;

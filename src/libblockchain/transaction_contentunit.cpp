@@ -103,6 +103,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       ContentUnit const& content_unit,
                       state_layer/* layer*/)
 {
+
+    string duplicate_file_uri;
+    if (false == impl.pcontent_unit_validate_check(content_unit.file_uris,
+                                                   duplicate_file_uri,
+                                                   impl.m_blockchain.length(),
+                                                   impl.m_testnet))
+        return false;
+
     if (impl.m_documents.unit_exists(content_unit.uri))
         return false;
 
@@ -118,6 +126,23 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   ContentUnit const& content_unit,
                   state_layer/* layer*/)
 {
+
+    string duplicate_file_uri;
+    if (false == impl.pcontent_unit_validate_check(content_unit.file_uris,
+                                                   duplicate_file_uri,
+                                                   impl.m_blockchain.length(),
+                                                   impl.m_testnet))
+        throw uri_exception(duplicate_file_uri, uri_exception::duplicate);
+    /*
+    unordered_set<string> file_uris;
+    for (auto const& file_uri : content_unit.file_uris)
+    {
+        auto insert_res = file_uris.insert(file_uri);
+        if (false == insert_res.second)
+            throw uri_exception(file_uri, uri_exception::duplicate);
+    }
+    */
+
     if (impl.m_documents.unit_exists(content_unit.uri))
         throw uri_exception(content_unit.uri, uri_exception::duplicate);
 
