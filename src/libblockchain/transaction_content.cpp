@@ -117,7 +117,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
 
     if (impl.m_manager_address.empty() && 
         impl.m_node_type == NodeType::storage &&
-        state_layer::chain == layer /*&& beltpp::chance_one_of(3)*/)
+        state_layer::chain == layer)
     {
         for (auto const& unit_uri : content.content_unit_uris)
         {

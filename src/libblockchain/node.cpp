@@ -355,7 +355,7 @@ void node::run(bool& stop_check)
                         if (update_command.storage_address == m_pimpl->m_pb_key.to_string())
                         {
                             // command is addressed to me
-                            if (signed_tx.authorizations[0].address == m_pimpl->m_manager_address)
+                            if (signed_tx.authorizations.front().address == m_pimpl->m_manager_address)
                             {
                                 if (update_command.status == UpdateType::remove)
                                 {
@@ -446,31 +446,6 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(storage_file_delete);
 
                     delete_storage_file(*m_pimpl.get(), psk, peerid, storage_file_delete.uri);
-
-                    //auto* pimpl = m_pimpl.get();
-                    //std::function<void(beltpp::packet&&)> callback_lambda =
-                    //        [psk, peerid, storage_file_delete, pimpl](beltpp::packet&& package)
-                    //{
-                    //    if (NodeType::storage == pimpl->m_node_type &&
-                    //        package.type() == Done::rtt)
-                    //    {
-                    //        broadcast_storage_update(*pimpl, storage_file_delete.uri, UpdateType::remove);
-                    //    }
-                    //
-                    //    if (false == package.empty())
-                    //        psk->send(peerid, std::move(package));
-                    //};
-                    //
-                    //vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
-                    //actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
-                    //                                                    storage_file_delete.uri,
-                    //                                                    callback_lambda));
-                    //
-                    //meshpp::session_header header;
-                    //header.peerid = "slave";
-                    //m_pimpl->m_sessions.add(header,
-                    //                        std::move(actions),
-                    //                        chrono::minutes(1));
 
                     break;
                 }

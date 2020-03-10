@@ -1392,17 +1392,17 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     NodeType node_type;
 
     if (false != update_command.file_uri.empty())
-        throw wrong_request_exception("StorageUpdateCommand containes empty file uri!");
+        throw wrong_request_exception("StorageUpdateCommand contains empty file uri!");
 
     if (update_command.status == UpdateType::store && update_command.channel_address.empty())
-        throw wrong_request_exception("StorageUpdateCommand containes wrong data!");
+        throw wrong_request_exception("StorageUpdateCommand contains wrong data!");
 
     if (false == pimpl->m_state.get_role(update_command.storage_address, node_type) || node_type != NodeType::storage)
-        throw wrong_request_exception("StorageUpdateCommand containes wrong storage address!");
+        throw wrong_request_exception("StorageUpdateCommand contains wrong storage address!");
 
     if (false == update_command.channel_address.empty() &&
         (false == pimpl->m_state.get_role(update_command.channel_address, node_type) || node_type != NodeType::channel))
-        throw wrong_request_exception("StorageUpdateCommand containes wrong channel address!");
+        throw wrong_request_exception("StorageUpdateCommand contains wrong channel address!");
 
     if (signed_transaction.authorizations.size() != 1)
         throw wrong_data_exception("transaction authorizations error");
