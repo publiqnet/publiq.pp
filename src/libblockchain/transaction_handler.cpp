@@ -302,7 +302,7 @@ vector<string> action_participants(SignedTransaction const& signed_transaction)
     return result;
 }
 
-void action_validate(publiqpp::detail::node_internals& impl,
+void action_validate(publiqpp::detail::node_internals const& impl,
                      SignedTransaction const& signed_transaction,
                      bool check_complete)
 {

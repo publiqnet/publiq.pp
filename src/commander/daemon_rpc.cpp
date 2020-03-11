@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <exception>
 #include <chrono>
-#define LOGGING
+
+//#define LOGGING
 #ifdef LOGGING
 #include <iostream>
 #endif
@@ -693,9 +694,9 @@ void process_storage_transactions(unordered_set<string> const& set_accounts,
 }
 
 void process_channel_transactions(unordered_set<string> const& set_accounts,
-                                 BlockchainMessage::TransactionLog const& transaction_log,
-                                 rpc& rpc_server,
-                                 LoggingType type)
+                                  BlockchainMessage::TransactionLog const& transaction_log,
+                                  rpc& rpc_server,
+                                  LoggingType type)
 {
     if (ContentUnit::rtt == transaction_log.action.type())
     {
@@ -970,13 +971,13 @@ void process_channel_transactions(unordered_set<string> const& set_accounts,
 }
 
 void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                    rpc& rpc_server,
-                                    LoggingType type)
+                                     rpc& rpc_server,
+                                     uint64_t block_index,
+                                     LoggingType type)
 {
-    if (ServiceStatistics::rtt == transaction_log.action.type())
+    if (false == rpc_server.m_str_pv_key.empty() &&
+        ServiceStatistics::rtt == transaction_log.action.type())
     {
-        uint64_t block_number = rpc_server.head_block_index.as_const()->value;
-
         ServiceStatistics statistics;
         transaction_log.action.get(statistics);
 
@@ -988,14 +989,14 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
                 if (false == file_item.unit_uri.empty())
                 {
                     for (auto const& count_item : file_item.count_items)
-                        rpc_server.m_file_usage_map[block_number][file_item.file_uri] += count_item.count;
+                        rpc_server.m_file_usage_map[block_index][file_item.file_uri] += count_item.count;
                 }
             }
         }
         else //if (LoggingType::revert == type)
         {
-            if (rpc_server.m_file_usage_map.find(block_number) != rpc_server.m_file_usage_map.end())
-                rpc_server.m_file_usage_map.erase(block_number);
+            if (rpc_server.m_file_usage_map.count(block_index))
+                rpc_server.m_file_usage_map.erase(block_index);
         }
     }
 }
@@ -1344,9 +1345,11 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
                                                                          rpc_server,
                                                                          LoggingType::apply);
 
-                                            process_statistics_transactions(transaction_log,
-                                                                            rpc_server,
-                                                                            LoggingType::apply);
+                                            if (false == context.m_pimpl->is_new_import())
+                                                process_statistics_transactions(transaction_log,
+                                                                                rpc_server,
+                                                                                block_index,
+                                                                                LoggingType::apply);
 
                                             update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
@@ -1428,28 +1431,32 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                         for (auto log_it = block_log.transactions.crbegin(); log_it != block_log.transactions.crend(); ++log_it)
                                         {
+                                            auto& transaction_log = *log_it;
+
                                             process_storage_transactions(context.m_pimpl->set_accounts(),
-                                                                         *log_it,
+                                                                         transaction_log,
                                                                          rpc_server,
                                                                          LoggingType::revert);
 
                                             process_channel_transactions(context.m_pimpl->set_accounts(),
-                                                                         *log_it,
+                                                                         transaction_log,
                                                                          rpc_server,
                                                                          LoggingType::revert);
 
-                                            process_statistics_transactions(*log_it,
-                                                                            rpc_server,
-                                                                            LoggingType::revert);
+                                            if (false == context.m_pimpl->is_new_import())
+                                                process_statistics_transactions(transaction_log,
+                                                                                rpc_server,
+                                                                                block_index,
+                                                                                LoggingType::revert);
 
                                             update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
-                                                            *log_it,
+                                                            transaction_log,
                                                             block_log.authority,
                                                             LoggingType::revert);
 
                                             process_transactions(block_index,
-                                                                 *log_it,
+                                                                 transaction_log,
                                                                  context,
                                                                  block_log.authority,
                                                                  LoggingType::revert);
@@ -1457,15 +1464,17 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                         for (auto reward_it = block_log.rewards.crbegin(); reward_it != block_log.rewards.crend(); ++reward_it)
                                         {
-                                            update_balance(reward_it->to,
-                                                           reward_it->amount,
+                                            auto& reward_info = *reward_it;
+
+                                            update_balance(reward_info.to,
+                                                           reward_info.amount,
                                                            context.m_pimpl->set_accounts(),
                                                            rpc_server,
                                                            update_balance_type::decrease);
 
                                             process_reward(block_index,
-                                                           reward_it->to,
-                                                           *reward_it,
+                                                           reward_info.to,
+                                                           reward_info,
                                                            context,
                                                            LoggingType::revert);
                                         }

@@ -27,6 +27,7 @@
 #include <functional>
 #include <chrono>
 #include <map>
+#include <unordered_set>
 
 #include <csignal>
 
@@ -35,6 +36,7 @@ namespace program_options = boost::program_options;
 
 using std::unique_ptr;
 using std::string;
+using std::unordered_set;
 using std::cout;
 using std::endl;
 using std::vector;
@@ -58,7 +60,10 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
+<<<<<<< HEAD
                           bool& enable_black_box,
+=======
+>>>>>>> master
                           bool& discovery_server);
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
@@ -179,6 +184,38 @@ uint64_t counts_per_channel_views(std::map<uint64_t, std::map<string, std::map<s
     return count;
 }
 
+bool content_unit_validate_check(std::vector<std::string> const& content_unit_file_uris,
+                                 std::string& find_duplicate,
+                                 uint64_t block_number,
+                                 bool is_testnet)
+{
+    bool skip = false;
+    if (is_testnet &&
+        (
+            block_number == 42846 ||
+            block_number == 44727 ||
+            block_number == 45433
+         )
+        )
+        skip = true;
+
+    if (skip)
+        return true;
+
+    unordered_set<string> file_uris;
+    for (auto const& file_uri : content_unit_file_uris)
+    {
+        auto insert_res = file_uris.insert(file_uri);
+        if (false == insert_res.second)
+        {
+            find_duplicate = file_uri;
+            return false;
+        }
+    }
+
+    return true;
+}
+
 template <typename NODE>
 void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_handled);
 
@@ -211,7 +248,10 @@ int main(int argc, char** argv)
     bool log_enabled;
     bool testnet;
     bool resync;
+<<<<<<< HEAD
     bool enable_black_box;
+=======
+>>>>>>> master
     bool discovery_server;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
@@ -229,11 +269,14 @@ int main(int argc, char** argv)
                                       fractions,
                                       freeze_before_block,
                                       revert_blocks_count,
-                                      manager_address,  
+                                      manager_address,
                                       log_enabled,
                                       testnet,
                                       resync,
+<<<<<<< HEAD
                                       enable_black_box,
+=======
+>>>>>>> master
                                       discovery_server))
         return 1;
 
@@ -337,7 +380,8 @@ int main(int argc, char** argv)
                             discovery_server,
                             mine_amount_threshhold(),
                             block_reward_array(),
-                            &counts_per_channel_views);
+                            &counts_per_channel_views,
+                            &content_unit_validate_check);
 
         cout << endl;
         cout << "Node: " << node.name() << endl;
@@ -469,7 +513,10 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
+<<<<<<< HEAD
                           bool& enable_black_box,
+=======
+>>>>>>> master
                           bool& discovery_server)
 {
     string p2p_local_interface;
@@ -512,9 +559,14 @@ bool process_command_line(int argc, char** argv,
                             "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
+<<<<<<< HEAD
             ("enable_black_box", "enable black box")
             ("discovery_server", "discovery server")
             ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks");
+=======
+            ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks")
+            ("discovery_server", "discovery server");
+>>>>>>> master
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -531,7 +583,10 @@ bool process_command_line(int argc, char** argv,
         }
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
+<<<<<<< HEAD
         enable_black_box = options.count("enable_black_box");
+=======
+>>>>>>> master
         discovery_server = options.count("discovery_server");
 
         p2p_bind_to_address.from_string(p2p_local_interface);

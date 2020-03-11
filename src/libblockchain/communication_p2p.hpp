@@ -13,11 +13,11 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
 
 void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
-bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tx,
+bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
                           BlockchainMessage::AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 
-bool process_update_command(BlockchainMessage::SignedTransaction const& signed_tx,
+bool process_update_command(BlockchainMessage::SignedTransaction const& signed_transaction,
                             BlockchainMessage::StorageUpdateCommand const& update_command,
                             std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
 

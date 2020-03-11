@@ -384,9 +384,15 @@ uint64_t (*)(std::map<uint64_t, std::map<std::string, std::map<std::string, uint
 uint64_t block_number,
 bool is_testnet);
 
+using fp_content_unit_validate_check =
+bool (*)(std::vector<std::string> const& content_unit_file_uris,
+std::string& find_duplicate,
+uint64_t block_number,
+bool is_testnet);
+
 inline uint64_t counts_per_channel_views(map<uint64_t, map<string, map<string, uint64_t>>> const& item_per_owner,
-                                         uint64_t /*block_number*/,
-                                         bool /*is_testnet*/)
+                                         uint64_t/* block_number*/,
+                                         bool/* is_testnet*/)
 {
     uint64_t count = 0;
     for (auto const& item_per_content_id : item_per_owner)
@@ -400,6 +406,24 @@ inline uint64_t counts_per_channel_views(map<uint64_t, map<string, map<string, u
     }
 
     return count;
+}
+inline bool content_unit_validate_check(std::vector<std::string> const& content_unit_file_uris,
+                                        std::string& find_duplicate,
+                                        uint64_t block_number,
+                                        bool/* is_testnet*/)
+{
+    unordered_set<string> file_uris;
+    for (auto const& file_uri : content_unit_file_uris)
+    {
+        auto insert_res = file_uris.insert(file_uri);
+        if (false == insert_res.second)
+        {
+            find_duplicate = file_uri;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 class node_internals
@@ -434,7 +458,8 @@ public:
                    bool discovery_server,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
-                   detail::fp_counts_per_channel_views p_counts_per_channel_views)
+                   detail::fp_counts_per_channel_views p_counts_per_channel_views,
+                   detail::fp_content_unit_validate_check p_content_unit_validate_check)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
@@ -487,6 +512,9 @@ public:
         , pcounts_per_channel_views(nullptr != p_counts_per_channel_views ?
                                                    p_counts_per_channel_views :
                                                    &counts_per_channel_views)
+        , pcontent_unit_validate_check(nullptr != p_content_unit_validate_check ?
+                                                      p_content_unit_validate_check :
+                                                      &content_unit_validate_check)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -701,6 +729,7 @@ public:
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;
     fp_counts_per_channel_views pcounts_per_channel_views;
+    fp_content_unit_validate_check pcontent_unit_validate_check;
 
     struct vote_info
     {

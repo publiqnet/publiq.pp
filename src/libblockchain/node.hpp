@@ -26,6 +26,12 @@ uint64_t (*)(std::map<uint64_t, std::map<std::string, std::map<std::string, uint
 uint64_t block_number,
 bool is_testnet);
 
+using fp_content_unit_validate_check =
+bool (*)(std::vector<std::string> const& content_unit_file_uris,
+std::string& find_duplicate,
+uint64_t block_number,
+bool is_testnet);
+
     class node_internals;
 }
 
@@ -61,7 +67,8 @@ public:
          bool discovery_server,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
-         detail::fp_counts_per_channel_views p_counts_per_channel_views);
+         detail::fp_counts_per_channel_views p_counts_per_channel_views,
+         detail::fp_content_unit_validate_check p_content_unit_validate_check);
     node(node&& other) noexcept;
     ~node();
 
