@@ -523,7 +523,7 @@ module BlockchainMessage
     {
     }
 
-    class HoldedBox
+    class HeldBox
     {
         String from
         String message
@@ -531,7 +531,7 @@ module BlockchainMessage
 
     class BlackBoxResponse
     {
-        Array HoldedBox holded_boxes
+        Array HeldBox held_boxes
     }
 
     class BlackBoxBroadcastRequest
@@ -550,4 +550,4 @@ module BlockchainMessage
     class GenericModelReserve9 {}
     class GenericModelReserve10 {}
 }
-////1
+////2

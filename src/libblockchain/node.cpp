@@ -683,7 +683,6 @@ void node::run(bool& stop_check)
                     transaction.action = black_box_boadcast_request.broadcast_black_box;
                     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
                     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
-                    m_pimpl->m_fee_transactions.to_Coin(transaction.fee);
 
                     Authority authorization;
                     authorization.address = m_pimpl->m_pb_key.to_string();
@@ -692,14 +691,6 @@ void node::run(bool& stop_check)
                     BlockchainMessage::SignedTransaction signed_transaction;
                     signed_transaction.transaction_details = transaction;
                     signed_transaction.authorizations.push_back(authorization);
-
-                    TransactionDone transaction_done;
-                    transaction_done.transaction_hash = meshpp::hash(signed_transaction.to_string());
-
-                    signed_transaction_validate(signed_transaction,
-                                                std::chrono::system_clock::now(),
-                                                std::chrono::seconds(NODES_TIME_SHIFT),
-                                                *m_pimpl.get());
 
                     if (process_black_box(signed_transaction, black_box_boadcast_request.broadcast_black_box, m_pimpl))
                     {
@@ -716,7 +707,7 @@ void node::run(bool& stop_check)
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
 
-                   psk->send(peerid, beltpp::packet(std::move(transaction_done)));
+                   psk->send(peerid, beltpp::packet(Done()));
 
                     break;
                 }
@@ -724,7 +715,7 @@ void node::run(bool& stop_check)
                 {
                     BlackBoxResponse response;
                     for (size_t it = 0; it != m_pimpl->m_black_box.length(); ++it)
-                        response.holded_boxes.push_back(m_pimpl->m_black_box.at(it));
+                        response.held_boxes.push_back(m_pimpl->m_black_box.at(it));
 
                     beltpp::on_failure guard([this]
                     {

@@ -267,7 +267,7 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
-                 ss.resource.path.front() == "message")
+                 ss.resource.path.front() == "send_box")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::BlackBoxBroadcastRequest>();
             BlockchainMessage::BlackBoxBroadcastRequest& ref = *reinterpret_cast<BlockchainMessage::BlackBoxBroadcastRequest*>(p.get());
@@ -281,7 +281,7 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
-                 ss.resource.path.front() == "box")
+                 ss.resource.path.front() == "receive_box")
         {
             auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::BlackBoxRequest>();
 

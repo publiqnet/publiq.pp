@@ -19,7 +19,7 @@ public:
     {
     }
 
-    meshpp::vector_loader<HoldedBox> m_black_box;
+    meshpp::vector_loader<HeldBox> m_black_box;
 };
 }
 
@@ -63,12 +63,12 @@ size_t black_box::length() const
     return m_pimpl->m_black_box.as_const().size();
 }
 
-void black_box::insert(BlockchainMessage::HoldedBox const& holded_box)
+void black_box::insert(BlockchainMessage::HeldBox const& held_box)
 {
-    m_pimpl->m_black_box.push_back(holded_box);
+    m_pimpl->m_black_box.push_back(held_box);
 }
 
-BlockchainMessage::HoldedBox const& black_box::at(size_t number) const
+BlockchainMessage::HeldBox const& black_box::at(size_t number) const
 {
      return m_pimpl->m_black_box.as_const().at(number);
 }

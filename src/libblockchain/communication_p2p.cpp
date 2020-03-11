@@ -1543,12 +1543,12 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
                         chrono::minutes(1));
 }
 
-bool process_black_box(BlockchainMessage::SignedTransaction const& signed_tx,
+bool process_black_box(BlockchainMessage::SignedTransaction const& signed_transaction,
                        BlockchainMessage::BlackBox const& black_box,
                        std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    if (black_box.message.size() > 4 * 1024 * 1024)
-        throw too_long_string_exception(black_box.message, 4 * 1024 * 1024);
+    if (black_box.message.size() > 1000)
+        throw too_long_string_exception(black_box.message, 1000);
 
     if (black_box.from.empty())
         throw wrong_data_exception("black_box.from.empty()");
@@ -1556,14 +1556,17 @@ bool process_black_box(BlockchainMessage::SignedTransaction const& signed_tx,
     if (black_box.to.empty())
         throw wrong_data_exception("black_box.to.empty()");
 
-    if (signed_tx.authorizations[0].address != black_box.from)
-        throw authority_exception(signed_tx.authorizations[0].address, black_box.from);
+    if (signed_transaction.authorizations.size() != 1)
+        throw wrong_data_exception("transaction authorizations error");
+
+    if (signed_transaction.authorizations[0].address != black_box.from)
+        throw authority_exception(signed_transaction.authorizations[0].address, black_box.from);
 
     if (black_box.to == black_box.from)
         throw wrong_data_exception("self message");
 
     // Check cache
-    if (m_pimpl->m_transaction_cache.contains(signed_tx))
+    if (m_pimpl->m_transaction_cache.contains(signed_transaction))
         return false;
 
     m_pimpl->m_transaction_cache.backup();
@@ -1573,7 +1576,7 @@ bool process_black_box(BlockchainMessage::SignedTransaction const& signed_tx,
         m_pimpl->m_transaction_cache.restore();
     });
 
-    m_pimpl->m_transaction_cache.add_pool(signed_tx, true);
+    m_pimpl->m_transaction_cache.add_pool(signed_transaction, true);
 
     guard.dismiss();
 
@@ -1583,11 +1586,11 @@ bool process_black_box(BlockchainMessage::SignedTransaction const& signed_tx,
 void save_black_box(BlackBox const& black_box,
                     std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
-    HoldedBox holded_box;
-    holded_box.from = black_box.from;
-    holded_box.message = black_box.message;
+    HeldBox held_box;
+    held_box.from = black_box.from;
+    held_box.message = black_box.message;
 
-    pimpl->m_black_box.insert(holded_box);
+    pimpl->m_black_box.insert(held_box);
 
     beltpp::on_failure guard([&pimpl]
     {
