@@ -60,10 +60,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
-<<<<<<< HEAD
                           bool& enable_black_box,
-=======
->>>>>>> master
                           bool& discovery_server);
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
@@ -248,10 +245,7 @@ int main(int argc, char** argv)
     bool log_enabled;
     bool testnet;
     bool resync;
-<<<<<<< HEAD
     bool enable_black_box;
-=======
->>>>>>> master
     bool discovery_server;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
@@ -273,10 +267,7 @@ int main(int argc, char** argv)
                                       log_enabled,
                                       testnet,
                                       resync,
-<<<<<<< HEAD
                                       enable_black_box,
-=======
->>>>>>> master
                                       discovery_server))
         return 1;
 
@@ -513,10 +504,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
-<<<<<<< HEAD
                           bool& enable_black_box,
-=======
->>>>>>> master
                           bool& discovery_server)
 {
     string p2p_local_interface;
@@ -559,14 +547,9 @@ bool process_command_line(int argc, char** argv,
                             "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
-<<<<<<< HEAD
             ("enable_black_box", "enable black box")
-            ("discovery_server", "discovery server")
-            ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks");
-=======
             ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks")
             ("discovery_server", "discovery server");
->>>>>>> master
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -583,10 +566,7 @@ bool process_command_line(int argc, char** argv,
         }
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
-<<<<<<< HEAD
         enable_black_box = options.count("enable_black_box");
-=======
->>>>>>> master
         discovery_server = options.count("discovery_server");
 
         p2p_bind_to_address.from_string(p2p_local_interface);
