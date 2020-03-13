@@ -21,6 +21,12 @@ bool node_internals::initialize()
             --m_revert_actions_count;
         }
 
+        beltpp::on_failure guard([this]
+        {
+            discard();
+        });
+        save(guard);
+
         writeln_node("done.");
         stop_check = true;
     }
