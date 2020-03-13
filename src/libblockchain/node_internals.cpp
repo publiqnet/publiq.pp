@@ -11,7 +11,20 @@ bool node_internals::initialize()
 {
     bool stop_check = false;
 
-    if (0 != m_revert_blocks_count)
+    if (0 != m_revert_actions_count)
+    {
+        writeln_node("reverting " + std::to_string(m_revert_actions_count) + " actions");
+
+        while (0 != m_revert_actions_count)
+        {
+            m_action_log.revert();
+            --m_revert_actions_count;
+        }
+
+        writeln_node("done.");
+        stop_check = true;
+    }
+    else if (0 != m_revert_blocks_count)
     {
         //  revert transactions from pool
         load_transaction_cache(*this, true);

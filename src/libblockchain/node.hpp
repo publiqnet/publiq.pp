@@ -58,6 +58,7 @@ public:
          uint64_t fractions,
          uint64_t freeze_before_block,
          uint64_t revert_blocks_count,
+         uint64_t revert_actions_count,
          std::string const& manager_address,
          bool log_enabled,
          bool transfer_only,

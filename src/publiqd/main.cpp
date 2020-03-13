@@ -55,7 +55,8 @@ bool process_command_line(int argc, char** argv,
                           NodeType& n_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
-                          uint64_t& m_revert_blocks_count,
+                          uint64_t& revert_blocks_count,
+                          uint64_t& revert_actions_count,
                           string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
@@ -240,6 +241,7 @@ int main(int argc, char** argv)
     uint64_t fractions;
     uint64_t freeze_before_block;
     uint64_t revert_blocks_count;
+    uint64_t revert_actions_count;
     string manager_address;
     bool log_enabled;
     bool testnet;
@@ -261,6 +263,7 @@ int main(int argc, char** argv)
                                       fractions,
                                       freeze_before_block,
                                       revert_blocks_count,
+                                      revert_actions_count,
                                       manager_address,
                                       log_enabled,
                                       testnet,
@@ -355,6 +358,7 @@ int main(int argc, char** argv)
                             fractions,
                             freeze_before_block,
                             revert_blocks_count,
+                            revert_actions_count,
                             manager_address,
                             log_enabled,
                             false,
@@ -492,6 +496,7 @@ bool process_command_line(int argc, char** argv,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
                           uint64_t& revert_blocks_count,
+                          uint64_t& revert_actions_count,
                           string& manager_address,
                           bool& log_enabled,
                           bool& testnet,
@@ -538,7 +543,11 @@ bool process_command_line(int argc, char** argv,
                             "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
-            ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks")
+            ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count),
+                            "revert and erase recent blocks")
+            ("revert_actions", program_options::value<uint64_t>(&revert_actions_count),
+                            "revert recent recorded actions, "
+                            "this means to add new actions that are marked as reverted")
             ("discovery_server", "discovery server");
         (void)(desc_init);
 
@@ -621,6 +630,8 @@ bool process_command_line(int argc, char** argv,
             freeze_before_block = uint64_t(-1);
         if (0 == options.count("revert_blocks"))
             revert_blocks_count = 0;
+        if (0 == options.count("revert_actions"))
+            revert_actions_count = 0;
     }
     catch (std::exception const& ex)
     {

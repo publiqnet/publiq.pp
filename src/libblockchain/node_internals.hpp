@@ -448,6 +448,7 @@ public:
                    uint64_t fractions,
                    uint64_t freeze_before_block,
                    uint64_t revert_blocks_count,
+                   uint64_t revert_actions_count,
                    string const& manager_address,
                    bool log_enabled,
                    bool transfer_only,
@@ -503,6 +504,7 @@ public:
         , m_manager_address(manager_address)
         , m_resync_blockchain(resync ? 10 : uint64_t(-1))
         , m_revert_blocks_count(revert_blocks_count)
+        , m_revert_actions_count(revert_actions_count)
         , m_genesis_signed_block(genesis_signed_block)
         , m_mine_amount_threshhold(mine_amount_threshhold)
         , m_block_reward_array(block_reward_array)
@@ -719,6 +721,7 @@ public:
     string m_manager_address;
     uint64_t m_resync_blockchain;
     uint64_t m_revert_blocks_count;
+    uint64_t m_revert_actions_count;
 
     string m_genesis_signed_block;
 
