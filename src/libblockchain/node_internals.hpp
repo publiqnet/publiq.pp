@@ -352,6 +352,11 @@ public:
         return data.count(key) > 0;
     }
 
+    bool contains(string const& key) const
+    {
+        return data.count(key) > 0;
+    }
+
     void backup()
     {
         data_backup = data;

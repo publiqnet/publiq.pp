@@ -134,7 +134,6 @@ int main(int argc, char** argv)
         signed_transaction.transaction_details = transaction;
 
         Broadcast broadcast;
-        broadcast.echoes = 2;
         broadcast.package = signed_transaction;
 
         Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);

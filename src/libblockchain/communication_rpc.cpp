@@ -4,6 +4,8 @@
 #include "exception.hpp"
 #include "message.tmpl.hpp"
 
+#include "sessions.hpp"
+
 #include <stack>
 
 using std::stack;
@@ -184,87 +186,40 @@ void verify_signature(Signature const& msg,
     sk.send(peerid, beltpp::packet(Done()));
 }
 
-void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
-                       beltpp::isocket::peer_id const& self,
-                       beltpp::isocket::peer_id const& from,
-                       bool full_broadcast,
+void broadcast_message(BlockchainMessage::Broadcast&& broadcast_msg,
                        beltpp::ilog* plog,
                        std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
-                       beltpp::isocket* psk)
+                       publiqpp::detail::node_internals& impl)
 {
-    auto str_compare = [](string const& first, string const& second)
-    {
-        auto res = first.compare(second);
-        if (res > 0)
-            res = 1;
-        if (res < 0)
-            res = -1;
-        return res;
-    };
+    auto const& destination = broadcast_msg.destination;
 
-    int direction = 0;
-    if (false == full_broadcast)
-    {
-        direction = str_compare(self, from);
-        if (plog)
-            plog->message(self.substr(0, 8) + ", " + from.substr(0, 8) + ": " + std::to_string(direction));
+    if (impl.m_ptr_p2p_socket->name() == destination)
+        return;
 
-        if (0 == direction)
-            return;
+    unordered_set<string> filtered_peers;
+ 
+    if (!destination.empty() && all_peers.count(destination) == 1)
+    {
+        filtered_peers.insert(destination);
     }
-
-    bool chance_to_reflect = beltpp::chance_one_of(10);
-
-    if (full_broadcast)
+    else
     {
-        if (plog)
-            plog->message("will broadcast to all");
-        broadcast.echoes = 2;
-    }
-    if (chance_to_reflect)
-    {
-        if (plog)
-            plog->message("can reflect, 1 chance out of 10");
-        if (broadcast.echoes == 0)
-        {
-            if (plog)
-                plog->message("    oh no! reflections are expired");
-            chance_to_reflect = false;
-        }
-    }
-    if (broadcast.echoes > 2)
-        broadcast.echoes = 2;
-
-    auto filtered_peers = all_peers;
-    for (auto const& peer : all_peers)
-    {
-        auto direction2 = str_compare(self, peer);
-        if (false == full_broadcast &&
-            direction == direction2)
-            filtered_peers.erase(peer);
-    }
-
-    if (filtered_peers.empty() &&
-        chance_to_reflect)
-    {
-        if (plog)
-            plog->message("since all peers would be skipped by reflection, "
-                          "use the chance to reflect, and broadcast to everyone");
         filtered_peers = all_peers;
-        --broadcast.echoes;
     }
-    else if (filtered_peers.empty())
-    {
-        if (plog)
-            plog->message("all peers will be skipped by direction");
-    }
-
+ 
     for (auto const& peer : filtered_peers)
     {
         if (plog)
             plog->message("will rebroadcast to: " + peer);
-
-        psk->send(peer, beltpp::packet(broadcast));
+ 
+        vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+        actions.emplace_back(new session_action_broadcast(impl, broadcast_msg));
+ 
+        meshpp::session_header header;
+        header.peerid = peer;
+        impl.m_sessions.add(header,
+                            std::move(actions),
+                            chrono::minutes(1));
     }
 }
 

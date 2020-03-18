@@ -10,9 +10,9 @@ module BlockchainMessage
 ///
 class Broadcast
 {
-    UInt64 echoes
     Object package
     String destination
+    Array String exclusion
 }
 
 ///

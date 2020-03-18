@@ -1228,7 +1228,6 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
     transaction_hash = meshpp::hash(stx.to_string());
 
     BlockchainMessage::Broadcast bc;
-    bc.echoes = 2;
     bc.package = std::move(stx);
 
     socket.send(peerid, beltpp::packet(std::move(bc)));

@@ -848,7 +848,6 @@ void rpc::run()
                     signed_transaction.transaction_details = transaction;
 
                     BlockchainMessage::Broadcast broadcast;
-                    broadcast.echoes = 2;
                     broadcast.package = signed_transaction;
 
                     dm.socket.send(dm.peerid, beltpp::packet(broadcast));

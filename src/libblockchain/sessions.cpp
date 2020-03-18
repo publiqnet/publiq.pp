@@ -241,13 +241,13 @@ session_action_broadcast_address_info::~session_action_broadcast_address_info()
 
 void session_action_broadcast_address_info::initiate(meshpp::nodeid_session_header&)
 {
+    auto broadcast_peers = pimpl->m_p2p_peers;
+    broadcast_peers.erase(source_peer);
+
     broadcast_message(std::move(msg),
-                      pimpl->m_ptr_p2p_socket->name(),
-                      source_peer,
-                      true,
                       nullptr,
-                      pimpl->m_p2p_peers,
-                      pimpl->m_ptr_p2p_socket.get());
+                      broadcast_peers,
+                      *pimpl);
 
     expected_next_package_type = size_t(-1);
     completed = true;
@@ -1501,6 +1501,68 @@ bool session_action_get_file_uris::process(beltpp::packet&& package, meshpp::ses
 }
 
 bool session_action_get_file_uris::permanent() const
+{
+    return true;
+}
+
+// --------------------------- session_action_broadcast ---------------------------
+
+session_action_broadcast::session_action_broadcast(detail::node_internals& impl,
+                                                   BlockchainMessage::Broadcast& msg)
+    : session_action<meshpp::session_header>()
+    , pimpl(&impl)
+    , broadcast_msg(msg)
+{}
+
+session_action_broadcast::~session_action_broadcast()
+{}
+
+void session_action_broadcast::initiate(meshpp::session_header& header)
+{
+    BroadcastRequest broadcast_request;
+    broadcast_request.transaction_hash = meshpp::hash(broadcast_msg.package.to_string());
+
+    pimpl->m_ptr_p2p_socket.get()->send(header.peerid, beltpp::packet(broadcast_request));
+
+    expected_next_package_type = BlockchainMessage::BroadcastResponse::rtt;
+}
+
+bool session_action_broadcast::process(beltpp::packet&& package, meshpp::session_header& header)
+{
+    bool code = true;
+
+    if (expected_next_package_type == package.type() &&
+        expected_next_package_type != size_t(-1))
+    {
+        switch (package.type())
+        {
+        case BroadcastResponse::rtt:
+        {
+            BroadcastResponse broadcast_response;
+            std::move(package).get(broadcast_response);
+
+            if (broadcast_response.response == 1)
+                pimpl->m_ptr_p2p_socket.get()->send(header.peerid, beltpp::packet(broadcast_msg));
+
+            expected_next_package_type = size_t(-1);
+            completed = true;
+
+            break;
+        }
+        default:
+            assert(false);
+            break;
+        }
+    }
+    else
+    {
+        code = false;
+    }
+
+    return code;
+}
+
+bool session_action_broadcast::permanent() const
 {
     return true;
 }

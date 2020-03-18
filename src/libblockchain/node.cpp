@@ -244,6 +244,24 @@ void node::run(bool& stop_check)
                     //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
+                case BroadcastRequest::rtt:
+                {
+                    if (it == detail::wait_result_item::interface_type::rpc)
+                        throw wrong_request_exception("BroadcastRequest received trough rpc!");
+
+                    BroadcastRequest broadcast_request;
+                    std::move(ref_packet).get(broadcast_request);
+
+                    BroadcastResponse broadcast_response;
+                    if (m_pimpl->m_transaction_cache.contains(broadcast_request.transaction_hash))
+                        broadcast_response.response = 0;
+                    else
+                        broadcast_response.response = 1;
+
+                    psk->send(peerid, beltpp::packet(broadcast_response));
+
+                    break;
+                }
                 case Transfer::rtt:
                 case File::rtt:
                 case ContentUnit::rtt:
@@ -277,13 +295,13 @@ void node::run(bool& stop_check)
 
                     if (action_process_on_chain(signed_tx, *m_pimpl.get()))
                     {
+                        auto broadcast_peers = m_pimpl->m_p2p_peers;
+                        broadcast_peers.erase(peerid);
+
                         broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          it == detail::wait_result_item::interface_type::rpc,
                                           nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
+                                          broadcast_peers,
+                                          *m_pimpl);
                     }
                 
                     if (it == detail::wait_result_item::interface_type::rpc)
@@ -376,18 +394,18 @@ void node::run(bool& stop_check)
                             // rebroadcast command direct peer or to all
                             std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
 
-                            if (0 == m_pimpl->m_p2p_peers.count(update_command.storage_address))
+                            if (0 == m_pimpl->m_p2p_peers.count(broadcast.destination))
+                            {
                                 broadcast_peers = m_pimpl->m_p2p_peers;
+                                broadcast_peers.erase(peerid);
+                            }
                             else
                                 broadcast_peers.insert(update_command.storage_address);
 
                             broadcast_message(std::move(broadcast),
-                                              m_pimpl->m_ptr_p2p_socket->name(),
-                                              peerid,
-                                              true,
                                               nullptr,
                                               broadcast_peers,
-                                              m_pimpl->m_ptr_p2p_socket.get());
+                                              *m_pimpl);
                         }
                     }
 
@@ -600,17 +618,15 @@ void node::run(bool& stop_check)
                     if (action_process_on_chain(signed_transaction, *m_pimpl.get()))
                     {
                         BlockchainMessage::Broadcast broadcast;
-                        broadcast.echoes = 2;
                         broadcast.package = std::move(signed_transaction);
 
+                        auto broadcast_peers = m_pimpl->m_p2p_peers;
+                        broadcast_peers.erase(peerid);
+
                         broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          peerid,
-                                          it == detail::wait_result_item::interface_type::rpc,
-                                          //m_pimpl->plogger_node,
                                           nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
+                                          broadcast_peers,
+                                          *m_pimpl);
                     }
 
                     psk->send(peerid, beltpp::packet(std::move(transaction_done)));
@@ -928,8 +944,6 @@ void node::run(bool& stop_check)
         size_t pool_size = m_pimpl->m_transaction_pool.length();
         if (pool_size > 0 && m_pimpl->blockchain_updated())
         {
-            //m_pimpl->writeln_node("broadcasting old stored transactions to all peers");
-
             auto current_time = system_clock::now();
 
             for (size_t pool_index = 0; pool_index != pool_size; ++pool_index)
@@ -940,16 +954,12 @@ void node::run(bool& stop_check)
                     current_time > system_clock::from_time_t(signed_transaction.transaction_details.creation.tm) + chrono::seconds(BLOCK_MINE_DELAY))
                 {
                     Broadcast broadcast;
-                    broadcast.echoes = 2;
                     broadcast.package = signed_transaction;
 
                     broadcast_message(std::move(broadcast),
-                                      m_pimpl->m_ptr_p2p_socket->name(),
-                                      m_pimpl->m_ptr_p2p_socket->name(),
-                                      true, // like from rpc
                                       nullptr, // no logger
                                       m_pimpl->m_p2p_peers,
-                                      m_pimpl->m_ptr_p2p_socket.get());
+                                      *m_pimpl);
                 }
             }
         }
