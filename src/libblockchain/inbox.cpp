@@ -60,12 +60,15 @@ void inbox::clear()
 
 size_t inbox::length() const
 {
+    if (nullptr == m_pimpl)
+        return 0;
     return m_pimpl->m_inbox.as_const().size();
 }
 
 void inbox::insert(BlockchainMessage::Letter const& letter)
 {
-    m_pimpl->m_inbox.push_back(letter);
+    if (m_pimpl)
+        m_pimpl->m_inbox.push_back(letter);
 }
 
 BlockchainMessage::Letter const& inbox::at(size_t number) const
