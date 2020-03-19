@@ -20,8 +20,6 @@ add_library(blockchain
     action_log.hpp
     blockchain.cpp
     blockchain.hpp
-    black_box.cpp
-    black_box.hpp
     communication_rpc.cpp
     communication_rpc.hpp
     communication_p2p.cpp
@@ -34,6 +32,8 @@ add_library(blockchain
     exception.hpp
     exception.cpp
     http.hpp
+    inbox.cpp
+    inbox.hpp
     message.cpp
     message.gen.cpp.hpp
     message.tmpl.hpp

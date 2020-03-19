@@ -1,4 +1,4 @@
-#include "black_box.hpp"
+#include "inbox.hpp"
 #include "common.hpp"
 
 #include <belt.pp/utility.hpp>

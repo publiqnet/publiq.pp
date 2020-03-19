@@ -11,7 +11,7 @@
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
-#include "black_box.hpp"
+#include "inbox.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
