@@ -695,7 +695,7 @@ void node::run(bool& stop_check)
 
                     Inbox response;
                     for (size_t index = 0; index != m_pimpl->m_inbox.length(); ++index)
-                        response.items.push_back(m_pimpl->m_inbox.at(it));
+                        response.items.push_back(m_pimpl->m_inbox.at(index));
 
                     beltpp::on_failure guard([this]
                     {
