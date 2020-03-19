@@ -67,7 +67,6 @@ class session_action_broadcast_address_info : public meshpp::session_action<mesh
 {
 public:
     session_action_broadcast_address_info(detail::node_internals& impl,
-                                          meshpp::p2psocket::peer_id const& source_peer,
                                           BlockchainMessage::Broadcast&& msg);
     ~session_action_broadcast_address_info() override;
 
@@ -76,7 +75,6 @@ public:
     bool permanent() const override;
 
     detail::node_internals* pimpl;
-    meshpp::p2psocket::peer_id source_peer;
     BlockchainMessage::Broadcast msg;
 };
 

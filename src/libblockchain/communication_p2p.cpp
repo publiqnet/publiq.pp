@@ -1284,10 +1284,7 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
         Broadcast broadcast;
         broadcast.package = signed_transaction;
 
-        broadcast_message(std::move(broadcast),
-                          nullptr, // log disabled
-                          m_pimpl->m_p2p_peers,
-                          *m_pimpl);
+        broadcast_message(std::move(broadcast), *m_pimpl);
     }
 }
 
@@ -1321,10 +1318,7 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     Broadcast broadcast;
     broadcast.package = signed_transaction;
 
-    broadcast_message(std::move(broadcast),
-                      nullptr, // log disabled
-                      m_pimpl->m_p2p_peers,
-                      *m_pimpl);
+    broadcast_message(std::move(broadcast), *m_pimpl);
 }
 
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
@@ -1455,10 +1449,7 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
         Broadcast broadcast;
         broadcast.package = signed_transaction;
 
-        broadcast_message(std::move(broadcast),
-                          nullptr, // log disabled
-                          impl.m_p2p_peers,
-                          impl);
+        broadcast_message(std::move(broadcast), impl);
     }
 }
 
@@ -1491,10 +1482,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
         Broadcast broadcast;
         broadcast.package = signed_transaction;
 
-        broadcast_message(std::move(broadcast),
-                          nullptr, // log disabled
-                          impl.m_p2p_peers,
-                          impl);
+        broadcast_message(std::move(broadcast), impl);
     }
 }
 

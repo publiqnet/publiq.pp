@@ -38,8 +38,6 @@ void verify_signature(Signature const& msg,
                       beltpp::isocket::peer_id const& peerid);
 
 void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
-                       beltpp::ilog* plog,
-                       std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
                        publiqpp::detail::node_internals& impl);
 
 }// end of namespace publiqpp

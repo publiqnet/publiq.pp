@@ -228,11 +228,9 @@ bool session_action_signatures::permanent() const
 // --------------------------- session_action_broadcast_address_info ---------------------------
 
 session_action_broadcast_address_info::session_action_broadcast_address_info(detail::node_internals& impl,
-                                                                             meshpp::p2psocket::peer_id const& _source_peer,
                                                                              BlockchainMessage::Broadcast&& _msg)
     : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
-    , source_peer(_source_peer)
     , msg(std::move(_msg))
 {}
 
@@ -241,13 +239,7 @@ session_action_broadcast_address_info::~session_action_broadcast_address_info()
 
 void session_action_broadcast_address_info::initiate(meshpp::nodeid_session_header&)
 {
-    auto broadcast_peers = pimpl->m_p2p_peers;
-    broadcast_peers.erase(source_peer);
-
-    broadcast_message(std::move(msg),
-                      nullptr,
-                      broadcast_peers,
-                      *pimpl);
+    broadcast_message(std::move(msg), *pimpl);
 
     expected_next_package_type = size_t(-1);
     completed = true;
@@ -1541,7 +1533,7 @@ bool session_action_broadcast::process(beltpp::packet&& package, meshpp::session
             BroadcastResponse broadcast_response;
             std::move(package).get(broadcast_response);
 
-            if (broadcast_response.response == 1)
+            if (broadcast_response.status == 1)
                 pimpl->m_ptr_p2p_socket.get()->send(header.peerid, beltpp::packet(broadcast_msg));
 
             expected_next_package_type = size_t(-1);

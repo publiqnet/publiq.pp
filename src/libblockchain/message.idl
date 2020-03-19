@@ -511,7 +511,7 @@ class BroadcastRequest
 
 class BroadcastResponse
 {
-    UInt64 response
+    UInt64 status
 }
 
 class AddressInfo

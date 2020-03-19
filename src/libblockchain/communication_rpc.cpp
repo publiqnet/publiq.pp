@@ -187,30 +187,39 @@ void verify_signature(Signature const& msg,
 }
 
 void broadcast_message(BlockchainMessage::Broadcast&& broadcast_msg,
-                       beltpp::ilog* plog,
-                       std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
                        publiqpp::detail::node_internals& impl)
 {
+    auto const& all_peers = impl.m_p2p_peers;
+    auto const& self = impl.m_ptr_p2p_socket->name();
     auto const& destination = broadcast_msg.destination;
 
-    if (impl.m_ptr_p2p_socket->name() == destination)
+    // message reached destination
+    if (!destination.empty() && self == destination)
         return;
 
     unordered_set<string> filtered_peers;
  
     if (!destination.empty() && all_peers.count(destination) == 1)
-    {
         filtered_peers.insert(destination);
-    }
     else
     {
         filtered_peers = all_peers;
+
+        // remove peers from message exclusion
+        for (auto const& peer : broadcast_msg.exclusion)
+            filtered_peers.erase(peer);
+
+        broadcast_msg.exclusion.clear();
+        broadcast_msg.exclusion.push_back(self);
+
+        for (auto const& peer : all_peers)
+            broadcast_msg.exclusion.push_back(peer);
     }
- 
+
     for (auto const& peer : filtered_peers)
     {
-        if (plog)
-            plog->message("will rebroadcast to: " + peer);
+        //if (plog)
+        //    plog->message("will rebroadcast to: " + peer);
  
         vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
         actions.emplace_back(new session_action_broadcast(impl, broadcast_msg));

@@ -254,9 +254,9 @@ void node::run(bool& stop_check)
 
                     BroadcastResponse broadcast_response;
                     if (m_pimpl->m_transaction_cache.contains(broadcast_request.transaction_hash))
-                        broadcast_response.response = 0;
+                        broadcast_response.status = 0;
                     else
-                        broadcast_response.response = 1;
+                        broadcast_response.status = 1;
 
                     psk->send(peerid, beltpp::packet(broadcast_response));
 
@@ -295,13 +295,7 @@ void node::run(bool& stop_check)
 
                     if (action_process_on_chain(signed_tx, *m_pimpl.get()))
                     {
-                        auto broadcast_peers = m_pimpl->m_p2p_peers;
-                        broadcast_peers.erase(peerid);
-
-                        broadcast_message(std::move(broadcast),
-                                          nullptr,
-                                          broadcast_peers,
-                                          *m_pimpl);
+                        broadcast_message(std::move(broadcast), *m_pimpl);
                     }
                 
                     if (it == detail::wait_result_item::interface_type::rpc)
@@ -345,7 +339,6 @@ void node::run(bool& stop_check)
                                                       beltpp_ssl_ip_address,
                                                       unique_ptr<session_action_broadcast_address_info>(
                                                           new session_action_broadcast_address_info(*m_pimpl.get(),
-                                                                                                    peerid,
                                                                                                     std::move(broadcast))));
                     }
 
@@ -374,39 +367,25 @@ void node::run(bool& stop_check)
 
                     if (process_update_command(signed_tx, update_command, m_pimpl))
                     {
-                        if (update_command.storage_address == m_pimpl->m_pb_key.to_string())
+                        // command is addressed to me
+                        if (signed_tx.authorizations.front().address == m_pimpl->m_manager_address)
                         {
-                            // command is addressed to me
-                            if (signed_tx.authorizations.front().address == m_pimpl->m_manager_address)
+                            if (update_command.status == UpdateType::remove)
                             {
-                                if (update_command.status == UpdateType::remove)
-                                {
-                                    delete_storage_file(*m_pimpl.get(), psk, peerid, update_command.file_uri);
-                                }
-                                else //(update_command.status == UpdateType::save)
-                                {
-                                    m_pimpl->m_storage_controller.enqueue(update_command.file_uri, update_command.channel_address);
-                                }
+                                delete_storage_file(*m_pimpl.get(), psk, peerid, update_command.file_uri);
+                            }
+                            else //(update_command.status == UpdateType::save)
+                            {
+                                m_pimpl->m_storage_controller.enqueue(update_command.file_uri, update_command.channel_address);
                             }
                         }
-                        else
-                        {
-                            // rebroadcast command direct peer or to all
-                            std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
 
-                            if (0 == m_pimpl->m_p2p_peers.count(broadcast.destination))
-                            {
-                                broadcast_peers = m_pimpl->m_p2p_peers;
-                                broadcast_peers.erase(peerid);
-                            }
-                            else
-                                broadcast_peers.insert(update_command.storage_address);
+                        std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
 
-                            broadcast_message(std::move(broadcast),
-                                              nullptr,
-                                              broadcast_peers,
-                                              *m_pimpl);
-                        }
+                        broadcast_peers = m_pimpl->m_p2p_peers;
+                        broadcast_peers.erase(peerid);
+
+                        broadcast_message(std::move(broadcast), *m_pimpl);
                     }
 
                     if (it == detail::wait_result_item::interface_type::rpc)
@@ -620,13 +599,7 @@ void node::run(bool& stop_check)
                         BlockchainMessage::Broadcast broadcast;
                         broadcast.package = std::move(signed_transaction);
 
-                        auto broadcast_peers = m_pimpl->m_p2p_peers;
-                        broadcast_peers.erase(peerid);
-
-                        broadcast_message(std::move(broadcast),
-                                          nullptr,
-                                          broadcast_peers,
-                                          *m_pimpl);
+                        broadcast_message(std::move(broadcast), *m_pimpl);
                     }
 
                     psk->send(peerid, beltpp::packet(std::move(transaction_done)));
@@ -956,10 +929,7 @@ void node::run(bool& stop_check)
                     Broadcast broadcast;
                     broadcast.package = signed_transaction;
 
-                    broadcast_message(std::move(broadcast),
-                                      nullptr, // no logger
-                                      m_pimpl->m_p2p_peers,
-                                      *m_pimpl);
+                    broadcast_message(std::move(broadcast), *m_pimpl);
                 }
             }
         }
