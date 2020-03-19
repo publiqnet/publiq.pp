@@ -62,10 +62,10 @@ bool check_service_statistics(BlockchainMessage::Block const& block,
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);
 
-bool process_black_box(BlockchainMessage::SignedTransaction const& signed_tx,
-                       BlockchainMessage::BlackBox const& black_box,
-                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl);
+bool process_letter(BlockchainMessage::SignedTransaction const& signed_tx,
+                    BlockchainMessage::Letter const& letter,
+                    publiqpp::detail::node_internals& impl);
 
-void save_black_box(BlackBox const& black_box,
-                    std::unique_ptr<publiqpp::detail::node_internals>& pimpl);
+void save_letter(BlockchainMessage::Letter const& letter,
+                 publiqpp::detail::node_internals& impl);
 }// end of namespace publiqpp

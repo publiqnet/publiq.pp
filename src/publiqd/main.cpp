@@ -60,7 +60,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
-                          bool& enable_black_box,
+                          bool& enable_inbox,
                           bool& discovery_server);
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
@@ -245,7 +245,7 @@ int main(int argc, char** argv)
     bool log_enabled;
     bool testnet;
     bool resync;
-    bool enable_black_box;
+    bool enable_inbox;
     bool discovery_server;
     meshpp::random_seed seed;
     meshpp::private_key pv_key = seed.get_private_key(0);
@@ -267,7 +267,7 @@ int main(int argc, char** argv)
                                       log_enabled,
                                       testnet,
                                       resync,
-                                      enable_black_box,
+                                      enable_inbox,
                                       discovery_server))
         return 1;
 
@@ -338,9 +338,9 @@ int main(int argc, char** argv)
         if (n_type == NodeType::storage)
             fs_storage = meshpp::data_directory_path("storage");
 
-        boost::filesystem::path fs_black_box;
-        if (enable_black_box)
-            fs_black_box = meshpp::data_directory_path("black_box");
+        boost::filesystem::path fs_inbox;
+        if (enable_inbox)
+            fs_inbox = meshpp::data_directory_path("inbox");
 
         publiqpp::node node(genesis_signed_block(testnet),
                             public_address,
@@ -355,7 +355,7 @@ int main(int argc, char** argv)
                             fs_documents,
                             fs_storages,
                             fs_storage,
-                            fs_black_box,
+                            fs_inbox,
                             plogger_p2p.get(),
                             plogger_rpc.get(),
                             pv_key,
@@ -504,7 +504,7 @@ bool process_command_line(int argc, char** argv,
                           bool& log_enabled,
                           bool& testnet,
                           bool& resync,
-                          bool& enable_black_box,
+                          bool& enable_inbox,
                           bool& discovery_server)
 {
     string p2p_local_interface;
@@ -547,7 +547,7 @@ bool process_command_line(int argc, char** argv,
                             "public address which can remotely manage this node")
             ("testnet", "Work in testnet blockchain")
             ("resync_blockchain", "resync blockchain")
-            ("enable_black_box", "enable black box")
+            ("enable_inbox", "enable inbox")
             ("revert_blocks", program_options::value<uint64_t>(&revert_blocks_count), "revert_blocks")
             ("discovery_server", "discovery server");
         (void)(desc_init);
@@ -566,7 +566,7 @@ bool process_command_line(int argc, char** argv,
         }
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
-        enable_black_box = options.count("enable_black_box");
+        enable_inbox = options.count("enable_inbox");
         discovery_server = options.count("discovery_server");
 
         p2p_bind_to_address.from_string(p2p_local_interface);

@@ -59,7 +59,7 @@ node::node(string const& genesis_signed_block,
            filesystem::path const& fs_documents,
            filesystem::path const& fs_storages,
            filesystem::path const& fs_storage,
-           filesystem::path const& fs_black_box,
+           filesystem::path const& fs_inbox,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
@@ -90,7 +90,7 @@ node::node(string const& genesis_signed_block,
                                          fs_documents,
                                          fs_storages,
                                          fs_storage,
-                                         fs_black_box,
+                                         fs_inbox,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
@@ -375,16 +375,25 @@ void node::run(bool& stop_check)
                         {
                             // rebroadcast command direct peer or to all
                             std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
+                            bool full_broadcast;
 
                             if (0 == m_pimpl->m_p2p_peers.count(update_command.storage_address))
+                            {
                                 broadcast_peers = m_pimpl->m_p2p_peers;
+                                full_broadcast = true;
+                                // or may do as below to follow refined broadcast rules
+                                //full_broadcast = (it == detail::wait_result_item::interface_type::rpc);
+                            }
                             else
+                            {
                                 broadcast_peers.insert(update_command.storage_address);
+                                full_broadcast = true;
+                            }
 
                             broadcast_message(std::move(broadcast),
                                               m_pimpl->m_ptr_p2p_socket->name(),
                                               peerid,
-                                              true,
+                                              full_broadcast,
                                               nullptr,
                                               broadcast_peers,
                                               m_pimpl->m_ptr_p2p_socket.get());
@@ -617,113 +626,84 @@ void node::run(bool& stop_check)
 
                     break;
                 }
-                case BlackBox::rtt:
+                case Letter::rtt:
                 {
-                    if (it != detail::wait_result_item::interface_type::p2p)
-                        throw wrong_request_exception("BlackBox received through rpc!");
-
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
                     Broadcast* p_broadcast = nullptr;
                     SignedTransaction* p_signed_tx = nullptr;
-                    BlackBox* p_black_box = nullptr;
+                    Letter* p_letter = nullptr;
 
                     broadcast_signed_transaction.items[0]->get(p_broadcast);
                     broadcast_signed_transaction.items[1]->get(p_signed_tx);
-                    ref_packet.get(p_black_box);
+                    ref_packet.get(p_letter);
 
                     assert(p_broadcast);
                     assert(p_signed_tx);
-                    assert(p_black_box);
+                    assert(p_letter);
 
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_transaction = *p_signed_tx;
-                    BlackBox& black_box = *p_black_box;
+                    Letter& letter = *p_letter;
 
-                    if (process_black_box(signed_transaction, black_box, m_pimpl))
+                    if (process_letter(signed_transaction, letter, *m_pimpl.get()))
                     {
-                        if (black_box.to == m_pimpl->m_pb_key.to_string())
+                        if (letter.to == m_pimpl->m_pb_key.to_string())
                         {
                             // message is addressed to me
-                            save_black_box(black_box, m_pimpl);
+                            save_letter(letter, *m_pimpl.get());
                         }
                         else
                         {
                             // rebroadcast message direct peer or to all
                             std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
+                            bool full_broadcast;
 
-                            if (0 == m_pimpl->m_p2p_peers.count(black_box.to))
+                            if (0 == m_pimpl->m_p2p_peers.count(letter.to))
+                            {
                                 broadcast_peers = m_pimpl->m_p2p_peers;
+                                full_broadcast = true;
+                                // or may do as below to follow refined broadcast rules
+                                //full_broadcast = (it == detail::wait_result_item::interface_type::rpc);
+                            }
                             else
-                                broadcast_peers.insert(black_box.to);
+                            {
+                                broadcast_peers.insert(letter.to);
+                                full_broadcast = true;
+                            }
 
                             broadcast_message(std::move(broadcast),
                                               m_pimpl->m_ptr_p2p_socket->name(),
                                               peerid,
-                                              true,
+                                              full_broadcast,
                                               nullptr,
                                               broadcast_peers,
                                               m_pimpl->m_ptr_p2p_socket.get());
                         }
                     }
 
+                    if (it == detail::wait_result_item::interface_type::rpc)
+                        psk->send(peerid, beltpp::packet(Done()));
+
                     break;
                 }
-                case BlackBoxBroadcastRequest::rtt:
+                case CheckInbox::rtt:
                 {
                     if (it != detail::wait_result_item::interface_type::rpc)
-                        throw wrong_request_exception("BlackBoxBroadcastRequest received through p2p!");
+                        throw wrong_request_exception("CheckInbox received not through rpc!");
 
-                    BlackBoxBroadcastRequest black_box_boadcast_request;
-                    std::move(ref_packet).get(black_box_boadcast_request);
-                    black_box_boadcast_request.broadcast_black_box.from = m_pimpl->m_pb_key.to_string();
-
-                    Transaction transaction;
-                    transaction.action = black_box_boadcast_request.broadcast_black_box;
-                    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-                    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
-
-                    Authority authorization;
-                    authorization.address = m_pimpl->m_pb_key.to_string();
-                    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
-
-                    BlockchainMessage::SignedTransaction signed_transaction;
-                    signed_transaction.transaction_details = transaction;
-                    signed_transaction.authorizations.push_back(authorization);
-
-                    if (process_black_box(signed_transaction, black_box_boadcast_request.broadcast_black_box, m_pimpl))
-                    {
-                        BlockchainMessage::Broadcast broadcast;
-                        broadcast.echoes = 2;
-                        broadcast.package = std::move(signed_transaction);
-
-                        broadcast_message(std::move(broadcast),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          m_pimpl->m_ptr_p2p_socket->name(),
-                                          true,
-                                          nullptr,
-                                          m_pimpl->m_p2p_peers,
-                                          m_pimpl->m_ptr_p2p_socket.get());
-                    }
-
-                   psk->send(peerid, beltpp::packet(Done()));
-
-                    break;
-                }
-                case BlackBoxRequest::rtt:
-                {
-                    BlackBoxResponse response;
-                    for (size_t it = 0; it != m_pimpl->m_black_box.length(); ++it)
-                        response.held_boxes.push_back(m_pimpl->m_black_box.at(it));
+                    Inbox response;
+                    for (size_t index = 0; index != m_pimpl->m_inbox.length(); ++index)
+                        response.items.push_back(m_pimpl->m_inbox.at(it));
 
                     beltpp::on_failure guard([this]
                     {
-                        m_pimpl->m_black_box.discard();
+                        m_pimpl->m_inbox.discard();
                     });
-                    m_pimpl->m_black_box.clear();
+                    m_pimpl->m_inbox.clear();
                     guard.dismiss();
-                    m_pimpl->m_black_box.commit();
+                    m_pimpl->m_inbox.commit();
 
                     psk->send(peerid, beltpp::packet(std::move(response)));
 

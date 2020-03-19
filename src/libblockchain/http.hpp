@@ -1,6 +1,7 @@
 #pragma once
 
 #include "message.hpp"
+#include "common.hpp"
 
 #include <belt.pp/parser.hpp>
 #include <belt.pp/http.hpp>
@@ -267,27 +268,63 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
-                 ss.resource.path.front() == "send_box")
+                 ss.resource.path.front() == "letter")
         {
-            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::BlackBoxBroadcastRequest>();
-            BlockchainMessage::BlackBoxBroadcastRequest& ref = *reinterpret_cast<BlockchainMessage::BlackBoxBroadcastRequest*>(p.get());
+            meshpp::private_key sender(meshpp::random_seed().get_private_key(0));
 
-            ref.broadcast_black_box.to = ss.resource.arguments["to"];
-            ref.broadcast_black_box.message = ss.resource.arguments["message"];
+            try
+            {
+                sender = meshpp::private_key(ss.resource.arguments["private_key"]);
+            }
+            catch (std::exception const& ex)
+            {
+                ssd.session_specal_handler = nullptr;
 
-            return ::beltpp::detail::pmsg_all(BlockchainMessage::BlackBoxBroadcastRequest::rtt,
+                ssd.autoreply = beltpp::http::http_response(ssd, ex.what());
+
+                return ::beltpp::detail::pmsg_all(size_t(-1),
+                                                  ::beltpp::void_unique_nullptr(),
+                                                  nullptr);
+            }
+
+            BlockchainMessage::Letter letter;
+            letter.to = ss.resource.arguments["to"];
+            letter.from = sender.get_public_key().to_string();
+            letter.message = ss.resource.arguments["message"];
+
+            BlockchainMessage::Transaction transaction;
+            transaction.action = std::move(letter);
+            transaction.creation.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            transaction.expiry.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() +
+                                                                         std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
+
+            BlockchainMessage::Authority authorization;
+            authorization.address = sender.get_public_key().to_string();
+            authorization.signature = sender.sign(transaction.to_string()).base58;
+
+            BlockchainMessage::SignedTransaction signed_transaction;
+            signed_transaction.transaction_details = std::move(transaction);
+            signed_transaction.authorizations.push_back(std::move(authorization));
+
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::Broadcast>();
+            BlockchainMessage::Broadcast& ref_broadcast = *reinterpret_cast<BlockchainMessage::Broadcast*>(p.get());
+
+            ref_broadcast.echoes = 2;
+            ref_broadcast.package = std::move(signed_transaction);
+
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::Broadcast::rtt,
                                               std::move(p),
-                                              &BlockchainMessage::BlackBoxBroadcastRequest::pvoid_saver);
+                                              &BlockchainMessage::Broadcast::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
-                 ss.resource.path.front() == "receive_box")
+                 ss.resource.path.front() == "check_inbox")
         {
-            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::BlackBoxRequest>();
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::CheckInbox>();
 
-            return ::beltpp::detail::pmsg_all(BlockchainMessage::BlackBoxRequest::rtt,
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::CheckInbox::rtt,
                                               std::move(p),
-                                              &BlockchainMessage::BlackBoxRequest::pvoid_saver);
+                                              &BlockchainMessage::CheckInbox::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&

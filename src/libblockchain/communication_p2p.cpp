@@ -1543,64 +1543,57 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
                         chrono::minutes(1));
 }
 
-bool process_black_box(BlockchainMessage::SignedTransaction const& signed_transaction,
-                       BlockchainMessage::BlackBox const& black_box,
-                       std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
+bool process_letter(BlockchainMessage::SignedTransaction const& signed_transaction,
+                    BlockchainMessage::Letter const& letter,
+                    publiqpp::detail::node_internals& impl)
 {
-    if (black_box.message.size() > 1000)
-        throw too_long_string_exception(black_box.message, 1000);
+    if (letter.message.size() > 16 * 1024)
+        throw too_long_string_exception(letter.message, 16 * 1024);
 
-    if (black_box.from.empty())
-        throw wrong_data_exception("black_box.from.empty()");
-
-    if (black_box.to.empty())
-        throw wrong_data_exception("black_box.to.empty()");
+    meshpp::public_key from(letter.from);
+    meshpp::public_key to(letter.to);
 
     if (signed_transaction.authorizations.size() != 1)
         throw wrong_data_exception("transaction authorizations error");
 
-    if (signed_transaction.authorizations[0].address != black_box.from)
-        throw authority_exception(signed_transaction.authorizations[0].address, black_box.from);
+    if (signed_transaction.authorizations.front().address != letter.from)
+        throw authority_exception(signed_transaction.authorizations.front().address, letter.from);
 
-    if (black_box.to == black_box.from)
-        throw wrong_data_exception("self message");
+    if (letter.to == letter.from)
+        throw wrong_data_exception("message to self");
 
     // Check cache
-    if (m_pimpl->m_transaction_cache.contains(signed_transaction))
+    if (impl.m_transaction_cache.contains(signed_transaction))
         return false;
 
-    m_pimpl->m_transaction_cache.backup();
+    impl.m_transaction_cache.backup();
 
-    beltpp::on_failure guard([&m_pimpl]
+    beltpp::on_failure guard([&impl]
     {
-        m_pimpl->m_transaction_cache.restore();
+        impl.m_transaction_cache.restore();
     });
 
-    m_pimpl->m_transaction_cache.add_pool(signed_transaction, true);
+    impl.m_transaction_cache.add_pool(signed_transaction, true);
 
     guard.dismiss();
 
     return true;
 }
 
-void save_black_box(BlackBox const& black_box,
-                    std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
+void save_letter(BlockchainMessage::Letter const& letter,
+                 publiqpp::detail::node_internals& impl)
 {
-    HeldBox held_box;
-    held_box.from = black_box.from;
-    held_box.message = black_box.message;
-
-    pimpl->m_black_box.insert(held_box);
-
-    beltpp::on_failure guard([&pimpl]
+    beltpp::on_failure guard([&impl]
     {
-        pimpl->m_black_box.discard();
+        impl.m_inbox.discard();
     });
 
-    pimpl->m_black_box.save();
+    impl.m_inbox.insert(letter);
+
+    impl.m_inbox.save();
 
     guard.dismiss();
 
-    pimpl->m_black_box.commit();
+    impl.m_inbox.commit();
 }
 }// end of namespace publiqpp

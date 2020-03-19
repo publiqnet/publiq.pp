@@ -11,66 +11,66 @@ namespace publiqpp
 {
 namespace detail
 {
-class black_box_internals
+class inbox_internals
 {
 public:
-    black_box_internals(filesystem::path const& path)
-        : m_black_box("black_box", path, 1000, 100, detail::get_putl())
+    inbox_internals(filesystem::path const& path)
+        : m_inbox("items", path, 1000, 100, detail::get_putl())
     {
     }
 
-    meshpp::vector_loader<HeldBox> m_black_box;
+    meshpp::vector_loader<Letter> m_inbox;
 };
 }
 
-black_box::black_box(boost::filesystem::path const& fs_black_box)
-    : m_pimpl(fs_black_box.empty() ? nullptr : new detail::black_box_internals(fs_black_box))
+inbox::inbox(boost::filesystem::path const& fs_inbox)
+    : m_pimpl(fs_inbox.empty() ? nullptr : new detail::inbox_internals(fs_inbox))
 {
 }
 
-black_box::~black_box() = default;
+inbox::~inbox() = default;
 
-void black_box::save()
+void inbox::save()
 {
     if (nullptr == m_pimpl)
         return;
-    m_pimpl->m_black_box.save();
+    m_pimpl->m_inbox.save();
 }
 
-void black_box::commit() noexcept
+void inbox::commit() noexcept
 {
     if (nullptr == m_pimpl)
         return;
-    m_pimpl->m_black_box.commit();
+    m_pimpl->m_inbox.commit();
 }
 
-void black_box::discard() noexcept
+void inbox::discard() noexcept
 {
     if (nullptr == m_pimpl)
         return;
-    m_pimpl->m_black_box.discard();
+    m_pimpl->m_inbox.discard();
 }
 
-void black_box::clear()
+void inbox::clear()
 {
     if (nullptr == m_pimpl)
         return;
-    m_pimpl->m_black_box.clear();
+    m_pimpl->m_inbox.clear();
 }
 
-size_t black_box::length() const
+size_t inbox::length() const
 {
-    return m_pimpl->m_black_box.as_const().size();
+    return m_pimpl->m_inbox.as_const().size();
 }
 
-void black_box::insert(BlockchainMessage::HeldBox const& held_box)
+void inbox::insert(BlockchainMessage::Letter const& letter)
 {
-    m_pimpl->m_black_box.push_back(held_box);
+    m_pimpl->m_inbox.push_back(letter);
 }
 
-BlockchainMessage::HeldBox const& black_box::at(size_t number) const
+BlockchainMessage::Letter const& inbox::at(size_t number) const
 {
-     return m_pimpl->m_black_box.as_const().at(number);
+     return m_pimpl->m_inbox.as_const().at(number);
 }
 
 }

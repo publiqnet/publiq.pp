@@ -512,31 +512,20 @@ module BlockchainMessage
         String channel_address
     }
 
-    class BlackBox
+    class Letter
     {
         String from
         String to
         String message
     }
 
-    class BlackBoxRequest
+    class CheckInbox
     {
     }
 
-    class HeldBox
+    class Inbox
     {
-        String from
-        String message
-    }
-
-    class BlackBoxResponse
-    {
-        Array HeldBox held_boxes
-    }
-
-    class BlackBoxBroadcastRequest
-    {
-        BlackBox broadcast_black_box
+        Array Letter items
     }
 
     class GenericModelReserve1 {}
@@ -550,4 +539,4 @@ module BlockchainMessage
     class GenericModelReserve9 {}
     class GenericModelReserve10 {}
 }
-////2
+////1

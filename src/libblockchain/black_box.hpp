@@ -10,14 +10,14 @@ namespace publiqpp
 
 namespace detail
 {
-class black_box_internals;
+class inbox_internals;
 }
 
-class black_box
+class inbox
 {
 public:
-    black_box(boost::filesystem::path const& fs_black_box);
-    ~black_box();
+    inbox(boost::filesystem::path const& fs_inbox);
+    ~inbox();
 
     void save();
     void commit() noexcept;
@@ -25,11 +25,11 @@ public:
     void clear();
 
     size_t length() const;
-    void insert(BlockchainMessage::HeldBox const& held_box);
-    BlockchainMessage::HeldBox const& at(size_t number) const;
+    void insert(BlockchainMessage::Letter const& letter);
+    BlockchainMessage::Letter const& at(size_t number) const;
 
 private:
-    std::unique_ptr<detail::black_box_internals> m_pimpl;
+    std::unique_ptr<detail::inbox_internals> m_pimpl;
 };
 
 }
