@@ -408,8 +408,8 @@ inline uint64_t counts_per_channel_views(map<uint64_t, map<string, map<string, u
 }
 inline bool content_unit_validate_check(std::vector<std::string> const& content_unit_file_uris,
                                         std::string& find_duplicate,
-                                        uint64_t block_number,
-                                        bool/* is_testnet*/)
+                                        uint64_t /*block_number*/,
+                                        bool /*is_testnet*/)
 {
     unordered_set<string> file_uris;
     for (auto const& file_uri : content_unit_file_uris)
