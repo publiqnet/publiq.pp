@@ -246,8 +246,8 @@ void node::run(bool& stop_check)
                 }
                 case BroadcastRequest::rtt:
                 {
-                    if (it == detail::wait_result_item::interface_type::rpc)
-                        throw wrong_request_exception("BroadcastRequest received trough rpc!");
+                    //if (it == detail::wait_result_item::interface_type::rpc)
+                    //    throw wrong_request_exception("BroadcastRequest received trough rpc!");
 
                     BroadcastRequest broadcast_request;
                     std::move(ref_packet).get(broadcast_request);

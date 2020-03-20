@@ -5,6 +5,8 @@
 
 #include <boost/filesystem.hpp>
 
+#include <mesh.pp/cryptoutility.hpp>
+
 #include <iostream>
 #include <chrono>
 #include <thread>
@@ -33,109 +35,120 @@ int main(int argc, char** argv)
 {
     try
     {
-    if (argc < 2)
-    {
-        cout << "usage: blockchain_client address:port" << endl;
-        return 0;
-    }
+        if (argc < 2)
+        {
+            cout << "usage: blockchain_client address:port" << endl;
+            return 0;
+        }
 
-    beltpp::ip_address address;
-    address.from_string(argv[1]);
-    if (address.remote.empty())
-    {
-        address.remote = address.local;
-        address.local = beltpp::ip_destination();
-    }
+        beltpp::ip_address address;
+        address.from_string(argv[1]);
+        if (address.remote.empty())
+        {
+            address.remote = address.local;
+            address.local = beltpp::ip_destination();
+        }
 
-    size_t count = 10;
-    
-    if(argc > 2)
-        count = std::atoi(argv[2]);
+        size_t count = 10;
 
-    uint64_t fee = 0;
+        if (argc > 2)
+            count = std::atoi(argv[2]);
 
-    if (argc > 3)
-        fee = std::atoi(argv[3]);
+        uint64_t fee = 0;
 
-    //__debugbreak();
-    beltpp::socket::peer_id peerid;
-    beltpp::event_handler eh;
+        if (argc > 3)
+            fee = std::atoi(argv[3]);
 
-    beltpp::socket sk = beltpp::getsocket<sf>(eh);
-    eh.add(sk);
+        //__debugbreak();
+        beltpp::socket::peer_id peerid;
+        beltpp::event_handler eh;
 
-    peerid = Connect(address, sk, eh);
-    cout << endl << peerid << endl;
+        beltpp::socket sk = beltpp::getsocket<sf>(eh);
+        eh.add(sk);
 
-    beltpp::packet receive_package;
+        peerid = Connect(address, sk, eh);
+        cout << endl << peerid << endl;
 
-  /*  StorageFile file;
-    file.mime_type = "audio/mpeg";
+        beltpp::packet receive_package;
 
-    boost::filesystem::ifstream fl;
-    fl.open("/Users/sona/Downloads/3.mp3", std::ios_base::binary);
-    if (fl)
-    {
+        /*  StorageFile file;
+        file.mime_type = "audio/mpeg";
+
+        boost::filesystem::ifstream fl;
+        fl.open("/Users/sona/Downloads/3.mp3", std::ios_base::binary);
+        if (fl)
+        {
         auto end = std::istreambuf_iterator<char>();
         auto begin = std::istreambuf_iterator<char>(fl);
         file.data.assign(begin, end);
         file.data.resize(10000);
-    }
+        }
 
-    Send(file, receive_package, sk, peerid, eh);*/
+        Send(file, receive_package, sk, peerid, eh);*/
 
 
-    KeyPairRequest key_pair_request;
-    key_pair_request.index = 0;
+        KeyPairRequest key_pair_request;
+        key_pair_request.index = 0;
 
-    key_pair_request.master_key = "ARMEN";
-    Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
+        key_pair_request.master_key = "ARMEN";
+        Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
 
-    KeyPair armen_key;
-    receive_package.get(armen_key);
+        KeyPair armen_key;
+        receive_package.get(armen_key);
 
-    key_pair_request.master_key = "TIGRAN";
-    Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
+        key_pair_request.master_key = "TIGRAN";
+        Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
 
-    KeyPair tigran_key;
-    receive_package.get(tigran_key);
+        KeyPair tigran_key;
+        receive_package.get(tigran_key);
 
-    Transfer transfer;
-    transfer.from = armen_key.public_key;
-    transfer.to = tigran_key.public_key;
-    transfer.amount.fraction = 100;
+        Transfer transfer;
+        transfer.from = armen_key.public_key;
+        transfer.to = tigran_key.public_key;
+        transfer.amount.fraction = 100;
 
-    Transaction transaction;
-    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-    transaction.action = transfer;
-    transaction.fee.fraction = fee;
+        Transaction transaction;
+        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+        transaction.action = transfer;
+        transaction.fee.fraction = fee;
 
-    SignRequest sign_request;
-    sign_request.private_key = armen_key.private_key;
-    sign_request.package = transaction;
+        SignRequest sign_request;
+        sign_request.private_key = armen_key.private_key;
+        sign_request.package = transaction;
 
-    Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
+        Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
 
-    Signature signature;
-    receive_package.get(signature);
+        Signature signature;
+        receive_package.get(signature);
 
-    Authority authorization;
-    authorization.address = armen_key.public_key;
-    authorization.signature = signature.signature;
+        Authority authorization;
+        authorization.address = armen_key.public_key;
+        authorization.signature = signature.signature;
 
-    SignedTransaction signed_transaction;
-    signed_transaction.authorizations.push_back(authorization);
-    signed_transaction.transaction_details = transaction;
+        SignedTransaction signed_transaction;
+        signed_transaction.authorizations.push_back(authorization);
+        signed_transaction.transaction_details = transaction;
 
-    Broadcast broadcast;
-    broadcast.package = signed_transaction;
+        Broadcast broadcast;
+        broadcast.package = signed_transaction;
 
-    for (size_t i = 0; i < count; ++i)
         Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
 
+        BroadcastRequest broadcast_request;
+        broadcast_request.transaction_hash = meshpp::hash(signed_transaction.to_string());
+
+        broadcast.package = broadcast_request;
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            //cout << std::to_string(i) << endl;
+            Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
+            //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
     }
-    catch(std::exception const& e)
+    catch (std::exception const& e)
     {
         cout << "exception: " << e.what() << endl;
     }
