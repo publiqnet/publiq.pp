@@ -231,14 +231,14 @@ public:
     std::function<void(beltpp::packet&&)> callback;
 };
 
-class session_action_broadcast : public meshpp::session_action<meshpp::session_header>
+class session_action_broadcast : public meshpp::session_action<meshpp::nodeid_session_header>
 {
 public:
     session_action_broadcast(detail::node_internals& impl, BlockchainMessage::Broadcast& msg);
     ~session_action_broadcast() override;
 
-    void initiate(meshpp::session_header& header) override;
-    bool process(beltpp::packet&& package, meshpp::session_header& header) override;
+    void initiate(meshpp::nodeid_session_header& header) override;
+    bool process(beltpp::packet&& package, meshpp::nodeid_session_header& header) override;
     bool permanent() const override;
 
     detail::node_internals* pimpl;

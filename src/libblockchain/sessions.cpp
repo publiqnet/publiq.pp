@@ -1501,7 +1501,7 @@ bool session_action_get_file_uris::permanent() const
 
 session_action_broadcast::session_action_broadcast(detail::node_internals& impl,
                                                    BlockchainMessage::Broadcast& msg)
-    : session_action<meshpp::session_header>()
+    : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
     , broadcast_msg(msg)
 {}
@@ -1509,7 +1509,7 @@ session_action_broadcast::session_action_broadcast(detail::node_internals& impl,
 session_action_broadcast::~session_action_broadcast()
 {}
 
-void session_action_broadcast::initiate(meshpp::session_header& header)
+void session_action_broadcast::initiate(meshpp::nodeid_session_header& header)
 {
     BroadcastRequest broadcast_request;
     broadcast_request.transaction_hash = meshpp::hash(broadcast_msg.package.to_string());
@@ -1519,7 +1519,7 @@ void session_action_broadcast::initiate(meshpp::session_header& header)
     expected_next_package_type = BlockchainMessage::BroadcastResponse::rtt;
 }
 
-bool session_action_broadcast::process(beltpp::packet&& package, meshpp::session_header& header)
+bool session_action_broadcast::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
 {
     bool code = true;
 
@@ -1556,7 +1556,7 @@ bool session_action_broadcast::process(beltpp::packet&& package, meshpp::session
 
 bool session_action_broadcast::permanent() const
 {
-    return true;
+    return false;
 }
 
 }

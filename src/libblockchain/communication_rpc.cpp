@@ -217,18 +217,17 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast_msg,
     }
 
     for (auto const& peer : filtered_peers)
-    {
-        //if (plog)
-        //    plog->message("will rebroadcast to: " + peer);
- 
-        vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
+    { 
+        vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
         actions.emplace_back(new session_action_broadcast(impl, broadcast_msg));
  
-        meshpp::session_header header;
-        header.peerid = peer;
-        impl.m_sessions.add(header,
-                            std::move(actions),
-                            chrono::minutes(1));
+        meshpp::nodeid_session_header header;
+        header.nodeid = peer;
+        header.peerid = peer; // like p2p connection is set
+        header.address = impl.m_ptr_p2p_socket->info_connection(peer);
+        impl.m_nodeid_sessions.add(header,
+                                   std::move(actions),
+                                   chrono::seconds(15));
     }
 }
 

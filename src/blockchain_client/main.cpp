@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 
         Transaction transaction;
         transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::minutes(11));
         transaction.action = transfer;
         transaction.fee.fraction = fee;
 
@@ -133,17 +133,13 @@ int main(int argc, char** argv)
         Broadcast broadcast;
         broadcast.package = signed_transaction;
 
-        Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
-
-        BroadcastRequest broadcast_request;
-        broadcast_request.transaction_hash = meshpp::hash(signed_transaction.to_string());
-
-        broadcast.package = broadcast_request;
-
         for (size_t i = 0; i < count; ++i)
         {
-            //cout << std::to_string(i) << endl;
+            if(i % 100 == 0)
+                cout << std::to_string(i) << endl;
+
             Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
+
             //std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
