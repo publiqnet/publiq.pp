@@ -100,46 +100,40 @@ int main(int argc, char** argv)
     KeyPair tigran_key;
     receive_package.get(tigran_key);
 
-   
+    Transfer transfer;
+    transfer.from = armen_key.public_key;
+    transfer.to = tigran_key.public_key;
+    transfer.amount.fraction = 100;
+
+    Transaction transaction;
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+    transaction.action = transfer;
+    transaction.fee.fraction = fee;
+
+    SignRequest sign_request;
+    sign_request.private_key = armen_key.private_key;
+    sign_request.package = transaction;
+
+    Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
+
+    Signature signature;
+    receive_package.get(signature);
+
+    Authority authorization;
+    authorization.address = armen_key.public_key;
+    authorization.signature = signature.signature;
+
+    SignedTransaction signed_transaction;
+    signed_transaction.authorizations.push_back(authorization);
+    signed_transaction.transaction_details = transaction;
+
+    Broadcast broadcast;
+    broadcast.package = signed_transaction;
+
     for (size_t i = 0; i < count; ++i)
-    {
-        cout << endl << "Transfer -> " << std::to_string(i);
-
-        Transfer transfer;
-        transfer.from = armen_key.public_key;
-        transfer.to = tigran_key.public_key;
-        transfer.amount.fraction = 100;
-
-        Transaction transaction;
-        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-        transaction.action = transfer;
-        transaction.fee.fraction = fee;
-
-        SignRequest sign_request;
-        sign_request.private_key = armen_key.private_key;
-        sign_request.package = transaction;
-
-        Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
-
-        Signature signature;
-        receive_package.get(signature);
-
-        Authority authorization;
-        authorization.address = armen_key.public_key;
-        authorization.signature = signature.signature;
-
-        SignedTransaction signed_transaction;
-        signed_transaction.authorizations.push_back(authorization);
-        signed_transaction.transaction_details = transaction;
-
-        Broadcast broadcast;
-        broadcast.package = signed_transaction;
-
         Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    }
     }
     catch(std::exception const& e)
     {
