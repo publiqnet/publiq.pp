@@ -11,6 +11,7 @@
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
+#include "inbox.hpp"
 
 #include <belt.pp/event.hpp>
 #include <belt.pp/socket.hpp>
@@ -441,6 +442,7 @@ public:
                    filesystem::path const& fs_documents,
                    filesystem::path const& fs_storages,
                    filesystem::path const& fs_storage,
+                   filesystem::path const& fs_inbox,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
@@ -491,6 +493,7 @@ public:
         , m_state(fs_state, *this)
         , m_documents(fs_documents, fs_storages)
         , m_storage_controller(fs_storage)
+        , m_inbox(fs_inbox)
         , all_sync_info(*this)
         , m_node_type(n_type)
         , m_fee_transactions(std::move(coin_from_fractions(fractions)))
@@ -695,6 +698,7 @@ public:
     publiqpp::state m_state;
     publiqpp::documents m_documents;
     publiqpp::storage_controller m_storage_controller;
+    publiqpp::inbox m_inbox;
 
     node_synchronization all_sync_info;
     detail::service_counter service_counter;

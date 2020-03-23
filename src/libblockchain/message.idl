@@ -512,6 +512,22 @@ module BlockchainMessage
         String channel_address
     }
 
+    class Letter
+    {
+        String from
+        String to
+        String message
+    }
+
+    class CheckInbox
+    {
+    }
+
+    class Inbox
+    {
+        Array Letter items
+    }
+
     class GenericModelReserve1 {}
     class GenericModelReserve2 {}
     class GenericModelReserve3 {}

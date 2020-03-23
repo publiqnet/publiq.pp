@@ -45,11 +45,11 @@ void range_break(uint64_t rw_min, uint64_t rw_max,
                  uint64_t& rw2_min, uint64_t& rw2_max,
                  uint64_t& tx2_min, uint64_t& tx2_max)
 {
-    rw1_min = 0, rw1_max = 0;
-    tx1_min = 0, tx1_max = 0;
-    rwtx_min = 0, rwtx_max = 0;
-    rw2_min = 0, rw2_max = 0;
-    tx2_min = 0, tx2_max = 0;
+    rw1_min = 0; rw1_max = 0;
+    tx1_min = 0; tx1_max = 0;
+    rwtx_min = 0; rwtx_max = 0;
+    rw2_min = 0; rw2_max = 0;
+    tx2_min = 0; tx2_max = 0;
 
     if (rw_max <= tx_min)
     {
