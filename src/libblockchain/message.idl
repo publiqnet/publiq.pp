@@ -1,543 +1,543 @@
 module BlockchainMessage
 {
     class Coin
-{
-    UInt64 whole
-    UInt64 fraction
-}
-///
-//  core functions
-///
-class Broadcast
-{
-    Object package
-    String destination
-    Array String exclusion
-}
-
-///
-//  core entities
-///
-class Transaction
-{
-    TimePoint creation
-    TimePoint expiry
-    Coin fee
-    Object action
-}
-
-class Authority
-{
-    String address
-    String signature
-}
-
-class SignedTransaction
-{
-    Transaction transaction_details
-    Array Authority authorizations
-}
-
-class BlockHeader
-{
-    UInt64 block_number
-    UInt64 delta
-    UInt64 c_sum
-    UInt64 c_const
-    String prev_hash
-    TimePoint time_signed
-}
-
-class BlockHeaderExtended
-{
-    UInt64 block_number
-    UInt64 delta
-    UInt64 c_sum
-    UInt64 c_const
-    String prev_hash
-    String block_hash
-    TimePoint time_signed
-}
-
-class Block
-{
-    BlockHeader header
-    Array Reward rewards
-    Array SignedTransaction signed_transactions
-}
-
-class SignedBlock
-{
-    Block block_details
-    Authority authorization
-}
-
-///
-enum RewardType
-{
-    initial
-    miner
-    author
-    channel
-    storage
-    sponsored_return
-}
-
-///
-// action log info
-///
-class RewardLog
-{
-    String to
-    Coin amount
-    RewardType reward_type
-}
-
-class TransactionLog
-{
-    Coin fee
-    Object action
-    String transaction_hash
-    UInt64 transaction_size
-    TimePoint time_signed
-}
-
-class BlockLog
-{
-    String authority
-    String block_hash
-    UInt64 block_number
-    UInt64 block_size
-    TimePoint time_signed
-    Array RewardLog rewards
-    Array TransactionLog transactions
-    Array ContentUnitImpactLog unit_uri_impacts
-    Array SponsorContentUnitApplied applied_sponsor_items
-}
-
-///
-//  blockchain transactions
-///
-class Reward
-{
-    String to
-    Coin amount
-    RewardType reward_type
-}
-
-class Transfer
-{
-    String from
-    String to
-    Coin amount
-    String message
-}
-
-class TransactionReserve1{}
-class TransactionReserve2{}
-class TransactionReserve3{}
-class TransactionReserve4{}
-class TransactionReserve5{}
-class TransactionReserve6{}
-class TransactionReserve7{}
-class TransactionReserve8{}
-class TransactionReserve9{}
-class TransactionReserve10{}
-class TransactionReserve11{}
-class TransactionReserve12{}
-class TransactionReserve13{}
-class TransactionReserve14{}
-class TransactionReserve15{}
-
-class File
-{
-    String uri
-    Array String author_addresses
-}
-
-class ContentUnit
-{
-    String uri
-    UInt64 content_id
-    Array String author_addresses
-    String channel_address
-
-    Array String file_uris
-}
-
-class Content
-{
-    UInt64 content_id
-    String channel_address
-
-    Array String content_unit_uris
-}
-
-enum NodeType
-{
-    blockchain
-    channel
-    storage
-}
-
-class Role
-{
-    String node_address
-    NodeType node_type
-}
-
-class TransactionReserve16{}
-
-class StorageUpdate
-{
-    UpdateType status
-    String file_uri
-    String storage_address
-}
-
-enum UpdateType { store remove }
-
-class ServiceStatistics
-{
-    String server_address
-    TimePoint start_time_point
-    TimePoint end_time_point
-
-    Array ServiceStatisticsFile file_items
-}
-class ServiceStatisticsFile
-{
-    String file_uri
-    String unit_uri
-
-    Array ServiceStatisticsCount count_items
-}
-class ServiceStatisticsCount
-{
-    UInt64 count
-    String peer_address
-}
-
-class SponsorContentUnit
-{
-    String sponsor_address
-    String uri
-    TimePoint start_time_point
-    UInt64 hours
-    Coin amount
-}
-class CancelSponsorContentUnit
-{
-    String sponsor_address
-    String uri
-    String transaction_hash
-}
-
-class TransactionReserve18{}
-class TransactionReserve19{}
-class TransactionReserve20{}
-class TransactionReserve21{}
-class TransactionReserve22{}
-class TransactionReserve23{}
-class TransactionReserve24{}
-class TransactionReserve25{}
-
-//  ip address information
-class IPDestination
-{
-    UInt16 port
-    String address
-}
-
-class IPAddress
-{
-    IPType ip_type
-    IPDestination local
-    IPDestination remote
-}
-
-enum IPType { any ipv4 ipv6 }
-
-class Ping
-{}
-
-class Pong
-{
-    String node_address
-    TimePoint stamp
-    String signature
-}
-
-//  request/response
-class DigestRequest{ Object package }
-class Digest
-{
-    String base58_hash
-    Object package
-}
-
-class LoggedTransactionsRequest
-{
-    UInt64 start_index
-    UInt64 max_count
-}
-class LoggedTransactions
-{
-    Array LoggedTransaction actions
-}
-class LoggedTransaction
-{
-    LoggingType logging_type
-    UInt64 index
-    Object action // BlockLog or TransactionLog
-}
-enum LoggingType { apply revert }
-
-class MasterKeyRequest{}
-class MasterKey{ String master_key }
-
-class KeyPairRequest
-{
-    String master_key
-    UInt64 index
-}
-class KeyPair
-{
-    String master_key
-    UInt64 index
-    String public_key
-    String private_key
-}
-
-class SignRequest
-{
-    String private_key
-    Object package
-}
-class Signature
-{
-    String public_key
-    String signature
-    Object package
-}
-
-class TransactionBroadcastRequest
-{
-    Transaction transaction_details
-    String private_key
-}
-
-class TransactionDone
-{
-    String transaction_hash
-}
-
-class ApiReserve1{}
-class ApiReserve2{}
-class ApiReserve3{}
-class ApiReserve4{}
-
-class SyncRequest{}
-
-class SyncResponse
-{
-    BlockHeaderExtended own_header
-    BlockHeaderExtended promised_header
-}
-
-class BlockHeaderRequest
-{
-    UInt64 blocks_from
-    UInt64 blocks_to
-}
-class BlockHeaderResponse
-{
-    Array BlockHeaderExtended block_headers
-}
-
-class BlockchainRequest
-{
-    UInt64 blocks_from
-    UInt64 blocks_to
-}
-class BlockchainResponse
-{
-    Array SignedBlock signed_blocks
-}
-
-enum PublicAddressType { p2p rpc }
-
-class PublicAddressesRequest
-{
-    PublicAddressType address_type
-}
-class PublicAddressesInfo
-{
-    Array PublicAddressInfo addresses_info
-}
-class PublicAddressInfo
-{
-    IPAddress ip_address
-    IPAddress ssl_ip_address
-    String node_address
-    UInt64 seconds_since_checked
-}
-
-class IncompleteTransactionsRequest
-{
-    String address
-}
-class IncompleteTransactions
-{
-    Array SignedTransaction incomplete_signed_transactions
-}
-
-class Served
-{
-    String storage_order_token
-}
-
-class ContentUnitImpactLog
-{
-    String content_unit_uri
-    Array ContentUnitImpactPerChannel views_per_channel
-}
-class ContentUnitImpactPerChannel
-{
-    String channel_address
-    UInt64 view_count
-}
-
-class SponsorContentUnitApplied
-{
-    Coin amount
-    String transaction_hash
-}
-
-class FileUrisRequest{}
-class FileUris
-{
-    Array String file_uris
-}
-
-class ApiReserve10{}
-class ApiReserve11{}
-
-///
-//  response codes
-///
-class Done{}
-class InvalidPublicKey{ String public_key }
-class InvalidPrivateKey{ String private_key }
-class InvalidSignature{ Signature details }
-class InvalidAuthority
-{
-    String authority_provided
-    String authority_required
-}
-class NotEnoughBalance
-{
-    Coin balance
-    Coin spending
-}
-class TooLongString
-{
-    String used_string
-    UInt64 max_length
-}
-
-enum UriProblemType { missing duplicate invalid }
-class UriError
-{
-    String uri
-    UriProblemType uri_problem_type
-}
-
-class TransactionPoolFull{}
-
-class ResponseCodeReserve2{}
-class ResponseCodeReserve3{}
-class ResponseCodeReserve4{}
-class ResponseCodeReserve5{}
-class ResponseCodeReserve6{}
-class ResponseCodeReserve7{}
-class ResponseCodeReserve8{}
-class ResponseCodeReserve9{}
-class ResponseCodeReserve10{}
-
-class RemoteError{ String message }
-
-//  distributed storage related
-class StorageFile
-{
-    String mime_type
-    String data
-}
-
-class StorageFileDelete
-{
-    String uri
-}
-
-class StorageFileAddress
-{
-    String uri
-}
-
-class StorageFileRequest
-{
-    String uri
-    String storage_order_token
-}
-
-class StorageFileDetails
-{
-    String uri
-}
-
-class StorageFileDetailsResponse
-{
-    String uri
-    String mime_type
-    UInt64 size
-}
-
-//  broadcast messages
-
-class BroadcastRequest
-{
-    String transaction_hash
-}
-
-class BroadcastResponse
-{
-    UInt64 status
-}
-
-class AddressInfo
-{
-    String node_address
-    IPAddress ip_address
-    IPAddress ssl_ip_address
-}
-
-class StorageUpdateCommand
-{
-    UpdateType status
-    String file_uri
-    String storage_address
-    String channel_address
-}
-
-class GenericModelReserve1{}
-class GenericModelReserve2{}
-class GenericModelReserve3{}
-class GenericModelReserve4{}
-class GenericModelReserve5{}
-class GenericModelReserve6{}
-class GenericModelReserve7{}
-class GenericModelReserve8{}
-class GenericModelReserve9{}
-class GenericModelReserve10{}
+    {
+        UInt64 whole
+        UInt64 fraction
+    }
+    ///
+    //  core functions
+    ///
+    class Broadcast
+    {
+        Object package
+        String destination
+        Array String exclusion
+    }
+
+    ///
+    //  core entities
+    ///
+    class Transaction
+    {
+        TimePoint creation
+        TimePoint expiry
+        Coin fee
+        Object action
+    }
+
+    class Authority
+    {
+        String address
+        String signature
+    }
+
+    class SignedTransaction
+    {
+        Transaction transaction_details
+        Array Authority authorizations
+    }
+
+    class BlockHeader
+    {
+        UInt64 block_number
+        UInt64 delta
+        UInt64 c_sum
+        UInt64 c_const
+        String prev_hash
+        TimePoint time_signed
+    }
+
+    class BlockHeaderExtended
+    {
+        UInt64 block_number
+        UInt64 delta
+        UInt64 c_sum
+        UInt64 c_const
+        String prev_hash
+        String block_hash
+        TimePoint time_signed
+    }
+
+    class Block
+    {
+        BlockHeader header
+        Array Reward rewards
+        Array SignedTransaction signed_transactions
+    }
+
+    class SignedBlock
+    {
+        Block block_details
+        Authority authorization
+    }
+
+    ///
+    enum RewardType
+    {
+        initial
+        miner
+        author
+        channel
+        storage
+        sponsored_return
+    }
+
+    ///
+    // action log info
+    ///
+    class RewardLog
+    {
+        String to
+        Coin amount
+        RewardType reward_type
+    }
+
+    class TransactionLog
+    {
+        Coin fee
+        Object action
+        String transaction_hash
+        UInt64 transaction_size
+        TimePoint time_signed
+    }
+
+    class BlockLog
+    {
+        String authority
+        String block_hash
+        UInt64 block_number
+        UInt64 block_size
+        TimePoint time_signed
+        Array RewardLog rewards
+        Array TransactionLog transactions
+        Array ContentUnitImpactLog unit_uri_impacts
+        Array SponsorContentUnitApplied applied_sponsor_items
+    }
+
+    ///
+    //  blockchain transactions
+    ///
+    class Reward
+    {
+        String to
+        Coin amount
+        RewardType reward_type
+    }
+
+    class Transfer
+    {
+        String from
+        String to
+        Coin amount
+        String message
+    }
+
+    class TransactionReserve1{}
+    class TransactionReserve2{}
+    class TransactionReserve3{}
+    class TransactionReserve4{}
+    class TransactionReserve5{}
+    class TransactionReserve6{}
+    class TransactionReserve7{}
+    class TransactionReserve8{}
+    class TransactionReserve9{}
+    class TransactionReserve10{}
+    class TransactionReserve11{}
+    class TransactionReserve12{}
+    class TransactionReserve13{}
+    class TransactionReserve14{}
+    class TransactionReserve15{}
+
+    class File
+    {
+        String uri
+        Array String author_addresses
+    }
+
+    class ContentUnit
+    {
+        String uri
+        UInt64 content_id
+        Array String author_addresses
+        String channel_address
+
+        Array String file_uris
+    }
+
+    class Content
+    {
+        UInt64 content_id
+        String channel_address
+
+        Array String content_unit_uris
+    }
+
+    enum NodeType
+    {
+        blockchain
+        channel
+        storage
+    }
+
+    class Role
+    {
+        String node_address
+        NodeType node_type
+    }
+
+    class TransactionReserve16{}
+
+    class StorageUpdate
+    {
+        UpdateType status
+        String file_uri
+        String storage_address
+    }
+
+    enum UpdateType { store remove }
+
+    class ServiceStatistics
+    {
+        String server_address
+        TimePoint start_time_point
+        TimePoint end_time_point
+
+        Array ServiceStatisticsFile file_items
+    }
+    class ServiceStatisticsFile
+    {
+        String file_uri
+        String unit_uri
+
+        Array ServiceStatisticsCount count_items
+    }
+    class ServiceStatisticsCount
+    {
+        UInt64 count
+        String peer_address
+    }
+
+    class SponsorContentUnit
+    {
+        String sponsor_address
+        String uri
+        TimePoint start_time_point
+        UInt64 hours
+        Coin amount
+    }
+    class CancelSponsorContentUnit
+    {
+        String sponsor_address
+        String uri
+        String transaction_hash
+    }
+
+    class TransactionReserve18{}
+    class TransactionReserve19{}
+    class TransactionReserve20{}
+    class TransactionReserve21{}
+    class TransactionReserve22{}
+    class TransactionReserve23{}
+    class TransactionReserve24{}
+    class TransactionReserve25{}
+
+    //  ip address information
+    class IPDestination
+    {
+        UInt16 port
+        String address
+    }
+
+    class IPAddress
+    {
+        IPType ip_type
+        IPDestination local
+        IPDestination remote
+    }
+
+    enum IPType { any ipv4 ipv6 }
+
+    class Ping
+    {}
+
+    class Pong
+    {
+        String node_address
+        TimePoint stamp
+        String signature
+    }
+
+    //  request/response
+    class DigestRequest{ Object package }
+    class Digest
+    {
+        String base58_hash
+        Object package
+    }
+
+    class LoggedTransactionsRequest
+    {
+        UInt64 start_index
+        UInt64 max_count
+    }
+    class LoggedTransactions
+    {
+        Array LoggedTransaction actions
+    }
+    class LoggedTransaction
+    {
+        LoggingType logging_type
+        UInt64 index
+        Object action // BlockLog or TransactionLog
+    }
+    enum LoggingType { apply revert }
+
+    class MasterKeyRequest{}
+    class MasterKey{ String master_key }
+
+    class KeyPairRequest
+    {
+        String master_key
+        UInt64 index
+    }
+    class KeyPair
+    {
+        String master_key
+        UInt64 index
+        String public_key
+        String private_key
+    }
+
+    class SignRequest
+    {
+        String private_key
+        Object package
+    }
+    class Signature
+    {
+        String public_key
+        String signature
+        Object package
+    }
+
+    class TransactionBroadcastRequest
+    {
+        Transaction transaction_details
+        String private_key
+    }
+
+    class TransactionDone
+    {
+        String transaction_hash
+    }
+
+    class ApiReserve1{}
+    class ApiReserve2{}
+    class ApiReserve3{}
+    class ApiReserve4{}
+
+    class SyncRequest{}
+
+    class SyncResponse
+    {
+        BlockHeaderExtended own_header
+        BlockHeaderExtended promised_header
+    }
+
+    class BlockHeaderRequest
+    {
+        UInt64 blocks_from
+        UInt64 blocks_to
+    }
+    class BlockHeaderResponse
+    {
+        Array BlockHeaderExtended block_headers
+    }
+
+    class BlockchainRequest
+    {
+        UInt64 blocks_from
+        UInt64 blocks_to
+    }
+    class BlockchainResponse
+    {
+        Array SignedBlock signed_blocks
+    }
+
+    enum PublicAddressType { p2p rpc }
+
+    class PublicAddressesRequest
+    {
+        PublicAddressType address_type
+    }
+    class PublicAddressesInfo
+    {
+        Array PublicAddressInfo addresses_info
+    }
+    class PublicAddressInfo
+    {
+        IPAddress ip_address
+        IPAddress ssl_ip_address
+        String node_address
+        UInt64 seconds_since_checked
+    }
+
+    class IncompleteTransactionsRequest
+    {
+        String address
+    }
+    class IncompleteTransactions
+    {
+        Array SignedTransaction incomplete_signed_transactions
+    }
+
+    class Served
+    {
+        String storage_order_token
+    }
+
+    class ContentUnitImpactLog
+    {
+        String content_unit_uri
+        Array ContentUnitImpactPerChannel views_per_channel
+    }
+    class ContentUnitImpactPerChannel
+    {
+        String channel_address
+        UInt64 view_count
+    }
+
+    class SponsorContentUnitApplied
+    {
+        Coin amount
+        String transaction_hash
+    }
+
+    class FileUrisRequest{}
+    class FileUris
+    {
+        Array String file_uris
+    }
+
+    class ApiReserve10{}
+    class ApiReserve11{}
+
+    ///
+    //  response codes
+    ///
+    class Done{}
+    class InvalidPublicKey{ String public_key }
+    class InvalidPrivateKey{ String private_key }
+    class InvalidSignature{ Signature details }
+    class InvalidAuthority
+    {
+        String authority_provided
+        String authority_required
+    }
+    class NotEnoughBalance
+    {
+        Coin balance
+        Coin spending
+    }
+    class TooLongString
+    {
+        String used_string
+        UInt64 max_length
+    }
+
+    enum UriProblemType { missing duplicate invalid }
+    class UriError
+    {
+        String uri
+        UriProblemType uri_problem_type
+    }
+
+    class TransactionPoolFull{}
+
+    class ResponseCodeReserve2{}
+    class ResponseCodeReserve3{}
+    class ResponseCodeReserve4{}
+    class ResponseCodeReserve5{}
+    class ResponseCodeReserve6{}
+    class ResponseCodeReserve7{}
+    class ResponseCodeReserve8{}
+    class ResponseCodeReserve9{}
+    class ResponseCodeReserve10{}
+
+    class RemoteError{ String message }
+
+    //  distributed storage related
+    class StorageFile
+    {
+        String mime_type
+        String data
+    }
+
+    class StorageFileDelete
+    {
+        String uri
+    }
+
+    class StorageFileAddress
+    {
+        String uri
+    }
+
+    class StorageFileRequest
+    {
+        String uri
+        String storage_order_token
+    }
+
+    class StorageFileDetails
+    {
+        String uri
+    }
+
+    class StorageFileDetailsResponse
+    {
+        String uri
+        String mime_type
+        UInt64 size
+    }
+
+    //  broadcast messages
+
+    class BroadcastRequest
+    {
+        String transaction_hash
+    }
+
+    class BroadcastResponse
+    {
+        UInt64 status
+    }
+
+    class AddressInfo
+    {
+        String node_address
+        IPAddress ip_address
+        IPAddress ssl_ip_address
+    }
+
+    class StorageUpdateCommand
+    {
+        UpdateType status
+        String file_uri
+        String storage_address
+        String channel_address
+    }
+
+    class GenericModelReserve1{}
+    class GenericModelReserve2{}
+    class GenericModelReserve3{}
+    class GenericModelReserve4{}
+    class GenericModelReserve5{}
+    class GenericModelReserve6{}
+    class GenericModelReserve7{}
+    class GenericModelReserve8{}
+    class GenericModelReserve9{}
+    class GenericModelReserve10{}
 }
 ////1
