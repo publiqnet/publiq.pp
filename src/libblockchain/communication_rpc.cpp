@@ -190,7 +190,7 @@ void broadcast_message(BlockchainMessage::Broadcast&& broadcast_msg,
                        publiqpp::detail::node_internals& impl)
 {
     auto const& all_peers = impl.m_p2p_peers;
-    auto const& self = impl.m_ptr_p2p_socket->name();
+    auto const& self = impl.m_pb_key.to_string();
     auto const& destination = broadcast_msg.destination;
 
     // message reached destination

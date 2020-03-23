@@ -310,6 +310,7 @@ beltpp::detail::pmsg_all message_list_load(
             BlockchainMessage::Broadcast& ref_broadcast = *reinterpret_cast<BlockchainMessage::Broadcast*>(p.get());
 
             ref_broadcast.package = std::move(signed_transaction);
+            ref_broadcast.destination = letter.to;
 
             return ::beltpp::detail::pmsg_all(BlockchainMessage::Broadcast::rtt,
                                               std::move(p),
