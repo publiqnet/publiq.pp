@@ -1549,6 +1549,8 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_transacti
 {
     if (letter.message.size() > 16 * 1024)
         throw too_long_string_exception(letter.message, 16 * 1024);
+    if (letter.message.empty())
+        throw wrong_data_exception("empty letter.message!");
 
     meshpp::public_key from(letter.from);
     meshpp::public_key to(letter.to);
@@ -1559,9 +1561,6 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_transacti
     if (signed_transaction.authorizations.front().address != letter.from)
         throw authority_exception(signed_transaction.authorizations.front().address, letter.from);
 
-    if (letter.to.empty())
-        throw wrong_data_exception("full broadcast letters are not allowed yet!");
-
     if (letter.to == letter.from)
         throw wrong_data_exception("sender can read his messages without blockchain!");
 
@@ -1571,7 +1570,7 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_transacti
 
     impl.m_transaction_cache.backup();
     bool letter_to_me = letter.to == impl.m_pb_key.to_string();
-    
+
     beltpp::on_failure guard([&impl, letter_to_me]
     {
         if (letter_to_me)
@@ -1581,7 +1580,7 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_transacti
     });
 
     if (letter_to_me) // message is addressed to me
-    {        
+    {
         impl.m_inbox.insert(letter);
         impl.m_inbox.save();
     }
