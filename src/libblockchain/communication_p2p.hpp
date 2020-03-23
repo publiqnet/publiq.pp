@@ -66,6 +66,4 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_tx,
                     BlockchainMessage::Letter const& letter,
                     publiqpp::detail::node_internals& impl);
 
-void save_letter(BlockchainMessage::Letter const& letter,
-                 publiqpp::detail::node_internals& impl);
 }// end of namespace publiqpp

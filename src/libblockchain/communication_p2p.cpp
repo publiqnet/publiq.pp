@@ -1531,41 +1531,41 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_transacti
     if (signed_transaction.authorizations.front().address != letter.from)
         throw authority_exception(signed_transaction.authorizations.front().address, letter.from);
 
+    if (letter.to.empty())
+        throw wrong_data_exception("full broadcast letters are not allowed yet!");
+
     if (letter.to == letter.from)
-        throw wrong_data_exception("message to self");
+        throw wrong_data_exception("sender can read his messages without blockchain!");
 
     // Check cache
     if (impl.m_transaction_cache.contains(signed_transaction))
         return false;
 
     impl.m_transaction_cache.backup();
-
-    beltpp::on_failure guard([&impl]
+    bool letter_to_me = letter.to == impl.m_pb_key.to_string();
+    
+    beltpp::on_failure guard([&impl, letter_to_me]
     {
+        if (letter_to_me)
+            impl.m_inbox.discard();
+
         impl.m_transaction_cache.restore();
     });
+
+    if (letter_to_me) // message is addressed to me
+    {        
+        impl.m_inbox.insert(letter);
+        impl.m_inbox.save();
+    }
 
     impl.m_transaction_cache.add_pool(signed_transaction, true);
 
     guard.dismiss();
 
+    if (letter_to_me)
+        impl.m_inbox.commit();
+
     return true;
 }
 
-void save_letter(BlockchainMessage::Letter const& letter,
-                 publiqpp::detail::node_internals& impl)
-{
-    beltpp::on_failure guard([&impl]
-    {
-        impl.m_inbox.discard();
-    });
-
-    impl.m_inbox.insert(letter);
-
-    impl.m_inbox.save();
-
-    guard.dismiss();
-
-    impl.m_inbox.commit();
-}
 }// end of namespace publiqpp
