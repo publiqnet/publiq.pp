@@ -629,35 +629,9 @@ void node::run(bool& stop_check)
                     SignedTransaction& signed_transaction = *p_signed_tx;
                     Letter& letter = *p_letter;
 
-                    if (process_letter(signed_transaction, letter, *m_pimpl.get()))
+                    if (process_letter(signed_transaction, letter, *m_pimpl))
                     {
-                        if (letter.to != m_pimpl->m_pb_key.to_string())
-                        {
-                            // rebroadcast message direct peer or to all
-                            std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
-                            bool full_broadcast;
-
-                            if (0 == m_pimpl->m_p2p_peers.count(letter.to))
-                            {
-                                broadcast_peers = m_pimpl->m_p2p_peers;
-                                full_broadcast = true;
-                                // or may do as below to follow refined broadcast rules
-                                //full_broadcast = (it == detail::wait_result_item::interface_type::rpc);
-                            }
-                            else
-                            {
-                                broadcast_peers.insert(letter.to);
-                                full_broadcast = true;
-                            }
-
-                            broadcast_message(std::move(broadcast),
-                                              m_pimpl->m_ptr_p2p_socket->name(),
-                                              peerid,
-                                              full_broadcast,
-                                              nullptr,
-                                              broadcast_peers,
-                                              m_pimpl->m_ptr_p2p_socket.get());
-                        }
+                        broadcast_message(std::move(broadcast), *m_pimpl);
                     }
 
                     if (it == detail::wait_result_item::interface_type::rpc)
