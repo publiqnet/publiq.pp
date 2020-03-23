@@ -61,4 +61,11 @@ bool check_service_statistics(BlockchainMessage::Block const& block,
                               publiqpp::detail::node_internals& impl);
 
 uint64_t check_delta_vector(vector<pair<uint64_t, uint64_t>> const& delta_vector, std::string& error);
+
+bool process_letter(BlockchainMessage::SignedTransaction const& signed_tx,
+                    BlockchainMessage::Letter const& letter,
+                    publiqpp::detail::node_internals& impl);
+
+void save_letter(BlockchainMessage::Letter const& letter,
+                 publiqpp::detail::node_internals& impl);
 }// end of namespace publiqpp

@@ -1414,6 +1414,8 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     return true;
 }
 
+
+
 void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
 {
     if (impl.m_node_type == NodeType::blockchain)
@@ -1452,7 +1454,6 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
         broadcast_message(std::move(broadcast), impl);
     }
 }
-
 
 void broadcast_storage_update(publiqpp::detail::node_internals& impl,
                               string const& uri,
@@ -1512,5 +1513,59 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
     impl.m_sessions.add(header,
                         std::move(actions),
                         chrono::minutes(1));
+}
+
+bool process_letter(BlockchainMessage::SignedTransaction const& signed_transaction,
+                    BlockchainMessage::Letter const& letter,
+                    publiqpp::detail::node_internals& impl)
+{
+    if (letter.message.size() > 16 * 1024)
+        throw too_long_string_exception(letter.message, 16 * 1024);
+
+    meshpp::public_key from(letter.from);
+    meshpp::public_key to(letter.to);
+
+    if (signed_transaction.authorizations.size() != 1)
+        throw wrong_data_exception("transaction authorizations error");
+
+    if (signed_transaction.authorizations.front().address != letter.from)
+        throw authority_exception(signed_transaction.authorizations.front().address, letter.from);
+
+    if (letter.to == letter.from)
+        throw wrong_data_exception("message to self");
+
+    // Check cache
+    if (impl.m_transaction_cache.contains(signed_transaction))
+        return false;
+
+    impl.m_transaction_cache.backup();
+
+    beltpp::on_failure guard([&impl]
+    {
+        impl.m_transaction_cache.restore();
+    });
+
+    impl.m_transaction_cache.add_pool(signed_transaction, true);
+
+    guard.dismiss();
+
+    return true;
+}
+
+void save_letter(BlockchainMessage::Letter const& letter,
+                 publiqpp::detail::node_internals& impl)
+{
+    beltpp::on_failure guard([&impl]
+    {
+        impl.m_inbox.discard();
+    });
+
+    impl.m_inbox.insert(letter);
+
+    impl.m_inbox.save();
+
+    guard.dismiss();
+
+    impl.m_inbox.commit();
 }
 }// end of namespace publiqpp

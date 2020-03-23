@@ -51,6 +51,7 @@ public:
          boost::filesystem::path const& fs_documents,
          boost::filesystem::path const& fs_storages,
          boost::filesystem::path const& fs_storage,
+         boost::filesystem::path const& fs_inbox,
          beltpp::ilog* plogger_p2p,
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,
