@@ -17,7 +17,8 @@ class rpc
 public:
     rpc(std::string const& str_pv_key,
         beltpp::ip_address const& rpc_address,
-        beltpp::ip_address const& connect_to_address);
+        beltpp::ip_address const& connect_to_address,
+        uint64_t sync_interval);
 
     void run();
 
@@ -34,6 +35,7 @@ public:
 
     beltpp::timer m_storage_update_timer;
     std::unordered_map<uint64_t, std::unordered_map<std::string, uint64_t>> m_file_usage_map;
+    std::unordered_map<std::string, std::pair<std::string, std::string>> m_file_location_map;
 };
 
 inline

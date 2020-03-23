@@ -14,6 +14,7 @@ namespace program_options = boost::program_options;
 bool process_command_line(int argc, char** argv,
                           string& prefix,
                           string& str_pv_key,
+                          uint64_t& sync_interval,
                           beltpp::ip_address& connect_to_address,
                           beltpp::ip_address& listen_on_address)
 {
@@ -26,13 +27,15 @@ bool process_command_line(int argc, char** argv,
         auto desc_init = options_description.add_options()
             ("help,h", "Print this help message and exit.")
             ("connect_to_address,c", program_options::value<string>(&str_connect_to_address)->required(),
-                            "the blockchain daemon rpc address")
+                        "the blockchain daemon rpc address")
             ("listen_on_address,l", program_options::value<string>(&str_listen_on_address)->required(),
-                            "commander rpc address")
+                        "commander rpc address")
             ("prefix,p", program_options::value<string>(&prefix)->required(),
-                            "blockchain prefix")
+                        "blockchain prefix")
             ("manage_private_key,k", program_options::value<string>(&str_pv_key),
-                            "commander private key to sign commands");
+                        "commander private key to sign commands")
+            ("sync_interval,t", program_options::value<uint64_t>(&sync_interval),
+                        "time interval between syncs");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -47,6 +50,9 @@ bool process_command_line(int argc, char** argv,
         {
             throw std::runtime_error("");
         }
+
+        if (0 == options.count("sync_interval"))
+            sync_interval = 10;
 
         connect_to_address.from_string(str_connect_to_address);
         listen_on_address.from_string(str_listen_on_address);
