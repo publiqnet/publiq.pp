@@ -651,12 +651,7 @@ void node::run(bool& stop_check)
 
                     if (process_letter(signed_transaction, letter, *m_pimpl.get()))
                     {
-                        if (letter.to == m_pimpl->m_pb_key.to_string())
-                        {
-                            // message is addressed to me
-                            save_letter(letter, *m_pimpl.get());
-                        }
-                        else
+                        if (letter.to != m_pimpl->m_pb_key.to_string())
                         {
                             // rebroadcast message direct peer or to all
                             std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
