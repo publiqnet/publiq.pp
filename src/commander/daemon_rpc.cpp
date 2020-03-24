@@ -1260,7 +1260,7 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
         size_t count = 0;
 
 #ifdef LOGGING
-        std::cout << std::endl << std::endl << time_now() << "  LoggedTransactionsRequest -> ";
+        std::cout << std::endl << std::endl << time_now() << "  Request -> ";
 #endif
 
         while (true)

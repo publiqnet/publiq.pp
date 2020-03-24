@@ -44,7 +44,8 @@ beltpp::void_unique_ptr get_putl()
 
 rpc::rpc(string const& str_pv_key,
          beltpp::ip_address const& rpc_address,
-         beltpp::ip_address const& connect_to_address)
+         beltpp::ip_address const& connect_to_address,
+         uint64_t sync_interval)
     : m_str_pv_key(str_pv_key)
     , eh()
     , rpc_socket(beltpp::getsocket<sf>(eh))
@@ -55,7 +56,7 @@ rpc::rpc(string const& str_pv_key,
     , channels("channels", meshpp::data_directory_path("channels"), 100, get_putl()) 
     , connect_to_address(connect_to_address)
 {
-    eh.set_timer(chrono::seconds(10));
+    eh.set_timer(chrono::seconds(sync_interval));
     eh.add(rpc_socket);
 
     m_storage_update_timer.set(chrono::seconds(600));
@@ -495,34 +496,50 @@ beltpp::packet process_storage_update_request(StorageUpdateRequest const& update
     return dm.process_storage_update_request(update, rpc_server);
 }
 
-bool search_file(rpc const& rpc_server,
+bool search_file(rpc& rpc_server,
                  string const& file_uri,
                  string& storgae_address,
                  string& channel_address)
 {
-    auto const& storages = rpc_server.storages;
-    auto const& channels = rpc_server.channels;
+    auto it = rpc_server.m_file_location_map.find(file_uri);
 
-    for (auto const& storage : storages.keys())
+    if (it != rpc_server.m_file_location_map.end())
     {
-        auto const& files = storages.as_const().at(storage).file_uris;
-        if(files.find(file_uri) == files.end() || !files.find(file_uri)->second)
-            for (auto const& channel : channels.keys())
-                for (auto const& content : channels.as_const().at(channel).contents)
-                    for (auto const& content_history : content.second.content_histories)
-                        for (auto const& content_unit : content_history.content_units)
-                            for (auto const& channel_file_uri : content_unit.second.file_uris)
-                                if (file_uri == channel_file_uri)
-                                {
-                                    storgae_address = storage;
-                                    channel_address = channel;
+        storgae_address = it->second.first;
+        channel_address = it->second.second;
 
-                                    return true;
+        return true;
+    }
+    else
+    {
+        auto const& storages = rpc_server.storages;
+        auto const& channels = rpc_server.channels;
+
+        for (auto const& storage : storages.keys())
+        {
+            auto const& files = storages.as_const().at(storage).file_uris;
+            if (files.find(file_uri) == files.end() || !files.find(file_uri)->second)
+                for (auto const& channel : channels.keys())
+                    for (auto const& content : channels.as_const().at(channel).contents)
+                        for (auto const& content_history : content.second.content_histories)
+                            for (auto const& content_unit : content_history.content_units)
+                                for (auto const& channel_file_uri : content_unit.second.file_uris)
+                                {
+                                    if(rpc_server.m_file_location_map.find(channel_file_uri) == rpc_server.m_file_location_map.end())
+                                        rpc_server.m_file_location_map.insert({ channel_file_uri,{ storage, channel } });
+
+                                    if (file_uri == channel_file_uri)
+                                    {
+                                        storgae_address = storage;
+                                        channel_address = channel;
+
+                                        return true;
+                                    }
                                 }
+        }
     }
 
     return false;
-
 }
 
 void rpc::run()
@@ -806,6 +823,12 @@ void rpc::run()
             for (auto index = block_number; index > 0 && index > block_number - 144; --index)
                 for (auto const& item : m_file_usage_map[index])
                     usage_map[item.first] += item.second;
+
+            for (auto it = m_file_usage_map.begin(); it != m_file_usage_map.end(); )
+                if (it->first < block_number - 144)
+                    it = m_file_usage_map.erase(it);
+                else
+                    ++it;
 
             std::multimap<uint64_t, string> ordered_map;
 
