@@ -496,50 +496,42 @@ beltpp::packet process_storage_update_request(StorageUpdateRequest const& update
     return dm.process_storage_update_request(update, rpc_server);
 }
 
-bool search_file(rpc& rpc_server,
-                 string const& file_uri,
-                 string& storgae_address,
-                 string& channel_address)
+std::vector<std::pair<string, string>> search_file(rpc& rpc_server,
+                                                   string const& file_uri)
 {
-    auto it = rpc_server.m_file_location_map.find(file_uri);
+    std::vector<std::pair<string, string>> result;
 
-    if (it != rpc_server.m_file_location_map.end())
+    auto const& storages = rpc_server.storages;
+    auto const& channels = rpc_server.channels;
+
+    for (auto const& storage : storages.keys())
     {
-        storgae_address = it->second.first;
-        channel_address = it->second.second;
-
-        return true;
-    }
-    else
-    {
-        auto const& storages = rpc_server.storages;
-        auto const& channels = rpc_server.channels;
-
-        for (auto const& storage : storages.keys())
+        auto const& files = storages.as_const().at(storage).file_uris;
+        if (files.find(file_uri) == files.end() || !files.find(file_uri)->second)
         {
-            auto const& files = storages.as_const().at(storage).file_uris;
-            if (files.find(file_uri) == files.end() || !files.find(file_uri)->second)
+            auto it = rpc_server.m_file_location_map.find(file_uri);
+
+            if (it != rpc_server.m_file_location_map.end())
+                result.push_back({ it->second.first , it->second.second });
+            else
+            {
                 for (auto const& channel : channels.keys())
                     for (auto const& content : channels.as_const().at(channel).contents)
                         for (auto const& content_history : content.second.content_histories)
                             for (auto const& content_unit : content_history.content_units)
                                 for (auto const& channel_file_uri : content_unit.second.file_uris)
                                 {
-                                    if(rpc_server.m_file_location_map.find(channel_file_uri) == rpc_server.m_file_location_map.end())
+                                    if (rpc_server.m_file_location_map.find(channel_file_uri) == rpc_server.m_file_location_map.end())
                                         rpc_server.m_file_location_map.insert({ channel_file_uri,{ storage, channel } });
 
                                     if (file_uri == channel_file_uri)
-                                    {
-                                        storgae_address = storage;
-                                        channel_address = channel;
-
-                                        return true;
-                                    }
+                                        result.push_back({ storage , channel });
                                 }
+            }
         }
     }
 
-    return false;
+    return result;
 }
 
 void rpc::run()
@@ -831,7 +823,8 @@ void rpc::run()
                     ++it;
 
             std::multimap<uint64_t, string> ordered_map;
-
+            meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
+            
             for (auto it = usage_map.begin(); it != usage_map.end(); ++it)
                 ordered_map.insert({ it->second, it->first });
 
@@ -841,26 +834,20 @@ void rpc::run()
             auto it = ordered_map.rbegin();
             while (count > 0 && it != ordered_map.rend())
             {
-                string storage_address;
-                string channel_address;
+                auto search_result = search_file(*this, it->second);
 
-                if (search_file(*this,
-                                it->second,
-                                storage_address,
-                                channel_address))
+                for( auto const& item : search_result)
                 {
                     BlockchainMessage::StorageUpdateCommand update_command;
                     update_command.status = BlockchainMessage::UpdateType::store;
                     update_command.file_uri = it->second;
-                    update_command.storage_address = storage_address;
-                    update_command.channel_address = channel_address;
+                    update_command.storage_address = item.first;
+                    update_command.channel_address = item.second;
 
                     BlockchainMessage::Transaction transaction;
                     transaction.action = std::move(update_command);
                     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
                     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
-
-                    meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
 
                     BlockchainMessage::Authority authorization;
                     authorization.address = pv_key.get_public_key().to_string();
