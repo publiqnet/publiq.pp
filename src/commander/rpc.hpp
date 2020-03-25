@@ -25,7 +25,7 @@ public:
 
     std::string m_str_pv_key;
     beltpp::event_handler eh;
-    beltpp::socket rpc_socket;
+    beltpp::socket_ptr rpc_socket;
     meshpp::file_loader<CommanderMessage::NumberValue, &CommanderMessage::NumberValue::from_string, &CommanderMessage::NumberValue::to_string> head_block_index;
     meshpp::map_loader<CommanderMessage::Account> accounts;
     meshpp::vector_loader<CommanderMessage::BlockInfo> blocks;

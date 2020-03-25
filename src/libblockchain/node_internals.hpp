@@ -474,9 +474,7 @@ public:
                                                     pv_key,
                                                     discovery_server)
         ))
-        , m_ptr_rpc_socket(new beltpp::socket(
-                               beltpp::getsocket<rpc_sf>(*m_ptr_eh)
-                               ))
+        , m_ptr_rpc_socket(beltpp::getsocket<rpc_sf>(*m_ptr_eh))
         , m_sync_timer()
         , m_check_timer()
         , m_broadcast_timer()
@@ -708,7 +706,7 @@ public:
     meshpp::session_manager<meshpp::nodeid_session_header> m_nodeid_sessions;
     meshpp::session_manager<meshpp::session_header> m_sessions;
 
-    unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
+    unordered_set<beltpp::stream::peer_id> m_p2p_peers;
     transaction_cache m_transaction_cache;
 
     NodeType m_node_type;

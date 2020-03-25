@@ -74,40 +74,40 @@ void storage_node::run(bool& stop)
         auto peerid = wait_result.peerid;
         auto ref_packet = std::move(wait_result.packet);
 
-        beltpp::isocket* psk = m_pimpl->m_ptr_rpc_socket.get();
+        beltpp::stream* psk = m_pimpl->m_ptr_rpc_socket.get();
 
         try
         {
             switch (ref_packet.type())
             {
-            case beltpp::isocket_join::rtt:
+            case beltpp::stream_join::rtt:
             {
                 break;
             }
-            case beltpp::isocket_drop::rtt:
+            case beltpp::stream_drop::rtt:
             {
                 break;
             }
-            case beltpp::isocket_protocol_error::rtt:
+            case beltpp::stream_protocol_error::rtt:
             {
-                beltpp::isocket_protocol_error msg;
+                beltpp::stream_protocol_error msg;
                 ref_packet.get(msg);
                 m_pimpl->writeln_node("slave has protocol error: " + detail::peer_short_names(peerid));
                 m_pimpl->writeln_node(msg.buffer);
 
                 break;
             }
-            case beltpp::isocket_open_refused::rtt:
+            case beltpp::socket_open_refused::rtt:
             {
-                beltpp::isocket_open_refused msg;
+                beltpp::socket_open_refused msg;
                 ref_packet.get(msg);
                 m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
 
                 break;
             }
-            case beltpp::isocket_open_error::rtt:
+            case beltpp::socket_open_error::rtt:
             {
-                beltpp::isocket_open_error msg;
+                beltpp::socket_open_error msg;
                 ref_packet.get(msg);
                 m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
 
@@ -216,7 +216,7 @@ void storage_node::run(bool& stop)
                 m_pimpl->writeln_node("slave can't handle: " + std::to_string(ref_packet.type()) +
                                       ". peer: " + peerid);
 
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 break;
             }
             }   // switch ref_packet.type()
@@ -381,10 +381,10 @@ void storage_node::run(bool& stop)
     }
 }
 
-beltpp::isocket::packets storage_node::receive()
+beltpp::stream::packets storage_node::receive()
 {
     std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
-    beltpp::isocket::packets result;
+    beltpp::stream::packets result;
 
     auto& messages = m_pimpl->m_messages;
     while (false == messages.empty() &&

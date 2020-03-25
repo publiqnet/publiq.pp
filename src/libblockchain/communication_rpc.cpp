@@ -29,8 +29,8 @@ size_t get_action_size(beltpp::packet const& package)
 
 void get_actions(LoggedTransactionsRequest const& msg_get_actions,
                  publiqpp::action_log& action_log,
-                 beltpp::isocket& sk,
-                 beltpp::isocket::peer_id const& peerid)
+                 beltpp::stream& sk,
+                 beltpp::stream::peer_id const& peerid)
 {
     uint64_t start_index = msg_get_actions.start_index;
 
@@ -97,8 +97,8 @@ void get_actions(LoggedTransactionsRequest const& msg_get_actions,
 }
 
 void get_hash(DigestRequest&& msg_get_hash,
-              beltpp::isocket& sk,
-              beltpp::isocket::peer_id const& peerid)
+              beltpp::stream& sk,
+              beltpp::stream::peer_id const& peerid)
 {
     Digest msg_hash_result;
     msg_hash_result.base58_hash = meshpp::hash(msg_get_hash.package.to_string());
@@ -107,8 +107,8 @@ void get_hash(DigestRequest&& msg_get_hash,
     sk.send(peerid, beltpp::packet(std::move(msg_hash_result)));
 }
 
-void get_random_seed(beltpp::isocket& sk,
-                     beltpp::isocket::peer_id const& peerid)
+void get_random_seed(beltpp::stream& sk,
+                     beltpp::stream::peer_id const& peerid)
 {
     meshpp::random_seed rs;
     MasterKey rs_msg;
@@ -117,8 +117,8 @@ void get_random_seed(beltpp::isocket& sk,
     sk.send(peerid, beltpp::packet(std::move(rs_msg)));
 }
 
-void get_public_addresses(beltpp::isocket& sk,
-                          beltpp::isocket::peer_id const& peerid,
+void get_public_addresses(beltpp::stream& sk,
+                          beltpp::stream::peer_id const& peerid,
                           publiqpp::detail::node_internals& impl)
 {
     PublicAddressesInfo result = impl.m_nodeid_service.get_addresses();
@@ -126,8 +126,8 @@ void get_public_addresses(beltpp::isocket& sk,
     sk.send(peerid, beltpp::packet(std::move(result)));
 }
 
-void get_peers_addresses(beltpp::isocket& sk,
-                         beltpp::isocket::peer_id const& peerid,
+void get_peers_addresses(beltpp::stream& sk,
+                         beltpp::stream::peer_id const& peerid,
                          publiqpp::detail::node_internals& impl)
 {
     PublicAddressesInfo result;
@@ -144,8 +144,8 @@ void get_peers_addresses(beltpp::isocket& sk,
 }
 
 void get_key_pair(KeyPairRequest const& kpr_msg,
-                  beltpp::isocket& sk,
-                  beltpp::isocket::peer_id const& peerid)
+                  beltpp::stream& sk,
+                  beltpp::stream::peer_id const& peerid)
 {
     meshpp::random_seed rs(kpr_msg.master_key);
     meshpp::private_key pv = rs.get_private_key(kpr_msg.index);
@@ -161,8 +161,8 @@ void get_key_pair(KeyPairRequest const& kpr_msg,
 }
 
 void get_signature(SignRequest&& msg,
-                   beltpp::isocket& sk,
-                   beltpp::isocket::peer_id const& peerid)
+                   beltpp::stream& sk,
+                   beltpp::stream::peer_id const& peerid)
 {
     meshpp::private_key pv(msg.private_key);
     meshpp::signature signed_msg = pv.sign(msg.package.to_string());
@@ -176,8 +176,8 @@ void get_signature(SignRequest&& msg,
 }
 
 void verify_signature(Signature const& msg,
-                      beltpp::isocket& sk,
-                      beltpp::isocket::peer_id const& peerid)
+                      beltpp::stream& sk,
+                      beltpp::stream::peer_id const& peerid)
 {
     meshpp::signature signed_msg(msg.public_key, msg.package.to_string(), msg.signature);
 
@@ -185,12 +185,12 @@ void verify_signature(Signature const& msg,
 }
 
 void broadcast_message(BlockchainMessage::Broadcast&& broadcast,
-                       beltpp::isocket::peer_id const& self,
-                       beltpp::isocket::peer_id const& from,
+                       beltpp::stream::peer_id const& self,
+                       beltpp::stream::peer_id const& from,
                        bool full_broadcast,
                        beltpp::ilog* plog,
-                       std::unordered_set<beltpp::isocket::peer_id> const& all_peers,
-                       beltpp::isocket* psk)
+                       std::unordered_set<beltpp::stream::peer_id> const& all_peers,
+                       beltpp::stream* psk)
 {
     auto str_compare = [](string const& first, string const& second)
     {

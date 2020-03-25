@@ -36,7 +36,7 @@ session_action_connections::session_action_connections(beltpp::socket& sk)
 session_action_connections::~session_action_connections()
 {
     if (false == peerid_to_drop.empty())
-        psk->send(peerid_to_drop, beltpp::packet(beltpp::isocket_drop()));
+        psk->send(peerid_to_drop, beltpp::packet(beltpp::stream_drop()));
 }
 
 void session_action_connections::initiate(meshpp::nodeid_session_header& header)
@@ -46,7 +46,7 @@ void session_action_connections::initiate(meshpp::nodeid_session_header& header)
         throw std::logic_error("socket open by ip address must give just one peerid");
 
     header.peerid = peerids.front();
-    expected_next_package_type = beltpp::isocket_join::rtt;
+    expected_next_package_type = beltpp::stream_join::rtt;
 }
 
 bool session_action_connections::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
@@ -58,7 +58,7 @@ bool session_action_connections::process(beltpp::packet&& package, meshpp::nodei
     {
         switch (package.type())
         {
-        case beltpp::isocket_join::rtt:
+        case beltpp::stream_join::rtt:
             peerid_to_drop = header.peerid;
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -72,18 +72,18 @@ bool session_action_connections::process(beltpp::packet&& package, meshpp::nodei
     {
         switch (package.type())
         {
-        case beltpp::isocket_drop::rtt:
+        case beltpp::stream_drop::rtt:
             errored = true;
             peerid_to_drop.clear();
             break;
-        case beltpp::isocket_protocol_error::rtt:
+        case beltpp::stream_protocol_error::rtt:
             errored = true;
             peerid_to_drop.clear();
             break;
-        case beltpp::isocket_open_error::rtt:
+        case beltpp::socket_open_error::rtt:
             errored = true;
             break;
-        case beltpp::isocket_open_refused::rtt:
+        case beltpp::socket_open_refused::rtt:
             errored = true;
             break;
         default:
@@ -123,10 +123,10 @@ bool session_action_p2pconnections::process(beltpp::packet&& package, meshpp::no
 
     switch (package.type())
     {
-    case beltpp::isocket_drop::rtt:
+    case beltpp::stream_drop::rtt:
         errored = true;
         break;
-    case beltpp::isocket_protocol_error::rtt:
+    case beltpp::stream_protocol_error::rtt:
         errored = true;
         break;
     default:
@@ -266,7 +266,7 @@ bool session_action_broadcast_address_info::permanent() const
 // --------------------------- session_action_sync_request ---------------------------
 
 session_action_sync_request::session_action_sync_request(detail::node_internals& impl,
-                                                         beltpp::isocket& sk)
+                                                         beltpp::stream& sk)
     : session_action<meshpp::nodeid_session_header>()
     , pimpl(&impl)
     , psk(&sk)
@@ -423,7 +423,7 @@ bool session_action_header::permanent() const
     return true;
 }
 
-void session_action_header::process_request(beltpp::isocket::peer_id const& peerid,
+void session_action_header::process_request(beltpp::stream::peer_id const& peerid,
                                             BlockchainMessage::BlockHeaderRequest const& header_request,
                                             publiqpp::detail::node_internals& impl)
 {
@@ -674,7 +674,7 @@ bool session_action_block::permanent() const
     return true;
 }
 
-void session_action_block::process_request(beltpp::isocket::peer_id const& peerid,
+void session_action_block::process_request(beltpp::stream::peer_id const& peerid,
                                            BlockchainMessage::BlockchainRequest const& blockchain_request,
                                            publiqpp::detail::node_internals& impl)
 {

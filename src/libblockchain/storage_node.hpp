@@ -34,7 +34,7 @@ public:
     void wake();
     void run(bool& stop);
 
-    beltpp::isocket::packets receive();
+    beltpp::stream::packets receive();
     void send(beltpp::packet&& pack);
 
 private:

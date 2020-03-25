@@ -57,12 +57,12 @@ rpc::rpc(string const& str_pv_key,
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(sync_interval));
-    eh.add(rpc_socket);
+    eh.add(*rpc_socket);
 
     m_storage_update_timer.set(chrono::seconds(600));
     m_storage_update_timer.update();
 
-    rpc_socket.listen(rpc_address);
+    rpc_socket->listen(rpc_address);
 }
 
 void process_history_rewards(uint64_t head_block_index,
@@ -542,10 +542,10 @@ void rpc::run()
 
     if (wait_result & beltpp::event_handler::event)
     {
-        beltpp::isocket::peer_id peerid;
+        beltpp::stream::peer_id peerid;
         beltpp::socket::packets received_packets;
 
-        received_packets = rpc_socket.receive(peerid);
+        received_packets = rpc_socket->receive(peerid);
 
         for (auto& received_packet : received_packets)
         {
@@ -568,7 +568,7 @@ void rpc::run()
                                                                          *this));
                 }
 
-                rpc_socket.send(peerid, beltpp::packet(msg));
+                rpc_socket->send(peerid, beltpp::packet(msg));
                 break;
             }
             case ImportAccount::rtt:
@@ -578,7 +578,7 @@ void rpc::run()
 
                 import_account_if_needed(msg.address, *this, connect_to_address);
 
-                rpc_socket.send(peerid, beltpp::packet(Done()));
+                rpc_socket->send(peerid, beltpp::packet(Done()));
                 break;
             }
             case AccountHistoryRequest::rtt:
@@ -598,7 +598,7 @@ void rpc::run()
                                            *this);
                 }
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case HeadBlockRequest::rtt:
@@ -606,7 +606,7 @@ void rpc::run()
                 NumberValue response;
                 response.value = head_block_index.as_const()->value;
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case AccountRequest::rtt:
@@ -618,7 +618,7 @@ void rpc::run()
 
                 auto const& account_raw = accounts.as_const().at(msg.address);
 
-                rpc_socket.send(peerid, beltpp::packet(
+                rpc_socket->send(peerid, beltpp::packet(
                                     AccountResponseFromRawAccount(head_block_index.as_const()->value,
                                                                   account_raw,
                                                                   *this))
@@ -638,7 +638,7 @@ void rpc::run()
                 else
                     response = blocks.as_const().at(blocks_size - 1);
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
 
                 break;
             }
@@ -653,7 +653,7 @@ void rpc::run()
                                          *this,
                                          connect_to_address);
 
-                rpc_socket.send(peerid, send(msg, *this, connect_to_address));
+                rpc_socket->send(peerid, send(msg, *this, connect_to_address));
 
                 break;
             }
@@ -699,7 +699,7 @@ void rpc::run()
                 MinersResponse response;
                 response.miners = miners;
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
 
                 break;
             }
@@ -709,7 +709,7 @@ void rpc::run()
                 for (auto const& storage : storages.keys())
                          response.storages.push_back(storages.as_const().at(storage));
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case StorageUpdateRequest::rtt:
@@ -717,7 +717,7 @@ void rpc::run()
                 StorageUpdateRequest msg;
                 std::move(ref_packet).get(msg);
 
-                rpc_socket.send(peerid, process_storage_update_request(msg, *this, connect_to_address));
+                rpc_socket->send(peerid, process_storage_update_request(msg, *this, connect_to_address));
 
                 break;
             }
@@ -741,7 +741,7 @@ void rpc::run()
                     if (miner.second == champions.mined_blocks_count)
                         champions.miner_addresses.push_back(miner.first);
 
-                rpc_socket.send(peerid, beltpp::packet(champions));
+                rpc_socket->send(peerid, beltpp::packet(champions));
                 break;
             }
             case ChannelsRequest::rtt:
@@ -750,12 +750,12 @@ void rpc::run()
                 for (auto const& channel : channels.keys())
                          response.channels.push_back(channels.as_const().at(channel));
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case Failed::rtt:
             {
-                rpc_socket.send(peerid, std::move(ref_packet));
+                rpc_socket->send(peerid, std::move(ref_packet));
 
                 break;
             }
@@ -769,21 +769,21 @@ void rpc::run()
             Failed msg;
             msg.reason = std::move(reason);
             msg.message = ex.what();
-            rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+            rpc_socket->send(peerid, beltpp::packet(std::move(msg)));
             throw;
         }
         catch(std::exception const& ex)
         {
             Failed msg;
             msg.message = ex.what();
-            rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+            rpc_socket->send(peerid, beltpp::packet(std::move(msg)));
             throw;
         }
         catch(...)
         {
             Failed msg;
             msg.message = "unknown error";
-            rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+            rpc_socket->send(peerid, beltpp::packet(std::move(msg)));
             throw;
         }
         }
@@ -861,7 +861,7 @@ void rpc::run()
                     broadcast.echoes = 2;
                     broadcast.package = signed_transaction;
 
-                    dm.socket.send(dm.peerid, beltpp::packet(broadcast));
+                    dm.socket->send(dm.peerid, beltpp::packet(broadcast));
                     dm.wait_response(string());
                 }
 

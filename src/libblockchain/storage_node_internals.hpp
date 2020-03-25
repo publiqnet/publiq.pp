@@ -71,9 +71,7 @@ public:
         , plogger_storage_node(_plogger_storage_node)
         , m_node_type(NodeType::blockchain)
         , m_ptr_eh(new beltpp::event_handler())
-        , m_ptr_rpc_socket(new beltpp::socket(
-                               beltpp::getsocket<rpc_storage_sf>(*m_ptr_eh)
-                               ))
+        , m_ptr_rpc_socket(beltpp::getsocket<rpc_storage_sf>(*m_ptr_eh))
         , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_storage(fs_storage)
         , m_pv_key(pv_key)
@@ -121,7 +119,7 @@ public:
                 {
                     B_UNUSED(pevent_item);
                     wait_result_item::interface_type it = wait_result_item::interface_type::rpc;
-                    beltpp::isocket* psk = m_ptr_rpc_socket.get();
+                    beltpp::stream* psk = m_ptr_rpc_socket.get();
 
                     beltpp::socket::packets received_packets;
                     beltpp::socket::peer_id peerid;

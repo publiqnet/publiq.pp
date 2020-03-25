@@ -1519,7 +1519,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
 }
 
 void delete_storage_file(publiqpp::detail::node_internals& impl,
-                         beltpp::isocket* psk,
+                         beltpp::stream* psk,
                          string const& peerid,
                          string const& uri)
 {

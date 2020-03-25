@@ -160,7 +160,7 @@ wait_result_item node_internals::wait_and_receive_one()
                 if (pevent_item == &m_ptr_p2p_socket->worker())
                     it = wait_result_item::interface_type::p2p;
 
-                beltpp::isocket* psk = nullptr;
+                beltpp::stream* psk = nullptr;
                 if (pevent_item == &m_ptr_p2p_socket->worker())
                     psk = m_ptr_p2p_socket.get();
                 else if (pevent_item == m_ptr_rpc_socket.get())
