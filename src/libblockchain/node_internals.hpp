@@ -13,7 +13,7 @@
 #include "storage_node.hpp"
 #include "inbox.hpp"
 
-#include <belt.pp/event.hpp>
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
 #include <belt.pp/packet.hpp>
 #include <belt.pp/utility.hpp>

@@ -3,6 +3,7 @@
 #include "commander_message.hpp"
 
 #include <belt.pp/socket.hpp>
+#include <belt.pp/event.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 

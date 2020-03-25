@@ -7,6 +7,7 @@
 
 #include <belt.pp/timer.hpp>
 #include <belt.pp/socket.hpp>
+#include <belt.pp/event.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 

@@ -2,6 +2,7 @@
 #include <publiq.pp/message.tmpl.hpp>
 
 #include <belt.pp/socket.hpp>
+#include <belt.pp/event.hpp>
 
 #include <boost/filesystem.hpp>
 
