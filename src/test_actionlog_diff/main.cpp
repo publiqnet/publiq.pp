@@ -1,8 +1,8 @@
 ﻿#include <publiq.pp/message.hpp>
 #include <publiq.pp/message.tmpl.hpp>
 
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
-#include <belt.pp/event.hpp>
 
 #include <boost/filesystem.hpp>
 
@@ -51,8 +51,9 @@ int main( int argc, char** argv )
         address1.local = beltpp::ip_destination();
     }
     beltpp::socket::peer_id peerid1;
-    beltpp::event_handler eh1;
-    beltpp::socket_ptr sk1_ptr = beltpp::getsocket<sf>( eh1 );
+    beltpp::event_handler_ptr eh1_ptr = beltpp::libsocket::construct_event_handler();
+    beltpp::event_handler& eh1 = *eh1_ptr;
+    beltpp::socket_ptr sk1_ptr = beltpp::libsocket::getsocket<sf>( eh1 );
     beltpp::socket& sk1 = *sk1_ptr;
     eh1.add( sk1 );
     peerid1 = Connect( address1, sk1, eh1 );
@@ -67,8 +68,10 @@ int main( int argc, char** argv )
         address2.local = beltpp::ip_destination();
     }
     beltpp::socket::peer_id peerid2;
-    beltpp::event_handler eh2;
-    beltpp::socket_ptr sk2_ptr = beltpp::getsocket<sf>( eh2 );
+
+    beltpp::event_handler_ptr eh2_ptr = beltpp::libsocket::construct_event_handler();
+    beltpp::event_handler& eh2 = *eh2_ptr;
+    beltpp::socket_ptr sk2_ptr = beltpp::libsocket::getsocket<sf>( eh2 );
     beltpp::socket& sk2 = *sk2_ptr;
     eh2.add( sk2 );
     peerid2 = Connect( address2, sk2, eh2 );
@@ -131,9 +134,9 @@ void Send(beltpp::packet&& send_package,
    while (true)
    {
        beltpp::stream::packets packets;
-       std::unordered_set<beltpp::ievent_item const*> set_items;
+       std::unordered_set<beltpp::event_item const*> set_items;
 
-       if (beltpp::ievent_handler::wait_result::event & eh.wait(set_items))
+       if (beltpp::event_handler::wait_result::event & eh.wait(set_items))
            packets = sk.receive(peerid);
 
        if (peerid.empty())
@@ -178,12 +181,12 @@ peer_id Connect(beltpp::ip_address const& open_address,
 
     peer_id peerid;
     beltpp::stream::packets packets;
-    std::unordered_set<beltpp::ievent_item const*> set_items;
+    std::unordered_set<beltpp::event_item const*> set_items;
 
     while (true)
     {
 
-        if (beltpp::ievent_handler::wait_result::event == eh.wait(set_items))
+        if (beltpp::event_handler::wait_result::event == eh.wait(set_items))
             packets = sk.receive(peerid);
 
         if (peerid.empty())

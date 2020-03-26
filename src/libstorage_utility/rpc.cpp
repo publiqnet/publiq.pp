@@ -48,7 +48,7 @@ bool rpc::run()
 {
     bool code = true;
 
-    unordered_set<beltpp::ievent_item const*> wait_sockets;
+    unordered_set<beltpp::event_item const*> wait_sockets;
 
     auto wait_result = m_pimpl->m_ptr_eh->wait(wait_sockets);
 

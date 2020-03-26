@@ -2,7 +2,7 @@
 
 #include "http.hpp"
 
-#include <belt.pp/event.hpp>
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
 #include <belt.pp/packet.hpp>
 #include <belt.pp/utility.hpp>
@@ -56,8 +56,8 @@ public:
     rpc_internals(ip_address const& rpc_bind_to_address,
                    beltpp::ilog* _plogger_rpc)
         : plogger_rpc(_plogger_rpc)
-        , m_ptr_eh(new beltpp::event_handler())
-        , m_ptr_rpc_socket(beltpp::getsocket<rpc_sf>(*m_ptr_eh))
+        , m_ptr_eh(beltpp::libsocket::construct_event_handler())
+        , m_ptr_rpc_socket(beltpp::libsocket::getsocket<rpc_sf>(*m_ptr_eh))
         , m_rpc_bind_to_address(rpc_bind_to_address)
     {
         m_ptr_eh->set_timer(chrono::seconds(30));

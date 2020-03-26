@@ -5,7 +5,7 @@
 #include "coin.hpp"
 #include "message.hpp"
 
-#include <belt.pp/event.hpp>
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
 #include <belt.pp/packet.hpp>
 
