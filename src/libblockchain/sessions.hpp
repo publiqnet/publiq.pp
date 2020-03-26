@@ -82,7 +82,7 @@ class session_action_sync_request : public meshpp::session_action<meshpp::nodeid
 {
 public:
     session_action_sync_request(detail::node_internals& impl,
-                                beltpp::isocket& sk);
+                                beltpp::stream& sk);
     ~session_action_sync_request() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -90,7 +90,7 @@ public:
     bool permanent() const override;
 
     detail::node_internals* pimpl;
-    beltpp::isocket* psk;
+    beltpp::stream* psk;
     std::string current_peerid;
 };
 
@@ -106,7 +106,7 @@ public:
     bool permanent() const override;
 
     static
-    void process_request(beltpp::isocket::peer_id const& peerid,
+    void process_request(beltpp::stream::peer_id const& peerid,
                          BlockchainMessage::BlockHeaderRequest const& header_request,
                          publiqpp::detail::node_internals& impl);
 
@@ -149,7 +149,7 @@ public:
     bool permanent() const override;
 
     static
-    void process_request(beltpp::isocket::peer_id const& peerid,
+    void process_request(beltpp::stream::peer_id const& peerid,
                          BlockchainMessage::BlockchainRequest const& blockchain_request,
                          publiqpp::detail::node_internals& impl);
 

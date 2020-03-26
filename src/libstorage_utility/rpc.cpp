@@ -58,7 +58,7 @@ bool rpc::run()
         {
             beltpp::socket::peer_id peerid;
 
-            beltpp::isocket* psk = nullptr;
+            beltpp::stream* psk = nullptr;
             if (pevent_item == m_pimpl->m_ptr_rpc_socket.get())
                 psk = m_pimpl->m_ptr_rpc_socket.get();
 
@@ -75,36 +75,36 @@ bool rpc::run()
             {
                 switch (received_packet.type())
                 {
-                case beltpp::isocket_join::rtt:
+                case beltpp::stream_join::rtt:
                 {
 
                     break;
                 }
-                case beltpp::isocket_drop::rtt:
+                case beltpp::stream_drop::rtt:
                 {
 
                     break;
                 }
-                case beltpp::isocket_protocol_error::rtt:
+                case beltpp::stream_protocol_error::rtt:
                 {
-                    beltpp::isocket_protocol_error msg;
+                    beltpp::stream_protocol_error msg;
                     received_packet.get(msg);
                     m_pimpl->writeln_rpc("protocol error: ");
                     m_pimpl->writeln_rpc(msg.buffer);
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                    psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
 
                     break;
                 }
-                case beltpp::isocket_open_refused::rtt:
+                case beltpp::socket_open_refused::rtt:
                 {
-                    beltpp::isocket_open_refused msg;
+                    beltpp::socket_open_refused msg;
                     received_packet.get(msg);
                     //m_pimpl->writeln_rpc_warning(msg.reason + ", " + peerid);
                     break;
                 }
-                case beltpp::isocket_open_error::rtt:
+                case beltpp::socket_open_error::rtt:
                 {
-                    beltpp::isocket_open_error msg;
+                    beltpp::socket_open_error msg;
                     received_packet.get(msg);
                     //m_pimpl->writeln_rpc_warning(msg.reason + ", " + peerid);
                     break;

@@ -57,12 +57,12 @@ rpc::rpc(string const& str_pv_key,
     , connect_to_address(connect_to_address)
 {
     eh.set_timer(chrono::seconds(sync_interval));
-    eh.add(rpc_socket);
+    eh.add(*rpc_socket);
 
     m_storage_update_timer.set(chrono::seconds(600));
     m_storage_update_timer.update();
 
-    rpc_socket.listen(rpc_address);
+    rpc_socket->listen(rpc_address);
 }
 
 void process_history_rewards(uint64_t head_block_index,
@@ -496,50 +496,42 @@ beltpp::packet process_storage_update_request(StorageUpdateRequest const& update
     return dm.process_storage_update_request(update, rpc_server);
 }
 
-bool search_file(rpc& rpc_server,
-                 string const& file_uri,
-                 string& storgae_address,
-                 string& channel_address)
+std::vector<std::pair<string, string>> search_file(rpc& rpc_server,
+                                                   string const& file_uri)
 {
-    auto it = rpc_server.m_file_location_map.find(file_uri);
+    std::vector<std::pair<string, string>> result;
 
-    if (it != rpc_server.m_file_location_map.end())
+    auto const& storages = rpc_server.storages;
+    auto const& channels = rpc_server.channels;
+
+    for (auto const& storage : storages.keys())
     {
-        storgae_address = it->second.first;
-        channel_address = it->second.second;
-
-        return true;
-    }
-    else
-    {
-        auto const& storages = rpc_server.storages;
-        auto const& channels = rpc_server.channels;
-
-        for (auto const& storage : storages.keys())
+        auto const& files = storages.as_const().at(storage).file_uris;
+        if (files.find(file_uri) == files.end() || !files.find(file_uri)->second)
         {
-            auto const& files = storages.as_const().at(storage).file_uris;
-            if (files.find(file_uri) == files.end() || !files.find(file_uri)->second)
+            auto it = rpc_server.m_file_location_map.find(file_uri);
+
+            if (it != rpc_server.m_file_location_map.end())
+                result.push_back({ it->second.first , it->second.second });
+            else
+            {
                 for (auto const& channel : channels.keys())
                     for (auto const& content : channels.as_const().at(channel).contents)
                         for (auto const& content_history : content.second.content_histories)
                             for (auto const& content_unit : content_history.content_units)
                                 for (auto const& channel_file_uri : content_unit.second.file_uris)
                                 {
-                                    if(rpc_server.m_file_location_map.find(channel_file_uri) == rpc_server.m_file_location_map.end())
+                                    if (rpc_server.m_file_location_map.find(channel_file_uri) == rpc_server.m_file_location_map.end())
                                         rpc_server.m_file_location_map.insert({ channel_file_uri,{ storage, channel } });
 
                                     if (file_uri == channel_file_uri)
-                                    {
-                                        storgae_address = storage;
-                                        channel_address = channel;
-
-                                        return true;
-                                    }
+                                        result.push_back({ storage , channel });
                                 }
+            }
         }
     }
 
-    return false;
+    return result;
 }
 
 void rpc::run()
@@ -550,10 +542,10 @@ void rpc::run()
 
     if (wait_result & beltpp::event_handler::event)
     {
-        beltpp::isocket::peer_id peerid;
+        beltpp::stream::peer_id peerid;
         beltpp::socket::packets received_packets;
 
-        received_packets = rpc_socket.receive(peerid);
+        received_packets = rpc_socket->receive(peerid);
 
         for (auto& received_packet : received_packets)
         {
@@ -576,7 +568,7 @@ void rpc::run()
                                                                          *this));
                 }
 
-                rpc_socket.send(peerid, beltpp::packet(msg));
+                rpc_socket->send(peerid, beltpp::packet(msg));
                 break;
             }
             case ImportAccount::rtt:
@@ -586,7 +578,7 @@ void rpc::run()
 
                 import_account_if_needed(msg.address, *this, connect_to_address);
 
-                rpc_socket.send(peerid, beltpp::packet(Done()));
+                rpc_socket->send(peerid, beltpp::packet(Done()));
                 break;
             }
             case AccountHistoryRequest::rtt:
@@ -606,7 +598,7 @@ void rpc::run()
                                            *this);
                 }
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case HeadBlockRequest::rtt:
@@ -614,7 +606,7 @@ void rpc::run()
                 NumberValue response;
                 response.value = head_block_index.as_const()->value;
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case AccountRequest::rtt:
@@ -626,7 +618,7 @@ void rpc::run()
 
                 auto const& account_raw = accounts.as_const().at(msg.address);
 
-                rpc_socket.send(peerid, beltpp::packet(
+                rpc_socket->send(peerid, beltpp::packet(
                                     AccountResponseFromRawAccount(head_block_index.as_const()->value,
                                                                   account_raw,
                                                                   *this))
@@ -646,7 +638,7 @@ void rpc::run()
                 else
                     response = blocks.as_const().at(blocks_size - 1);
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
 
                 break;
             }
@@ -661,7 +653,7 @@ void rpc::run()
                                          *this,
                                          connect_to_address);
 
-                rpc_socket.send(peerid, send(msg, *this, connect_to_address));
+                rpc_socket->send(peerid, send(msg, *this, connect_to_address));
 
                 break;
             }
@@ -707,7 +699,7 @@ void rpc::run()
                 MinersResponse response;
                 response.miners = miners;
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
 
                 break;
             }
@@ -717,7 +709,7 @@ void rpc::run()
                 for (auto const& storage : storages.keys())
                          response.storages.push_back(storages.as_const().at(storage));
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case StorageUpdateRequest::rtt:
@@ -725,7 +717,7 @@ void rpc::run()
                 StorageUpdateRequest msg;
                 std::move(ref_packet).get(msg);
 
-                rpc_socket.send(peerid, process_storage_update_request(msg, *this, connect_to_address));
+                rpc_socket->send(peerid, process_storage_update_request(msg, *this, connect_to_address));
 
                 break;
             }
@@ -749,7 +741,7 @@ void rpc::run()
                     if (miner.second == champions.mined_blocks_count)
                         champions.miner_addresses.push_back(miner.first);
 
-                rpc_socket.send(peerid, beltpp::packet(champions));
+                rpc_socket->send(peerid, beltpp::packet(champions));
                 break;
             }
             case ChannelsRequest::rtt:
@@ -758,12 +750,12 @@ void rpc::run()
                 for (auto const& channel : channels.keys())
                          response.channels.push_back(channels.as_const().at(channel));
 
-                rpc_socket.send(peerid, beltpp::packet(response));
+                rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
             case Failed::rtt:
             {
-                rpc_socket.send(peerid, std::move(ref_packet));
+                rpc_socket->send(peerid, std::move(ref_packet));
 
                 break;
             }
@@ -777,21 +769,21 @@ void rpc::run()
             Failed msg;
             msg.reason = std::move(reason);
             msg.message = ex.what();
-            rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+            rpc_socket->send(peerid, beltpp::packet(std::move(msg)));
             throw;
         }
         catch(std::exception const& ex)
         {
             Failed msg;
             msg.message = ex.what();
-            rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+            rpc_socket->send(peerid, beltpp::packet(std::move(msg)));
             throw;
         }
         catch(...)
         {
             Failed msg;
             msg.message = "unknown error";
-            rpc_socket.send(peerid, beltpp::packet(std::move(msg)));
+            rpc_socket->send(peerid, beltpp::packet(std::move(msg)));
             throw;
         }
         }
@@ -831,7 +823,8 @@ void rpc::run()
                     ++it;
 
             std::multimap<uint64_t, string> ordered_map;
-
+            meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
+            
             for (auto it = usage_map.begin(); it != usage_map.end(); ++it)
                 ordered_map.insert({ it->second, it->first });
 
@@ -841,26 +834,20 @@ void rpc::run()
             auto it = ordered_map.rbegin();
             while (count > 0 && it != ordered_map.rend())
             {
-                string storage_address;
-                string channel_address;
+                auto search_result = search_file(*this, it->second);
 
-                if (search_file(*this,
-                                it->second,
-                                storage_address,
-                                channel_address))
+                for( auto const& item : search_result)
                 {
                     BlockchainMessage::StorageUpdateCommand update_command;
                     update_command.status = BlockchainMessage::UpdateType::store;
                     update_command.file_uri = it->second;
-                    update_command.storage_address = storage_address;
-                    update_command.channel_address = channel_address;
+                    update_command.storage_address = item.first;
+                    update_command.channel_address = item.second;
 
                     BlockchainMessage::Transaction transaction;
                     transaction.action = std::move(update_command);
                     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
                     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
-
-                    meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
 
                     BlockchainMessage::Authority authorization;
                     authorization.address = pv_key.get_public_key().to_string();
@@ -872,9 +859,9 @@ void rpc::run()
 
                     BlockchainMessage::Broadcast broadcast;
                     broadcast.package = signed_transaction;
-                    broadcast.destination = storage_address;
+                    broadcast.destination = item.first;
 
-                    dm.socket.send(dm.peerid, beltpp::packet(broadcast));
+                    dm.socket->send(dm.peerid, beltpp::packet(broadcast));
                     dm.wait_response(string());
                 }
 

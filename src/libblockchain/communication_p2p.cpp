@@ -1377,6 +1377,10 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     // Check data and authority
     NodeType node_type;
 
+    // Check cache
+    if (pimpl->m_transaction_cache.contains(signed_transaction))
+        return false;
+
     if (false != update_command.file_uri.empty())
         throw wrong_request_exception("StorageUpdateCommand contains empty file uri!");
 
@@ -1393,8 +1397,7 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     if (signed_transaction.authorizations.size() != 1)
         throw wrong_data_exception("transaction authorizations error");
 
-    // Check cache
-    if (pimpl->m_transaction_cache.contains(signed_transaction))
+    if (pimpl->m_documents.storage_has_uri(update_command.file_uri, update_command.storage_address))
         return false;
 
     pimpl->m_transaction_cache.backup();
@@ -1488,7 +1491,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
 }
 
 void delete_storage_file(publiqpp::detail::node_internals& impl,
-                         beltpp::isocket* psk,
+                         beltpp::stream* psk,
                          string const& peerid,
                          string const& uri)
 {

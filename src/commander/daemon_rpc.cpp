@@ -312,12 +312,12 @@ daemon_rpc::daemon_rpc()
     , peerid()
     , log_index(meshpp::data_file_path("log_index.txt"))
 {
-    eh.add(socket);
+    eh.add(*socket);
 }
 
 void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
 {
-    auto peerids = socket.open(connect_to_address);
+    auto peerids = socket->open(connect_to_address);
 
     if (peerids.size() != 1)
         throw std::runtime_error(connect_to_address.to_string() + " is ambigous or unknown");
@@ -333,7 +333,7 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
         {
             peer_id _peerid;
 
-            auto received_packets = socket.receive(_peerid);
+            auto received_packets = socket->receive(_peerid);
 
             if (peerids.front() != _peerid)
                 throw std::logic_error("logic error in open() - peerids.front() != peerid");
@@ -344,7 +344,7 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
 
                 switch (ref_packet.type())
                 {
-                case beltpp::isocket_join::rtt:
+                case beltpp::stream_join::rtt:
                 {
                     peerid = _peerid;
                     keep_trying = false;
@@ -366,7 +366,7 @@ void daemon_rpc::close()
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to close");
 
-    socket.send(peerid, beltpp::packet(beltpp::isocket_drop()));
+    socket->send(peerid, beltpp::packet(beltpp::stream_drop()));
 }
 
 enum class update_balance_type {increase, decrease};
@@ -1064,7 +1064,7 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
     bc.private_key = update.private_key;
     bc.transaction_details = tx;
 
-    socket.send(peerid, beltpp::packet(std::move(bc)));
+    socket->send(peerid, beltpp::packet(std::move(bc)));
 
     bool keep_trying = true;
     while (keep_trying)
@@ -1077,7 +1077,7 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
         {
             peer_id _peerid;
 
-            auto received_packets = socket.receive(_peerid);
+            auto received_packets = socket->receive(_peerid);
 
             for (auto& received_packet : received_packets)
             {
@@ -1094,7 +1094,7 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
                     keep_trying = false;
                     break;
                 }
-                case beltpp::isocket_drop::rtt:
+                case beltpp::stream_drop::rtt:
                 {
                     CommanderMessage::Failed response;
                     response.message = "server disconnected";
@@ -1135,7 +1135,7 @@ beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
         {
             peer_id _peerid;
 
-            auto received_packets = socket.receive(_peerid);
+            auto received_packets = socket->receive(_peerid);
 
             for (auto& received_packet : received_packets)
             {
@@ -1152,7 +1152,7 @@ beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
                     keep_trying = false;
                     break;
                 }
-                case beltpp::isocket_drop::rtt:
+                case beltpp::stream_drop::rtt:
                 {
                     CommanderMessage::Failed response;
                     response.message = "server disconnected";
@@ -1230,7 +1230,7 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
     BlockchainMessage::Broadcast bc;
     bc.package = std::move(stx);
 
-    socket.send(peerid, beltpp::packet(std::move(bc)));
+    socket->send(peerid, beltpp::packet(std::move(bc)));
 
     return wait_response(transaction_hash);
 }
@@ -1254,12 +1254,12 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
         req.max_count = max_count;
         req.start_index = context.m_pimpl->start_index();
 
-        socket.send(peerid, beltpp::packet(req));
+        socket->send(peerid, beltpp::packet(req));
 
         size_t count = 0;
 
 #ifdef LOGGING
-        std::cout << std::endl << std::endl << time_now() << "  LoggedTransactionsRequest -> ";
+        std::cout << std::endl << std::endl << time_now() << "  Request -> ";
 #endif
 
         while (true)
@@ -1272,7 +1272,7 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
             {
                 peer_id _peerid;
 
-                auto received_packets = socket.receive(_peerid);
+                auto received_packets = socket->receive(_peerid);
 
                 for (auto& received_packet : received_packets)
                 {
@@ -1529,5 +1529,5 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
         if (count < max_count)
             break; //   will not send any more requests
-    }//  while (true) and socket.send(peerid, beltpp::packet(req));
+    }//  while (true) and socket->send(peerid, beltpp::packet(req));
 }

@@ -57,9 +57,7 @@ public:
                    beltpp::ilog* _plogger_rpc)
         : plogger_rpc(_plogger_rpc)
         , m_ptr_eh(new beltpp::event_handler())
-        , m_ptr_rpc_socket(new beltpp::socket(
-                               beltpp::getsocket<rpc_sf>(*m_ptr_eh)
-                               ))
+        , m_ptr_rpc_socket(beltpp::getsocket<rpc_sf>(*m_ptr_eh))
         , m_rpc_bind_to_address(rpc_bind_to_address)
     {
         m_ptr_eh->set_timer(chrono::seconds(30));

@@ -28,7 +28,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
                               BlockchainMessage::UpdateType const& status);
 
 void delete_storage_file(publiqpp::detail::node_internals& impl,
-                         beltpp::isocket* psk,
+                         beltpp::stream* psk,
                          std::string const& peerid,
                          std::string const& uri);
 

@@ -2,6 +2,7 @@
 #include <publiq.pp/message.tmpl.hpp>
 
 #include <belt.pp/socket.hpp>
+#include <belt.pp/event.hpp>
 
 #include <boost/filesystem.hpp>
 
@@ -51,7 +52,8 @@ int main( int argc, char** argv )
     }
     beltpp::socket::peer_id peerid1;
     beltpp::event_handler eh1;
-    beltpp::socket sk1 = beltpp::getsocket<sf>( eh1 );
+    beltpp::socket_ptr sk1_ptr = beltpp::getsocket<sf>( eh1 );
+    beltpp::socket& sk1 = *sk1_ptr;
     eh1.add( sk1 );
     peerid1 = Connect( address1, sk1, eh1 );
     beltpp::packet receive_package1;
@@ -66,7 +68,8 @@ int main( int argc, char** argv )
     }
     beltpp::socket::peer_id peerid2;
     beltpp::event_handler eh2;
-    beltpp::socket sk2 = beltpp::getsocket<sf>( eh2 );
+    beltpp::socket_ptr sk2_ptr = beltpp::getsocket<sf>( eh2 );
+    beltpp::socket& sk2 = *sk2_ptr;
     eh2.add( sk2 );
     peerid2 = Connect( address2, sk2, eh2 );
     beltpp::packet receive_package2;
@@ -127,7 +130,7 @@ void Send(beltpp::packet&& send_package,
    sk.send(peerid, std::move(send_package));
    while (true)
    {
-       beltpp::isocket::packets packets;
+       beltpp::stream::packets packets;
        std::unordered_set<beltpp::ievent_item const*> set_items;
 
        if (beltpp::ievent_handler::wait_result::event & eh.wait(set_items))
@@ -148,13 +151,13 @@ void Send(beltpp::packet&& send_package,
 
        auto const& packet = packets.front();
 
-       if (packet.type() == beltpp::isocket_drop::rtt)
+       if (packet.type() == beltpp::stream_drop::rtt)
        {
            throw std::runtime_error("server disconnected");
        }
-       else if (packet.type() == beltpp::isocket_open_refused::rtt ||
-                packet.type() == beltpp::isocket_open_error::rtt ||
-                packet.type() == beltpp::isocket_join::rtt)
+       else if (packet.type() == beltpp::socket_open_refused::rtt ||
+                packet.type() == beltpp::socket_open_error::rtt ||
+                packet.type() == beltpp::stream_join::rtt)
        {
            assert(false);
            throw std::runtime_error("open error or join received: impossible");
@@ -174,7 +177,7 @@ peer_id Connect(beltpp::ip_address const& open_address,
     sk.open(open_address);
 
     peer_id peerid;
-    beltpp::isocket::packets packets;
+    beltpp::stream::packets packets;
     std::unordered_set<beltpp::ievent_item const*> set_items;
 
     while (true)
@@ -198,19 +201,19 @@ peer_id Connect(beltpp::ip_address const& open_address,
 
         auto const& packet = packets.front();
 
-        if (packet.type() == beltpp::isocket_open_refused::rtt)
+        if (packet.type() == beltpp::socket_open_refused::rtt)
         {
-            beltpp::isocket_open_refused msg;
+            beltpp::socket_open_refused msg;
             packet.get(msg);
             throw std::runtime_error(msg.reason);
         }
-        else if (packet.type() == beltpp::isocket_open_error::rtt)
+        else if (packet.type() == beltpp::socket_open_error::rtt)
         {
-            beltpp::isocket_open_error msg;
+            beltpp::socket_open_error msg;
             packet.get(msg);
             throw std::runtime_error(msg.reason);
         }
-        else if (packet.type() != beltpp::isocket_join::rtt)
+        else if (packet.type() != beltpp::stream_join::rtt)
         {
             assert(false);
             throw std::runtime_error("unexpected response: " + std::to_string(packet.type()));
