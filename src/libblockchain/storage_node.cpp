@@ -65,7 +65,7 @@ void storage_node::run(bool& stop)
 {
     stop = false;
 
-    unordered_set<beltpp::ievent_item const*> wait_sockets;
+    unordered_set<beltpp::event_item const*> wait_sockets;
 
     auto wait_result = m_pimpl->wait_and_receive_one();
 

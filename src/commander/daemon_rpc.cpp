@@ -307,12 +307,12 @@ LogIndexLoader& sync_context::index_rewards(string const& account)
 }
 
 daemon_rpc::daemon_rpc()
-    : eh()
-    , socket(beltpp::getsocket<sf>(eh))
+    : eh(beltpp::libsocket::construct_event_handler())
+    , socket(beltpp::libsocket::getsocket<sf>(*eh))
     , peerid()
     , log_index(meshpp::data_file_path("log_index.txt"))
 {
-    eh.add(*socket);
+    eh->add(*socket);
 }
 
 void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
@@ -325,8 +325,8 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
     bool keep_trying = true;
     while (keep_trying)
     {
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
-        auto wait_result = eh.wait(wait_sockets);
+        unordered_set<beltpp::event_item const*> wait_sockets;
+        auto wait_result = eh->wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
         if (wait_result & beltpp::event_handler::event)
@@ -1069,8 +1069,8 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
     bool keep_trying = true;
     while (keep_trying)
     {
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
-        auto wait_result = eh.wait(wait_sockets);
+        unordered_set<beltpp::event_item const*> wait_sockets;
+        auto wait_result = eh->wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
         if (wait_result & beltpp::event_handler::event)
@@ -1127,8 +1127,8 @@ beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
     bool keep_trying = true;
     while (keep_trying)
     {
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
-        auto wait_result = eh.wait(wait_sockets);
+        unordered_set<beltpp::event_item const*> wait_sockets;
+        auto wait_result = eh->wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
         if (wait_result & beltpp::event_handler::event)
@@ -1265,8 +1265,8 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
         while (true)
         {
-            unordered_set<beltpp::ievent_item const*> wait_sockets;
-            auto wait_result = eh.wait(wait_sockets);
+            unordered_set<beltpp::event_item const*> wait_sockets;
+            auto wait_result = eh->wait(wait_sockets);
             B_UNUSED(wait_sockets);
 
             if (wait_result & beltpp::event_handler::event)
@@ -1526,7 +1526,7 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
                 if (false == received_packets.empty())
                     break;  //  breaks while() that calls receive(), may send another request
             }
-        }//  while (true) and call eh.wait(wait_sockets)
+        }//  while (true) and call eh->wait(wait_sockets)
 
         if (count < max_count)
             break; //   will not send any more requests

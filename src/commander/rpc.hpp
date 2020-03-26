@@ -6,8 +6,8 @@
 #include <publiq.pp/message.tmpl.hpp>
 
 #include <belt.pp/timer.hpp>
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
-#include <belt.pp/event.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 
@@ -24,7 +24,7 @@ public:
     void run();
 
     std::string m_str_pv_key;
-    beltpp::event_handler eh;
+    beltpp::event_handler_ptr eh;
     beltpp::socket_ptr rpc_socket;
     meshpp::file_loader<CommanderMessage::NumberValue, &CommanderMessage::NumberValue::from_string, &CommanderMessage::NumberValue::to_string> head_block_index;
     meshpp::map_loader<CommanderMessage::Account> accounts;

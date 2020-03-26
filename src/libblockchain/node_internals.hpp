@@ -464,7 +464,7 @@ public:
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
-        , m_ptr_eh(new beltpp::event_handler())
+        , m_ptr_eh(beltpp::libsocket::construct_event_handler())
         , m_ptr_p2p_socket(new meshpp::p2psocket(
                                meshpp::getp2psocket(*m_ptr_eh,
                                                     p2p_bind_to_address,
@@ -474,7 +474,7 @@ public:
                                                     pv_key,
                                                     discovery_server)
         ))
-        , m_ptr_rpc_socket(beltpp::getsocket<rpc_sf>(*m_ptr_eh))
+        , m_ptr_rpc_socket(beltpp::libsocket::getsocket<rpc_sf>(*m_ptr_eh))
         , m_sync_timer()
         , m_check_timer()
         , m_broadcast_timer()

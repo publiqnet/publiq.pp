@@ -1,8 +1,8 @@
 #include <publiq.pp/message.hpp>
 #include <publiq.pp/message.tmpl.hpp>
 
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
-#include <belt.pp/event.hpp>
 
 #include <boost/filesystem.hpp>
 
@@ -60,9 +60,10 @@ int main(int argc, char** argv)
 
         //__debugbreak();
         beltpp::socket::peer_id peerid;
-        beltpp::event_handler eh;
+        beltpp::event_handler_ptr eh_ptr = beltpp::libsocket::construct_event_handler();
+        beltpp::event_handler& eh = *eh_ptr;
 
-        beltpp::socket_ptr ptr_sk = beltpp::getsocket<sf>(eh);
+        beltpp::socket_ptr ptr_sk = beltpp::libsocket::getsocket<sf>(eh);
         beltpp::socket& sk = *ptr_sk;
         eh.add(sk);
 
@@ -162,9 +163,9 @@ void Send(beltpp::packet&& send_package,
    while (true)
    {
        beltpp::stream::packets packets;
-       std::unordered_set<beltpp::ievent_item const*> set_items;
+       std::unordered_set<beltpp::event_item const*> set_items;
 
-       if (beltpp::ievent_handler::wait_result::event & eh.wait(set_items))
+       if (beltpp::event_handler::wait_result::event & eh.wait(set_items))
            packets = sk.receive(peerid);
 
        if (peerid.empty())
@@ -208,10 +209,10 @@ peer_id Connect(beltpp::ip_address const& open_address,
 
     peer_id peerid;
     beltpp::stream::packets packets;
-    std::unordered_set<beltpp::ievent_item const*> set_items;
+    std::unordered_set<beltpp::event_item const*> set_items;
     while(true)
     {
-        if (beltpp::ievent_handler::wait_result::event & eh.wait(set_items))
+        if (beltpp::event_handler::wait_result::event & eh.wait(set_items))
             packets = sk.receive(peerid);
 
         if (peerid.empty())

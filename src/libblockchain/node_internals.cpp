@@ -148,7 +148,7 @@ wait_result_item node_internals::wait_and_receive_one()
         if (false == m_wait_result.event_packets.empty())
             throw std::logic_error("false == m_wait_result.event_packets.empty()");
 
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
+        unordered_set<beltpp::event_item const*> wait_sockets;
 
         wait_result = m_ptr_eh->wait(wait_sockets);
 

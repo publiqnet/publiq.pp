@@ -47,8 +47,8 @@ rpc::rpc(string const& str_pv_key,
          beltpp::ip_address const& connect_to_address,
          uint64_t sync_interval)
     : m_str_pv_key(str_pv_key)
-    , eh()
-    , rpc_socket(beltpp::getsocket<sf>(eh))
+    , eh(beltpp::libsocket::construct_event_handler())
+    , rpc_socket(beltpp::libsocket::getsocket<sf>(*eh))
     , head_block_index(meshpp::data_file_path("head_block_index.txt"))
     , accounts("accounts", meshpp::data_directory_path("accounts"), 100, get_putl())
     , blocks("block", meshpp::data_directory_path("blocks"), 1000, 1, get_putl())
@@ -56,8 +56,8 @@ rpc::rpc(string const& str_pv_key,
     , channels("channels", meshpp::data_directory_path("channels"), 100, get_putl()) 
     , connect_to_address(connect_to_address)
 {
-    eh.set_timer(chrono::seconds(sync_interval));
-    eh.add(*rpc_socket);
+    eh->set_timer(chrono::seconds(sync_interval));
+    eh->add(*rpc_socket);
 
     m_storage_update_timer.set(chrono::seconds(600));
     m_storage_update_timer.update();
@@ -536,8 +536,8 @@ std::vector<std::pair<string, string>> search_file(rpc& rpc_server,
 
 void rpc::run()
 {
-    unordered_set<beltpp::ievent_item const*> wait_sockets;
-    auto wait_result = eh.wait(wait_sockets);
+    unordered_set<beltpp::event_item const*> wait_sockets;
+    auto wait_result = eh->wait(wait_sockets);
     B_UNUSED(wait_sockets);
 
     if (wait_result & beltpp::event_handler::event)
