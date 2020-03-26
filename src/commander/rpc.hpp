@@ -6,6 +6,7 @@
 #include <publiq.pp/message.tmpl.hpp>
 
 #include <belt.pp/timer.hpp>
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
 
 #include <mesh.pp/fileutility.hpp>
@@ -23,8 +24,8 @@ public:
     void run();
 
     std::string m_str_pv_key;
-    beltpp::event_handler eh;
-    beltpp::socket rpc_socket;
+    beltpp::event_handler_ptr eh;
+    beltpp::socket_ptr rpc_socket;
     meshpp::file_loader<CommanderMessage::NumberValue, &CommanderMessage::NumberValue::from_string, &CommanderMessage::NumberValue::to_string> head_block_index;
     meshpp::map_loader<CommanderMessage::Account> accounts;
     meshpp::vector_loader<CommanderMessage::BlockInfo> blocks;
@@ -47,11 +48,11 @@ void range_break(uint64_t rw_min, uint64_t rw_max,
                  uint64_t& rw2_min, uint64_t& rw2_max,
                  uint64_t& tx2_min, uint64_t& tx2_max)
 {
-    rw1_min = 0, rw1_max = 0;
-    tx1_min = 0, tx1_max = 0;
-    rwtx_min = 0, rwtx_max = 0;
-    rw2_min = 0, rw2_max = 0;
-    tx2_min = 0, tx2_max = 0;
+    rw1_min = 0; rw1_max = 0;
+    tx1_min = 0; tx1_max = 0;
+    rwtx_min = 0; rwtx_max = 0;
+    rw2_min = 0; rw2_max = 0;
+    tx2_min = 0; tx2_max = 0;
 
     if (rw_max <= tx_min)
     {

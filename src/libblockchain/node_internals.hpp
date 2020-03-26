@@ -11,8 +11,9 @@
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
+#include "inbox.hpp"
 
-#include <belt.pp/event.hpp>
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
 #include <belt.pp/packet.hpp>
 #include <belt.pp/utility.hpp>
@@ -383,9 +384,15 @@ uint64_t (*)(std::map<uint64_t, std::map<std::string, std::map<std::string, uint
 uint64_t block_number,
 bool is_testnet);
 
+using fp_content_unit_validate_check =
+bool (*)(std::vector<std::string> const& content_unit_file_uris,
+std::string& find_duplicate,
+uint64_t block_number,
+bool is_testnet);
+
 inline uint64_t counts_per_channel_views(map<uint64_t, map<string, map<string, uint64_t>>> const& item_per_owner,
-                                         uint64_t /*block_number*/,
-                                         bool /*is_testnet*/)
+                                         uint64_t/* block_number*/,
+                                         bool/* is_testnet*/)
 {
     uint64_t count = 0;
     for (auto const& item_per_content_id : item_per_owner)
@@ -399,6 +406,24 @@ inline uint64_t counts_per_channel_views(map<uint64_t, map<string, map<string, u
     }
 
     return count;
+}
+inline bool content_unit_validate_check(std::vector<std::string> const& content_unit_file_uris,
+                                        std::string& find_duplicate,
+                                        uint64_t /*block_number*/,
+                                        bool /*is_testnet*/)
+{
+    unordered_set<string> file_uris;
+    for (auto const& file_uri : content_unit_file_uris)
+    {
+        auto insert_res = file_uris.insert(file_uri);
+        if (false == insert_res.second)
+        {
+            find_duplicate = file_uri;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 class node_internals
@@ -417,6 +442,7 @@ public:
                    filesystem::path const& fs_documents,
                    filesystem::path const& fs_storages,
                    filesystem::path const& fs_storage,
+                   filesystem::path const& fs_inbox,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
                    meshpp::private_key const& pv_key,
@@ -424,6 +450,7 @@ public:
                    uint64_t fractions,
                    uint64_t freeze_before_block,
                    uint64_t revert_blocks_count,
+                   uint64_t revert_actions_count,
                    string const& manager_address,
                    bool log_enabled,
                    bool transfer_only,
@@ -432,11 +459,12 @@ public:
                    bool discovery_server,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
-                   detail::fp_counts_per_channel_views p_counts_per_channel_views)
+                   detail::fp_counts_per_channel_views p_counts_per_channel_views,
+                   detail::fp_content_unit_validate_check p_content_unit_validate_check)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
-        , m_ptr_eh(new beltpp::event_handler())
+        , m_ptr_eh(beltpp::libsocket::construct_event_handler())
         , m_ptr_p2p_socket(new meshpp::p2psocket(
                                meshpp::getp2psocket(*m_ptr_eh,
                                                     p2p_bind_to_address,
@@ -446,9 +474,7 @@ public:
                                                     pv_key,
                                                     discovery_server)
         ))
-        , m_ptr_rpc_socket(new beltpp::socket(
-                               beltpp::getsocket<rpc_sf>(*m_ptr_eh)
-                               ))
+        , m_ptr_rpc_socket(beltpp::libsocket::getsocket<rpc_sf>(*m_ptr_eh))
         , m_sync_timer()
         , m_check_timer()
         , m_broadcast_timer()
@@ -465,6 +491,7 @@ public:
         , m_state(fs_state, *this)
         , m_documents(fs_documents, fs_storages)
         , m_storage_controller(fs_storage)
+        , m_inbox(fs_inbox)
         , all_sync_info(*this)
         , m_node_type(n_type)
         , m_fee_transactions(std::move(coin_from_fractions(fractions)))
@@ -478,12 +505,16 @@ public:
         , m_manager_address(manager_address)
         , m_resync_blockchain(resync ? 10 : uint64_t(-1))
         , m_revert_blocks_count(revert_blocks_count)
+        , m_revert_actions_count(revert_actions_count)
         , m_genesis_signed_block(genesis_signed_block)
         , m_mine_amount_threshhold(mine_amount_threshhold)
         , m_block_reward_array(block_reward_array)
         , pcounts_per_channel_views(nullptr != p_counts_per_channel_views ?
                                                    p_counts_per_channel_views :
                                                    &counts_per_channel_views)
+        , pcontent_unit_validate_check(nullptr != p_content_unit_validate_check ?
+                                                      p_content_unit_validate_check :
+                                                      &content_unit_validate_check)
     {
         m_sync_timer.set(chrono::seconds(SYNC_TIMER));
         m_check_timer.set(chrono::seconds(CHECK_TIMER));
@@ -665,6 +696,7 @@ public:
     publiqpp::state m_state;
     publiqpp::documents m_documents;
     publiqpp::storage_controller m_storage_controller;
+    publiqpp::inbox m_inbox;
 
     node_synchronization all_sync_info;
     detail::service_counter service_counter;
@@ -674,7 +706,7 @@ public:
     meshpp::session_manager<meshpp::nodeid_session_header> m_nodeid_sessions;
     meshpp::session_manager<meshpp::session_header> m_sessions;
 
-    unordered_set<beltpp::isocket::peer_id> m_p2p_peers;
+    unordered_set<beltpp::stream::peer_id> m_p2p_peers;
     transaction_cache m_transaction_cache;
 
     NodeType m_node_type;
@@ -691,12 +723,14 @@ public:
     string m_manager_address;
     uint64_t m_resync_blockchain;
     uint64_t m_revert_blocks_count;
+    uint64_t m_revert_actions_count;
 
     string m_genesis_signed_block;
 
     coin const m_mine_amount_threshhold;
     std::vector<coin> const m_block_reward_array;
     fp_counts_per_channel_views pcounts_per_channel_views;
+    fp_content_unit_validate_check pcontent_unit_validate_check;
 
     struct vote_info
     {

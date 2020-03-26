@@ -1391,24 +1391,27 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     // Check data and authority
     NodeType node_type;
 
+    // Check cache
+    if (pimpl->m_transaction_cache.contains(signed_transaction))
+        return false;
+
     if (false != update_command.file_uri.empty())
-        throw wrong_request_exception("StorageUpdateCommand containes empty file uri!");
+        throw wrong_request_exception("StorageUpdateCommand contains empty file uri!");
 
     if (update_command.status == UpdateType::store && update_command.channel_address.empty())
-        throw wrong_request_exception("StorageUpdateCommand containes wrong data!");
+        throw wrong_request_exception("StorageUpdateCommand contains wrong data!");
 
     if (false == pimpl->m_state.get_role(update_command.storage_address, node_type) || node_type != NodeType::storage)
-        throw wrong_request_exception("StorageUpdateCommand containes wrong storage address!");
+        throw wrong_request_exception("StorageUpdateCommand contains wrong storage address!");
 
     if (false == update_command.channel_address.empty() &&
         (false == pimpl->m_state.get_role(update_command.channel_address, node_type) || node_type != NodeType::channel))
-        throw wrong_request_exception("StorageUpdateCommand containes wrong channel address!");
+        throw wrong_request_exception("StorageUpdateCommand contains wrong channel address!");
 
     if (signed_transaction.authorizations.size() != 1)
         throw wrong_data_exception("transaction authorizations error");
 
-    // Check cache
-    if (pimpl->m_transaction_cache.contains(signed_transaction))
+    if (pimpl->m_documents.storage_has_uri(update_command.file_uri, update_command.storage_address))
         return false;
 
     pimpl->m_transaction_cache.backup();
@@ -1427,6 +1430,8 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
 
     return true;
 }
+
+
 
 void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
 {
@@ -1474,7 +1479,6 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     }
 }
 
-
 void broadcast_storage_update(publiqpp::detail::node_internals& impl,
                               string const& uri,
                               UpdateType const& status)
@@ -1515,7 +1519,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
 }
 
 void delete_storage_file(publiqpp::detail::node_internals& impl,
-                         beltpp::isocket* psk,
+                         beltpp::stream* psk,
                          string const& peerid,
                          string const& uri)
 {
@@ -1541,4 +1545,57 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
                         std::move(actions),
                         chrono::minutes(1));
 }
+
+bool process_letter(BlockchainMessage::SignedTransaction const& signed_transaction,
+                    BlockchainMessage::Letter const& letter,
+                    publiqpp::detail::node_internals& impl)
+{
+    if (letter.message.size() > 16 * 1024)
+        throw too_long_string_exception(letter.message, 16 * 1024);
+    if (letter.message.empty())
+        throw wrong_data_exception("empty letter.message!");
+
+    meshpp::public_key from(letter.from);
+    meshpp::public_key to(letter.to);
+
+    if (signed_transaction.authorizations.size() != 1)
+        throw wrong_data_exception("transaction authorizations error");
+
+    if (signed_transaction.authorizations.front().address != letter.from)
+        throw authority_exception(signed_transaction.authorizations.front().address, letter.from);
+
+    if (letter.to == letter.from)
+        throw wrong_data_exception("sender can read his messages without blockchain!");
+
+    // Check cache
+    if (impl.m_transaction_cache.contains(signed_transaction))
+        return false;
+
+    impl.m_transaction_cache.backup();
+    bool letter_to_me = letter.to == impl.m_pb_key.to_string();
+
+    beltpp::on_failure guard([&impl, letter_to_me]
+    {
+        if (letter_to_me)
+            impl.m_inbox.discard();
+
+        impl.m_transaction_cache.restore();
+    });
+
+    if (letter_to_me) // message is addressed to me
+    {
+        impl.m_inbox.insert(letter);
+        impl.m_inbox.save();
+    }
+
+    impl.m_transaction_cache.add_pool(signed_transaction, true);
+
+    guard.dismiss();
+
+    if (letter_to_me)
+        impl.m_inbox.commit();
+
+    return true;
+}
+
 }// end of namespace publiqpp

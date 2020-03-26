@@ -26,6 +26,12 @@ uint64_t (*)(std::map<uint64_t, std::map<std::string, std::map<std::string, uint
 uint64_t block_number,
 bool is_testnet);
 
+using fp_content_unit_validate_check =
+bool (*)(std::vector<std::string> const& content_unit_file_uris,
+std::string& find_duplicate,
+uint64_t block_number,
+bool is_testnet);
+
     class node_internals;
 }
 
@@ -45,6 +51,7 @@ public:
          boost::filesystem::path const& fs_documents,
          boost::filesystem::path const& fs_storages,
          boost::filesystem::path const& fs_storage,
+         boost::filesystem::path const& fs_inbox,
          beltpp::ilog* plogger_p2p,
          beltpp::ilog* plogger_node,
          meshpp::private_key const& pv_key,
@@ -52,6 +59,7 @@ public:
          uint64_t fractions,
          uint64_t freeze_before_block,
          uint64_t revert_blocks_count,
+         uint64_t revert_actions_count,
          std::string const& manager_address,
          bool log_enabled,
          bool transfer_only,
@@ -60,7 +68,8 @@ public:
          bool discovery_server,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
-         detail::fp_counts_per_channel_views p_counts_per_channel_views);
+         detail::fp_counts_per_channel_views p_counts_per_channel_views,
+         detail::fp_content_unit_validate_check p_content_unit_validate_check);
     node(node&& other) noexcept;
     ~node();
 

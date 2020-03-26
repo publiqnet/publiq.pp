@@ -3,7 +3,7 @@
 #include "global.hpp"
 #include "message.hpp"
 
-#include <belt.pp/isocket.hpp>
+#include <belt.pp/stream.hpp>
 
 #include <vector>
 #include <utility>
@@ -32,8 +32,8 @@ public:
     node_synchronization(detail::node_internals& impl);
     detail::node_internals* pimpl;
     bool blockchain_sync_in_progress;
-    std::unordered_map<beltpp::isocket::peer_id, BlockchainMessage::SyncResponse> sync_responses;
-    std::unordered_map<beltpp::isocket::peer_id, headers_action_data> headers_actions_data;
+    std::unordered_map<beltpp::stream::peer_id, BlockchainMessage::SyncResponse> sync_responses;
+    std::unordered_map<beltpp::stream::peer_id, headers_action_data> headers_actions_data;
     BlockchainMessage::BlockHeaderExtended net_sync_info() const;
     BlockchainMessage::BlockHeaderExtended own_sync_info() const;
 };

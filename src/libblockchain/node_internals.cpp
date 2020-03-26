@@ -11,7 +11,26 @@ bool node_internals::initialize()
 {
     bool stop_check = false;
 
-    if (0 != m_revert_blocks_count)
+    if (0 != m_revert_actions_count)
+    {
+        writeln_node("reverting " + std::to_string(m_revert_actions_count) + " actions");
+
+        while (0 != m_revert_actions_count)
+        {
+            m_action_log.revert();
+            --m_revert_actions_count;
+        }
+
+        beltpp::on_failure guard([this]
+        {
+            discard();
+        });
+        save(guard);
+
+        writeln_node("done.");
+        stop_check = true;
+    }
+    else if (0 != m_revert_blocks_count)
     {
         //  revert transactions from pool
         load_transaction_cache(*this, true);
@@ -129,7 +148,7 @@ wait_result_item node_internals::wait_and_receive_one()
         if (false == m_wait_result.event_packets.empty())
             throw std::logic_error("false == m_wait_result.event_packets.empty()");
 
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
+        unordered_set<beltpp::event_item const*> wait_sockets;
 
         wait_result = m_ptr_eh->wait(wait_sockets);
 
@@ -141,7 +160,7 @@ wait_result_item node_internals::wait_and_receive_one()
                 if (pevent_item == &m_ptr_p2p_socket->worker())
                     it = wait_result_item::interface_type::p2p;
 
-                beltpp::isocket* psk = nullptr;
+                beltpp::stream* psk = nullptr;
                 if (pevent_item == &m_ptr_p2p_socket->worker())
                     psk = m_ptr_p2p_socket.get();
                 else if (pevent_item == m_ptr_rpc_socket.get())

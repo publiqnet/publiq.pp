@@ -2,6 +2,7 @@
 
 #include "commander_message.hpp"
 
+#include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
 
 #include <mesh.pp/fileutility.hpp>
@@ -75,8 +76,8 @@ public:
 
     void sync(rpc& rpc_server, sync_context& context);
 
-    beltpp::event_handler eh;
-    beltpp::socket socket;
-    beltpp::isocket::peer_id peerid;
+    beltpp::event_handler_ptr eh;
+    beltpp::socket_ptr socket;
+    beltpp::stream::peer_id peerid;
     meshpp::file_loader<CommanderMessage::NumberValue, &CommanderMessage::NumberValue::from_string, &CommanderMessage::NumberValue::to_string> log_index;
 };

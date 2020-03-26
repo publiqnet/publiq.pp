@@ -30,7 +30,7 @@ using std::endl;
 using std::unique_ptr;
 using std::string;
 
-bool g_termination_handled = false;
+static bool g_termination_handled = false;
 void termination_handler(int /*signum*/)
 {
     g_termination_handled = true;

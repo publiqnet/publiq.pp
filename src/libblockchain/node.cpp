@@ -59,6 +59,7 @@ node::node(string const& genesis_signed_block,
            filesystem::path const& fs_documents,
            filesystem::path const& fs_storages,
            filesystem::path const& fs_storage,
+           filesystem::path const& fs_inbox,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
            meshpp::private_key const& pv_key,
@@ -66,6 +67,7 @@ node::node(string const& genesis_signed_block,
            uint64_t fractions,
            uint64_t freeze_before_block,
            uint64_t revert_blocks_count,
+           uint64_t revert_actions_count,
            string const& manager_address,
            bool log_enabled,
            bool transfer_only,
@@ -74,7 +76,8 @@ node::node(string const& genesis_signed_block,
            bool discovery_server,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
-           detail::fp_counts_per_channel_views p_counts_per_channel_views)
+           detail::fp_counts_per_channel_views p_counts_per_channel_views,
+           detail::fp_content_unit_validate_check p_content_unit_validate_check)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          public_ssl_address,
@@ -88,6 +91,7 @@ node::node(string const& genesis_signed_block,
                                          fs_documents,
                                          fs_storages,
                                          fs_storage,
+                                         fs_inbox,
                                          plogger_p2p,
                                          plogger_node,
                                          pv_key,
@@ -95,6 +99,7 @@ node::node(string const& genesis_signed_block,
                                          fractions,
                                          freeze_before_block,
                                          revert_blocks_count,
+                                         revert_actions_count,
                                          manager_address,
                                          log_enabled,
                                          transfer_only,
@@ -103,7 +108,8 @@ node::node(string const& genesis_signed_block,
                                          discovery_server,
                                          mine_amount_threshhold,
                                          block_reward_array,
-                                         p_counts_per_channel_views))
+                                         p_counts_per_channel_views,
+                                         p_content_unit_validate_check))
 {}
 
 node::node(node&&) noexcept = default;
@@ -146,7 +152,7 @@ void node::run(bool& stop_check)
         auto received_packet = std::move(wait_result.packet);
         auto it = wait_result.it;
 
-        beltpp::isocket* psk = nullptr;
+        beltpp::stream* psk = nullptr;
         if (it == detail::wait_result_item::interface_type::p2p)
             psk = m_pimpl->m_ptr_p2p_socket.get();
         else if (it == detail::wait_result_item::interface_type::rpc)
@@ -177,16 +183,16 @@ void node::run(bool& stop_check)
 
                 switch (ref_packet.type())
                 {
-                case beltpp::isocket_join::rtt:
+                case beltpp::stream_join::rtt:
                 {
                     if (it == detail::wait_result_item::interface_type::p2p)
-                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) + 
+                        m_pimpl->writeln_node("joined: " + detail::peer_short_names(peerid) +
                                               " -> total:" + std::to_string(m_pimpl->m_p2p_peers.size() + 1));
 
                     if (it == detail::wait_result_item::interface_type::p2p)
                     {
                         beltpp::on_failure guard(
-                            [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::isocket_drop())); });
+                            [&peerid, &psk] { psk->send(peerid, beltpp::packet(beltpp::stream_drop())); });
 
                         m_pimpl->add_peer(peerid);
 
@@ -202,7 +208,7 @@ void node::run(bool& stop_check)
 
                     break;
                 }
-                case beltpp::isocket_drop::rtt:
+                case beltpp::stream_drop::rtt:
                 {
                     if (it == detail::wait_result_item::interface_type::p2p)
                     {
@@ -213,29 +219,29 @@ void node::run(bool& stop_check)
 
                     break;
                 }
-                case beltpp::isocket_protocol_error::rtt:
+                case beltpp::stream_protocol_error::rtt:
                 {
-                    beltpp::isocket_protocol_error msg;
+                    beltpp::stream_protocol_error msg;
                     ref_packet.get(msg);
                     m_pimpl->writeln_node("protocol error: " + detail::peer_short_names(peerid));
                     m_pimpl->writeln_node(msg.buffer);
-                    psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                    psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
 
                     if (it == detail::wait_result_item::interface_type::p2p)
                         m_pimpl->remove_peer(peerid);
-                    
+
                     break;
                 }
-                case beltpp::isocket_open_refused::rtt:
+                case beltpp::socket_open_refused::rtt:
                 {
-                    beltpp::isocket_open_refused msg;
+                    beltpp::socket_open_refused msg;
                     ref_packet.get(msg);
                     //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
-                case beltpp::isocket_open_error::rtt:
+                case beltpp::socket_open_error::rtt:
                 {
-                    beltpp::isocket_open_error msg;
+                    beltpp::socket_open_error msg;
                     ref_packet.get(msg);
                     //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
@@ -280,7 +286,7 @@ void node::run(bool& stop_check)
                                           m_pimpl->m_p2p_peers,
                                           m_pimpl->m_ptr_p2p_socket.get());
                     }
-                
+
                     if (it == detail::wait_result_item::interface_type::rpc)
                         psk->send(peerid, beltpp::packet(Done()));
 
@@ -354,13 +360,13 @@ void node::run(bool& stop_check)
                         if (update_command.storage_address == m_pimpl->m_pb_key.to_string())
                         {
                             // command is addressed to me
-                            if (signed_tx.authorizations[0].address == m_pimpl->m_manager_address)
+                            if (signed_tx.authorizations.front().address == m_pimpl->m_manager_address)
                             {
                                 if (update_command.status == UpdateType::remove)
                                 {
                                     delete_storage_file(*m_pimpl.get(), psk, peerid, update_command.file_uri);
                                 }
-                                else // update_command.status == UpdateType::save
+                                else //(update_command.status == UpdateType::save)
                                 {
                                     m_pimpl->m_storage_controller.enqueue(update_command.file_uri, update_command.channel_address);
                                 }
@@ -369,16 +375,25 @@ void node::run(bool& stop_check)
                         else
                         {
                             // rebroadcast command direct peer or to all
-                            std::unordered_set<beltpp::isocket::peer_id> broadcast_peers;
+                            std::unordered_set<beltpp::stream::peer_id> broadcast_peers;
+                            bool full_broadcast;
 
                             if (0 == m_pimpl->m_p2p_peers.count(update_command.storage_address))
+                            {
                                 broadcast_peers = m_pimpl->m_p2p_peers;
+                                full_broadcast = true;
+                                // or may do as below to follow refined broadcast rules
+                                //full_broadcast = (it == detail::wait_result_item::interface_type::rpc);
+                            }
                             else
+                            {
                                 broadcast_peers.insert(update_command.storage_address);
+                                full_broadcast = true;
+                            }
 
                             broadcast_message(std::move(broadcast),
                                               m_pimpl->m_ptr_p2p_socket->name(),
-                                              true,
+                                              full_broadcast,
                                               nullptr,
                                               broadcast_peers,
                                               m_pimpl->m_ptr_p2p_socket.get());
@@ -429,7 +444,7 @@ void node::run(bool& stop_check)
                     m_pimpl->m_sessions.add(header,
                                             std::move(actions),
                                             chrono::minutes(1));
-                    
+
                     break;
                 }
                 case StorageFileDelete::rtt:
@@ -444,31 +459,6 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(storage_file_delete);
 
                     delete_storage_file(*m_pimpl.get(), psk, peerid, storage_file_delete.uri);
-
-                    //auto* pimpl = m_pimpl.get();
-                    //std::function<void(beltpp::packet&&)> callback_lambda =
-                    //        [psk, peerid, storage_file_delete, pimpl](beltpp::packet&& package)
-                    //{
-                    //    if (NodeType::storage == pimpl->m_node_type &&
-                    //        package.type() == Done::rtt)
-                    //    {
-                    //        broadcast_storage_update(*pimpl, storage_file_delete.uri, UpdateType::remove);
-                    //    }
-                    //
-                    //    if (false == package.empty())
-                    //        psk->send(peerid, std::move(package));
-                    //};
-                    //
-                    //vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
-                    //actions.emplace_back(new session_action_delete_file(*m_pimpl.get(),
-                    //                                                    storage_file_delete.uri,
-                    //                                                    callback_lambda));
-                    //
-                    //meshpp::session_header header;
-                    //header.peerid = "slave";
-                    //m_pimpl->m_sessions.add(header,
-                    //                        std::move(actions),
-                    //                        chrono::minutes(1));
 
                     break;
                 }
@@ -635,6 +625,83 @@ void node::run(bool& stop_check)
 
                     break;
                 }
+                case Letter::rtt:
+                {
+                    if (broadcast_signed_transaction.items.empty())
+                        throw wrong_data_exception("will process only \"broadcast signed transaction\"");
+
+                    Broadcast* p_broadcast = nullptr;
+                    SignedTransaction* p_signed_tx = nullptr;
+                    Letter* p_letter = nullptr;
+
+                    broadcast_signed_transaction.items[0]->get(p_broadcast);
+                    broadcast_signed_transaction.items[1]->get(p_signed_tx);
+                    ref_packet.get(p_letter);
+
+                    assert(p_broadcast);
+                    assert(p_signed_tx);
+                    assert(p_letter);
+
+                    Broadcast& broadcast = *p_broadcast;
+                    SignedTransaction& signed_transaction = *p_signed_tx;
+                    Letter& letter = *p_letter;
+
+                    if (process_letter(signed_transaction, letter, *m_pimpl.get()))
+                    {
+                        if (letter.to != m_pimpl->m_pb_key.to_string())
+                        {
+                            // rebroadcast message direct peer or to all
+                            std::unordered_set<beltpp::stream::peer_id> broadcast_peers;
+                            bool full_broadcast;
+
+                            if (0 == m_pimpl->m_p2p_peers.count(letter.to))
+                            {
+                                broadcast_peers = m_pimpl->m_p2p_peers;
+                                full_broadcast = true;
+                                // or may do as below to follow refined broadcast rules
+                                //full_broadcast = (it == detail::wait_result_item::interface_type::rpc);
+                            }
+                            else
+                            {
+                                broadcast_peers.insert(letter.to);
+                                full_broadcast = true;
+                            }
+
+                            broadcast_message(std::move(broadcast),
+                                              m_pimpl->m_ptr_p2p_socket->name(),
+                                              full_broadcast,
+                                              nullptr,
+                                              broadcast_peers,
+                                              m_pimpl->m_ptr_p2p_socket.get());
+                        }
+                    }
+
+                    if (it == detail::wait_result_item::interface_type::rpc)
+                        psk->send(peerid, beltpp::packet(Done()));
+
+                    break;
+                }
+                case CheckInbox::rtt:
+                {
+                    if (it != detail::wait_result_item::interface_type::rpc)
+                        throw wrong_request_exception("CheckInbox received not through rpc!");
+
+                    Inbox response;
+                    for (size_t index = 0; index != m_pimpl->m_inbox.length(); ++index)
+                        response.items.push_back(m_pimpl->m_inbox.at(index));
+
+                    beltpp::on_failure guard([this]
+                    {
+                        m_pimpl->m_inbox.discard();
+                    });
+                    m_pimpl->m_inbox.clear();
+                    guard.dismiss();
+                    m_pimpl->m_inbox.commit();
+
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+
+                    break;
+                }
                 case Ping::rtt:
                 {
                     Pong msg_pong;
@@ -707,7 +774,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -722,7 +789,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -742,7 +809,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -757,7 +824,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -772,7 +839,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -787,7 +854,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -803,7 +870,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -819,7 +886,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -834,7 +901,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -849,7 +916,7 @@ void node::run(bool& stop_check)
             }
             else
             {
-                psk->send(peerid, beltpp::packet(beltpp::isocket_drop()));
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
                 m_pimpl->remove_peer(peerid);
             }
             throw;
@@ -1511,7 +1578,7 @@ double header_worker(detail::node_internals& impl)
     scan_block_header.c_sum = 0;
 
     double revert_coefficient = 0;
-    beltpp::isocket::peer_id scan_peer;
+    beltpp::stream::peer_id scan_peer;
     unordered_set<string> requested_blocks_hashes;
 
     for (auto const& item : impl.all_sync_info.sync_responses)

@@ -32,6 +32,8 @@ add_library(blockchain
     exception.hpp
     exception.cpp
     http.hpp
+    inbox.cpp
+    inbox.hpp
     message.cpp
     message.gen.cpp.hpp
     message.tmpl.hpp

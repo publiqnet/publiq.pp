@@ -13,7 +13,8 @@
 #include <unordered_map>
 #include <exception>
 #include <chrono>
-#define LOGGING
+
+//#define LOGGING
 #ifdef LOGGING
 #include <iostream>
 #endif
@@ -306,17 +307,17 @@ LogIndexLoader& sync_context::index_rewards(string const& account)
 }
 
 daemon_rpc::daemon_rpc()
-    : eh()
-    , socket(beltpp::getsocket<sf>(eh))
+    : eh(beltpp::libsocket::construct_event_handler())
+    , socket(beltpp::libsocket::getsocket<sf>(*eh))
     , peerid()
     , log_index(meshpp::data_file_path("log_index.txt"))
 {
-    eh.add(socket);
+    eh->add(*socket);
 }
 
 void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
 {
-    auto peerids = socket.open(connect_to_address);
+    auto peerids = socket->open(connect_to_address);
 
     if (peerids.size() != 1)
         throw std::runtime_error(connect_to_address.to_string() + " is ambigous or unknown");
@@ -324,15 +325,15 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
     bool keep_trying = true;
     while (keep_trying)
     {
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
-        auto wait_result = eh.wait(wait_sockets);
+        unordered_set<beltpp::event_item const*> wait_sockets;
+        auto wait_result = eh->wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
         if (wait_result & beltpp::event_handler::event)
         {
             peer_id _peerid;
 
-            auto received_packets = socket.receive(_peerid);
+            auto received_packets = socket->receive(_peerid);
 
             if (peerids.front() != _peerid)
                 throw std::logic_error("logic error in open() - peerids.front() != peerid");
@@ -343,7 +344,7 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
 
                 switch (ref_packet.type())
                 {
-                case beltpp::isocket_join::rtt:
+                case beltpp::stream_join::rtt:
                 {
                     peerid = _peerid;
                     keep_trying = false;
@@ -365,7 +366,7 @@ void daemon_rpc::close()
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to close");
 
-    socket.send(peerid, beltpp::packet(beltpp::isocket_drop()));
+    socket->send(peerid, beltpp::packet(beltpp::stream_drop()));
 }
 
 enum class update_balance_type {increase, decrease};
@@ -693,9 +694,9 @@ void process_storage_transactions(unordered_set<string> const& set_accounts,
 }
 
 void process_channel_transactions(unordered_set<string> const& set_accounts,
-                                 BlockchainMessage::TransactionLog const& transaction_log,
-                                 rpc& rpc_server,
-                                 LoggingType type)
+                                  BlockchainMessage::TransactionLog const& transaction_log,
+                                  rpc& rpc_server,
+                                  LoggingType type)
 {
     if (ContentUnit::rtt == transaction_log.action.type())
     {
@@ -970,9 +971,9 @@ void process_channel_transactions(unordered_set<string> const& set_accounts,
 }
 
 void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                    rpc& rpc_server,
-                                    uint64_t block_index,
-                                    LoggingType type)
+                                     rpc& rpc_server,
+                                     uint64_t block_index,
+                                     LoggingType type)
 {
     if (false == rpc_server.m_str_pv_key.empty() &&
         ServiceStatistics::rtt == transaction_log.action.type())
@@ -994,7 +995,7 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
         }
         else //if (LoggingType::revert == type)
         {
-            if (rpc_server.m_file_usage_map.find(block_index) != rpc_server.m_file_usage_map.end())
+            if (rpc_server.m_file_usage_map.count(block_index))
                 rpc_server.m_file_usage_map.erase(block_index);
         }
     }
@@ -1063,20 +1064,20 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
     bc.private_key = update.private_key;
     bc.transaction_details = tx;
 
-    socket.send(peerid, beltpp::packet(std::move(bc)));
+    socket->send(peerid, beltpp::packet(std::move(bc)));
 
     bool keep_trying = true;
     while (keep_trying)
     {
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
-        auto wait_result = eh.wait(wait_sockets);
+        unordered_set<beltpp::event_item const*> wait_sockets;
+        auto wait_result = eh->wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
         if (wait_result & beltpp::event_handler::event)
         {
             peer_id _peerid;
 
-            auto received_packets = socket.receive(_peerid);
+            auto received_packets = socket->receive(_peerid);
 
             for (auto& received_packet : received_packets)
             {
@@ -1093,7 +1094,7 @@ beltpp::packet daemon_rpc::process_storage_update_request(CommanderMessage::Stor
                     keep_trying = false;
                     break;
                 }
-                case beltpp::isocket_drop::rtt:
+                case beltpp::stream_drop::rtt:
                 {
                     CommanderMessage::Failed response;
                     response.message = "server disconnected";
@@ -1126,15 +1127,15 @@ beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
     bool keep_trying = true;
     while (keep_trying)
     {
-        unordered_set<beltpp::ievent_item const*> wait_sockets;
-        auto wait_result = eh.wait(wait_sockets);
+        unordered_set<beltpp::event_item const*> wait_sockets;
+        auto wait_result = eh->wait(wait_sockets);
         B_UNUSED(wait_sockets);
 
         if (wait_result & beltpp::event_handler::event)
         {
             peer_id _peerid;
 
-            auto received_packets = socket.receive(_peerid);
+            auto received_packets = socket->receive(_peerid);
 
             for (auto& received_packet : received_packets)
             {
@@ -1151,7 +1152,7 @@ beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
                     keep_trying = false;
                     break;
                 }
-                case beltpp::isocket_drop::rtt:
+                case beltpp::stream_drop::rtt:
                 {
                     CommanderMessage::Failed response;
                     response.message = "server disconnected";
@@ -1230,7 +1231,7 @@ beltpp::packet daemon_rpc::send(CommanderMessage::Send const& send,
     bc.echoes = 2;
     bc.package = std::move(stx);
 
-    socket.send(peerid, beltpp::packet(std::move(bc)));
+    socket->send(peerid, beltpp::packet(std::move(bc)));
 
     return wait_response(transaction_hash);
 }
@@ -1254,25 +1255,25 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
         req.max_count = max_count;
         req.start_index = context.m_pimpl->start_index();
 
-        socket.send(peerid, beltpp::packet(req));
+        socket->send(peerid, beltpp::packet(req));
 
         size_t count = 0;
 
 #ifdef LOGGING
-        std::cout << std::endl << std::endl << time_now() << "  LoggedTransactionsRequest -> ";
+        std::cout << std::endl << std::endl << time_now() << "  Request -> ";
 #endif
 
         while (true)
         {
-            unordered_set<beltpp::ievent_item const*> wait_sockets;
-            auto wait_result = eh.wait(wait_sockets);
+            unordered_set<beltpp::event_item const*> wait_sockets;
+            auto wait_result = eh->wait(wait_sockets);
             B_UNUSED(wait_sockets);
 
             if (wait_result & beltpp::event_handler::event)
             {
                 peer_id _peerid;
 
-                auto received_packets = socket.receive(_peerid);
+                auto received_packets = socket->receive(_peerid);
 
                 for (auto& received_packet : received_packets)
                 {
@@ -1344,10 +1345,11 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
                                                                          rpc_server,
                                                                          LoggingType::apply);
 
-                                            process_statistics_transactions(transaction_log,
-                                                                            rpc_server,
-                                                                            block_index,
-                                                                            LoggingType::apply);
+                                            if (false == context.m_pimpl->is_new_import())
+                                                process_statistics_transactions(transaction_log,
+                                                                                rpc_server,
+                                                                                block_index,
+                                                                                LoggingType::apply);
 
                                             update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
@@ -1429,29 +1431,32 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                         for (auto log_it = block_log.transactions.crbegin(); log_it != block_log.transactions.crend(); ++log_it)
                                         {
+                                            auto& transaction_log = *log_it;
+
                                             process_storage_transactions(context.m_pimpl->set_accounts(),
-                                                                         *log_it,
+                                                                         transaction_log,
                                                                          rpc_server,
                                                                          LoggingType::revert);
 
                                             process_channel_transactions(context.m_pimpl->set_accounts(),
-                                                                         *log_it,
+                                                                         transaction_log,
                                                                          rpc_server,
                                                                          LoggingType::revert);
 
-                                            process_statistics_transactions(*log_it,
-                                                                            rpc_server,
-                                                                            block_index,
-                                                                            LoggingType::revert);
+                                            if (false == context.m_pimpl->is_new_import())
+                                                process_statistics_transactions(transaction_log,
+                                                                                rpc_server,
+                                                                                block_index,
+                                                                                LoggingType::revert);
 
                                             update_balances(context.m_pimpl->set_accounts(),
                                                             rpc_server,
-                                                            *log_it,
+                                                            transaction_log,
                                                             block_log.authority,
                                                             LoggingType::revert);
 
                                             process_transactions(block_index,
-                                                                 *log_it,
+                                                                 transaction_log,
                                                                  context,
                                                                  block_log.authority,
                                                                  LoggingType::revert);
@@ -1459,15 +1464,17 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
 
                                         for (auto reward_it = block_log.rewards.crbegin(); reward_it != block_log.rewards.crend(); ++reward_it)
                                         {
-                                            update_balance(reward_it->to,
-                                                           reward_it->amount,
+                                            auto& reward_info = *reward_it;
+
+                                            update_balance(reward_info.to,
+                                                           reward_info.amount,
                                                            context.m_pimpl->set_accounts(),
                                                            rpc_server,
                                                            update_balance_type::decrease);
 
                                             process_reward(block_index,
-                                                           reward_it->to,
-                                                           *reward_it,
+                                                           reward_info.to,
+                                                           reward_info,
                                                            context,
                                                            LoggingType::revert);
                                         }
@@ -1519,9 +1526,9 @@ void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
                 if (false == received_packets.empty())
                     break;  //  breaks while() that calls receive(), may send another request
             }
-        }//  while (true) and call eh.wait(wait_sockets)
+        }//  while (true) and call eh->wait(wait_sockets)
 
         if (count < max_count)
             break; //   will not send any more requests
-    }//  while (true) and socket.send(peerid, beltpp::packet(req));
+    }//  while (true) and socket->send(peerid, beltpp::packet(req));
 }
