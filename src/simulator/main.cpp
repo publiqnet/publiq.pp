@@ -23,7 +23,6 @@
 #include <vector>
 #include <sstream>
 #include <exception>
-#include <thread>
 #include <functional>
 #include <chrono>
 #include <map>
@@ -50,89 +49,11 @@ using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<PidConfig
                                                                        &PidConfig::DataDirAttribute::from_string,
                                                                        &PidConfig::DataDirAttribute::to_string>>;
 
-class port2pid_helper
-{
-    using Loader = meshpp::file_locker<meshpp::file_loader<PidConfig::Port2PID,
-                                                           &PidConfig::Port2PID::from_string,
-                                                           &PidConfig::Port2PID::to_string>>;
-public:
-    port2pid_helper(boost::filesystem::path const& _path, unsigned short _port)
-        : port(_port)
-        , path(_path)
-        , eptr()
-    {
-        Loader ob(path);
-        auto res = ob->reserved_ports.insert(std::make_pair(port, meshpp::current_process_id()));
-
-        if (false == res.second)
-        {
-            string error = "port: ";
-            error += std::to_string(res.first->first);
-            error += " is locked by pid: ";
-            error += std::to_string(res.first->second);
-            error += " as specified in: ";
-            error += path.string();
-            throw runtime_error(error);
-        }
-
-        ob.save();
-    }
-    port2pid_helper(port2pid_helper const&) = delete;
-    port2pid_helper(port2pid_helper&&) = delete;
-    ~port2pid_helper()
-    {
-        _commit();
-    }
-
-    void commit()
-    {
-        _commit();
-
-        if (eptr)
-            std::rethrow_exception(eptr);
-    }
-private:
-    void _commit()
-    {
-        try
-        {
-            Loader ob(path);
-            auto it = ob.as_const()->reserved_ports.find(port);
-            if (it == ob.as_const()->reserved_ports.end())
-            {
-                string error = "cannot find own port: ";
-                error += std::to_string(port);
-                error += " specified in: ";
-                error += path.string();
-                throw runtime_error(error);
-            }
-
-            ob->reserved_ports.erase(it);
-            ob.save();
-        }
-        catch (...)
-        {
-            eptr = std::current_exception();
-        }
-    }
-    unsigned short port;
-    boost::filesystem::path path;
-    std::exception_ptr eptr;
-};
-
 static bool g_termination_handled = false;
-static vector<publiqpp::node*> g_pnodes;
-static vector<publiqpp::storage_node*> g_pstorage_nodes;
 
 void termination_handler(int /*signum*/)
 {
     cout << "stopping..." << endl;
-
-    g_termination_handled = true;
-    for(auto g_pnode : g_pnodes)
-        g_pnode->wake();
-    for (auto g_pstorage_node : g_pstorage_nodes)
-        g_pstorage_node->wake();
 }
 
 
@@ -202,6 +123,14 @@ bool content_unit_validate_check(std::vector<std::string> const& content_unit_fi
 template <typename NODE>
 void loop(NODE& node, /*beltpp::ilog_ptr& plogger_exceptions,*/ bool& termination_handled);
 
+struct node_info
+{
+    string data_dir;
+    unique_ptr<DataDirAttributeLoader> dda;
+    unique_ptr<publiqpp::node> node;
+    beltpp::ilog_ptr plogger_exceptions;
+};
+
 int main()
 {
     try
@@ -214,50 +143,6 @@ int main()
     {}  //  don't care for exception, for now
     //
 
-    try
-    {
-        for (int port = 18885; port < 18890; ++port)
-        {
-            meshpp::settings::set_application_name("publiqd");
-            meshpp::settings::set_data_directory(meshpp::config_directory_path().string() + std::to_string(port));
-
-            beltpp::ip_address p2p_bind_to_address;
-            p2p_bind_to_address.from_string("127.0.0.1:" + std::to_string(port));
-
-            vector<beltpp::ip_address> p2p_connect_to_addresses;
-            beltpp::ip_address connect_to_address;
-            connect_to_address.from_string("127.0.0.1:" + std::to_string(port - 1));
-            p2p_connect_to_addresses.push_back(connect_to_address);
-
-            beltpp::ip_address rpc_bind_to_address;
-            beltpp::ip_address slave_bind_to_address;
-            beltpp::ip_address public_address;
-            beltpp::ip_address public_ssl_address;
-
-            string data_directory;
-
-            NodeType n_type = BlockchainMessage::NodeType::blockchain;
-            uint64_t fractions = 0;
-            uint64_t freeze_before_block = uint64_t(-1);
-            uint64_t revert_blocks_count = 0;
-            uint64_t revert_actions_count = 0;
-            string manager_address;
-            bool log_enabled = true;
-            bool testnet = true;
-            bool resync = false;
-            bool enable_inbox = true;
-            bool discovery_server = false;
-            meshpp::random_seed seed;
-            meshpp::private_key pv_key = seed.get_private_key(0);
-
-            if (testnet)
-                meshpp::config::set_public_key_prefix("TPBQ");
-            else
-                meshpp::config::set_public_key_prefix("PBQ");
-
-            if (false == data_directory.empty())
-                meshpp::settings::set_data_directory(data_directory);
-
 #ifdef B_OS_WINDOWS
     signal(SIGINT, termination_handler);
 #else
@@ -267,56 +152,120 @@ int main()
     ::sigaction(SIGTERM, &signal_handler, nullptr);
 #endif
 
-            beltpp::ilog_ptr plogger_exceptions = beltpp::t_unique_nullptr<beltpp::ilog>();
-            beltpp::ilog_ptr plogger_storage_exceptions = beltpp::t_unique_nullptr<beltpp::ilog>();
+    meshpp::settings::set_application_name("simulation_publiqd");
+    size_t const node_count = 10;
 
-                meshpp::create_config_directory();
-                meshpp::create_data_directory();
+    std::vector<node_info> nodes_info;
 
-                unique_ptr<port2pid_helper> port2pid(new port2pid_helper(meshpp::config_file_path("pid"), p2p_bind_to_address.local.port));
+    try
+    {
+        meshpp::create_config_directory();
+        nodes_info.resize(node_count);
 
-                DataDirAttributeLoader dda(meshpp::data_file_path("running.txt"));
-                {
-                    PidConfig::RunningDuration item;
-                    item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+        for (size_t node_index = 0; node_index != node_count; ++node_index)
+        {
+            node_info& info = nodes_info[node_index];
 
-                    dda->history.push_back(item);
-                    dda.save();
-                }
+            info.data_dir = (meshpp::config_directory_path() / std::to_string(node_index)).string();
 
-                auto fs_blockchain = meshpp::data_directory_path("blockchain");
-                auto fs_action_log = meshpp::data_directory_path("action_log");
-                auto fs_transaction_pool = meshpp::data_directory_path("transaction_pool");
-                auto fs_state = meshpp::data_directory_path("state");
-                auto fs_log = meshpp::data_directory_path("log");
-                auto fs_documents = meshpp::data_directory_path("documents");
-                auto fs_storages = meshpp::data_directory_path("storages");
+            meshpp::settings::set_data_directory(info.data_dir);
 
-                cout << "p2p local address: " << p2p_bind_to_address.to_string() << endl;
-                for (auto const& item : p2p_connect_to_addresses)
-                    cout << "p2p host: " << item.to_string() << endl;
-                if (false == rpc_bind_to_address.local.empty())
-                    cout << "rpc interface: " << rpc_bind_to_address.to_string() << endl;
+            string current_ip_address;
+            if (0 == node_index)
+                current_ip_address = "north.google.com";
+            else
+                current_ip_address = std::to_string((node_index / 250 / 250 / 250) % 250) + "." +
+                                     std::to_string((node_index / 250 / 250) % 250) + "." +
+                                     std::to_string((node_index / 250) % 250) + "." +
+                                     std::to_string(node_index % 250);
 
-                beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("publiqd_p2p", true);
-                plogger_p2p->disable();
-                beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("publiqd_rpc", true);
-                plogger_rpc->disable();
-                plogger_exceptions = meshpp::file_logger("publiqd_exceptions",
-                                                         fs_log / "exceptions.txt");
-                plogger_storage_exceptions = meshpp::file_logger("storage_exceptions",
-                                                                 fs_log / "storage_exceptions.txt");
+            beltpp::ip_address p2p_bind_to_address;
+            p2p_bind_to_address.local.address = current_ip_address;
+            p2p_bind_to_address.local.port = 14500;
 
-                //__debugbreak();
-                boost::filesystem::path fs_storage;
-                if (n_type == NodeType::storage)
-                    fs_storage = meshpp::data_directory_path("storage");
+            beltpp::ip_address rpc_bind_to_address;
+            rpc_bind_to_address.local.address = current_ip_address;
+            rpc_bind_to_address.local.port = 14501;
 
-                boost::filesystem::path fs_inbox;
-                if (enable_inbox)
-                    fs_inbox = meshpp::data_directory_path("inbox");
+            beltpp::ip_address slave_bind_to_address;
+            beltpp::ip_address public_address;
+            beltpp::ip_address public_ssl_address;
 
-                publiqpp::node *node = new publiqpp::node(
+            vector<beltpp::ip_address> p2p_connect_to_addresses;
+            beltpp::ip_address connect_to_address;
+            connect_to_address.from_string("north.google.com:14500");
+            p2p_connect_to_addresses.push_back(connect_to_address);
+
+            NodeType n_type = BlockchainMessage::NodeType::blockchain;
+            uint64_t fractions = 0;
+            uint64_t freeze_before_block = uint64_t(-1);
+            uint64_t revert_blocks_count = 0;
+            uint64_t revert_actions_count = 0;
+            string manager_address;
+            bool log_enabled = false;
+            bool testnet = true;
+            bool resync = false;
+            bool enable_inbox = true;
+            bool discovery_server = (node_index == 0);
+            meshpp::random_seed seed;
+            meshpp::private_key pv_key = seed.get_private_key(0);
+
+            if (testnet)
+                meshpp::config::set_public_key_prefix("TPBQ");
+            else
+                meshpp::config::set_public_key_prefix("PBQ");
+
+            //beltpp::ilog_ptr plogger_exceptions; moved to nodes_info
+            //beltpp::ilog_ptr plogger_storage_exceptions;
+
+            meshpp::create_data_directory();
+
+            info.dda.reset(new DataDirAttributeLoader(meshpp::data_file_path("running.txt")));
+            {
+                PidConfig::RunningDuration item;
+                item.start.tm = item.end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+                (*info.dda)->history.push_back(item);
+                (*info.dda).save();
+            }
+
+            auto fs_blockchain = meshpp::data_directory_path("blockchain");
+            auto fs_action_log = meshpp::data_directory_path("action_log");
+            auto fs_transaction_pool = meshpp::data_directory_path("transaction_pool");
+            auto fs_state = meshpp::data_directory_path("state");
+            auto fs_log = meshpp::data_directory_path("log");
+            auto fs_documents = meshpp::data_directory_path("documents");
+            auto fs_storages = meshpp::data_directory_path("storages");
+
+            beltpp::ilog_ptr plogger_p2p;
+            beltpp::ilog_ptr plogger_rpc;
+
+            if (0 == node_index)
+            {
+                plogger_p2p = meshpp::file_logger("publiqd_p2p", fs_log / "publiqd_p2p.txt");
+                plogger_rpc = meshpp::file_logger("publiqd_rpc", fs_log / "publiqd_rpc.txt");
+            }
+            else
+            {
+                plogger_p2p = beltpp::console_logger("publiqd_p2p", true);
+                plogger_rpc = beltpp::console_logger("publiqd_rpc", true);
+            }
+            plogger_p2p->disable();
+            //plogger_rpc->disable();
+
+            info.plogger_exceptions = meshpp::file_logger("publiqd_exceptions",
+                                                          fs_log / "exceptions.txt");
+            //plogger_storage_exceptions = meshpp::file_logger("storage_exceptions", fs_log / "storage_exceptions.txt");
+
+            boost::filesystem::path fs_storage;
+            if (n_type == NodeType::storage)
+                fs_storage = meshpp::data_directory_path("storage");
+
+            boost::filesystem::path fs_inbox;
+            if (enable_inbox)
+                fs_inbox = meshpp::data_directory_path("inbox");
+
+            info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
                                     public_address,
                                     public_ssl_address,
@@ -348,45 +297,86 @@ int main()
                                     mine_amount_threshhold(),
                                     block_reward_array(),
                                     &counts_per_channel_views,
-                                    &content_unit_validate_check);
+                                    &content_unit_validate_check));
 
+            if (0 == node_index)
+            {
                 cout << endl;
-                cout << "Node: " << node->name() << endl;
+                cout << "Node: " << info.node->name() << endl;
                 cout << "Type: " << static_cast<int>(n_type) << endl;
                 cout << endl;
+            }
 
-                g_pnodes.push_back(node);
+//            unique_ptr<publiqpp::storage_node> ptr_storage_node;
+//            if (n_type != NodeType::blockchain)
+//            {
+//                fs_storage = meshpp::data_directory_path("storage");
+//                ptr_storage_node.reset(new publiqpp::storage_node(*node,
+//                                                                  slave_bind_to_address,
+//                                                                  fs_storage,
+//                                                                  pv_key,
+//                                                                  plogger_rpc.get()));
+//                g_pstorage_nodes.push_back(ptr_storage_node.get());
+//            }
+        }   //  for that initializes nodes
 
-                unique_ptr<publiqpp::storage_node> ptr_storage_node;
-                if (n_type != NodeType::blockchain)
-                {
-                    fs_storage = meshpp::data_directory_path("storage");
-                    ptr_storage_node.reset(new publiqpp::storage_node(*node,
-                                                                      slave_bind_to_address,
-                                                                      fs_storage,
-                                                                      pv_key,
-                                                                      plogger_rpc.get()));
-                    g_pstorage_nodes.push_back(ptr_storage_node.get());
-                }
-    }
-
-    while (false == g_termination_handled)
-    {
-        for (auto const& node : g_pnodes)
+        while (false == nodes_info.empty())
         {
-            bool stop_check = false;
-            node->run(stop_check);
-            if (stop_check)
-            {
-                termination_handler(0);
+            if (g_termination_handled)
                 break;
+            for (size_t node_index = nodes_info.size() - 1;
+                 node_index < nodes_info.size();
+                 --node_index)
+            {
+                auto& info = nodes_info[node_index];
+
+                try
+                {
+                    bool stop_check = false;
+                    info.node->run(stop_check);
+                    if (stop_check)
+                        nodes_info.erase(nodes_info.begin() + node_index);
+                }
+                catch (std::bad_alloc const& ex)
+                {
+                    if (info.plogger_exceptions)
+                        info.plogger_exceptions->message(ex.what());
+                    cout << "exception cought: " << ex.what() << endl;
+                    cout << "will exit now" << endl;
+                    termination_handler(0);
+                    break;
+                }
+                catch (std::logic_error const& ex)
+                {
+                    if (info.plogger_exceptions)
+                        info.plogger_exceptions->message(ex.what());
+                    cout << "logic error cought: " << ex.what() << endl;
+                    cout << "will exit now" << endl;
+                    termination_handler(0);
+                    break;
+                }
+                catch (std::exception const& ex)
+                {
+                    if (info.plogger_exceptions)
+                        info.plogger_exceptions->message(ex.what());
+                    cout << "exception cought: " << ex.what() << endl;
+                }
+                catch (...)
+                {
+                    if (info.plogger_exceptions)
+                        info.plogger_exceptions->message("always throw std::exceptions, will exit now");
+                    cout << "always throw std::exceptions, will exit now" << endl;
+                    termination_handler(0);
+                    break;
+                }
             }
         }
-    }
 
-    //            dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-    //            dda.save();
-    //            port2pid->commit();
+        for (auto& info : nodes_info)
+        {
+            (*info.dda)->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+            info.dda->save();
+        }
     }
     catch (std::exception const& ex)
     {
@@ -406,57 +396,6 @@ int main()
     return 0;
 }
 
-template <typename NODE>
-void loop(NODE& node, /*beltpp::ilog_ptr& plogger_exceptions,*/ bool& termination_handled)
-{
-    bool stop_check = false;
-    while (false == stop_check)
-    {
-        try
-        {
-            if (termination_handled)
-                break;
-            node->run(stop_check);
-            if (stop_check)
-            {
-                termination_handler(0);
-                break;
-            }
-        }
-        catch (std::bad_alloc const& ex)
-        {
-//            if (plogger_exceptions)
-//                plogger_exceptions->message(ex.what());
-            cout << "exception cought: " << ex.what() << endl;
-            cout << "will exit now" << endl;
-            termination_handler(0);
-            break;
-        }
-        catch (std::logic_error const& ex)
-        {
-//            if (plogger_exceptions)
-//                plogger_exceptions->message(ex.what());
-            cout << "logic error cought: " << ex.what() << endl;
-            cout << "will exit now" << endl;
-            termination_handler(0);
-            break;
-        }
-        catch (std::exception const& ex)
-        {
-//            if (plogger_exceptions)
-//                plogger_exceptions->message(ex.what());
-            cout << "exception cought: " << ex.what() << endl;
-        }
-        catch (...)
-        {
-//            if (plogger_exceptions)
-//                plogger_exceptions->message("always throw std::exceptions, will exit now");
-            cout << "always throw std::exceptions, will exit now" << endl;
-            termination_handler(0);
-            break;
-        }
-    }
-}
 string genesis_signed_block(bool testnet)
 {
 #if 0
