@@ -271,6 +271,11 @@ int main()
             if (enable_inbox)
                 fs_inbox = meshpp::data_directory_path("inbox");
 
+            event_handler_ex* peh = new event_handler_ex(ns);
+            unique_ptr<beltpp::event_handler> inject_eh(peh);
+            unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ex(*peh));
+            unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ex(*peh));
+
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
                                     public_address,
@@ -303,7 +308,10 @@ int main()
                                     mine_amount_threshhold(),
                                     block_reward_array(),
                                     &counts_per_channel_views,
-                                    &content_unit_validate_check));
+                                    &content_unit_validate_check,
+                                    std::move(inject_eh),
+                                    std::move(inject_rpc_socket),
+                                    std::move(inject_p2p_socket)));
 
             if (0 == node_index)
             {
