@@ -462,15 +462,15 @@ public:
                    std::vector<coin> const& block_reward_array,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views,
                    detail::fp_content_unit_validate_check p_content_unit_validate_check,
-                   event_handler* peh,
+                   unique_ptr<event_handler>&& inject_eh,
                    unique_ptr<socket>&& inject_rpc_socket,
                    unique_ptr<socket>&& inject_p2p_socket)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
-        , m_ptr_eh(nullptr == peh ?
+        , m_ptr_eh(nullptr == inject_eh ?
                        beltpp::take_unique_ptr(beltpp::libsocket::construct_event_handler()) :
-                       beltpp::raw_ptr(peh))
+                       beltpp::take_unique_ptr(std::move(inject_eh)) )
         , m_ptr_p2p_socket(new meshpp::p2psocket(
                                meshpp::getp2psocket(*m_ptr_eh,
                                                     p2p_bind_to_address,
