@@ -1,3 +1,5 @@
+#include "network.hpp"
+
 #include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>
 #include <belt.pp/scope_helper.hpp>
@@ -29,6 +31,8 @@
 #include <unordered_set>
 
 #include <csignal>
+
+using namespace simulator_network_impl;
 
 using namespace BlockchainMessage;
 namespace program_options = boost::program_options;
@@ -156,6 +160,8 @@ int main()
     size_t const node_count = 10;
 
     std::vector<node_info> nodes_info;
+
+    network_simulation ns;
 
     try
     {

@@ -8,10 +8,17 @@
 
 namespace simulator_network_impl
 {
+class network_simulation
+{
+public:
+    network_simulation();
+    ~network_simulation();
+};
+
 class event_handler_ex : public beltpp::event_handler
 {
 public:
-    event_handler_ex();
+    event_handler_ex(network_simulation& ns);
     ~event_handler_ex() override;
 
     wait_result wait(std::unordered_set<beltpp::event_item const*>& set_items) override;
