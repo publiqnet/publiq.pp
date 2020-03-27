@@ -1,6 +1,8 @@
 # define the executable
 add_executable(simulator
-    main.cpp)
+    main.cpp
+    network.cpp
+    network.hpp)
 
 # libraries this module links to
 target_link_libraries(simulator PRIVATE
