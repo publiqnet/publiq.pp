@@ -92,7 +92,7 @@ int main(int argc, char** argv)
     ::sigaction(SIGTERM, &signal_handler, nullptr);
 #endif
 
-    beltpp::ilog_ptr plogger_exceptions = beltpp::t_unique_nullptr<beltpp::ilog>();
+    beltpp::ilog_ptr plogger_exceptions;
 
     try
     {
