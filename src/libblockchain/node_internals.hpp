@@ -460,11 +460,14 @@ public:
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views,
-                   detail::fp_content_unit_validate_check p_content_unit_validate_check)
+                   detail::fp_content_unit_validate_check p_content_unit_validate_check,
+                   beltpp::event_handler* peh)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
-        , m_ptr_eh(beltpp::libsocket::construct_event_handler())
+        , m_ptr_eh(nullptr == peh ?
+                       beltpp::take_unique_ptr(beltpp::libsocket::construct_event_handler()) :
+                       beltpp::raw_ptr(peh))
         , m_ptr_p2p_socket(new meshpp::p2psocket(
                                meshpp::getp2psocket(*m_ptr_eh,
                                                     p2p_bind_to_address,
@@ -674,7 +677,7 @@ public:
     storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;
-    unique_ptr<beltpp::event_handler> m_ptr_eh;
+    beltpp::t_unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 

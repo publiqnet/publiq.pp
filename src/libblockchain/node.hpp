@@ -69,7 +69,8 @@ public:
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
          detail::fp_counts_per_channel_views p_counts_per_channel_views,
-         detail::fp_content_unit_validate_check p_content_unit_validate_check);
+         detail::fp_content_unit_validate_check p_content_unit_validate_check,
+         beltpp::event_handler* peh = nullptr);
     node(node&& other) noexcept;
     ~node();
 

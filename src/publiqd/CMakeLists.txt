@@ -4,7 +4,6 @@ add_executable(publiqd
 
 # libraries this module links to
 target_link_libraries(publiqd PRIVATE
-    socket
     publiq.pp
     mesh.pp
     systemutility
