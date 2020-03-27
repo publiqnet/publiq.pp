@@ -41,32 +41,20 @@ using std::cout;
 using std::endl;
 using std::vector;
 using std::runtime_error;
-using std::thread;
 
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
 vector<publiqpp::coin> block_reward_array();
 
-static bool g_termination_handled = false;
-static std::vector<publiqpp::node*> g_pnodes;
-static std::vector<publiqpp::storage_node*> g_pstorage_nodes;
-static std::vector<thread*> threads;
-void termination_handler(int /*signum*/)
-{
-    cout << "stopping..." << endl;
-
-    g_termination_handled = true;
-    for(auto g_pnode : g_pnodes)
-        g_pnode->wake();
-    for (auto g_pstorage_node : g_pstorage_nodes)
-        g_pstorage_node->wake();
-}
+using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<PidConfig::DataDirAttribute,
+                                                                       &PidConfig::DataDirAttribute::from_string,
+                                                                       &PidConfig::DataDirAttribute::to_string>>;
 
 class port2pid_helper
 {
     using Loader = meshpp::file_locker<meshpp::file_loader<PidConfig::Port2PID,
-                                                            &PidConfig::Port2PID::from_string,
-                                                            &PidConfig::Port2PID::to_string>>;
+                                                           &PidConfig::Port2PID::from_string,
+                                                           &PidConfig::Port2PID::to_string>>;
 public:
     port2pid_helper(boost::filesystem::path const& _path, unsigned short _port)
         : port(_port)
@@ -131,6 +119,22 @@ private:
     boost::filesystem::path path;
     std::exception_ptr eptr;
 };
+
+static bool g_termination_handled = false;
+static vector<publiqpp::node*> g_pnodes;
+static vector<publiqpp::storage_node*> g_pstorage_nodes;
+
+void termination_handler(int /*signum*/)
+{
+    cout << "stopping..." << endl;
+
+    g_termination_handled = true;
+    for(auto g_pnode : g_pnodes)
+        g_pnode->wake();
+    for (auto g_pstorage_node : g_pstorage_nodes)
+        g_pstorage_node->wake();
+}
+
 
 uint64_t counts_per_channel_views(std::map<uint64_t, std::map<string, std::map<string, uint64_t>>> const& item_per_owner,
                                   uint64_t block_number,
@@ -271,9 +275,6 @@ int main()
 
                 unique_ptr<port2pid_helper> port2pid(new port2pid_helper(meshpp::config_file_path("pid"), p2p_bind_to_address.local.port));
 
-                using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<PidConfig::DataDirAttribute,
-                                                                                        &PidConfig::DataDirAttribute::from_string,
-                                                                                        &PidConfig::DataDirAttribute::to_string>>;
                 DataDirAttributeLoader dda(meshpp::data_file_path("running.txt"));
                 {
                     PidConfig::RunningDuration item;
@@ -300,7 +301,7 @@ int main()
                 beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("publiqd_p2p", true);
                 plogger_p2p->disable();
                 beltpp::ilog_ptr plogger_rpc = beltpp::console_logger("publiqd_rpc", true);
-                //plogger_rpc->disable();
+                plogger_rpc->disable();
                 plogger_exceptions = meshpp::file_logger("publiqd_exceptions",
                                                          fs_log / "exceptions.txt");
                 plogger_storage_exceptions = meshpp::file_logger("storage_exceptions",
@@ -315,7 +316,8 @@ int main()
                 if (enable_inbox)
                     fs_inbox = meshpp::data_directory_path("inbox");
 
-                publiqpp::node node(genesis_signed_block(testnet),
+                publiqpp::node *node = new publiqpp::node(
+                                    genesis_signed_block(testnet),
                                     public_address,
                                     public_ssl_address,
                                     rpc_bind_to_address,
@@ -349,53 +351,42 @@ int main()
                                     &content_unit_validate_check);
 
                 cout << endl;
-                cout << "Node: " << node.name() << endl;
+                cout << "Node: " << node->name() << endl;
                 cout << "Type: " << static_cast<int>(n_type) << endl;
                 cout << endl;
 
-                g_pnodes.push_back(&node);
+                g_pnodes.push_back(node);
 
                 unique_ptr<publiqpp::storage_node> ptr_storage_node;
                 if (n_type != NodeType::blockchain)
                 {
                     fs_storage = meshpp::data_directory_path("storage");
-                    ptr_storage_node.reset(new publiqpp::storage_node(node,
+                    ptr_storage_node.reset(new publiqpp::storage_node(*node,
                                                                       slave_bind_to_address,
                                                                       fs_storage,
                                                                       pv_key,
                                                                       plogger_rpc.get()));
                     g_pstorage_nodes.push_back(ptr_storage_node.get());
                 }
-
-
     }
 
-        for(auto node : g_pnodes)
+    while (false == g_termination_handled)
+    {
+        for (auto const& node : g_pnodes)
         {
-            thread node_thread([&node] //, &plogger_exceptions]
+            bool stop_check = false;
+            node->run(stop_check);
+            if (stop_check)
             {
-                //loop(node, plogger_exceptions, g_termination_handled);
-                loop(node, g_termination_handled);
-            });
-            threads.push_back(&node_thread);
+                termination_handler(0);
+                break;
+            }
         }
+    }
 
-        for(auto storage_node : g_pstorage_nodes)
-        {
-            thread storage_node_thread([&storage_node] //, &plogger_exceptions]
-            {
-                //loop(node, plogger_exceptions, g_termination_handled);
-                loop(storage_node, g_termination_handled);
-            });
-            threads.push_back(&storage_node_thread);
-        }
-
-        for (auto node_thread :threads)
-            beltpp::finally join_node_thread([&node_thread](){ node_thread->join(); });
-
-//        dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-//        dda.save();
-//        port2pid->commit();
+    //            dda->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    //            dda.save();
+    //            port2pid->commit();
     }
     catch (std::exception const& ex)
     {
