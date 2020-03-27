@@ -71,7 +71,7 @@ public:
          std::vector<coin> const& block_reward_array,
          detail::fp_counts_per_channel_views p_counts_per_channel_views,
          detail::fp_content_unit_validate_check p_content_unit_validate_check,
-         beltpp::event_handler* peh = nullptr,
+         std::unique_ptr<beltpp::event_handler>&& inject_eh = nullptr,
          std::unique_ptr<beltpp::socket>&& inject_rpc_socket = nullptr,
          std::unique_ptr<beltpp::socket>&& inject_p2p_socket = nullptr);
     node(node&& other) noexcept;
