@@ -79,6 +79,7 @@ module BlockchainMessage
         channel
         storage
         sponsored_return
+        sponsored_grant
     }
 
     ///
@@ -223,6 +224,7 @@ module BlockchainMessage
 
     enum SponsorType
     {
+        none
         global
         channel
         article

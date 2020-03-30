@@ -69,13 +69,13 @@ public:
 
     std::map<std::string, std::map<std::string, coin>>
     sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
-                                    BlockchainMessage::SponsorType sponsor_type,
                                     std::string const& content_unit_uri,
                                     size_t block_number,
                                     e_sponsored_content_unit_set_used type,
                                     std::string const& transaction_hash_to_cancel,
                                     std::string const& manual_by_account,
-                                    bool pretend);
+                                    bool pretend,
+                                    BlockchainMessage::SponsorType sponsor_type = BlockchainMessage::SponsorType::none);
 
     std::vector<std::pair<std::string, std::string>>
     content_unit_uri_sponsor_expiring(size_t block_number) const;

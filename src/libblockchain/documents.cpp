@@ -484,13 +484,13 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
 }
 
 map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
-                                                                          SponsorType sponsor_type,
                                                                           string const& content_unit_uri,
                                                                           size_t block_number,
                                                                           documents::e_sponsored_content_unit_set_used type,
                                                                           string const& transaction_hash_to_cancel,
                                                                           string const& manual_by_account,
-                                                                          bool pretend)
+                                                                          bool pretend,
+                                                                          SponsorType sponsor_type)
 {
     map<string, map<string, coin>> result;
 

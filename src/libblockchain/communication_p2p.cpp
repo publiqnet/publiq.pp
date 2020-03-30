@@ -454,14 +454,13 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     coin miner_emission_reward, author_emission_reward, channel_emission_reward, storage_emission_reward;
     coin channel_sponsored_reward, storage_sponsored_reward, author_sponsored_reward;
 
-    coin sponsored_reward = coin(0, 0);
+    coin sponsored_reward_global = coin(0, 0);
 
     for (auto const& unit_uri : unit_uri_view_counts)
     {
         // sponsor       txid   amount
         map<string, map<string, coin>> sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         SponsorType::global,
                                                          unit_uri.first,
                                                          block_header.block_number,
                                                          rewards_type::apply == type ?
@@ -469,12 +468,13 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                              documents::sponsored_content_unit_set_used_revert,
                                                          string(),  //  transaction_hash_to_validate
                                                          string(),  //  manual_by_account
-                                                         false);
+                                                         false,
+                                                         SponsorType::global);
 
         for (auto const& sponsored_reward_by_sponsor : sponsored_rewards)
             for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_sponsor.second)
             {
-                sponsored_reward += sponsored_reward_by_sponsor_by_txid.second;
+                sponsored_reward_global += sponsored_reward_by_sponsor_by_txid.second;
 
                 auto insert_result =
                         applied_sponsor_items.insert({
@@ -497,7 +497,6 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             // author       txid   amount
             map<string, map<string, coin>> temp_sponsored_rewards =
                                 impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                                                 SponsorType::global,
                                                                                  expiring_item_uri,
                                                                                  block_header.block_number,
                                                                                  rewards_type::apply == type ?
@@ -533,9 +532,9 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         storage_emission_reward = emission_reward - miner_emission_reward - author_emission_reward - channel_emission_reward;
     }
 
-    author_sponsored_reward = sponsored_reward * AUTHOR_SPONSORED_REWARD_PERCENT / 100;
-    channel_sponsored_reward = sponsored_reward * CHANNEL_SPONSORED_REWARD_PERCENT / 100;
-    storage_sponsored_reward = sponsored_reward - author_sponsored_reward - channel_sponsored_reward;
+    author_sponsored_reward = sponsored_reward_global * AUTHOR_SPONSORED_REWARD_PERCENT / 100;
+    channel_sponsored_reward = sponsored_reward_global * CHANNEL_SPONSORED_REWARD_PERCENT / 100;
+    storage_sponsored_reward = sponsored_reward_global - author_sponsored_reward - channel_sponsored_reward;
 
     // grant rewards to authors, channels and storages
     miner_emission_reward += distribute_rewards(rewards, author_result, author_emission_reward + author_sponsored_reward, RewardType::author);

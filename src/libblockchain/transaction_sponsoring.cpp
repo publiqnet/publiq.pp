@@ -167,7 +167,6 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     map<string, map<string, coin>> temp_sponsored_rewards =
         const_cast<publiqpp::detail::node_internals&>(impl).
             m_documents.sponsored_content_unit_set_used(impl,
-                                                        SponsorType::global,
                                                         cancel_sponsor_content_unit.uri,
                                                         impl.m_blockchain.length(),
                                                         documents::sponsored_content_unit_set_used_apply,
@@ -195,7 +194,6 @@ void action_apply(publiqpp::detail::node_internals& impl,
 
     map<string, map<string, coin>> temp_sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         SponsorType::global,
                                                          cancel_sponsor_content_unit.uri,
                                                          impl.m_blockchain.length(),
                                                          documents::sponsored_content_unit_set_used_apply,
@@ -219,7 +217,6 @@ void action_revert(publiqpp::detail::node_internals& impl,
 {
     map<string, map<string, coin>> temp_sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         SponsorType::global,
                                                          cancel_sponsor_content_unit.uri,
                                                          impl.m_blockchain.length(),
                                                          documents::sponsored_content_unit_set_used_revert,
