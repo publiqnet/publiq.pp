@@ -221,8 +221,16 @@ module BlockchainMessage
         String peer_address
     }
 
+    enum SponsorType
+    {
+        global
+        channel
+        article
+    }
+
     class SponsorContentUnit
     {
+        SponsorType type
         String sponsor_address
         String uri
         TimePoint start_time_point
@@ -457,6 +465,7 @@ module BlockchainMessage
     }
 
     class TransactionPoolFull {}
+
     class ResponseCodeReserve2 {}
     class ResponseCodeReserve3 {}
     class ResponseCodeReserve4 {}

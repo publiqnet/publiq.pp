@@ -469,20 +469,21 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                          string(),  //  transaction_hash_to_validate
                                                          string(),  //  manual_by_account
                                                          false);
+
         for (auto const& sponsored_reward_by_sponsor : sponsored_rewards)
-        for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_sponsor.second)
-        {
-            sponsored_reward += sponsored_reward_by_sponsor_by_txid.second;
+            for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_sponsor.second)
+            {
+                sponsored_reward += sponsored_reward_by_sponsor_by_txid.second;
 
-            auto insert_result =
-                    applied_sponsor_items.insert({
-                                                     sponsored_reward_by_sponsor_by_txid.first, // txid
-                                                     sponsored_reward_by_sponsor_by_txid.second // coin
-                                                 });
+                auto insert_result =
+                        applied_sponsor_items.insert({
+                                                         sponsored_reward_by_sponsor_by_txid.first, // txid
+                                                         sponsored_reward_by_sponsor_by_txid.second // coin
+                                                     });
 
-            if (false == insert_result.second)
-                throw std::logic_error("applied_sponsor_items.insert");
-        }
+                if (false == insert_result.second)
+                    throw std::logic_error("applied_sponsor_items.insert");
+            }
     }
 
     auto expirings = impl.m_documents.content_unit_uri_sponsor_expiring(block_header.block_number);
