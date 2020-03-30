@@ -166,14 +166,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 
     map<string, map<string, coin>> temp_sponsored_rewards =
         const_cast<publiqpp::detail::node_internals&>(impl).
-            m_documents.sponsored_content_unit_set_used(
-                    impl,
-                    cancel_sponsor_content_unit.uri,
-                    impl.m_blockchain.length(),
-                    documents::sponsored_content_unit_set_used_apply,
-                    cancel_sponsor_content_unit.transaction_hash,
-                    cancel_sponsor_content_unit.sponsor_address,
-                    true);  //  pretend
+            m_documents.sponsored_content_unit_set_used(impl,
+                                                        SponsorType::global,
+                                                        cancel_sponsor_content_unit.uri,
+                                                        impl.m_blockchain.length(),
+                                                        documents::sponsored_content_unit_set_used_apply,
+                                                        cancel_sponsor_content_unit.transaction_hash,
+                                                        cancel_sponsor_content_unit.sponsor_address,
+                                                        true);  //  pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
         for(auto const& temp_detail : temp_sponsored_reward.second)
@@ -194,14 +194,14 @@ void action_apply(publiqpp::detail::node_internals& impl,
         throw uri_exception(cancel_sponsor_content_unit.uri, uri_exception::missing);
 
     map<string, map<string, coin>> temp_sponsored_rewards =
-        impl.m_documents.sponsored_content_unit_set_used(
-                    impl,
-                    cancel_sponsor_content_unit.uri,
-                    impl.m_blockchain.length(),
-                    documents::sponsored_content_unit_set_used_apply,
-                    cancel_sponsor_content_unit.transaction_hash,
-                    cancel_sponsor_content_unit.sponsor_address,
-                    false);  //  pretend
+        impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                         SponsorType::global,
+                                                         cancel_sponsor_content_unit.uri,
+                                                         impl.m_blockchain.length(),
+                                                         documents::sponsored_content_unit_set_used_apply,
+                                                         cancel_sponsor_content_unit.transaction_hash,
+                                                         cancel_sponsor_content_unit.sponsor_address,
+                                                         false);  //  pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
         for(auto const& temp_detail : temp_sponsored_reward.second)
@@ -218,14 +218,14 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    state_layer /*layer*/)
 {
     map<string, map<string, coin>> temp_sponsored_rewards =
-        impl.m_documents.sponsored_content_unit_set_used(
-                    impl,
-                    cancel_sponsor_content_unit.uri,
-                    impl.m_blockchain.length(),
-                    documents::sponsored_content_unit_set_used_revert,
-                    cancel_sponsor_content_unit.transaction_hash,
-                    cancel_sponsor_content_unit.sponsor_address,
-                    false);  // pretend
+        impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                         SponsorType::global,
+                                                         cancel_sponsor_content_unit.uri,
+                                                         impl.m_blockchain.length(),
+                                                         documents::sponsored_content_unit_set_used_revert,
+                                                         cancel_sponsor_content_unit.transaction_hash,
+                                                         cancel_sponsor_content_unit.sponsor_address,
+                                                         false);  // pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
         for(auto const& temp_detail : temp_sponsored_reward.second)

@@ -461,6 +461,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         // sponsor       txid   amount
         map<string, map<string, coin>> sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                         SponsorType::global,
                                                          unit_uri.first,
                                                          block_header.block_number,
                                                          rewards_type::apply == type ?
@@ -496,6 +497,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             // author       txid   amount
             map<string, map<string, coin>> temp_sponsored_rewards =
                                 impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                                                 SponsorType::global,
                                                                                  expiring_item_uri,
                                                                                  block_header.block_number,
                                                                                  rewards_type::apply == type ?

@@ -484,6 +484,7 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
 }
 
 map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
+                                                                          SponsorType sponsor_type,
                                                                           string const& content_unit_uri,
                                                                           size_t block_number,
                                                                           documents::e_sponsored_content_unit_set_used type,
@@ -509,6 +510,8 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
     if (block_number != block_header.block_number &&
         block_number != block_header.block_number + 1)
         throw std::logic_error("block_number range");
+
+    B_UNUSED(sponsor_type);
 
     if (m_pimpl->m_content_unit_sponsored_information.contains(content_unit_uri))
     {

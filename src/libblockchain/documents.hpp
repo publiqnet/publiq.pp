@@ -69,6 +69,7 @@ public:
 
     std::map<std::string, std::map<std::string, coin>>
     sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
+                                    BlockchainMessage::SponsorType sponsor_type,
                                     std::string const& content_unit_uri,
                                     size_t block_number,
                                     e_sponsored_content_unit_set_used type,
