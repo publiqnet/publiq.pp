@@ -447,7 +447,9 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                             false == channel_result.empty() &&
                                             false == storage_result.empty()));
 
-    if(false == unit_uri_view_counts.empty() && (author_result.empty() || channel_result.empty() || storage_result.empty()))
+    if(false == unit_uri_view_counts.empty() && (author_result.empty() || 
+                                                 channel_result.empty() || 
+                                                 storage_result.empty()))
         throw std::logic_error("wrong result from validate_statistics(...)");
 
     size_t year_index = block_header.block_number / 50000;
@@ -461,6 +463,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         // sponsor       txid   amount
         map<string, map<string, coin>> sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                         SponsorType::global,
                                                          unit_uri.first,
                                                          block_header.block_number,
                                                          rewards_type::apply == type ?
@@ -468,8 +471,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                              documents::sponsored_content_unit_set_used_revert,
                                                          string(),  //  transaction_hash_to_validate
                                                          string(),  //  manual_by_account
-                                                         false,
-                                                         SponsorType::global);
+                                                         false);
 
         for (auto const& sponsored_reward_by_sponsor : sponsored_rewards)
             for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_sponsor.second)
@@ -497,6 +499,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             // author       txid   amount
             map<string, map<string, coin>> temp_sponsored_rewards =
                                 impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                                                 SponsorType::all,
                                                                                  expiring_item_uri,
                                                                                  block_header.block_number,
                                                                                  rewards_type::apply == type ?

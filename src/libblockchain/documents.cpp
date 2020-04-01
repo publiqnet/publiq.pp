@@ -483,14 +483,177 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
 }
 
+void documents::sponsor_content_unit_ex_apply(publiqpp::detail::node_internals& impl,
+                                              BlockchainMessage::SponsorContentUnitEx const& spi,
+                                              string const& transaction_hash)
+{//TODO
+    StorageTypes::SponsoredInformation si;
+    si.amount = spi.amount;
+    auto item_start_tp = chrono::time_point_cast<chrono::seconds>
+        (system_clock::from_time_t(spi.start_time_point.tm));
+    auto item_end_tp = chrono::time_point_cast<chrono::seconds>
+        (item_start_tp + chrono::hours(spi.hours));
+
+    if (item_end_tp <= item_start_tp)
+        throw std::runtime_error("item_end_tp <= item_start_tp");
+
+    si.start_time_point.tm = system_clock::to_time_t(item_start_tp);
+    si.end_time_point.tm = system_clock::to_time_t(item_end_tp);
+
+    si.sponsor_address = spi.sponsor_address;
+    si.transaction_hash = transaction_hash;
+    si.cancelled = false;
+
+    if (m_pimpl->m_content_unit_sponsored_information.contains(spi.uri))
+    {
+        StorageTypes::ContentUnitSponsoredInformation& cusi =
+            m_pimpl->m_content_unit_sponsored_information.at(spi.uri);
+
+        assert(false == cusi.sponsored_informations.empty());
+        assert(false == cusi.time_points_used.empty());
+
+        if (cusi.sponsored_informations.empty())
+            throw std::logic_error("cusi.sponsored_informations.empty()");
+        if (cusi.time_points_used.empty())
+            throw std::logic_error("cusi.time_points_used.empty()");
+
+        si.time_points_used_before = cusi.time_points_used.size();
+
+        //  the index will be sorted below inside refresh index
+        cusi.index_si.push_back(cusi.sponsored_informations.size());
+        cusi.sponsored_informations.push_back(si);
+
+        refresh_index(cusi);
+    }
+    else
+    {
+        StorageTypes::ContentUnitSponsoredInformation cusi;
+        cusi.uri = spi.uri;
+
+        cusi.time_points_used.push_back(si.start_time_point);
+
+        si.time_points_used_before = cusi.time_points_used.size();  // 1
+
+                                                                    //  the index will be sorted below inside refresh index
+        cusi.index_si.push_back(cusi.sponsored_informations.size());
+        cusi.sponsored_informations.push_back(si);
+
+        refresh_index(cusi);
+
+        m_pimpl->m_content_unit_sponsored_information.insert(spi.uri, cusi);
+    }
+
+    size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
+
+    StorageTypes::SponsoredInformationHeader expiring;
+    expiring.uri = spi.uri;
+    expiring.transaction_hash = si.transaction_hash;
+    expiring.block_number = expiring_block_number;
+    expiring.manually_cancelled = StorageTypes::Coin();
+
+    if (false == m_pimpl->m_sponsored_informations_expiring.contains(std::to_string(expiring_block_number)))
+    {
+        StorageTypes::SponsoredInformationHeaders expirings;
+        expirings.expirations[expiring.transaction_hash] = expiring;
+        m_pimpl->m_sponsored_informations_expiring.insert(std::to_string(expiring_block_number),
+            expirings);
+    }
+    else
+    {
+        StorageTypes::SponsoredInformationHeaders& expirings =
+            m_pimpl->m_sponsored_informations_expiring.at(std::to_string(expiring_block_number));
+
+        expirings.expirations[expiring.transaction_hash] = expiring;
+    }
+
+    StorageTypes::TransactionHashToBlockNumber hash_to_block;
+    hash_to_block.transaction_hash = si.transaction_hash;
+    hash_to_block.block_number = expiring_block_number;
+
+    m_pimpl->m_sponsored_informations_hash_to_block.insert(hash_to_block.transaction_hash,
+        hash_to_block);
+}
+
+void documents::sponsor_content_unit_ex_revert(publiqpp::detail::node_internals& impl,
+                                               BlockchainMessage::SponsorContentUnitEx const& spi,
+                                               string const& transaction_hash)
+{
+    StorageTypes::ContentUnitSponsoredInformation& cusi =
+        m_pimpl->m_content_unit_sponsored_information.at(spi.uri);
+
+    assert(false == cusi.sponsored_informations.empty());
+    assert(cusi.sponsored_informations.back().amount == StorageTypes::Coin(spi.amount));
+    assert(false == cusi.time_points_used.empty());
+    assert(cusi.time_points_used.size() == cusi.sponsored_informations.back().time_points_used_before);
+
+    if (cusi.sponsored_informations.empty() ||
+        cusi.sponsored_informations.back().amount != StorageTypes::Coin(spi.amount))
+        throw std::logic_error("cusi.sponsored_informations.back().amount != si");
+    if (cusi.time_points_used.empty())
+        throw std::logic_error("cusi.time_points_used.empty()");
+    if (cusi.time_points_used.size() != cusi.sponsored_informations.back().time_points_used_before)
+        throw std::logic_error("cusi.time_points_used.size() != cusi.sponsored_informations.back().time_points_used_before");
+
+    auto si = cusi.sponsored_informations.back();
+    assert(si.transaction_hash == transaction_hash);
+    if (si.transaction_hash != transaction_hash)
+        throw std::logic_error("si.transaction_hash != transaction_hash");
+
+    assert(si.cancelled != true);
+    if (si.cancelled == true)
+        throw std::logic_error("si.cancelled == true");
+
+    auto item_end_tp = system_clock::from_time_t(si.end_time_point.tm);
+
+    cusi.sponsored_informations.pop_back();
+
+    if (cusi.sponsored_informations.empty())
+        m_pimpl->m_content_unit_sponsored_information.erase(spi.uri);
+    else
+        refresh_index(cusi);
+
+    size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
+
+    StorageTypes::SponsoredInformationHeaders& expirings =
+        expiration_entry_ref_by_block(expiring_block_number);
+
+    assert(expirings.expirations.count(si.transaction_hash));
+    if (0 == expirings.expirations.count(si.transaction_hash))
+        throw std::logic_error("0 == expirings.expirations.count(si.transaction_hash)");
+
+    auto const& expiration_item = expirings.expirations[si.transaction_hash];
+    assert(expiration_item.uri == spi.uri);
+    if (expiration_item.uri != spi.uri)
+        throw std::logic_error("expiration_item.uri != spi.uri");
+    assert(expiration_item.block_number == expiring_block_number);
+    if (expiration_item.block_number != expiring_block_number)
+        throw std::logic_error("expiration_item.block_number != expiring_block_number");
+    assert(expiration_item.transaction_hash == si.transaction_hash);
+    if (expiration_item.transaction_hash != si.transaction_hash)
+        throw std::logic_error("expiration_item.transaction_hash != si.transaction_hash");
+    assert(expiration_item.manually_cancelled == StorageTypes::Coin());
+    if (expiration_item.manually_cancelled != StorageTypes::Coin())
+        throw std::logic_error("expiration_item.manually_cancelled != StorageTypes::Coin()");
+
+    expirings.expirations.erase(si.transaction_hash);
+    if (expirings.expirations.empty())
+        m_pimpl->m_sponsored_informations_expiring.erase(std::to_string(expiring_block_number));
+
+    StorageTypes::TransactionHashToBlockNumber hash_to_block;
+    hash_to_block.transaction_hash = si.transaction_hash;
+    hash_to_block.block_number = expiring_block_number;
+
+    m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
+}
+
 map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
+                                                                          SponsorType sponsor_type,
                                                                           string const& content_unit_uri,
                                                                           size_t block_number,
                                                                           documents::e_sponsored_content_unit_set_used type,
                                                                           string const& transaction_hash_to_cancel,
                                                                           string const& manual_by_account,
-                                                                          bool pretend,
-                                                                          SponsorType sponsor_type)
+                                                                          bool pretend)
 {
     map<string, map<string, coin>> result;
 
@@ -511,7 +674,7 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
         block_number != block_header.block_number + 1)
         throw std::logic_error("block_number range");
 
-    B_UNUSED(sponsor_type);
+    B_UNUSED(sponsor_type);//TODO
 
     if (m_pimpl->m_content_unit_sponsored_information.contains(content_unit_uri))
     {
