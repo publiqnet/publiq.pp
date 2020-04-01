@@ -49,6 +49,7 @@ public:
         , m_content_unit_sponsored_information("content_unit_info", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_expiring("sponsored_info_expiring", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_hash_to_block("sponsored_info_hash_to_block", path_documents, 10000, get_putl_types())
+        , m_content_unit_sponsored_type_information("sponsored_type_info", path_documents, 10000, get_putl_types())
     {}
 
     meshpp::map_loader<File> m_files;
@@ -57,6 +58,7 @@ public:
     meshpp::map_loader<StorageTypes::ContentUnitSponsoredInformation> m_content_unit_sponsored_information;
     meshpp::map_loader<StorageTypes::SponsoredInformationHeaders> m_sponsored_informations_expiring;
     meshpp::map_loader<StorageTypes::TransactionHashToBlockNumber> m_sponsored_informations_hash_to_block;
+    meshpp::map_loader<StorageTypes::ContentUnitSponsoredTypeInformation> m_content_unit_sponsored_type_information;
 };
 }
 
@@ -77,6 +79,7 @@ void documents::save()
     m_pimpl->m_content_unit_sponsored_information.save();
     m_pimpl->m_sponsored_informations_expiring.save();
     m_pimpl->m_sponsored_informations_hash_to_block.save();
+    m_pimpl->m_content_unit_sponsored_type_information.save();
 }
 
 void documents::commit() noexcept
@@ -89,6 +92,7 @@ void documents::commit() noexcept
     m_pimpl->m_content_unit_sponsored_information.commit();
     m_pimpl->m_sponsored_informations_expiring.commit();
     m_pimpl->m_sponsored_informations_hash_to_block.commit();
+    m_pimpl->m_content_unit_sponsored_type_information.commit();
 }
 
 void documents::discard() noexcept
@@ -101,6 +105,7 @@ void documents::discard() noexcept
     m_pimpl->m_content_unit_sponsored_information.discard();
     m_pimpl->m_sponsored_informations_expiring.discard();
     m_pimpl->m_sponsored_informations_hash_to_block.discard();
+    m_pimpl->m_content_unit_sponsored_type_information.discard();
 }
 
 void documents::clear()
@@ -113,6 +118,7 @@ void documents::clear()
     m_pimpl->m_content_unit_sponsored_information.clear();
     m_pimpl->m_sponsored_informations_expiring.clear();
     m_pimpl->m_sponsored_informations_hash_to_block.clear();
+    m_pimpl->m_content_unit_sponsored_type_information.clear();
 }
 
 pair<bool, string> documents::files_exist(unordered_set<string> const& uris) const
@@ -483,10 +489,34 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
 }
 
+StorageTypes::SponsorType convert_type(SponsorType sponsor_type)
+{
+    switch (sponsor_type)
+    {
+    case SponsorType::all: return StorageTypes::SponsorType::all;
+    case SponsorType::global: return StorageTypes::SponsorType::global;
+    case SponsorType::article: return StorageTypes::SponsorType::article;
+    }
+
+    throw std::logic_error("SponsorType is not syncronized between message.idl and types.idl");
+}
+
+SponsorType convert_type(StorageTypes::SponsorType sponsor_type)
+{
+    switch (sponsor_type)
+    {
+    case StorageTypes::SponsorType::all: return SponsorType::all;
+    case StorageTypes::SponsorType::global: return SponsorType::global;
+    case StorageTypes::SponsorType::article: return SponsorType::article;
+    }
+
+    throw std::logic_error("SponsorType is not syncronized between message.idl and types.idl");
+}
+
 void documents::sponsor_content_unit_ex_apply(publiqpp::detail::node_internals& impl,
                                               BlockchainMessage::SponsorContentUnitEx const& spi,
                                               string const& transaction_hash)
-{//TODO
+{
     StorageTypes::SponsoredInformation si;
     si.amount = spi.amount;
     auto item_start_tp = chrono::time_point_cast<chrono::seconds>
@@ -543,6 +573,34 @@ void documents::sponsor_content_unit_ex_apply(publiqpp::detail::node_internals& 
         m_pimpl->m_content_unit_sponsored_information.insert(spi.uri, cusi);
     }
 
+    // additional part for Ex
+    StorageTypes::SponsoredTypeInformation sti;
+    sti.type = convert_type(spi.type);
+    sti.transaction_hash = transaction_hash;
+
+    if (m_pimpl->m_content_unit_sponsored_type_information.contains(spi.uri))
+    {
+        StorageTypes::ContentUnitSponsoredTypeInformation& custi =
+            m_pimpl->m_content_unit_sponsored_type_information.at(spi.uri);
+
+        assert(false == custi.sponsored_type_informations.empty());
+
+        if (custi.sponsored_type_informations.empty())
+            throw std::logic_error("cusi.sponsored_informations.empty()");
+
+        custi.sponsored_type_informations.push_back(sti);
+    }
+    else
+    {
+        StorageTypes::ContentUnitSponsoredTypeInformation custi;
+        custi.uri = spi.uri;
+
+        custi.sponsored_type_informations.push_back(sti);
+
+        m_pimpl->m_content_unit_sponsored_type_information.insert(spi.uri, custi);
+    }
+    // Ex
+
     size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 
     StorageTypes::SponsoredInformationHeader expiring;
@@ -570,8 +628,7 @@ void documents::sponsor_content_unit_ex_apply(publiqpp::detail::node_internals& 
     hash_to_block.transaction_hash = si.transaction_hash;
     hash_to_block.block_number = expiring_block_number;
 
-    m_pimpl->m_sponsored_informations_hash_to_block.insert(hash_to_block.transaction_hash,
-        hash_to_block);
+    m_pimpl->m_sponsored_informations_hash_to_block.insert(hash_to_block.transaction_hash, hash_to_block);
 }
 
 void documents::sponsor_content_unit_ex_revert(publiqpp::detail::node_internals& impl,
@@ -611,6 +668,26 @@ void documents::sponsor_content_unit_ex_revert(publiqpp::detail::node_internals&
         m_pimpl->m_content_unit_sponsored_information.erase(spi.uri);
     else
         refresh_index(cusi);
+
+    // additional part for Ex
+    StorageTypes::ContentUnitSponsoredTypeInformation& custi =
+        m_pimpl->m_content_unit_sponsored_type_information.at(spi.uri);
+
+    assert(false == custi.sponsored_type_informations.empty());
+
+    if (custi.sponsored_type_informations.empty())
+        throw std::logic_error("cusi.sponsored_type_informations.empty()");
+
+    auto sti = custi.sponsored_type_informations.back();
+    assert(sti.transaction_hash == transaction_hash);
+    if (sti.transaction_hash != transaction_hash)
+        throw std::logic_error("sti.transaction_hash != transaction_hash");
+
+    custi.sponsored_type_informations.pop_back();
+
+    if (custi.sponsored_type_informations.empty())
+        m_pimpl->m_content_unit_sponsored_type_information.erase(spi.uri);
+    // Ex
 
     size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 

@@ -55,6 +55,25 @@ module StorageTypes
         String channel_address
     }
 
+    enum SponsorType
+    {
+        all
+        global
+        article
+    }
+
+    class ContentUnitSponsoredTypeInformation
+    {
+        String uri
+        Array SponsoredTypeInformation sponsored_type_informations
+    }
+
+    class SponsoredTypeInformation
+    {
+        SponsorType type
+        String transaction_hash
+    }
+
     ///
     // Slave message types below
     ///
