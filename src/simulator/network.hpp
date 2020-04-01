@@ -2,17 +2,43 @@
 
 #include <belt.pp/isocket.hpp>
 #include <belt.pp/ievent.hpp>
+#include <belt.pp/queue.hpp>
+#include <belt.pp/timer.hpp>
 
 #include <chrono>
 #include <unordered_set>
+#include <unordered_map>
+#include <map>
+#include <vector>
 
 namespace simulator_network_impl
 {
+
+class event_slot
+{
+public:
+    event_slot(uint64_t item_id = 0, beltpp::event_item* pitem = nullptr)
+        : m_item_id(item_id)
+        , m_pitem(pitem)
+    {}
+
+    bool m_closed = false;
+    uint64_t m_item_id = 0;
+    beltpp::event_item* m_pitem = nullptr;
+};
+
+using event_slots = beltpp::queue<event_slot>;
+
 class network_simulation
 {
 public:
+    enum connection_status {listen, open, close};
+
     network_simulation();
     ~network_simulation();
+private:
+    std::map<beltpp::ip_address, connection_status> status; //?
+    std::map<beltpp::socket::peer_id, beltpp::packet> messages; //?
 };
 
 class event_handler_ex : public beltpp::event_handler
@@ -29,6 +55,13 @@ public:
 
     void add(beltpp::event_item& ev_it) override;
     void remove(beltpp::event_item& ev_it) override;
+
+    beltpp::timer m_timer_helper;
+    std::list<event_slots> m_ids;
+    std::unordered_map<beltpp::event_item*, std::unordered_set<uint64_t>> m_event_item_ids;
+    std::unordered_set<beltpp::event_item*> m_event_items;
+    std::unordered_set<uint64_t> sync_eh_ids;
+    network_simulation m_ns;
 };
 
 class socket_ex : public beltpp::socket
@@ -63,6 +96,7 @@ public:
 
     std::string dump() const override;
 private:
+    event_handler_ex* m_peh;
 };
 }// simulator_network_impl
 
