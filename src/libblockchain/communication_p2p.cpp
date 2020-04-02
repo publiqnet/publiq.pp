@@ -460,10 +460,9 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     for (auto const& unit_uri : unit_uri_view_counts)
     {
-        // sponsor       txid   amount
-        map<string, map<string, coin>> sponsored_rewards =
+        // sponsor       type            txid   amount
+        map<string, map<SponsorType, map<string, coin>>> sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         SponsorType::global,
                                                          unit_uri.first,
                                                          block_header.block_number,
                                                          rewards_type::apply == type ?
@@ -474,19 +473,22 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                          false);
 
         for (auto const& sponsored_reward_by_sponsor : sponsored_rewards)
-            for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_sponsor.second)
-            {
-                sponsored_reward_global += sponsored_reward_by_sponsor_by_txid.second;
+            for (auto const& sponsored_reward_by_type : sponsored_reward_by_sponsor.second)
+                // only old global type of sponsor are supported
+                if (sponsored_reward_by_type.first == SponsorType::global)
+                    for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_type.second)
+                    {
+                        sponsored_reward_global += sponsored_reward_by_sponsor_by_txid.second;
 
-                auto insert_result =
-                        applied_sponsor_items.insert({
-                                                         sponsored_reward_by_sponsor_by_txid.first, // txid
-                                                         sponsored_reward_by_sponsor_by_txid.second // coin
-                                                     });
+                        auto insert_result =
+                                applied_sponsor_items.insert({
+                                                                 sponsored_reward_by_sponsor_by_txid.first, // txid
+                                                                 sponsored_reward_by_sponsor_by_txid.second // coin
+                                                             });
 
-                if (false == insert_result.second)
-                    throw std::logic_error("applied_sponsor_items.insert");
-            }
+                        if (false == insert_result.second)
+                            throw std::logic_error("applied_sponsor_items.insert");
+                    }
     }
 
     auto expirings = impl.m_documents.content_unit_uri_sponsor_expiring(block_header.block_number);
@@ -496,10 +498,9 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         auto const& expiring_item_transaction_hash = expiring_item.second;
         if (0 == unit_uri_view_counts.count(expiring_item_uri))
         {
-            // author       txid   amount
-            map<string, map<string, coin>> temp_sponsored_rewards =
+            // author       type             txid   amount
+            map<string, map<SponsorType, map<string, coin>>> temp_sponsored_rewards =
                                 impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                                                 SponsorType::all,
                                                                                  expiring_item_uri,
                                                                                  block_header.block_number,
                                                                                  rewards_type::apply == type ?
@@ -513,14 +514,15 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             {
                 auto& sponsored_reward_ref = sponsored_rewards_returns[sponsored_reward_by_sponsor.first];
 
-                for(auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_sponsor.second)
-                {
-                    assert(sponsored_reward_by_sponsor_by_txid.second != coin());
-                    if (sponsored_reward_by_sponsor_by_txid.second == coin())
-                        throw std::logic_error("sponsored_reward_by_sponsor_by_txid.second == coin()");
+                for (auto const& sponsored_reward_by_type : sponsored_reward_by_sponsor.second)
+                    for(auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_type.second)
+                    {
+                        assert(sponsored_reward_by_sponsor_by_txid.second != coin());
+                        if (sponsored_reward_by_sponsor_by_txid.second == coin())
+                            throw std::logic_error("sponsored_reward_by_sponsor_by_txid.second == coin()");
 
-                    sponsored_reward_ref += sponsored_reward_by_sponsor_by_txid.second;
-                }
+                        sponsored_reward_ref += sponsored_reward_by_sponsor_by_txid.second;
+                    }
             }
         }
     }

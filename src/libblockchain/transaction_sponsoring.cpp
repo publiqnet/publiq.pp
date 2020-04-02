@@ -261,10 +261,9 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         return false;
 
-    map<string, map<string, coin>> temp_sponsored_rewards =
+    map<string, map<SponsorType, map<string, coin>>> temp_sponsored_rewards =
         const_cast<publiqpp::detail::node_internals&>(impl).
             m_documents.sponsored_content_unit_set_used(impl,
-                                                        SponsorType::all,
                                                         cancel_sponsor_content_unit.uri,
                                                         impl.m_blockchain.length(),
                                                         documents::sponsored_content_unit_set_used_apply,
@@ -273,11 +272,12 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                                                         true);  //  pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
-        for(auto const& temp_detail : temp_sponsored_reward.second)
-        {
-            if (temp_detail.second == coin())
-                return false;
-        }
+        for (auto const& temp_sponsor_by_type : temp_sponsored_reward.second)
+            for(auto const& temp_detail : temp_sponsor_by_type.second)
+            {
+                if (temp_detail.second == coin())
+                    return false;
+            }
 
     return true;
 }
@@ -290,9 +290,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
     if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         throw uri_exception(cancel_sponsor_content_unit.uri, uri_exception::missing);
 
-    map<string, map<string, coin>> temp_sponsored_rewards =
+    map<string, map<SponsorType, map<string, coin>>> temp_sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         SponsorType::all,
                                                          cancel_sponsor_content_unit.uri,
                                                          impl.m_blockchain.length(),
                                                          documents::sponsored_content_unit_set_used_apply,
@@ -301,12 +300,13 @@ void action_apply(publiqpp::detail::node_internals& impl,
                                                          false);  //  pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
-        for(auto const& temp_detail : temp_sponsored_reward.second)
-        {
-            if (temp_detail.second == coin())
-                throw wrong_data_exception("invalid transaction hash: " +
-                                           cancel_sponsor_content_unit.transaction_hash);
-        }
+        for (auto const& temp_sponsor_by_type : temp_sponsored_reward.second)
+            for (auto const& temp_detail : temp_sponsor_by_type.second)
+            {
+                if (temp_detail.second == coin())
+                    throw wrong_data_exception("invalid transaction hash: " +
+                                               cancel_sponsor_content_unit.transaction_hash);
+            }
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
@@ -314,9 +314,8 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    CancelSponsorContentUnit const& cancel_sponsor_content_unit,
                    state_layer /*layer*/)
 {
-    map<string, map<string, coin>> temp_sponsored_rewards =
+    map<string, map<SponsorType, map<string, coin>>> temp_sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         SponsorType::all,
                                                          cancel_sponsor_content_unit.uri,
                                                          impl.m_blockchain.length(),
                                                          documents::sponsored_content_unit_set_used_revert,
@@ -325,12 +324,13 @@ void action_revert(publiqpp::detail::node_internals& impl,
                                                          false);  // pretend
 
     for (auto const& temp_sponsored_reward : temp_sponsored_rewards)
-        for(auto const& temp_detail : temp_sponsored_reward.second)
-        {
-            assert(temp_detail.second != coin());
-            if (temp_detail.second == coin())
-                throw std::logic_error("invalid transaction hash: " +
-                                       cancel_sponsor_content_unit.transaction_hash);
-        }
+        for (auto const& temp_sponsor_by_type : temp_sponsored_reward.second)
+            for (auto const& temp_detail : temp_sponsor_by_type.second)
+            {
+                assert(temp_detail.second != coin());
+                if (temp_detail.second == coin())
+                    throw std::logic_error("invalid transaction hash: " +
+                                           cancel_sponsor_content_unit.transaction_hash);
+            }
 }
 }

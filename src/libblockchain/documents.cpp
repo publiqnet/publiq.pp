@@ -723,16 +723,16 @@ void documents::sponsor_content_unit_ex_revert(publiqpp::detail::node_internals&
     m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
 }
 
-map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
-                                                                          SponsorType sponsor_type,
-                                                                          string const& content_unit_uri,
-                                                                          size_t block_number,
-                                                                          documents::e_sponsored_content_unit_set_used type,
-                                                                          string const& transaction_hash_to_cancel,
-                                                                          string const& manual_by_account,
-                                                                          bool pretend)
+map<string, map<SponsorType, map<string, coin>>> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
+                                                                                            string const& content_unit_uri,
+                                                                                            size_t block_number,
+                                                                                            documents::e_sponsored_content_unit_set_used type,
+                                                                                            string const& transaction_hash_to_cancel,
+                                                                                            string const& manual_by_account,
+                                                                                            bool pretend)
 {
-    map<string, map<string, coin>> result;
+    //  sp_addr     hash    part
+    map<string, map<SponsorType, map<string, coin>>> result;
 
     if (transaction_hash_to_cancel.empty() ||
         sponsored_content_unit_set_used_revert == type)
@@ -751,12 +751,14 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
         block_number != block_header.block_number + 1)
         throw std::logic_error("block_number range");
 
-    B_UNUSED(sponsor_type);//TODO
-
     if (m_pimpl->m_content_unit_sponsored_information.contains(content_unit_uri))
     {
         StorageTypes::ContentUnitSponsoredInformation& cusi =
                 m_pimpl->m_content_unit_sponsored_information.at(content_unit_uri);
+
+        // Ex
+        StorageTypes::ContentUnitSponsoredTypeInformation& custi =
+            m_pimpl->m_content_unit_sponsored_type_information.at(content_unit_uri);
 
         assert(false == cusi.sponsored_informations.empty());
         assert(false == cusi.time_points_used.empty());
@@ -837,7 +839,17 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
                 if (part == coin())
                     throw std::logic_error("part == coin()");
 
-                auto& temp_result = result[item.sponsor_address];
+                // Ex
+                SponsorType sponsor_type = SponsorType::global;
+                for (auto const& sti : custi.sponsored_type_informations)
+                    if (sti.transaction_hash == item.transaction_hash)
+                    {
+                        sponsor_type = convert_type(sti.type);
+                        break;
+                    }
+
+
+                auto& temp_result = result[item.sponsor_address][sponsor_type];
 
                 auto insert_result = temp_result.insert({item.transaction_hash, part});
                 if (false == insert_result.second)
