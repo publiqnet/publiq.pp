@@ -452,27 +452,23 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                                                  storage_result.empty()))
         throw std::logic_error("wrong result from validate_statistics(...)");
 
-    size_t year_index = block_header.block_number / 50000;
-    coin miner_emission_reward, author_emission_reward, channel_emission_reward, storage_emission_reward;
-    coin channel_sponsored_reward, storage_sponsored_reward, author_sponsored_reward;
-
     coin sponsored_reward_global = coin(0, 0);
     //  uri     amount
-    map<string, coin> sponsored_result_article;
+    map<string, coin> article_sponsored_results;
 
     for (auto const& unit_uri : unit_uri_view_counts)
     {
         // sponsor       type            txid         uri     amount
         map<string, map<SponsorType, map<string, pair<string, coin>>>> sponsored_rewards =
-        impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                         unit_uri.first,
-                                                         block_header.block_number,
-                                                         rewards_type::apply == type ?
-                                                             documents::sponsored_content_unit_set_used_apply :
-                                                             documents::sponsored_content_unit_set_used_revert,
-                                                         string(),  //  transaction_hash_to_validate
-                                                         string(),  //  manual_by_account
-                                                         false);
+            impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                             unit_uri.first,
+                                                             block_header.block_number,
+                                                             rewards_type::apply == type ?
+                                                                                    documents::sponsored_content_unit_set_used_apply :
+                                                                                    documents::sponsored_content_unit_set_used_revert,
+                                                             string(),  //  transaction_hash_to_validate
+                                                             string(),  //  manual_by_account
+                                                             false);
 
         for (auto const& sponsored_reward_by_sponsor : sponsored_rewards)
             for (auto const& sponsored_reward_by_type : sponsored_reward_by_sponsor.second)
@@ -483,7 +479,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                         sponsored_reward_global += sponsored_reward_by_sponsor_by_txid.second.second;
                     else
                     {
-                        auto& sponsored_result_article_ref = sponsored_result_article[sponsored_reward_by_sponsor_by_txid.second.first];
+                        auto& sponsored_result_article_ref = article_sponsored_results[sponsored_reward_by_sponsor_by_txid.second.first];
                         sponsored_result_article_ref += sponsored_reward_by_sponsor_by_txid.second.second;
                     }
 
@@ -491,7 +487,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                         applied_sponsor_items.insert({
                                                         sponsored_reward_by_sponsor_by_txid.first, // txid
                                                         sponsored_reward_by_sponsor_by_txid.second.second // coin
-                                                      });
+                                                     });
 
                     if (false == insert_result.second)
                         throw std::logic_error("applied_sponsor_items.insert");
@@ -507,22 +503,22 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         {
             // author       type             txid         uri     amount
             map<string, map<SponsorType, map<string, pair<string, coin>>>> temp_sponsored_rewards =
-                                impl.m_documents.sponsored_content_unit_set_used(impl,
-                                                                                 expiring_item_uri,
-                                                                                 block_header.block_number,
-                                                                                 rewards_type::apply == type ?
-                                                                                     documents::sponsored_content_unit_set_used_apply :
-                                                                                     documents::sponsored_content_unit_set_used_revert,
-                                                                                 expiring_item_transaction_hash,
-                                                                                 string(),  //  manual_by_account
-                                                                                 false);
+                impl.m_documents.sponsored_content_unit_set_used(impl,
+                                                                 expiring_item_uri,
+                                                                 block_header.block_number,
+                                                                 rewards_type::apply == type ?
+                                                                                        documents::sponsored_content_unit_set_used_apply :
+                                                                                        documents::sponsored_content_unit_set_used_revert,
+                                                                 expiring_item_transaction_hash,
+                                                                 string(),  //  manual_by_account
+                                                                 false);
 
             for (auto const& sponsored_reward_by_sponsor : temp_sponsored_rewards)
             {
                 auto& sponsored_reward_ref = sponsored_rewards_returns[sponsored_reward_by_sponsor.first];
 
                 for (auto const& sponsored_reward_by_type : sponsored_reward_by_sponsor.second)
-                    for(auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_type.second)
+                    for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_type.second)
                     {
                         assert(sponsored_reward_by_sponsor_by_txid.second.second != coin());
                         if (sponsored_reward_by_sponsor_by_txid.second.second == coin())
@@ -534,24 +530,132 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         }
     }
 
-    coin emission_reward = impl.m_block_reward_array[year_index];
+    map<string, coin> map_author_reward_article;
+    coin channel_reward_article = coin(0, 0);
+    coin storage_reward_article = coin(0, 0);
+
+    // group article sponsored amount and receivers
+    if (false == article_sponsored_results.empty())
+    {
+        //       channel content_id amount
+        map<pair<string, uint64_t>, coin> amount_total_map;
+
+        //       channel content_id     author  view
+        map<pair<string, uint64_t>, map<string, uint64_t>> distribution_map;
+
+        coin total_article_sponsor_amount = coin(0, 0);
+        for (auto const& item : article_sponsored_results)
+        {
+            ContentUnit const& content_unit = impl.m_documents.get_unit(item.first);
+            pair<string, uint64_t> key = { content_unit.channel_address, content_unit.content_id };
+
+            // calculate total sponsor amount per each content
+            // + here is just for case if boost well be available 
+            // for answers in some error reason, but this is not normal
+            amount_total_map[key] += item.second;
+
+            total_article_sponsor_amount += item.second;
+
+            // just create empty slots to mark real contents
+            // on which there are article type sponsor amounts
+            distribution_map.insert({ key, map<string, uint64_t>() });
+        }
+
+        for (auto const& item : unit_uri_view_counts)
+        {
+            ContentUnit const& content_unit = impl.m_documents.get_unit(item.first);
+            pair<string, uint64_t> key = { content_unit.channel_address, content_unit.content_id };
+
+            auto it = distribution_map.find(key);
+            if (it != distribution_map.end())
+            {
+                // all channels summary
+                uint64_t uri_total_viewes = 0;
+
+                for (auto const& uri_view : item.second)
+                    uri_total_viewes += uri_view.second;
+
+                for (auto const& file_uri : content_unit.file_uris)
+                {
+                    File const& file = impl.m_documents.get_file(file_uri);
+
+                    for (auto const& author_address : file.author_addresses)
+                        it->second[author_address] += uri_total_viewes;
+                }
+            }
+        }
+
+        for (auto const& item : distribution_map)
+        {
+            map<string, uint64_t> author_view;
+
+            uint64_t content_view_sum = 0;
+            for (auto const& it : item.second)
+                content_view_sum += it.second;
+
+            coin author_reward_part = amount_total_map[item.first] * AUTHOR_SPONSORED_REWARD_PERCENT / 100;
+            coin channel_reward_part = amount_total_map[item.first] * CHANNEL_SPONSORED_REWARD_PERCENT / 100;
+            coin storage_reward_part = amount_total_map[item.first] - author_reward_part - channel_reward_part;
+
+            channel_reward_article += channel_reward_part;
+            storage_reward_article += storage_reward_part;
+
+            string author;
+            coin rest_amount = author_reward_part;
+
+            for (auto const& it : author_view)
+            {
+                author = it.first;
+                coin amount = (author_reward_part * it.second) / content_view_sum;
+
+                rest_amount -= amount;
+                map_author_reward_article[author] += amount;
+            }
+
+            // rounding error fix
+            if (rest_amount > coin(0, 0))
+                map_author_reward_article[author] += rest_amount;
+        }
+    }
+
+    size_t year_index = block_header.block_number / 50000;
+    coin miner_reward_emission = coin(0, 0);
+    coin author_reward_emission = coin(0, 0);
+    coin channel_reward_emission = coin(0, 0);
+    coin storage_reward_emission = coin(0, 0);
 
     if (year_index < impl.m_block_reward_array.size())
     {
-        miner_emission_reward = emission_reward * MINER_EMISSION_REWARD_PERCENT / 100;
-        author_emission_reward = emission_reward * AUTHOR_EMISSION_REWARD_PERCENT / 100;
-        channel_emission_reward = emission_reward * CHANNEL_EMISSION_REWARD_PERCENT / 100;
-        storage_emission_reward = emission_reward - miner_emission_reward - author_emission_reward - channel_emission_reward;
+        coin total_reward_emission = impl.m_block_reward_array[year_index];
+
+        miner_reward_emission = total_reward_emission * MINER_EMISSION_REWARD_PERCENT / 100;
+        author_reward_emission = total_reward_emission * AUTHOR_EMISSION_REWARD_PERCENT / 100;
+        channel_reward_emission = total_reward_emission * CHANNEL_EMISSION_REWARD_PERCENT / 100;
+        storage_reward_emission = total_reward_emission - miner_reward_emission - author_reward_emission - channel_reward_emission;
     }
 
-    author_sponsored_reward = sponsored_reward_global * AUTHOR_SPONSORED_REWARD_PERCENT / 100;
-    channel_sponsored_reward = sponsored_reward_global * CHANNEL_SPONSORED_REWARD_PERCENT / 100;
-    storage_sponsored_reward = sponsored_reward_global - author_sponsored_reward - channel_sponsored_reward;
+    coin author_reward_global = sponsored_reward_global * AUTHOR_SPONSORED_REWARD_PERCENT / 100;
+    coin channel_reward_global = sponsored_reward_global * CHANNEL_SPONSORED_REWARD_PERCENT / 100;
+    coin storage_reward_global = sponsored_reward_global - author_reward_global - channel_reward_global;
+
+    coin author_reward_total = author_reward_emission + author_reward_global;
+    coin channel_reward_total = channel_reward_emission + channel_reward_global + channel_reward_article;
+    coin storage_reward_total = storage_reward_emission + storage_reward_global + storage_reward_article;
 
     // grant rewards to authors, channels and storages
-    miner_emission_reward += distribute_rewards(rewards, author_result, author_emission_reward + author_sponsored_reward, RewardType::author);
-    miner_emission_reward += distribute_rewards(rewards, channel_result, channel_emission_reward + channel_sponsored_reward, RewardType::channel);
-    miner_emission_reward += distribute_rewards(rewards, storage_result, storage_emission_reward + storage_sponsored_reward, RewardType::storage);
+    miner_reward_emission += distribute_rewards(rewards, author_result, author_reward_total, RewardType::author);
+    miner_reward_emission += distribute_rewards(rewards, channel_result, channel_reward_total, RewardType::channel);
+    miner_reward_emission += distribute_rewards(rewards, storage_result, storage_reward_total, RewardType::storage);
+
+    for (auto const& autor_reward_ref : map_author_reward_article)
+    {
+        Reward reward;
+        reward.to = autor_reward_ref.first;
+        autor_reward_ref.second.to_Coin(reward.amount);
+        reward.reward_type = RewardType::sponsored_grant;
+
+        rewards.push_back(reward);
+    }
 
     // if sponsored items expired without service or have been cancelled
     // reward the coins back to sponsor
@@ -566,11 +670,11 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     }
 
     // grant miner reward himself
-    if (!miner_emission_reward.empty())
+    if (!miner_reward_emission.empty())
     {
         Reward reward;
         reward.to = address;
-        miner_emission_reward.to_Coin(reward.amount);
+        miner_reward_emission.to_Coin(reward.amount);
         reward.reward_type = RewardType::miner;
 
         rewards.push_back(reward);
