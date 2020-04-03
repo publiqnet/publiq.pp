@@ -42,14 +42,15 @@ class documents_internals
 {
 public:
     documents_internals(filesystem::path const& path_documents,
-                        filesystem::path const& path_storages)
+                        filesystem::path const& path_storages,
+                        filesystem::path const& path_sponsoring)
         : m_files("file", path_documents, 10000, detail::get_putl())
         , m_units("unit", path_documents, 10000, detail::get_putl())
         , m_storages("storages", path_storages, 10000, get_putl_types())
         , m_content_unit_sponsored_information("content_unit_info", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_expiring("sponsored_info_expiring", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_hash_to_block("sponsored_info_hash_to_block", path_documents, 10000, get_putl_types())
-        , m_content_unit_sponsored_type_information("sponsored_type_info", path_documents, 10000, get_putl_types())
+        , m_content_unit_sponsored_type_information("sponsored_type_info", path_sponsoring, 10000, get_putl_types())
     {}
 
     meshpp::map_loader<File> m_files;
@@ -63,8 +64,9 @@ public:
 }
 
 documents::documents(filesystem::path const& path_documents,
-                     filesystem::path const& path_storages)
-    : m_pimpl(path_documents.empty() ? nullptr : new detail::documents_internals(path_documents, path_storages))
+                     filesystem::path const& path_storages,
+                     filesystem::path const& path_sponsoring)
+    : m_pimpl(path_documents.empty() ? nullptr : new detail::documents_internals(path_documents, path_storages, path_sponsoring))
 {}
 
 documents::~documents() = default;
@@ -723,16 +725,17 @@ void documents::sponsor_content_unit_ex_revert(publiqpp::detail::node_internals&
     m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
 }
 
-map<string, map<SponsorType, map<string, coin>>> documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
-                                                                                            string const& content_unit_uri,
-                                                                                            size_t block_number,
-                                                                                            documents::e_sponsored_content_unit_set_used type,
-                                                                                            string const& transaction_hash_to_cancel,
-                                                                                            string const& manual_by_account,
-                                                                                            bool pretend)
+map<string, map<SponsorType, map<string, pair<string, coin>>>>
+documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
+                                           string const& content_unit_uri,
+                                           size_t block_number,
+                                           documents::e_sponsored_content_unit_set_used type,
+                                           string const& transaction_hash_to_cancel,
+                                           string const& manual_by_account,
+                                           bool pretend)
 {
-    //  sp_addr     hash    part
-    map<string, map<SponsorType, map<string, coin>>> result;
+    //  sp_addr     type             hash         uri     part
+    map<string, map<SponsorType, map<string, pair<string, coin>>>> result;
 
     if (transaction_hash_to_cancel.empty() ||
         sponsored_content_unit_set_used_revert == type)
@@ -851,7 +854,7 @@ map<string, map<SponsorType, map<string, coin>>> documents::sponsored_content_un
 
                 auto& temp_result = result[item.sponsor_address][sponsor_type];
 
-                auto insert_result = temp_result.insert({item.transaction_hash, part});
+                auto insert_result = temp_result.insert({ item.transaction_hash, {cusi.uri, part} });
                 if (false == insert_result.second)
                     throw std::logic_error("temp_result.insert({item.transaction_hash, part})");
 
@@ -865,8 +868,7 @@ map<string, map<SponsorType, map<string, coin>>> documents::sponsored_content_un
                             return result;
                         }
 
-                        throw authority_exception(manual_by_account,
-                                                  item.sponsor_address);
+                        throw authority_exception(manual_by_account, item.sponsor_address);
                     }
                 }
 

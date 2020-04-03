@@ -320,6 +320,7 @@ int main(int argc, char** argv)
         auto fs_log = meshpp::data_directory_path("log");
         auto fs_documents = meshpp::data_directory_path("documents");
         auto fs_storages = meshpp::data_directory_path("storages");
+        auto fs_sponsoring = meshpp::data_directory_path("sponsoring");
 
         cout << "p2p local address: " << p2p_bind_to_address.to_string() << endl;
         for (auto const& item : p2p_connect_to_addresses)
@@ -357,6 +358,7 @@ int main(int argc, char** argv)
                             fs_state,
                             fs_documents,
                             fs_storages,
+                            fs_sponsoring,
                             fs_storage,
                             fs_inbox,
                             plogger_p2p.get(),

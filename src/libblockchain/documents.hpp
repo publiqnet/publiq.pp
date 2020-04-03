@@ -27,7 +27,8 @@ class documents
 {
 public:
     documents(boost::filesystem::path const& path_documents,
-              boost::filesystem::path const& path_storages);
+              boost::filesystem::path const& path_storages, 
+              boost::filesystem::path const& path_sponsoring);
     ~documents();
 
     void save();
@@ -74,7 +75,7 @@ public:
         sponsored_content_unit_set_used_revert
     };
 
-    std::map<std::string, std::map<BlockchainMessage::SponsorType, std::map<std::string, coin>>>
+    std::map<std::string, std::map<BlockchainMessage::SponsorType, std::map<std::string, std::pair<std::string, coin>>>>
     sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
                                     std::string const& content_unit_uri,
                                     size_t block_number,
