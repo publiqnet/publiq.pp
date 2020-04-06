@@ -760,8 +760,9 @@ documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals cons
                 m_pimpl->m_content_unit_sponsored_information.at(content_unit_uri);
 
         // Ex
-        StorageTypes::ContentUnitSponsoredTypeInformation& custi =
-            m_pimpl->m_content_unit_sponsored_type_information.at(content_unit_uri);
+        StorageTypes::ContentUnitSponsoredTypeInformation custi;
+        if (m_pimpl->m_content_unit_sponsored_type_information.contains(content_unit_uri))
+            custi = m_pimpl->m_content_unit_sponsored_type_information.at(content_unit_uri);
 
         assert(false == cusi.sponsored_informations.empty());
         assert(false == cusi.time_points_used.empty());

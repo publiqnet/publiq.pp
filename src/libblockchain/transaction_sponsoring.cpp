@@ -159,14 +159,14 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       SignedTransaction const&/* signed_transaction*/,
-                      SponsorContentUnitEx const& sponsor_content_unit,
+                      SponsorContentUnitEx const& sponsor_content_unit_ex,
                       state_layer/* layer*/)
 {
-    if (false == impl.m_documents.unit_exists(sponsor_content_unit.uri))
+    if (false == impl.m_documents.unit_exists(sponsor_content_unit_ex.uri))
         return false;
 
-    Coin balance = impl.m_state.get_balance(sponsor_content_unit.sponsor_address, state_layer::pool);
-    if (coin(balance) < sponsor_content_unit.amount)
+    Coin balance = impl.m_state.get_balance(sponsor_content_unit_ex.sponsor_address, state_layer::pool);
+    if (coin(balance) < sponsor_content_unit_ex.amount)
         return false;
 
     return true;
@@ -191,6 +191,17 @@ void action_apply(publiqpp::detail::node_internals& impl,
                                   sponsor_content_unit_ex.amount,
                                   layer);
 
+    SponsorContentUnit sponsor_content_unit;
+    sponsor_content_unit.sponsor_address = sponsor_content_unit_ex.sponsor_address;
+    sponsor_content_unit.uri = sponsor_content_unit_ex.uri;
+    sponsor_content_unit.start_time_point = sponsor_content_unit_ex.start_time_point;
+    sponsor_content_unit.hours = sponsor_content_unit_ex.hours;
+    sponsor_content_unit.amount = sponsor_content_unit_ex.amount;
+
+    impl.m_documents.sponsor_content_unit_apply(impl,
+                                                sponsor_content_unit,
+                                                meshpp::hash(signed_transaction.to_string()));
+
     impl.m_documents.sponsor_content_unit_ex_apply(impl,
                                                    sponsor_content_unit_ex,
                                                    meshpp::hash(signed_transaction.to_string()));
@@ -204,6 +215,17 @@ void action_revert(publiqpp::detail::node_internals& impl,
     impl.m_state.increase_balance(sponsor_content_unit_ex.sponsor_address,
                                   sponsor_content_unit_ex.amount,
                                   layer);
+
+    SponsorContentUnit sponsor_content_unit;
+    sponsor_content_unit.sponsor_address = sponsor_content_unit_ex.sponsor_address;
+    sponsor_content_unit.uri = sponsor_content_unit_ex.uri;
+    sponsor_content_unit.start_time_point = sponsor_content_unit_ex.start_time_point;
+    sponsor_content_unit.hours = sponsor_content_unit_ex.hours;
+    sponsor_content_unit.amount = sponsor_content_unit_ex.amount;
+    
+    impl.m_documents.sponsor_content_unit_revert(impl,
+                                                 sponsor_content_unit,
+                                                 meshpp::hash(signed_transaction.to_string()));
 
     impl.m_documents.sponsor_content_unit_ex_revert(impl,
                                                     sponsor_content_unit_ex,
