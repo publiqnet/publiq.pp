@@ -762,7 +762,7 @@ string genesis_signed_block(bool testnet)
                                                "c_sum":0,
                                                "c_const":1,
                                                "prev_hash":"GnFozpoEMEuVkVFnuJfVn64oWqpPmYQSyzsmo7ptmUD3",
-                                               "time_signed":"2019-04-01 00:00:00"
+                                               "time_signed":"2020-04-01 00:00:00"
                                             },
                                             "rewards":[
                                                {
@@ -842,8 +842,8 @@ string genesis_signed_block(bool testnet)
                                          },
                                          "authorization":{
                                             "rtt":3,
-                                            "address":"TPBQ7ztjFZ28yCrcYffMEYQp3kMtRV1g5QmgiSkp4d7ic4FU2BdUFd",
-                                            "signature":"381yXZB2msTUmsnhZVXus7YwhWSbwbbvnBS4JpK1cnVqrjsEnqHL9FBYN9GJeECHfbfE6aGs7awn7W1jeegSMrHAEwAhoxPh"
+                                            "address":"TPBQ6cWDoN4p6KHD3mEsWPDauM7m44ijqUWChneVURDDeMR1vFhUYn",
+                                            "signature":"381yXZ7LfrsnpGF2tYCaw2bgnoYtTDc81dS6WwiBZodY7Gg3671YBwLjzHRA43t1Kx5FTBTGv8XdZF5taePoqJGeB4PGrpZX"
                                          }
                                       }
                                       )genesis";
