@@ -111,7 +111,7 @@ int main(int argc, char** argv)
         SponsorContentUnitEx sponsor;
         sponsor.type = SponsorType::article;
         sponsor.sponsor_address = armen_key.public_key;
-        sponsor.uri = "FGavD3RqixYSPYpF6vRBzn7EogtVG9HcUSBZYJoDi47j";
+        sponsor.uri = "EZyfDCxSM6dePBmKhDsjL72QDZkSqNAMVfrDFZjxRK92";
         sponsor.start_time_point.tm = system_clock::to_time_t(system_clock::now());
         sponsor.hours = 240;
         sponsor.amount.whole = 1440;

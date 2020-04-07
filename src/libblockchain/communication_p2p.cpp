@@ -587,8 +587,6 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
         for (auto const& item : distribution_map)
         {
-            map<string, uint64_t> author_view;
-
             uint64_t content_view_sum = 0;
             for (auto const& it : item.second)
                 content_view_sum += it.second;
@@ -603,7 +601,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
             string author;
             coin rest_amount = author_reward_part;
 
-            for (auto const& it : author_view)
+            for (auto const& it : item.second)
             {
                 author = it.first;
                 coin amount = (author_reward_part * it.second) / content_view_sum;
@@ -644,18 +642,34 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     // grant rewards to authors, channels and storages
     miner_reward_emission += distribute_rewards(rewards, author_result, author_reward_total, RewardType::author);
-    miner_reward_emission += distribute_rewards(rewards, channel_result, channel_reward_total, RewardType::channel);
-    miner_reward_emission += distribute_rewards(rewards, storage_result, storage_reward_total, RewardType::storage);
 
+    // group reward amount for authors
+    for (auto& reward_ref : rewards)
+    {
+        auto map_it = map_author_reward_article.find(reward_ref.to);
+
+        if (map_it != map_author_reward_article.end())
+        {
+            coin amount = reward_ref.amount + map_it->second;
+            amount.to_Coin(reward_ref.amount);
+
+            map_author_reward_article.erase(map_it);
+        }
+    }
+
+    // add the rest rewards
     for (auto const& autor_reward_ref : map_author_reward_article)
     {
         Reward reward;
         reward.to = autor_reward_ref.first;
         autor_reward_ref.second.to_Coin(reward.amount);
-        reward.reward_type = RewardType::sponsored_grant;
+        reward.reward_type = RewardType::author;
 
         rewards.push_back(reward);
     }
+
+    miner_reward_emission += distribute_rewards(rewards, channel_result, channel_reward_total, RewardType::channel);
+    miner_reward_emission += distribute_rewards(rewards, storage_result, storage_reward_total, RewardType::storage);
 
     // if sponsored items expired without service or have been cancelled
     // reward the coins back to sponsor
