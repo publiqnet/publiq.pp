@@ -97,21 +97,29 @@ int main(int argc, char** argv)
         KeyPair armen_key;
         receive_package.get(armen_key);
 
-        key_pair_request.master_key = "TIGRAN";
-        Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
+        //key_pair_request.master_key = "TIGRAN";
+        //Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
+        //
+        //KeyPair tigran_key;
+        //receive_package.get(tigran_key);
+        //
+        //Transfer transfer;
+        //transfer.from = armen_key.public_key;
+        //transfer.to = tigran_key.public_key;
+        //transfer.amount.fraction = 100;
 
-        KeyPair tigran_key;
-        receive_package.get(tigran_key);
-
-        Transfer transfer;
-        transfer.from = armen_key.public_key;
-        transfer.to = tigran_key.public_key;
-        transfer.amount.fraction = 100;
+        SponsorContentUnitEx sponsor;
+        sponsor.type = SponsorType::article;
+        sponsor.sponsor_address = armen_key.public_key;
+        sponsor.uri = "FGavD3RqixYSPYpF6vRBzn7EogtVG9HcUSBZYJoDi47j";
+        sponsor.start_time_point.tm = system_clock::to_time_t(system_clock::now());
+        sponsor.hours = 240;
+        sponsor.amount.whole = 1440;
 
         Transaction transaction;
         transaction.creation.tm = system_clock::to_time_t(system_clock::now());
         transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-        transaction.action = transfer;
+        transaction.action = sponsor;
         transaction.fee.fraction = fee;
 
         SignRequest sign_request;
@@ -137,8 +145,10 @@ int main(int argc, char** argv)
         for (size_t i = 0; i < count; ++i)
         {
             cout << std::to_string(i) << endl;
+
             Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
     }
