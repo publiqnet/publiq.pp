@@ -10,35 +10,87 @@
 #include <unordered_map>
 #include <map>
 #include <vector>
+#include <list>
+#include <exception>
+#include <string>
+
+using beltpp::event_handler;
+using beltpp::event_item;
+using beltpp::socket;
+using beltpp::ip_address;
 
 namespace simulator_network_impl
 {
 
-class event_slot
-{
-public:
-    event_slot(uint64_t item_id = 0, beltpp::event_item* pitem = nullptr)
-        : m_item_id(item_id)
-        , m_pitem(pitem)
-    {}
-
-    bool m_closed = false;
-    uint64_t m_item_id = 0;
-    beltpp::event_item* m_pitem = nullptr;
-};
-
-using event_slots = beltpp::queue<event_slot>;
+class event_handler_ex;
 
 class network_simulation
 {
 public:
-    enum connection_status {listen, open, close};
+
+    enum class connection_status    {connection_listen, connection_open, connection_close};
+    enum class packet_status        {received, sent};
+
+    using packs         = std::list< std::pair< beltpp::packet, packet_status > >;
+    using connection    = std::pair< beltpp::ip_address, connection_status >;
+    using connections   = std::vector< std::map< connection, packs > >;
+    using sockets       = std::map< beltpp::event_item, connections >;
+
+    std::map< event_handler_ex, sockets > network_status;
 
     network_simulation();
     ~network_simulation();
-private:
-    std::map<beltpp::ip_address, connection_status> status; //?
-    std::map<beltpp::socket::peer_id, beltpp::packet> messages; //?
+
+    void add_handler(               event_handler_ex& eh);
+
+    void remove_handler(            event_handler_ex& eh);
+
+    bool add_socket(                event_handler_ex& eh,
+                                    beltpp::event_item& ev_it);
+
+    bool remove_socket(             event_handler_ex& eh,
+                                    beltpp::event_item& ev_it);
+
+    bool check_socket(              event_handler_ex& eh,
+                                    beltpp::event_item& ev_it);
+
+    bool add_connection(            event_handler_ex& eh,
+                                    beltpp::event_item& ev_it,
+                                    beltpp::ip_address addres);
+
+    bool remove_connection(         event_handler_ex& eh,
+                                    beltpp::event_item& ev_it,
+                                    beltpp::ip_address address);
+
+    bool check_concection(          event_handler_ex& eh,
+                                    beltpp::event_item& ev_it,
+                                    beltpp::ip_address address);
+
+    bool change_connection_status(  event_handler_ex& eh,
+                                    beltpp::event_item& ev_it,
+                                    beltpp::ip_address address,
+                                    connection_status status);
+
+    bool send_packet(               event_handler_ex& eh,
+                                    beltpp::event_item& ev_it,
+                                    beltpp::ip_address address,
+                                    beltpp::packet const& packets);
+
+    bool receive_packet(            event_handler_ex& eh,
+                                    beltpp::event_item& ev_it,
+                                    beltpp::ip_address address,
+                                    beltpp::socket::packets& packets);
+
+    bool check_packets(             event_handler_ex& eh,
+                                    std::unordered_set<beltpp::event_item const*>& set_items);
+
+    bool change_packet_status(      event_handler_ex& eh,
+                                    beltpp::event_item& ev_it,
+                                    beltpp::ip_address address,
+                                    beltpp::socket::packets packets,
+                                    packet_status status);
+
+    void dump_network();
 };
 
 class event_handler_ex : public beltpp::event_handler
@@ -56,12 +108,8 @@ public:
     void add(beltpp::event_item& ev_it) override;
     void remove(beltpp::event_item& ev_it) override;
 
+    network_simulation* m_ns;
     beltpp::timer m_timer_helper;
-    std::list<event_slots> m_ids;
-    std::unordered_map<beltpp::event_item*, std::unordered_set<uint64_t>> m_event_item_ids;
-    std::unordered_set<beltpp::event_item*> m_event_items;
-    std::unordered_set<uint64_t> sync_eh_ids;
-    network_simulation m_ns;
 };
 
 class socket_ex : public beltpp::socket
@@ -95,9 +143,15 @@ public:
     beltpp::detail::session_special_data& session_data(peer_id const& peer) override;
 
     std::string dump() const override;
+
 private:
-    event_handler_ex* m_peh;
+    event_handler_ex* m_eh;
 };
+
+
+beltpp::ip_address peer_to_address(beltpp::socket::peer_id id);
+beltpp::socket::peer_id address_to_peer(beltpp::ip_address address);
+
 }// simulator_network_impl
 
 
