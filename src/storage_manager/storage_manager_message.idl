@@ -1,0 +1,253 @@
+module CommanderMessage
+{
+    class StringValue
+    {
+        String value
+    }
+    class NumberValue
+    {
+        UInt64 value
+    }
+
+    class NumberPair
+    {
+        UInt64 first
+        UInt64 second
+    }
+
+    class Coin
+    {
+        UInt64 whole
+        UInt64 fraction
+    }
+
+    class Account
+    {
+        String address
+        Coin balance
+    }
+
+    class AccountResponse
+    {
+        String address
+        Coin balance
+        Coin confirmed_balance
+        Coin unconfirmed_sent
+        Coin unconfirmed_received
+    }
+
+    class Done
+    {
+    }
+
+    class Failed
+    {
+        String message
+        Extension reason
+    }
+
+    class HeadBlockRequest
+    {}
+
+    class AccountRequest
+    {
+        String address
+    }
+
+    class AccountsRequest
+    {}
+
+    class AccountsResponse
+    {
+        Array AccountResponse accounts
+    }
+
+    class AccountHistoryRequest
+    {
+        String address
+        UInt64 start_block_index
+        UInt64 max_block_count
+    }
+
+    class AccountHistory
+    {
+        Array AccountHistoryItem log
+    }
+
+    enum AccountHistoryItemType
+    {
+        received
+        received_fee
+        sent
+        sent_fee
+        sponsored
+        rewarded
+    }
+    class AccountHistoryItem
+    {
+        UInt64 block_index
+        UInt64 confirmations
+        AccountHistoryItemType item_type
+        TimePoint timestamp
+        Coin amount
+
+        Object details
+    }
+    class AccountHistoryReceived
+    {
+        String from
+        String message
+        String transaction_hash
+    }
+    class AccountHistoryReceivedFee
+    {
+        String from
+        String transaction_hash
+    }
+    class AccountHistorySent
+    {
+        String to
+        String message
+        String transaction_hash
+    }
+    class AccountHistorySentFee
+    {
+        String to
+        String transaction_hash
+    }
+    class AccountHistorySponsored
+    {
+        String uri
+        String transaction_hash
+        TimePoint start_time_point
+        TimePoint end_time_point
+    }
+    class AccountHistoryRewarded
+    {
+        RewardType reward_type
+    }
+    enum RewardType
+    {
+        initial
+        miner
+        author
+        channel
+        storage
+        sponsored_return
+    }
+
+    class ImportAccount
+    {
+        String address
+    }
+
+    class BlockInfoRequest
+    {
+        UInt64 block_number
+    }
+
+    class BlockInfo
+    {
+        String authority
+        String block_hash
+        UInt64 block_number
+        UInt64 block_size
+        TimePoint time_signed
+    }
+
+    class Send
+    {
+        String private_key
+        String to
+        Coin amount
+        Coin fee
+        String message
+        UInt64 seconds_to_expire
+    }
+
+    class MinersRequest
+    {
+        UInt64 start_block_index
+        UInt64 end_block_index
+    }
+
+    class MinersResponse
+    {
+        Array MinersResponseItem miners
+    }
+
+    class MinersResponseItem
+    {
+        String miner_address
+        Array UInt64 block_numbers
+    }
+
+    class StoragesRequest
+    {
+    }
+
+    class StoragesResponse
+    {
+        Array StoragesResponseItem storages
+    }
+
+    class StoragesResponseItem
+    {
+        String storage_address
+        Hash String Bool file_uris
+    }
+
+    class StorageUpdateRequest
+    {
+        String private_key
+        String status
+        String file_uri
+        String storage_address
+        Coin fee
+        String message
+        UInt64 seconds_to_expire
+    }
+
+    class ChampionMinersRequest
+    {
+    }
+
+    class ChampionMinersResponse
+    {
+        Array String miner_addresses
+        UInt64 mined_blocks_count
+    }
+
+    class ChannelsRequest
+    {
+    }
+
+    class ChannelsResponse
+    {
+        Array ChannelsResponseItem channels
+    }
+
+    class ChannelsResponseItem
+    {
+        String channel_address
+        Hash UInt64 Contents contents
+    }
+
+    class Contents
+    {
+        Array Content content_histories
+    }
+
+    class Content
+    {
+        Bool approved
+        Hash String ContentUnit content_units
+    }
+
+    class ContentUnit
+    {
+        Array String author_addresses
+        Array String file_uris
+    }
+}
+////1
