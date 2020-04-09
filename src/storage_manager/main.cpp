@@ -73,7 +73,7 @@ int main(int argc, char** argv)
     //
     meshpp::config::set_public_key_prefix(prefix);
     //
-    string application_name = "commander";
+    string application_name = "storage_manager";
     if (prefix.empty() == false)
         application_name += "_" + prefix;
     string add_to_dir = connect_to_address.to_string();

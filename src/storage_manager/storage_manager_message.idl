@@ -1,9 +1,10 @@
-module CommanderMessage
+module ManagerMessage
 {
     class StringValue
     {
         String value
     }
+
     class NumberValue
     {
         UInt64 value
@@ -15,30 +16,24 @@ module CommanderMessage
         UInt64 second
     }
 
+    class FileInfo
+    {
+        String uri
+        String channel_address
+        UInt64 rep_count
+        Array String own_storages
+    }
+
+/////////////////////////////////////////
+
     class Coin
     {
         UInt64 whole
         UInt64 fraction
     }
 
-    class Account
-    {
-        String address
-        Coin balance
-    }
-
-    class AccountResponse
-    {
-        String address
-        Coin balance
-        Coin confirmed_balance
-        Coin unconfirmed_sent
-        Coin unconfirmed_received
-    }
-
     class Done
-    {
-    }
+    {}
 
     class Failed
     {
@@ -46,100 +41,13 @@ module CommanderMessage
         Extension reason
     }
 
+    class ImportStorage
+    {
+        String address
+    }
+
     class HeadBlockRequest
     {}
-
-    class AccountRequest
-    {
-        String address
-    }
-
-    class AccountsRequest
-    {}
-
-    class AccountsResponse
-    {
-        Array AccountResponse accounts
-    }
-
-    class AccountHistoryRequest
-    {
-        String address
-        UInt64 start_block_index
-        UInt64 max_block_count
-    }
-
-    class AccountHistory
-    {
-        Array AccountHistoryItem log
-    }
-
-    enum AccountHistoryItemType
-    {
-        received
-        received_fee
-        sent
-        sent_fee
-        sponsored
-        rewarded
-    }
-    class AccountHistoryItem
-    {
-        UInt64 block_index
-        UInt64 confirmations
-        AccountHistoryItemType item_type
-        TimePoint timestamp
-        Coin amount
-
-        Object details
-    }
-    class AccountHistoryReceived
-    {
-        String from
-        String message
-        String transaction_hash
-    }
-    class AccountHistoryReceivedFee
-    {
-        String from
-        String transaction_hash
-    }
-    class AccountHistorySent
-    {
-        String to
-        String message
-        String transaction_hash
-    }
-    class AccountHistorySentFee
-    {
-        String to
-        String transaction_hash
-    }
-    class AccountHistorySponsored
-    {
-        String uri
-        String transaction_hash
-        TimePoint start_time_point
-        TimePoint end_time_point
-    }
-    class AccountHistoryRewarded
-    {
-        RewardType reward_type
-    }
-    enum RewardType
-    {
-        initial
-        miner
-        author
-        channel
-        storage
-        sponsored_return
-    }
-
-    class ImportAccount
-    {
-        String address
-    }
 
     class BlockInfoRequest
     {
@@ -163,23 +71,6 @@ module CommanderMessage
         Coin fee
         String message
         UInt64 seconds_to_expire
-    }
-
-    class MinersRequest
-    {
-        UInt64 start_block_index
-        UInt64 end_block_index
-    }
-
-    class MinersResponse
-    {
-        Array MinersResponseItem miners
-    }
-
-    class MinersResponseItem
-    {
-        String miner_address
-        Array UInt64 block_numbers
     }
 
     class StoragesRequest
@@ -206,31 +97,6 @@ module CommanderMessage
         Coin fee
         String message
         UInt64 seconds_to_expire
-    }
-
-    class ChampionMinersRequest
-    {
-    }
-
-    class ChampionMinersResponse
-    {
-        Array String miner_addresses
-        UInt64 mined_blocks_count
-    }
-
-    class ChannelsRequest
-    {
-    }
-
-    class ChannelsResponse
-    {
-        Array ChannelsResponseItem channels
-    }
-
-    class ChannelsResponseItem
-    {
-        String channel_address
-        Hash UInt64 Contents contents
     }
 
     class Contents
