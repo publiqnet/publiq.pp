@@ -17,7 +17,7 @@ using std::vector;
 using std::pair;
 using std::unordered_map;
 
-namespace manager
+namespace storage_manager
 {
 namespace http
 {

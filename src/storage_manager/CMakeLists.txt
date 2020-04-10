@@ -13,10 +13,10 @@ add_executable(storage_manager
     http.hpp
     program_options.cpp
     program_options.hpp
-    rpc.cpp
-    rpc.hpp
-    daemon_rpc.cpp
-    daemon_rpc.hpp
+    manager.cpp
+    manager.hpp
+    daemon_manager.cpp
+    daemon_manager.hpp
     utility.cpp
     utility.hpp)
 

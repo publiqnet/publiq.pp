@@ -1,5 +1,5 @@
-#include "daemon_rpc.hpp"
-#include "rpc.hpp"
+#include "daemon_manager.hpp"
+#include "manager.hpp"
 #include "utility.hpp"
 
 #include <belt.pp/socket.hpp>
@@ -35,8 +35,7 @@ beltpp::void_unique_ptr bm_get_putl()
     beltpp::message_loader_utility utl;
     BlockchainMessage::detail::extension_helper(utl);
 
-    auto ptr_utl =
-        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+    auto ptr_utl = beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
 
     return ptr_utl;
 }
@@ -46,23 +45,21 @@ beltpp::void_unique_ptr mm_get_putl()
     beltpp::message_loader_utility utl;
     ManagerMessage::detail::extension_helper(utl);
 
-    auto ptr_utl =
-        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
+    auto ptr_utl = beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
 
     return ptr_utl;
 }
 
-using TransactionLogLoader = sync_context::TransactionLogLoader;
-using RewardLogLoader = sync_context::RewardLogLoader;
-using LogIndexLoader = sync_context::LogIndexLoader;
+using TransactionLogLoader = sm_sync_context::TransactionLogLoader;
+using LogIndexLoader = sm_sync_context::LogIndexLoader;
 
 namespace detail
 {
-class sync_manager_context_detail
+class sm_sync_context_detail
 {
 public:
-    sync_manager_context_detail() = default;
-    virtual ~sync_manager_context_detail() = default;
+    sm_sync_context_detail() = default;
+    virtual ~sm_sync_context_detail() = default;
 
     virtual bool is_new_import() const = 0;
     virtual uint64_t& start_index() = 0;
@@ -75,12 +72,12 @@ public:
     std::unordered_map<std::string, LogIndexLoader> index_transactions;
 };
 
-class sync_context_new_import : public sync_manager_context_detail
+class sm_sync_context_new_import : public sm_sync_context_detail
 {
 public:
-    sync_context_new_import(rpc& ref_rpc_server, string const& account)
-        : sync_manager_context_detail()
-        , m_rpc_server(&ref_rpc_server)
+    sm_sync_context_new_import(manager& sm_server, string const& account)
+        : sm_sync_context_detail()
+        , m_sm_server(&sm_server)
         , m_start_index(0)
         , m_head_block_index(0)
         , m_account(account)
@@ -126,30 +123,30 @@ public:
             tr.second.commit();
     }
 
-    rpc* m_rpc_server;
+    manager* m_sm_server;
     uint64_t m_start_index;
     uint64_t m_head_block_index;
     string m_account;
     beltpp::on_failure m_guard;
 };
 
-class sync_context_existing : public sync_manager_context_detail
+class sm_sync_context_existing : public sm_sync_context_detail
 {
 public:
-    sync_context_existing(rpc& ref_rpc_server,
-                          daemon_rpc& ref_daemon_rpc,
-                          unordered_set<string> const& set_accounts)
-        : sync_manager_context_detail()
-        , m_daemon_rpc(&ref_daemon_rpc)
-        , m_rpc_server(&ref_rpc_server)
+    sm_sync_context_existing(manager& sm_server,
+                             sm_daemon& sm_daemon,
+                             unordered_set<string> const& set_accounts)
+        : sm_sync_context_detail()
+        , m_sm_daemon(&sm_daemon)
+        , m_sm_server(&sm_server)
         , m_set_accounts(set_accounts)
         , m_guard([this]()
                     {
-                        m_daemon_rpc->log_index.discard();
-                        m_rpc_server->head_block_index.discard();
-                        m_rpc_server->blocks.discard();
-                        m_rpc_server->storages.discard();
-                        m_rpc_server->files.discard();
+                        m_sm_daemon->log_index.discard();
+                        m_sm_server->head_block_index.discard();
+                        m_sm_server->blocks.discard();
+                        m_sm_server->storages.discard();
+                        m_sm_server->files.discard();
 
                         for (auto& tr : transactions)
                             tr.second.discard();
@@ -164,11 +161,11 @@ public:
     }
     uint64_t& start_index() override
     {
-        return m_daemon_rpc->log_index->value;
+        return m_sm_daemon->log_index->value;
     }
     uint64_t& head_block_index() override
     {
-        return m_rpc_server->head_block_index->value;
+        return m_sm_server->head_block_index->value;
     }
     unordered_set<string> set_accounts() const override
     {
@@ -176,11 +173,11 @@ public:
     }
     void save() override
     {
-        m_rpc_server->head_block_index.save();
-        m_rpc_server->blocks.save();
-        m_rpc_server->storages.save();
-        m_rpc_server->files.save();
-        m_daemon_rpc->log_index.save();
+        m_sm_server->head_block_index.save();
+        m_sm_server->blocks.save();
+        m_sm_server->storages.save();
+        m_sm_server->files.save();
+        m_sm_daemon->log_index.save();
 
         for (auto& tr : transactions)
             tr.second.save();
@@ -191,11 +188,11 @@ public:
     {
         m_guard.dismiss();
 
-        m_rpc_server->head_block_index.commit();
-        m_rpc_server->blocks.commit();
-        m_rpc_server->storages.commit();
-        m_rpc_server->files.commit();
-        m_daemon_rpc->log_index.commit();
+        m_sm_server->head_block_index.commit();
+        m_sm_server->blocks.commit();
+        m_sm_server->storages.commit();
+        m_sm_server->files.commit();
+        m_sm_daemon->log_index.commit();
 
         for (auto& tr : transactions)
             tr.second.commit();
@@ -203,61 +200,61 @@ public:
             tr.second.commit();
     }
 
-    daemon_rpc* m_daemon_rpc;
-    rpc* m_rpc_server;
+    sm_daemon* m_sm_daemon;
+    manager* m_sm_server;
 
     unordered_set<string> m_set_accounts;
     beltpp::on_failure m_guard;
 };
 }
 
-sync_context::sync_context(rpc& ref_rpc_server, string const& account)
-    : m_pimpl(new ::detail::sync_context_new_import(ref_rpc_server, account))
+sm_sync_context::sm_sync_context(manager& sm_server, string const& account)
+    : m_pimpl(new ::detail::sm_sync_context_new_import(sm_server, account))
 {}
-sync_context::sync_context(rpc& ref_rpc_server,
-                           daemon_rpc& ref_daemon_rpc,
-                           unordered_set<string> const& set_accounts)
-    : m_pimpl(new ::detail::sync_context_existing(ref_rpc_server, ref_daemon_rpc, set_accounts))
+sm_sync_context::sm_sync_context(manager& sm_server,
+                                 sm_daemon& sm_daemon,
+                                 unordered_set<string> const& set_accounts)
+    : m_pimpl(new ::detail::sm_sync_context_existing(sm_server, sm_daemon, set_accounts))
 {}
 
-sync_context::sync_context(sync_context&&) = default;
-sync_context::~sync_context() = default;
-uint64_t sync_context::start_index() const
+sm_sync_context::sm_sync_context(sm_sync_context&&) = default;
+sm_sync_context::~sm_sync_context() = default;
+uint64_t sm_sync_context::start_index() const
 {
     return m_pimpl->start_index();
 }
-void sync_context::save()
+void sm_sync_context::save()
 {
     return m_pimpl->save();
 }
-void sync_context::commit()
+void sm_sync_context::commit()
 {
     return m_pimpl->commit();
 }
 
-TransactionLogLoader& sync_context::transactions(string const& account)
+TransactionLogLoader& sm_sync_context::transactions(string const& account)
 {
     if (0 == m_pimpl->set_accounts().count(account))
         throw std::logic_error("0 == m_pimpl->set_accounts().count(account)");
 
     auto tl_insert_res = m_pimpl->transactions.emplace(std::make_pair(account,
-                                                                      daemon_rpc::get_transaction_log(account)));
+                                                                      sm_daemon::get_transaction_log(account)));
 
     return tl_insert_res.first->second;
 }
 
-LogIndexLoader& sync_context::index_transactions(string const& account)
+LogIndexLoader& sm_sync_context::index_transactions(string const& account)
 {
     if (0 == m_pimpl->set_accounts().count(account))
         throw std::logic_error("0 == m_pimpl->set_accounts().count(account)");
 
     auto idx_insert_res = m_pimpl->index_transactions.emplace(std::make_pair(account,
-                                                                             daemon_rpc::get_transaction_log_index(account)));
+                                                                             sm_daemon::get_transaction_log_index(account)));
 
     return idx_insert_res.first->second;
 }
 
-daemon_rpc::daemon_rpc()
+sm_daemon::sm_daemon()
     : eh(beltpp::libsocket::construct_event_handler())
     , socket(beltpp::libsocket::getsocket<sf>(*eh))
     , peerid()
@@ -266,7 +263,7 @@ daemon_rpc::daemon_rpc()
     eh->add(*socket);
 }
 
-void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
+void sm_daemon::open(beltpp::ip_address const& connect_to_address)
 {
     auto peerids = socket->open(connect_to_address);
 
@@ -312,7 +309,7 @@ void daemon_rpc::open(beltpp::ip_address const& connect_to_address)
     }
 }
 
-void daemon_rpc::close()
+void sm_daemon::close()
 {
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to close");
@@ -323,7 +320,7 @@ void daemon_rpc::close()
 void process_transaction(uint64_t block_index,
                          string const& str_account,
                          BlockchainMessage::TransactionLog const& transaction_log,
-                         sync_context& context,
+                         sm_sync_context& context,
                          LoggingType type)
 {
     if (context.m_pimpl->set_accounts().count(str_account))
@@ -383,7 +380,7 @@ void process_transaction(uint64_t block_index,
 
 void process_storage_transactions(unordered_set<string> const& set_accounts,
                                   BlockchainMessage::TransactionLog const& transaction_log,
-                                  rpc& rpc_server,
+                                  manager& sm_server,
                                   LoggingType type)
 {
     if (StorageUpdate::rtt == transaction_log.action.type())
@@ -407,17 +404,17 @@ void process_storage_transactions(unordered_set<string> const& set_accounts,
                 LoggingType::apply == type))
                     is_stored = false;
 
-            if (!rpc_server.storages.contains(storage_update.storage_address))
+            if (!sm_server.storages.contains(storage_update.storage_address))
             {
                 ManagerMessage::StoragesResponseItem storage;
                 storage.storage_address = storage_update.storage_address;
                 storage.file_uris[storage_update.file_uri] = is_stored;
 
-                rpc_server.storages.insert(storage_update.storage_address, storage);
+                sm_server.storages.insert(storage_update.storage_address, storage);
             }
             else
             {
-                auto& storage = rpc_server.storages.at(storage_update.storage_address);
+                auto& storage = sm_server.storages.at(storage_update.storage_address);
                 auto stored_file_uri = storage.file_uris.find(storage_update.file_uri);
                 if (stored_file_uri == storage.file_uris.end())
                     storage.file_uris[storage_update.file_uri] = is_stored;
@@ -435,11 +432,11 @@ void process_storage_transactions(unordered_set<string> const& set_accounts,
 }
 
 void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                     rpc& rpc_server,
+                                     manager& sm_server,
                                      uint64_t block_index,
                                      LoggingType type)
 {
-    if (false == rpc_server.m_str_pv_key.empty() &&
+    if (false == sm_server.m_str_pv_key.empty() &&
         ServiceStatistics::rtt == transaction_log.action.type())
     {
         ServiceStatistics statistics;
@@ -453,19 +450,19 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
                 if (false == file_item.unit_uri.empty())
                 {
                     for (auto const& count_item : file_item.count_items)
-                        rpc_server.m_file_usage_map[block_index][file_item.file_uri] += count_item.count;
+                        sm_server.m_file_usage_map[block_index][file_item.file_uri] += count_item.count;
                 }
             }
         }
         else //if (LoggingType::revert == type)
         {
-            if (rpc_server.m_file_usage_map.count(block_index))
-                rpc_server.m_file_usage_map.erase(block_index);
+            if (sm_server.m_file_usage_map.count(block_index))
+                sm_server.m_file_usage_map.erase(block_index);
         }
     }
 }
 
-TransactionLogLoader daemon_rpc::get_transaction_log(string const& address)
+TransactionLogLoader sm_daemon::get_transaction_log(string const& address)
 {
     return
     TransactionLogLoader("tx",
@@ -474,7 +471,7 @@ TransactionLogLoader daemon_rpc::get_transaction_log(string const& address)
                          10,
                          bm_get_putl());
 }
-LogIndexLoader daemon_rpc::get_transaction_log_index(string const& address)
+LogIndexLoader sm_daemon::get_transaction_log_index(string const& address)
 {
     return
     LogIndexLoader("index_tx",
@@ -483,10 +480,10 @@ LogIndexLoader daemon_rpc::get_transaction_log_index(string const& address)
                    mm_get_putl());
 }
 
-beltpp::packet daemon_rpc::process_storage_update_request(ManagerMessage::StorageUpdateRequest const& update,
-                                                          rpc& rpc_server)
+beltpp::packet sm_daemon::process_storage_update_request(ManagerMessage::StorageUpdateRequest const& update,
+                                                              manager& sm_server)
 {
-    B_UNUSED(rpc_server);
+    B_UNUSED(sm_server);
 
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to work");
@@ -567,7 +564,7 @@ beltpp::packet daemon_rpc::process_storage_update_request(ManagerMessage::Storag
     return result;
 }
 
-beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
+beltpp::packet sm_daemon::wait_response(string const& transaction_hash)
 {
     beltpp::packet result;
     
@@ -626,19 +623,19 @@ beltpp::packet daemon_rpc::wait_response(string const& transaction_hash)
     return result;
 }
 
-sync_context daemon_rpc::start_new_import(rpc& rpc_server, string const& account)
+sm_sync_context sm_daemon::start_new_import(manager& sm_server, string const& account)
 {
-    return sync_context(rpc_server, account);
+    return sm_sync_context(sm_server, account);
 }
 
-sync_context daemon_rpc::start_sync(rpc& rpc_server, unordered_set<string> const& set_accounts)
+sm_sync_context sm_daemon::start_sync(manager& sm_server, unordered_set<string> const& set_accounts)
 {
-    return sync_context(rpc_server, *this, set_accounts);
+    return sm_sync_context(sm_server, *this, set_accounts);
 }
 
-beltpp::packet daemon_rpc::send(ManagerMessage::Send const& send, rpc& rpc_server)
+beltpp::packet sm_daemon::send(ManagerMessage::Send const& send, manager& sm_server)
 {
-    B_UNUSED(rpc_server);
+    B_UNUSED(sm_server);
 
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to work");
@@ -688,7 +685,7 @@ std::string time_now()
     return str.substr(string("0000-00-00 ").length());
 }
 
-void daemon_rpc::sync(rpc& rpc_server, sync_context& context)
+void sm_daemon::sync(manager& rpc_server, sm_sync_context& context)
 {
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to work");

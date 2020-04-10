@@ -1,6 +1,6 @@
-#include "rpc.hpp"
+#include "manager.hpp"
 #include "http.hpp"
-#include "daemon_rpc.hpp"
+#include "daemon_manager.hpp"
 #include "utility.hpp"
 
 #include <belt.pp/scope_helper.hpp>
@@ -28,7 +28,7 @@ using chrono::system_clock;
 
 using namespace ManagerMessage;
 
-using sf = beltpp::socket_family_t<&manager::http::message_list_load<&ManagerMessage::message_list_load>>;
+using sf = beltpp::socket_family_t<&storage_manager::http::message_list_load<&ManagerMessage::message_list_load>>;
 
 static inline
 beltpp::void_unique_ptr get_putl()
@@ -42,10 +42,10 @@ beltpp::void_unique_ptr get_putl()
     return ptr_utl;
 }
 
-rpc::rpc(string const& str_pv_key,
-         beltpp::ip_address const& rpc_address,
-         beltpp::ip_address const& connect_to_address,
-         uint64_t sync_interval)
+manager::manager(string const& str_pv_key,
+                 beltpp::ip_address const& rpc_address,
+                 beltpp::ip_address const& connect_to_address,
+                 uint64_t sync_interval)
     : m_str_pv_key(str_pv_key)
     , eh(beltpp::libsocket::construct_event_handler())
     , rpc_socket(beltpp::libsocket::getsocket<sf>(*eh))
@@ -65,7 +65,7 @@ rpc::rpc(string const& str_pv_key,
 }
 
 void import_account_if_needed(string const& /*address*/,
-                              rpc& /*rpc_server*/,
+                              manager& /*rpc_server*/,
                               beltpp::ip_address const& /*connect_to_address*/)
 {
     //Account account;
@@ -109,28 +109,28 @@ void import_account_if_needed(string const& /*address*/,
 }
 
 beltpp::packet send(Send const& send,
-                    rpc& rpc_server,
+                    manager& sm_server,
                     beltpp::ip_address const& connect_to_address)
 {
-    daemon_rpc dm;
+    sm_daemon dm;
     dm.open(connect_to_address);
     beltpp::finally finally_close([&dm]{ dm.close(); });
 
-    return dm.send(send, rpc_server);
+    return dm.send(send, sm_server);
 }
 
 beltpp::packet process_storage_update_request(StorageUpdateRequest const& update,
-                                              rpc& rpc_server,
+                                              manager& sm_server,
                                               beltpp::ip_address const& connect_to_address)
 {
-    daemon_rpc dm;
+    sm_daemon dm;
     dm.open(connect_to_address);
     beltpp::finally finally_close([&dm]{ dm.close(); });
 
-    return dm.process_storage_update_request(update, rpc_server);
+    return dm.process_storage_update_request(update, sm_server);
 }
 
-void rpc::run()
+void manager::run()
 {
     unordered_set<beltpp::event_item const*> wait_sockets;
     auto wait_result = eh->wait(wait_sockets);
@@ -257,7 +257,7 @@ void rpc::run()
 
     if (wait_result & beltpp::event_handler::timer_out)
     {
-        daemon_rpc dm;
+        sm_daemon dm;
         dm.open(connect_to_address);
         beltpp::finally finally_close([&dm]{ dm.close(); });
 

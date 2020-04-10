@@ -1,5 +1,5 @@
 #include "program_options.hpp"
-#include "rpc.hpp"
+#include "manager.hpp"
 
 #include <belt.pp/global.hpp>
 #include <belt.pp/scope_helper.hpp>
@@ -51,14 +51,14 @@ int main(int argc, char** argv)
     string str_pv_key;
     uint64_t sync_interval;
     beltpp::ip_address connect_to_address;
-    beltpp::ip_address rpc_address;
+    beltpp::ip_address manager_address;
 
     if (false == process_command_line(argc, argv,
                                       prefix,
                                       str_pv_key,
                                       sync_interval,
                                       connect_to_address,
-                                      rpc_address))
+                                      manager_address))
         return 1;
 
 #ifdef B_OS_WINDOWS
@@ -100,7 +100,7 @@ int main(int argc, char** argv)
             dda.save();
         }
 
-        rpc server(str_pv_key, rpc_address, connect_to_address, sync_interval);
+        manager server(str_pv_key, manager_address, connect_to_address, sync_interval);
 
         while (true)
         {

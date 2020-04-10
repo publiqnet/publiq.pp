@@ -13,13 +13,13 @@
 
 #include <unordered_map>
 
-class rpc
+class manager
 {
 public:
-    rpc(std::string const& str_pv_key,
-        beltpp::ip_address const& rpc_address,
-        beltpp::ip_address const& connect_to_address,
-        uint64_t sync_interval);
+    manager(std::string const& str_pv_key,
+            beltpp::ip_address const& rpc_address,
+            beltpp::ip_address const& connect_to_address,
+            uint64_t sync_interval);
 
     void run();
 
