@@ -46,88 +46,64 @@ manager::manager(string const& str_pv_key,
                  beltpp::ip_address const& rpc_address,
                  beltpp::ip_address const& connect_to_address,
                  uint64_t sync_interval)
-    : m_str_pv_key(str_pv_key)
+    : str_pv_key(str_pv_key)
     , eh(beltpp::libsocket::construct_event_handler())
     , rpc_socket(beltpp::libsocket::getsocket<sf>(*eh))
     , head_block_index(meshpp::data_file_path("head_block_index.txt"))
-    , blocks("block", meshpp::data_directory_path("blocks"), 10000, 1, get_putl())
-    , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
     , files("files", meshpp::data_directory_path("files"), 10000, get_putl())
+    , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
     , connect_to_address(connect_to_address)
 {
     eh->set_timer(chrono::seconds(sync_interval));
     eh->add(*rpc_socket);
 
-    m_storage_update_timer.set(chrono::seconds(600));
-    m_storage_update_timer.update();
+    storage_update_timer.set(chrono::seconds(600));
+    storage_update_timer.update();
 
     rpc_socket->listen(rpc_address);
 }
 
-void import_account_if_needed(string const& /*address*/,
-                              manager& /*rpc_server*/,
-                              beltpp::ip_address const& /*connect_to_address*/)
+void import_storage(string const& address,
+                              manager& sm_server,
+                              beltpp::ip_address const& connect_to_address)
 {
-    //Account account;
-    //account.address = address;
-    //
-    //meshpp::public_key pb(account.address);
-    //
-    //if (false == rpc_server.accounts.contains(address))
-    //{
-    //    daemon_rpc dm;
-    //    dm.open(connect_to_address);
-    //    beltpp::finally finally_close([&dm]{ dm.close(); });
-    //
-    //    auto context_new_import = dm.start_new_import(rpc_server, address);
-    //    auto context_sync = dm.start_sync(rpc_server, rpc_server.accounts.keys());
-    //    // if in new import case sync will not reach the same index as in regular import case
-    //    // it will call regular sync untill reach same log index
-    //    do
-    //    {
-    //        dm.sync(rpc_server, context_new_import);
-    //        dm.sync(rpc_server, context_sync);
-    //    }
-    //    while (context_sync.start_index() != context_new_import.start_index());
-    //
-    //    context_new_import.save();
-    //    context_sync.save();
-    //
-    //    context_new_import.commit();
-    //    context_sync.commit();
-    //}
-    //
-    //if (false == rpc_server.accounts.contains(address))
-    //{
-    //    beltpp::on_failure guard([&rpc_server](){rpc_server.accounts.discard();});
-    //    rpc_server.accounts.insert(address, account);
-    //    rpc_server.accounts.save();
-    //
-    //    guard.dismiss();
-    //    rpc_server.accounts.commit();
-    //}
-}
+    if (false == sm_server.storages.contains(address))
+    {
+        sm_daemon dm;
+        dm.open(connect_to_address);
+        beltpp::finally finally_close([&dm]{ dm.close(); });
+    
+        auto context_sync = dm.start_sync(sm_server);
+        auto context_import = dm.start_import(sm_server, address);
+        
+        // if in new import case sync will not reach the same index as in regular import case
+        // it will call regular sync untill reach same log index
+        do
+        {
+            dm.sync(sm_server, context_sync);
+            dm.sync(sm_server, context_import);
+        }
+        while (context_sync.start_index() != context_import.start_index());
+    
+        context_sync.save();
+        //context_import.save();
 
-beltpp::packet send(Send const& send,
-                    manager& sm_server,
-                    beltpp::ip_address const& connect_to_address)
-{
-    sm_daemon dm;
-    dm.open(connect_to_address);
-    beltpp::finally finally_close([&dm]{ dm.close(); });
+        context_sync.commit();
+        //context_import.commit();
+    }
+    
+    if (false == sm_server.storages.contains(address))
+    {
+        StringValue storage;
+        storage.value = address;
 
-    return dm.send(send, sm_server);
-}
-
-beltpp::packet process_storage_update_request(StorageUpdateRequest const& update,
-                                              manager& sm_server,
-                                              beltpp::ip_address const& connect_to_address)
-{
-    sm_daemon dm;
-    dm.open(connect_to_address);
-    beltpp::finally finally_close([&dm]{ dm.close(); });
-
-    return dm.process_storage_update_request(update, sm_server);
+        beltpp::on_failure guard([&sm_server](){sm_server.storages.discard();});
+        sm_server.storages.insert(address, storage);
+        sm_server.storages.save();
+    
+        guard.dismiss();
+        sm_server.storages.commit();
+    }
 }
 
 void manager::run()
@@ -156,7 +132,7 @@ void manager::run()
                 ImportStorage msg;
                 std::move(ref_packet).get(msg);
 
-                import_account_if_needed(msg.address, *this, connect_to_address);
+                import_storage(msg.address, *this, connect_to_address);
 
                 rpc_socket->send(peerid, beltpp::packet(Done()));
                 break;
@@ -169,54 +145,13 @@ void manager::run()
                 rpc_socket->send(peerid, beltpp::packet(response));
                 break;
             }
-            case BlockInfoRequest::rtt:
-            {
-                BlockInfoRequest msg;
-                std::move(ref_packet).get(msg);
-
-                BlockInfo response;
-
-                auto blocks_size = blocks.size();
-                if (msg.block_number < blocks.size())
-                    response = blocks.as_const().at(msg.block_number);
-                else
-                    response = blocks.as_const().at(blocks_size - 1);
-
-                rpc_socket->send(peerid, beltpp::packet(response));
-
-                break;
-            }
-            case Send::rtt:
-            {
-                Send msg;
-                std::move(ref_packet).get(msg);
-
-                meshpp::private_key pv(msg.private_key);
-
-                import_account_if_needed(pv.get_public_key().to_string(),
-                                         *this,
-                                         connect_to_address);
-
-                rpc_socket->send(peerid, send(msg, *this, connect_to_address));
-
-                break;
-            }
             case StoragesRequest::rtt:
             {
                 StoragesResponse response;
                 for (auto const& storage : storages.keys())
-                         response.storages.push_back(storages.as_const().at(storage));
+                         response.storages.push_back(storage);
 
                 rpc_socket->send(peerid, beltpp::packet(response));
-                break;
-            }
-            case StorageUpdateRequest::rtt:
-            {
-                StorageUpdateRequest msg;
-                std::move(ref_packet).get(msg);
-
-                rpc_socket->send(peerid, process_storage_update_request(msg, *this, connect_to_address));
-
                 break;
             }
             case Failed::rtt:
@@ -262,12 +197,12 @@ void manager::run()
         beltpp::finally finally_close([&dm]{ dm.close(); });
 
         // sync data from node
-        //auto context_sync = dm.start_sync(*this, accounts.keys());
+        auto context = dm.start_sync(*this);
 
-        //dm.sync(*this, context_sync);
+        dm.sync(*this, context);
 
-        //context_sync.save();
-        //context_sync.commit();
+        context.save();
+        context.commit();
 
         // send broadcast packet with storage management command
         //if (false == m_str_pv_key.empty() &&

@@ -19,17 +19,10 @@ module ManagerMessage
     class FileInfo
     {
         String uri
-        String channel_address
         UInt64 rep_count
+        String channel_address
+        Array String all_storages
         Array String own_storages
-    }
-
-/////////////////////////////////////////
-
-    class Coin
-    {
-        UInt64 whole
-        UInt64 fraction
     }
 
     class Done
@@ -41,36 +34,12 @@ module ManagerMessage
         Extension reason
     }
 
-    class ImportStorage
-    {
-        String address
-    }
-
     class HeadBlockRequest
     {}
 
-    class BlockInfoRequest
+    class ImportStorage
     {
-        UInt64 block_number
-    }
-
-    class BlockInfo
-    {
-        String authority
-        String block_hash
-        UInt64 block_number
-        UInt64 block_size
-        TimePoint time_signed
-    }
-
-    class Send
-    {
-        String private_key
-        String to
-        Coin amount
-        Coin fee
-        String message
-        UInt64 seconds_to_expire
+        String address
     }
 
     class StoragesRequest
@@ -79,41 +48,7 @@ module ManagerMessage
 
     class StoragesResponse
     {
-        Array StoragesResponseItem storages
-    }
-
-    class StoragesResponseItem
-    {
-        String storage_address
-        Hash String Bool file_uris
-    }
-
-    class StorageUpdateRequest
-    {
-        String private_key
-        String status
-        String file_uri
-        String storage_address
-        Coin fee
-        String message
-        UInt64 seconds_to_expire
-    }
-
-    class Contents
-    {
-        Array Content content_histories
-    }
-
-    class Content
-    {
-        Bool approved
-        Hash String ContentUnit content_units
-    }
-
-    class ContentUnit
-    {
-        Array String author_addresses
-        Array String file_uris
+        Array String storages
     }
 }
 ////1

@@ -121,7 +121,7 @@ beltpp::detail::pmsg_all message_list_load(
 
         if (ss.type == beltpp::http::detail::scan_status::get &&
             ss.resource.path.size() == 2 &&
-            ss.resource.path.front() == "importstorage")
+            ss.resource.path.front() == "import")
         {
             auto p = ::beltpp::new_void_unique_ptr<ManagerMessage::ImportStorage>();
             ManagerMessage::ImportStorage& ref = *reinterpret_cast<ManagerMessage::ImportStorage*>(p.get());
@@ -150,35 +150,6 @@ beltpp::detail::pmsg_all message_list_load(
             return ::beltpp::detail::pmsg_all(ManagerMessage::StoragesRequest::rtt,
                                               std::move(p),
                                               &ManagerMessage::StoragesRequest::pvoid_saver);
-        }
-        else if (ss.type == beltpp::http::detail::scan_status::get &&
-                 ss.resource.path.size() == 2 &&
-                 ss.resource.path.front() == "file")
-        {
-            const std::set<string> all_arguments = {"private_key", "status", "file_uri", "storage_address", "fee_whole", "fee_fraction", "message", "seconds"};
-            const std::set<string> ui64_arguments = {"fee_whole", "fee_fraction", "seconds"};
-
-            string check_result = check_arguments(ss.resource.arguments, all_arguments, ui64_arguments);
-            if (!check_result.empty())
-                return request_failed(check_result);
-
-            auto p = ::beltpp::new_void_unique_ptr<ManagerMessage::StorageUpdateRequest>();
-            ManagerMessage::StorageUpdateRequest& ref = *reinterpret_cast<ManagerMessage::StorageUpdateRequest*>(p.get());
-
-            size_t pos;
-
-            ref.private_key = ss.resource.path.back();
-            ref.status = ss.resource.arguments["status"];
-            ref.file_uri = ss.resource.arguments["file_uri"];
-            ref.storage_address = ss.resource.arguments["storage_address"];
-            ref.fee.whole = beltpp::stoui64(ss.resource.arguments["fee_whole"], pos);
-            ref.fee.fraction = beltpp::stoui64(ss.resource.arguments["fee_fraction"], pos);
-            ref.message = ss.resource.arguments["message"];
-            ref.seconds_to_expire = beltpp::stoui64(ss.resource.arguments["seconds"], pos);
-
-            return ::beltpp::detail::pmsg_all(ManagerMessage::StorageUpdateRequest::rtt,
-                                              std::move(p),
-                                              &ManagerMessage::StorageUpdateRequest::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
