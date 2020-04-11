@@ -23,7 +23,7 @@ public:
 
     void run();
 
-    std::string str_pv_key;
+    std::string m_str_pv_key;
     beltpp::event_handler_ptr eh;
     beltpp::socket_ptr rpc_socket;
 
@@ -34,6 +34,6 @@ public:
     beltpp::timer storage_update_timer;
     beltpp::ip_address const& connect_to_address;
 
-    std::unordered_map<uint64_t, std::unordered_map<std::string, uint64_t>> file_usage_map;
-    std::unordered_map<std::string, std::pair<std::string, std::string>> file_location_map;
+    std::unordered_map<uint64_t, std::unordered_map<std::string, uint64_t>> m_file_usage_map;
+    std::unordered_map<std::string, std::pair<std::string, std::string>> m_file_location_map;
 };

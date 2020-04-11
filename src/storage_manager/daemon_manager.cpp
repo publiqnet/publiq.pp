@@ -340,14 +340,14 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
                 if (false == file_item.unit_uri.empty())
                 {
                     for (auto const& count_item : file_item.count_items)
-                        sm_server.file_usage_map[block_index][file_item.file_uri] += count_item.count;
+                        sm_server.m_file_usage_map[block_index][file_item.file_uri] += count_item.count;
                 }
             }
         }
         else //if (LoggingType::revert == type)
         {
-            if (sm_server.file_usage_map.count(block_index))
-                sm_server.file_usage_map.erase(block_index);
+            if (sm_server.m_file_usage_map.count(block_index))
+                sm_server.m_file_usage_map.erase(block_index);
         }
     }
 }

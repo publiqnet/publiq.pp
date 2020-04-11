@@ -17,11 +17,13 @@
 #include <set>
 #include <map>
 
-using std::string;
-using std::unordered_set;
 using std::set;
+using std::string;
+using std::multimap;
 using std::unique_ptr;
+using std::unordered_set;
 namespace chrono = std::chrono;
+
 using beltpp::packet;
 using peer_id = beltpp::socket::peer_id;
 using chrono::system_clock;
@@ -46,7 +48,7 @@ manager::manager(string const& str_pv_key,
                  beltpp::ip_address const& rpc_address,
                  beltpp::ip_address const& connect_to_address,
                  uint64_t sync_interval)
-    : str_pv_key(str_pv_key)
+    : m_str_pv_key(str_pv_key)
     , eh(beltpp::libsocket::construct_event_handler())
     , rpc_socket(beltpp::libsocket::getsocket<sf>(*eh))
     , head_block_index(meshpp::data_file_path("head_block_index.txt"))
@@ -202,70 +204,80 @@ void manager::run()
         context.commit();
 
         // send broadcast packet with storage management command
-        //if (false == m_str_pv_key.empty() &&
-        //    m_storage_update_timer.expired())
-        //{
-        //    m_storage_update_timer.update();
-        //
-        //    unordered_map<string, uint64_t> usage_map;
-        //    uint64_t block_number = head_block_index.as_const()->value;
-        //
-        //    for (auto index = block_number; index > 0 && index > block_number - 144; --index)
-        //        for (auto const& item : m_file_usage_map[index])
-        //            usage_map[item.first] += item.second;
-        //
-        //    for (auto it = m_file_usage_map.begin(); it != m_file_usage_map.end(); )
-        //        if (it->first < block_number - 144)
-        //            it = m_file_usage_map.erase(it);
-        //        else
-        //            ++it;
-        //
-        //    std::multimap<uint64_t, string> ordered_map;
-        //    meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
-        //    
-        //    for (auto it = usage_map.begin(); it != usage_map.end(); ++it)
-        //        ordered_map.insert({ it->second, it->first });
-        //
-        //    auto count = ordered_map.size();
-        //    count = count == 0 ? 0 : 1 + 2 * count / 3;
-        //
-        //    auto it = ordered_map.rbegin();
-        //    while (count > 0 && it != ordered_map.rend())
-        //    {
-        //        auto search_result = search_file(*this, it->second);
-        //
-        //        for( auto const& item : search_result)
-        //        {
-        //            BlockchainMessage::StorageUpdateCommand update_command;
-        //            update_command.status = BlockchainMessage::UpdateType::store;
-        //            update_command.file_uri = it->second;
-        //            update_command.storage_address = item.first;
-        //            update_command.channel_address = item.second;
-        //
-        //            BlockchainMessage::Transaction transaction;
-        //            transaction.action = std::move(update_command);
-        //            transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-        //            transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
-        //
-        //            BlockchainMessage::Authority authorization;
-        //            authorization.address = pv_key.get_public_key().to_string();
-        //            authorization.signature = pv_key.sign(transaction.to_string()).base58;
-        //
-        //            BlockchainMessage::SignedTransaction signed_transaction;
-        //            signed_transaction.authorizations.push_back(authorization);
-        //            signed_transaction.transaction_details = transaction;
-        //
-        //            BlockchainMessage::Broadcast broadcast;
-        //            broadcast.echoes = 2;
-        //            broadcast.package = signed_transaction;
-        //
-        //            dm.socket->send(dm.peerid, beltpp::packet(broadcast));
-        //            dm.wait_response(string());
-        //        }
-        //
-        //        ++it;
-        //        --count;
-        //    }
-        //}
+        if (false == m_str_pv_key.empty() &&
+            storage_update_timer.expired())
+        {
+            storage_update_timer.update();
+        
+            auto manage_storages = storages.keys();
+            auto storages_count = manage_storages.size();
+
+            unordered_map<string, uint64_t> usage_map;
+            uint64_t block_number = head_block_index.as_const()->value;
+        
+            for (auto index = block_number; index > 0 && index > block_number - 144; --index)
+                for (auto const& item : m_file_usage_map[index])
+                    usage_map[item.first] += item.second;
+        
+            for (auto it = m_file_usage_map.begin(); it != m_file_usage_map.end(); )
+                if (it->first < block_number - 144)
+                    it = m_file_usage_map.erase(it);
+                else
+                    ++it;
+        
+            multimap<uint64_t, FileInfo> info_map;
+            for (auto it = usage_map.begin(); it != usage_map.end(); ++it)
+            {
+                if (!files.contains(it->first))
+                    continue;
+
+                FileInfo const& file_info = files.at(it->first);
+
+                if(file_info.own_storages.size() < storages_count)
+                    info_map.insert({ it->second / file_info.all_storages.size(), file_info });
+            }
+
+            if (info_map.size())
+            {
+                meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
+                auto threshold = (info_map.begin()->first + info_map.rbegin()->first) / 2;
+
+                auto it = info_map.rbegin();
+                while (it->first > threshold && it != info_map.rend())
+                {
+                    auto temp_storages = manage_storages;
+                    for (auto const& storage : it->second.own_storages)
+                        temp_storages.erase(storage);
+
+                    BlockchainMessage::StorageUpdateCommand update_command;
+                    update_command.status = BlockchainMessage::UpdateType::store;
+                    update_command.file_uri = it->second.uri;
+                    update_command.storage_address = *temp_storages.begin();
+                    update_command.channel_address = it->second.channel_address;
+
+                    BlockchainMessage::Transaction transaction;
+                    transaction.action = std::move(update_command);
+                    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+                    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
+
+                    BlockchainMessage::Authority authorization;
+                    authorization.address = pv_key.get_public_key().to_string();
+                    authorization.signature = pv_key.sign(transaction.to_string()).base58;
+
+                    BlockchainMessage::SignedTransaction signed_transaction;
+                    signed_transaction.authorizations.push_back(authorization);
+                    signed_transaction.transaction_details = transaction;
+
+                    BlockchainMessage::Broadcast broadcast;
+                    broadcast.echoes = 2;
+                    broadcast.package = signed_transaction;
+
+                    dm.socket->send(dm.peerid, beltpp::packet(broadcast));
+                    dm.wait_response(string());
+
+                    ++it;
+                }
+            }
+        }
     }
 }
