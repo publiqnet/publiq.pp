@@ -86,10 +86,7 @@ void import_storage(string const& address,
         while (context_sync.start_index() != context_import.start_index());
     
         context_sync.save();
-        //context_import.save();
-
         context_sync.commit();
-        //context_import.commit();
     }
     
     if (false == sm_server.storages.contains(address))

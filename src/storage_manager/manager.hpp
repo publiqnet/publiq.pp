@@ -27,9 +27,9 @@ public:
     beltpp::event_handler_ptr eh;
     beltpp::socket_ptr rpc_socket;
 
-    meshpp::file_loader<ManagerMessage::NumberValue, &ManagerMessage::NumberValue::from_string, &ManagerMessage::NumberValue::to_string> head_block_index;
     meshpp::map_loader<ManagerMessage::FileInfo> files;
     meshpp::map_loader<ManagerMessage::StringValue> storages;
+    meshpp::file_loader<ManagerMessage::NumberValue, &ManagerMessage::NumberValue::from_string, &ManagerMessage::NumberValue::to_string> head_block_index;
 
     beltpp::timer storage_update_timer;
     beltpp::ip_address const& connect_to_address;

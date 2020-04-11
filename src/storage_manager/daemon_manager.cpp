@@ -36,6 +36,7 @@ public:
     sm_sync_context_internals() = default;
     virtual ~sm_sync_context_internals() = default;
 
+    virtual string storage() const = 0;
     virtual uint64_t& start_index() = 0;
     virtual uint64_t& head_block_index() = 0;
     virtual void save() = 0;
@@ -45,13 +46,18 @@ public:
 class sm_sync_context_import : public sm_sync_context_internals
 {
 public:
-    sm_sync_context_import(manager& sm_server, string const& address)
+    sm_sync_context_import(manager& sm_server, string const& storage)
         : sm_sync_context_internals()
-        , m_address(address)
+        , m_storage(storage)
         , m_sm_server(&sm_server)
         , m_start_index(0)
         , m_head_block_index(0)
     {}
+
+    string storage() const override
+    {
+        return m_storage;
+    }
 
     uint64_t& start_index() override
     {
@@ -73,7 +79,7 @@ public:
         // nothing to commit
     }
 
-    string m_address;
+    string m_storage;
     manager* m_sm_server;
     uint64_t m_start_index;
     uint64_t m_head_block_index;
@@ -94,6 +100,11 @@ public:
                         m_sm_server->head_block_index.discard();
                     })
     {}
+
+    string storage() const override
+    {
+        return string();
+    }
 
     uint64_t& start_index() override
     {
@@ -220,10 +231,12 @@ void sm_daemon::close()
 }
 
 void process_unit_transactions(BlockchainMessage::TransactionLog const& transaction_log,
+                               string const& storage_address,
                                manager& sm_server,
                                LoggingType type)
 {
-    if (ContentUnit::rtt == transaction_log.action.type())
+    if (storage_address.empty() && // means context is not new imported
+        ContentUnit::rtt == transaction_log.action.type())
     {
         ContentUnit content_unit;
         transaction_log.action.get(content_unit);
@@ -252,6 +265,7 @@ void process_unit_transactions(BlockchainMessage::TransactionLog const& transact
 }
 
 void process_storage_transactions(BlockchainMessage::TransactionLog const& transaction_log,
+                                  string const& storage_address,
                                   manager& sm_server,
                                   LoggingType type)
 {
@@ -260,57 +274,60 @@ void process_storage_transactions(BlockchainMessage::TransactionLog const& trans
         StorageUpdate storage_update;
         transaction_log.action.get(storage_update);
 
-        if (sm_server.files.contains(storage_update.file_uri))
-        {
-            ManagerMessage::FileInfo& file_info = sm_server.files.at(storage_update.file_uri);
-
-            if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
-                (UpdateType::remove == storage_update.status && LoggingType::revert == type))
+        if(storage_address.empty() || storage_address == storage_update.storage_address)
+            if (sm_server.files.contains(storage_update.file_uri))
             {
-                // store
+                ManagerMessage::FileInfo& file_info = sm_server.files.at(storage_update.file_uri);
 
-                bool insert = true;
-                auto& storages = file_info.all_storages;
+                if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
+                    (UpdateType::remove == storage_update.status && LoggingType::revert == type))
+                {
+                    // store
 
-                for (auto it = storages.cbegin(); it != storages.cend() && insert; ++it)
-                    insert = *it != storage_update.storage_address;
+                    bool insert = true;
+                    auto& storages = file_info.all_storages;
 
-                if (insert)
-                    file_info.all_storages.push_back(storage_update.storage_address);
+                    for (auto it = storages.cbegin(); it != storages.cend() && insert; ++it)
+                        insert = *it != storage_update.storage_address;
 
-                insert = sm_server.storages.contains(storage_update.storage_address);
-                storages = file_info.own_storages;
+                    if (insert)
+                        file_info.all_storages.push_back(storage_update.storage_address);
 
-                for (auto it = storages.cbegin(); it != storages.cend() && insert; ++it)
-                    insert = *it != storage_update.storage_address;
+                    insert = sm_server.storages.contains(storage_update.storage_address);
+                    storages = file_info.own_storages;
 
-                if (insert)
-                    file_info.all_storages.push_back(storage_update.storage_address);
+                    for (auto it = storages.cbegin(); it != storages.cend() && insert; ++it)
+                        insert = *it != storage_update.storage_address;
+
+                    if (insert)
+                        file_info.all_storages.push_back(storage_update.storage_address);
+                }
+                else
+                {   // remove
+                    auto& storages = file_info.all_storages;
+
+                    for (auto it = storages.begin(); it != storages.end(); ++it)
+                        if (*it == storage_update.storage_address)
+                            storages.erase(it);
+
+                    storages = file_info.own_storages;
+
+                    for (auto it = storages.begin(); it != storages.end(); ++it)
+                        if (*it == storage_update.storage_address)
+                            storages.erase(it);
+                }
             }
-            else
-            {   // remove
-                auto& storages = file_info.all_storages;
-
-                for (auto it = storages.begin(); it != storages.end(); ++it)
-                    if (*it == storage_update.storage_address)
-                        storages.erase(it);
-
-                storages = file_info.own_storages;
-
-                for (auto it = storages.begin(); it != storages.end(); ++it)
-                    if (*it == storage_update.storage_address)
-                        storages.erase(it);
-            }
-        }
     }
 }
 
 void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
+                                     string const& storage_address,
                                      manager& sm_server,
                                      uint64_t block_index,
                                      LoggingType type)
 {
-    if (ServiceStatistics::rtt == transaction_log.action.type())
+    if (storage_address.empty() && // means context is not new imported
+        ServiceStatistics::rtt == transaction_log.action.type())
     {
         ServiceStatistics statistics;
         transaction_log.action.get(statistics);
@@ -482,14 +499,17 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
                                         for (auto& transaction_log: block_log.transactions)
                                         {
                                             process_unit_transactions(transaction_log,
+                                                                      context.m_pimpl->storage(),
                                                                       sm_server,
                                                                       LoggingType::apply);
 
                                             process_storage_transactions(transaction_log,
+                                                                         context.m_pimpl->storage(),
                                                                          sm_server,
                                                                          LoggingType::apply);
 
                                             process_statistics_transactions(transaction_log,
+                                                                            context.m_pimpl->storage(),
                                                                             sm_server,
                                                                             block_index,
                                                                             LoggingType::apply);
@@ -517,14 +537,17 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
                                             auto& transaction_log = *log_it;
 
                                             process_unit_transactions(transaction_log,
+                                                                      context.m_pimpl->storage(),
                                                                       sm_server,
                                                                       LoggingType::revert);
 
                                             process_storage_transactions(transaction_log,
+                                                                         context.m_pimpl->storage(),
                                                                          sm_server,
                                                                          LoggingType::revert);
 
                                             process_statistics_transactions(transaction_log,
+                                                                            context.m_pimpl->storage(),
                                                                             sm_server,
                                                                             block_index,
                                                                             LoggingType::revert);
