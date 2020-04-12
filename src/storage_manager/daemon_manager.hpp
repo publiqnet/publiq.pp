@@ -52,8 +52,8 @@ public:
     void sync(manager& sm_server, sm_sync_context& context);
     beltpp::packet wait_response(std::string const& transaction_hash);
 
-    beltpp::socket_ptr socket;
     beltpp::event_handler_ptr eh;
+    beltpp::socket_ptr socket;
     beltpp::stream::peer_id peerid;
     meshpp::file_loader<ManagerMessage::NumberValue, &ManagerMessage::NumberValue::from_string, &ManagerMessage::NumberValue::to_string> log_index;
 };

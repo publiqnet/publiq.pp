@@ -74,6 +74,10 @@ void import_storage(string const& address,
         sm_daemon dm;
         dm.open(connect_to_address);
         beltpp::finally finally_close([&dm]{ dm.close(); });
+
+        StringValue storage;
+        storage.value = address;
+        sm_server.storages.insert(address, storage);
     
         auto context_sync = dm.start_sync(sm_server);
         auto context_import = dm.start_import(sm_server, address);
@@ -89,19 +93,6 @@ void import_storage(string const& address,
     
         context_sync.save();
         context_sync.commit();
-    }
-    
-    if (false == sm_server.storages.contains(address))
-    {
-        StringValue storage;
-        storage.value = address;
-
-        beltpp::on_failure guard([&sm_server](){sm_server.storages.discard();});
-        sm_server.storages.insert(address, storage);
-        sm_server.storages.save();
-    
-        guard.dismiss();
-        sm_server.storages.commit();
     }
 }
 

@@ -14,7 +14,7 @@
 #include <exception>
 #include <chrono>
 
-//#define LOGGING
+#define LOGGING
 #ifdef LOGGING
 #include <iostream>
 #endif
@@ -284,37 +284,37 @@ void process_storage_transactions(BlockchainMessage::TransactionLog const& trans
                 {
                     // store
 
-                    bool insert = true;
-                    auto& storages = file_info.all_storages;
+                    bool insert = storage_address.empty();
 
-                    for (auto it = storages.cbegin(); it != storages.cend() && insert; ++it)
+                    for (auto it = file_info.all_storages.cbegin(); it != file_info.all_storages.cend() && insert; ++it)
                         insert = *it != storage_update.storage_address;
 
                     if (insert)
                         file_info.all_storages.push_back(storage_update.storage_address);
 
                     insert = sm_server.storages.contains(storage_update.storage_address);
-                    storages = file_info.own_storages;
 
-                    for (auto it = storages.cbegin(); it != storages.cend() && insert; ++it)
+                    for (auto it = file_info.own_storages.cbegin(); it != file_info.own_storages.cend() && insert; ++it)
                         insert = *it != storage_update.storage_address;
 
                     if (insert)
-                        file_info.all_storages.push_back(storage_update.storage_address);
+                        file_info.own_storages.push_back(storage_update.storage_address);
                 }
                 else
                 {   // remove
-                    auto& storages = file_info.all_storages;
+                    auto all_end = std::remove_if(file_info.all_storages.begin(), file_info.all_storages.end(),
+                        [&storage_update](string const& storage_address)
+                    {
+                        return storage_address == storage_update.storage_address;
+                    });
+                    file_info.all_storages.erase(all_end, file_info.all_storages.end());
 
-                    for (auto it = storages.begin(); it != storages.end(); ++it)
-                        if (*it == storage_update.storage_address)
-                            storages.erase(it);
-
-                    storages = file_info.own_storages;
-
-                    for (auto it = storages.begin(); it != storages.end(); ++it)
-                        if (*it == storage_update.storage_address)
-                            storages.erase(it);
+                    auto own_end = std::remove_if(file_info.own_storages.begin(), file_info.own_storages.end(),
+                        [&storage_update](string const& storage_address)
+                    {
+                        return storage_address == storage_update.storage_address;
+                    });
+                    file_info.own_storages.erase(own_end, file_info.own_storages.end());
                 }
             }
     }
@@ -421,12 +421,12 @@ sm_sync_context sm_daemon::start_import(manager& sm_server, string const& addres
     return sm_sync_context(sm_server, address);
 }
 
-//std::string time_now()
-//{
-//    std::time_t time_t_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-//    string str = beltpp::gm_time_t_to_lc_string(time_t_now);
-//    return str.substr(string("0000-00-00 ").length());
-//}
+std::string time_now()
+{
+    std::time_t time_t_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    string str = beltpp::gm_time_t_to_lc_string(time_t_now);
+    return str.substr(string("0000-00-00 ").length());
+}
 
 void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
 {
@@ -443,7 +443,11 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
         socket->send(peerid, beltpp::packet(req));
 
         size_t count = 0;
-
+        
+#ifdef LOGGING
+        std::cout << std::endl << std::endl << time_now() << "  Request -> ";
+#endif
+        
         while (true)
         {
             unordered_set<beltpp::event_item const*> wait_sockets;
