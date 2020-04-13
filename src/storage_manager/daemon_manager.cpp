@@ -28,150 +28,19 @@ using peer_id = beltpp::socket::peer_id;
 
 using namespace BlockchainMessage;
 
-namespace detail
-{
-class sm_sync_context_internals
-{
-public:
-    sm_sync_context_internals() = default;
-    virtual ~sm_sync_context_internals() = default;
-
-    virtual string storage() const = 0;
-    virtual uint64_t& start_index() = 0;
-    virtual uint64_t& head_block_index() = 0;
-    virtual void save() = 0;
-    virtual void commit() = 0;
-};
-
-class sm_sync_context_import : public sm_sync_context_internals
-{
-public:
-    sm_sync_context_import(manager& sm_server, string const& storage)
-        : sm_sync_context_internals()
-        , m_storage(storage)
-        , m_sm_server(&sm_server)
-        , m_start_index(0)
-        , m_head_block_index(0)
-    {}
-
-    string storage() const override
-    {
-        return m_storage;
-    }
-
-    uint64_t& start_index() override
-    {
-        return m_start_index;
-    }
-
-    uint64_t& head_block_index() override
-    {
-        return m_head_block_index;
-    }
-
-    void save() override
-    {
-        // nothing to save
-    }
-
-    void commit() override
-    {
-        // nothing to commit
-    }
-
-    string m_storage;
-    manager* m_sm_server;
-    uint64_t m_start_index;
-    uint64_t m_head_block_index;
-};
-
-class sm_sync_context_existing : public sm_sync_context_internals
-{
-public:
-    sm_sync_context_existing(manager& sm_server, sm_daemon& sm_daemon)
-        : sm_sync_context_internals()
-        , m_sm_server(&sm_server)
-        , m_sm_daemon(&sm_daemon)
-        , m_guard([this]()
-                    {
-                        m_sm_server->files.discard();
-                        m_sm_server->storages.discard();
-                        m_sm_daemon->log_index.discard();
-                        m_sm_server->head_block_index.discard();
-                    })
-    {}
-
-    string storage() const override
-    {
-        return string();
-    }
-
-    uint64_t& start_index() override
-    {
-        return m_sm_daemon->log_index->value;
-    }
-
-    uint64_t& head_block_index() override
-    {
-        return m_sm_server->head_block_index->value;
-    }
-
-    void save() override
-    {
-        m_sm_server->files.save();
-        m_sm_server->storages.save();
-        m_sm_daemon->log_index.save();
-        m_sm_server->head_block_index.save();
-    }
-
-    void commit() override
-    {
-        m_guard.dismiss();
-
-        m_sm_server->files.commit();
-        m_sm_server->storages.commit();
-        m_sm_daemon->log_index.commit();
-        m_sm_server->head_block_index.commit();
-    }
-
-    manager* m_sm_server;
-    sm_daemon* m_sm_daemon;
-    beltpp::on_failure m_guard;
-};
-}
-
-sm_sync_context::sm_sync_context(manager& sm_server, string const& address)
-    : m_pimpl(new ::detail::sm_sync_context_import(sm_server, address))
-{}
-
-sm_sync_context::sm_sync_context(manager& sm_server, sm_daemon& sm_daemon)
-    : m_pimpl(new ::detail::sm_sync_context_existing(sm_server, sm_daemon))
-{}
-
-sm_sync_context::sm_sync_context(sm_sync_context&&) = default;
-
-sm_sync_context::~sm_sync_context() = default;
-
-uint64_t sm_sync_context::start_index() const
-{
-    return m_pimpl->start_index();
-}
-
-void sm_sync_context::save()
-{
-    return m_pimpl->save();
-}
-
-void sm_sync_context::commit()
-{
-    return m_pimpl->commit();
-}
-
-sm_daemon::sm_daemon()
-    : eh(beltpp::libsocket::construct_event_handler())
+sm_daemon::sm_daemon(manager& server)
+    : sm_server(server)
+    , eh(beltpp::libsocket::construct_event_handler())
     , socket(beltpp::libsocket::getsocket<beltpp::socket_family_t<&BlockchainMessage::message_list_load>>(*eh))
     , peerid()
     , log_index(meshpp::data_file_path("log_index.txt"))
+    , m_guard([this]()
+                {
+                    log_index.discard();
+                    sm_server.files.discard();
+                    sm_server.storages.discard();
+                    sm_server.head_block_index.discard();
+                })
 {
     eh->add(*socket);
 }
@@ -230,13 +99,29 @@ void sm_daemon::close()
     socket->send(peerid, beltpp::packet(beltpp::stream_drop()));
 }
 
+void sm_daemon::save()
+{
+    log_index.save();
+    sm_server.files.save();
+    sm_server.storages.save();
+    sm_server.head_block_index.save();
+}
+
+void sm_daemon::commit()
+{
+    m_guard.dismiss();
+
+    log_index.commit();
+    sm_server.files.commit();
+    sm_server.storages.commit();
+    sm_server.head_block_index.commit();
+}
+
 void process_unit_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                               string const& storage_address,
                                manager& sm_server,
                                LoggingType type)
 {
-    if (storage_address.empty() && // means context is not new imported
-        ContentUnit::rtt == transaction_log.action.type())
+    if (ContentUnit::rtt == transaction_log.action.type())
     {
         ContentUnit content_unit;
         transaction_log.action.get(content_unit);
@@ -265,7 +150,6 @@ void process_unit_transactions(BlockchainMessage::TransactionLog const& transact
 }
 
 void process_storage_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                  string const& storage_address,
                                   manager& sm_server,
                                   LoggingType type)
 {
@@ -274,60 +158,57 @@ void process_storage_transactions(BlockchainMessage::TransactionLog const& trans
         StorageUpdate storage_update;
         transaction_log.action.get(storage_update);
 
-        if(storage_address.empty() || storage_address == storage_update.storage_address)
-            if (sm_server.files.contains(storage_update.file_uri))
+        if (sm_server.files.contains(storage_update.file_uri))
+        {
+            ManagerMessage::FileInfo& file_info = sm_server.files.at(storage_update.file_uri);
+
+            if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
+                (UpdateType::remove == storage_update.status && LoggingType::revert == type))
             {
-                ManagerMessage::FileInfo& file_info = sm_server.files.at(storage_update.file_uri);
+                // store
 
-                if ((UpdateType::store == storage_update.status && LoggingType::apply == type) ||
-                    (UpdateType::remove == storage_update.status && LoggingType::revert == type))
-                {
-                    // store
+                bool insert = true;
 
-                    bool insert = storage_address.empty();
+                for (auto it = file_info.all_storages.cbegin(); it != file_info.all_storages.cend() && insert; ++it)
+                    insert = *it != storage_update.storage_address;
 
-                    for (auto it = file_info.all_storages.cbegin(); it != file_info.all_storages.cend() && insert; ++it)
-                        insert = *it != storage_update.storage_address;
+                if (insert)
+                    file_info.all_storages.push_back(storage_update.storage_address);
 
-                    if (insert)
-                        file_info.all_storages.push_back(storage_update.storage_address);
+                insert = sm_server.storages.contains(storage_update.storage_address);
 
-                    insert = sm_server.storages.contains(storage_update.storage_address);
+                for (auto it = file_info.own_storages.cbegin(); it != file_info.own_storages.cend() && insert; ++it)
+                    insert = *it != storage_update.storage_address;
 
-                    for (auto it = file_info.own_storages.cbegin(); it != file_info.own_storages.cend() && insert; ++it)
-                        insert = *it != storage_update.storage_address;
-
-                    if (insert)
-                        file_info.own_storages.push_back(storage_update.storage_address);
-                }
-                else
-                {   // remove
-                    auto all_end = std::remove_if(file_info.all_storages.begin(), file_info.all_storages.end(),
-                        [&storage_update](string const& storage_address)
-                    {
-                        return storage_address == storage_update.storage_address;
-                    });
-                    file_info.all_storages.erase(all_end, file_info.all_storages.end());
-
-                    auto own_end = std::remove_if(file_info.own_storages.begin(), file_info.own_storages.end(),
-                        [&storage_update](string const& storage_address)
-                    {
-                        return storage_address == storage_update.storage_address;
-                    });
-                    file_info.own_storages.erase(own_end, file_info.own_storages.end());
-                }
+                if (insert)
+                    file_info.own_storages.push_back(storage_update.storage_address);
             }
+            else
+            {   // remove
+                auto all_end = std::remove_if(file_info.all_storages.begin(), file_info.all_storages.end(),
+                    [&storage_update](string const& storage_address)
+                {
+                    return storage_address == storage_update.storage_address;
+                });
+                file_info.all_storages.erase(all_end, file_info.all_storages.end());
+
+                auto own_end = std::remove_if(file_info.own_storages.begin(), file_info.own_storages.end(),
+                    [&storage_update](string const& storage_address)
+                {
+                    return storage_address == storage_update.storage_address;
+                });
+                file_info.own_storages.erase(own_end, file_info.own_storages.end());
+            }
+        }
     }
 }
 
 void process_statistics_transactions(BlockchainMessage::TransactionLog const& transaction_log,
-                                     string const& storage_address,
                                      manager& sm_server,
                                      uint64_t block_index,
                                      LoggingType type)
 {
-    if (storage_address.empty() && // means context is not new imported
-        ServiceStatistics::rtt == transaction_log.action.type())
+    if (ServiceStatistics::rtt == transaction_log.action.type())
     {
         ServiceStatistics statistics;
         transaction_log.action.get(statistics);
@@ -411,16 +292,6 @@ beltpp::packet sm_daemon::wait_response(string const& transaction_hash)
     return result;
 }
 
-sm_sync_context sm_daemon::start_sync(manager& sm_server)
-{
-    return sm_sync_context(sm_server, *this);
-}
-
-sm_sync_context sm_daemon::start_import(manager& sm_server, string const& address)
-{
-    return sm_sync_context(sm_server, address);
-}
-
 std::string time_now()
 {
     std::time_t time_t_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -428,7 +299,7 @@ std::string time_now()
     return str.substr(string("0000-00-00 ").length());
 }
 
-void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
+void sm_daemon::sync()
 {
     if (peerid.empty())
         throw std::runtime_error("no daemon_rpc connection to work");
@@ -438,7 +309,7 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
         size_t const max_count = 10000;
         LoggedTransactionsRequest req;
         req.max_count = max_count;
-        req.start_index = context.m_pimpl->start_index();
+        req.start_index = log_index->value;
 
         socket->send(peerid, beltpp::packet(req));
 
@@ -475,11 +346,7 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
                             {
                                 ++count;
 
-                                bool dont_increment_head_block_index = false;
-                                if (context.m_pimpl->start_index() == 0)
-                                    dont_increment_head_block_index = true;
-
-                                context.m_pimpl->start_index() = action_info.index + 1;
+                                log_index->value = action_info.index + 1;
 
                                 auto action_type = action_info.action.type();
 
@@ -487,13 +354,12 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
                                 {
                                     if (action_type == BlockLog::rtt)
                                     {
-                                        if (false == dont_increment_head_block_index)
-                                            ++context.m_pimpl->head_block_index();
+                                        ++sm_server.head_block_index->value;
 
                                         BlockLog block_log;
                                         std::move(action_info.action).get(block_log);
 
-                                        uint64_t block_index = context.m_pimpl->head_block_index();
+                                        uint64_t block_index = sm_server.head_block_index->value;
 
                                         count += block_log.rewards.size() +
                                                  block_log.transactions.size() +
@@ -503,17 +369,14 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
                                         for (auto& transaction_log: block_log.transactions)
                                         {
                                             process_unit_transactions(transaction_log,
-                                                                      context.m_pimpl->storage(),
                                                                       sm_server,
                                                                       LoggingType::apply);
 
                                             process_storage_transactions(transaction_log,
-                                                                         context.m_pimpl->storage(),
                                                                          sm_server,
                                                                          LoggingType::apply);
 
                                             process_statistics_transactions(transaction_log,
-                                                                            context.m_pimpl->storage(),
                                                                             sm_server,
                                                                             block_index,
                                                                             LoggingType::apply);
@@ -524,9 +387,9 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
                                 {
                                     if (action_type == BlockLog::rtt)
                                     {
-                                        uint64_t block_index = context.m_pimpl->head_block_index();
+                                        uint64_t block_index = sm_server.head_block_index->value;
 
-                                        --context.m_pimpl->head_block_index();
+                                        --sm_server.head_block_index->value;
 
                                         BlockLog block_log;
                                         std::move(action_info.action).get(block_log);
@@ -541,17 +404,14 @@ void sm_daemon::sync(manager& sm_server, sm_sync_context& context)
                                             auto& transaction_log = *log_it;
 
                                             process_unit_transactions(transaction_log,
-                                                                      context.m_pimpl->storage(),
                                                                       sm_server,
                                                                       LoggingType::revert);
 
                                             process_storage_transactions(transaction_log,
-                                                                         context.m_pimpl->storage(),
                                                                          sm_server,
                                                                          LoggingType::revert);
 
                                             process_statistics_transactions(transaction_log,
-                                                                            context.m_pimpl->storage(),
                                                                             sm_server,
                                                                             block_index,
                                                                             LoggingType::revert);

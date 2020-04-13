@@ -65,34 +65,43 @@ manager::manager(string const& str_pv_key,
     rpc_socket->listen(rpc_address);
 }
 
-void import_storage(string const& address,
+void import_storage(string const& storage_address,
                               manager& sm_server,
-                              beltpp::ip_address const& connect_to_address)
+                              beltpp::ip_address const& /*connect_to_address*/)
 {
-    if (false == sm_server.storages.contains(address))
+    if (false == sm_server.storages.contains(storage_address))
     {
-        sm_daemon dm;
-        dm.open(connect_to_address);
-        beltpp::finally finally_close([&dm]{ dm.close(); });
+        beltpp::on_failure guard([&sm_server]
+        {
+            sm_server.files.discard();
+            sm_server.storages.discard();
+        });
 
         StringValue storage;
-        storage.value = address;
-        sm_server.storages.insert(address, storage);
+        storage.value = storage_address;
+        sm_server.storages.insert(storage_address, storage);
     
-        auto context_sync = dm.start_sync(sm_server);
-        auto context_import = dm.start_import(sm_server, address);
-        
-        // if in new import case sync will not reach the same index as in regular import case
-        // it will call regular sync untill reach same log index
-        do
+        auto keys = sm_server.files.keys();
+        for (auto const& key : keys)
         {
-            dm.sync(sm_server, context_sync);
-            dm.sync(sm_server, context_import);
+            FileInfo& file_info = sm_server.files.at(key);
+
+            for (auto const& address : file_info.all_storages)
+                if (address == storage_address)
+                {
+                    file_info.own_storages.push_back(storage_address);
+                    
+                    break;
+                }
         }
-        while (context_sync.start_index() != context_import.start_index());
-    
-        context_sync.save();
-        context_sync.commit();
+
+        sm_server.files.save();
+        sm_server.storages.save();
+
+        guard.dismiss();
+
+        sm_server.files.commit();
+        sm_server.storages.commit();
     }
 }
 
@@ -182,17 +191,13 @@ void manager::run()
 
     if (wait_result & beltpp::event_handler::timer_out)
     {
-        sm_daemon dm;
+        sm_daemon dm(*this);
         dm.open(connect_to_address);
         beltpp::finally finally_close([&dm]{ dm.close(); });
 
-        // sync data from node
-        auto context = dm.start_sync(*this);
-
-        dm.sync(*this, context);
-
-        context.save();
-        context.commit();
+        dm.sync();
+        dm.save();
+        dm.commit();
 
         // send broadcast packet with storage management command
         if (false == m_str_pv_key.empty() &&
