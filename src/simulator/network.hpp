@@ -4,6 +4,7 @@
 #include <belt.pp/ievent.hpp>
 #include <belt.pp/queue.hpp>
 #include <belt.pp/timer.hpp>
+#include <belt.pp/packet.hpp>
 
 #include <chrono>
 #include <unordered_set>
@@ -18,6 +19,7 @@ using beltpp::event_handler;
 using beltpp::event_item;
 using beltpp::socket;
 using beltpp::ip_address;
+using beltpp::packet;
 
 namespace simulator_network_impl
 {
@@ -28,7 +30,7 @@ class network_simulation
 {
 public:
 
-    enum class connection_status    {connection_listen, connection_open, connection_close};
+    enum class connection_status    {connection_listen, connection_open};
     enum class packet_status        {received, sent};
 
     using packs         = std::list< std::pair< beltpp::packet, packet_status > >;
@@ -45,16 +47,16 @@ public:
 
     void remove_handler(            event_handler_ex& eh);
 
-    bool add_socket(                event_handler_ex& eh,
+    void add_socket(                event_handler_ex& eh,
                                     beltpp::event_item& ev_it);
 
-    bool remove_socket(             event_handler_ex& eh,
+    void remove_socket(             event_handler_ex& eh,
                                     beltpp::event_item& ev_it);
 
     bool check_socket(              event_handler_ex& eh,
                                     beltpp::event_item& ev_it);
 
-    bool add_connection(            event_handler_ex& eh,
+    void add_connection(            event_handler_ex& eh,
                                     beltpp::event_item& ev_it,
                                     beltpp::ip_address addres);
 
@@ -71,12 +73,12 @@ public:
                                     beltpp::ip_address address,
                                     connection_status status);
 
-    bool send_packet(               event_handler_ex& eh,
+    void send_packet(               event_handler_ex& eh,
                                     beltpp::event_item& ev_it,
                                     beltpp::ip_address address,
                                     beltpp::packet const& packets);
 
-    bool receive_packet(            event_handler_ex& eh,
+    void receive_packet(            event_handler_ex& eh,
                                     beltpp::event_item& ev_it,
                                     beltpp::ip_address address,
                                     beltpp::socket::packets& packets);
@@ -117,7 +119,6 @@ class socket_ex : public beltpp::socket
 public:
     using peer_id = socket::peer_id;
     using peer_ids = socket::peer_ids;
-    using packets = socket::packets;
 
     socket_ex(event_handler_ex& eh);
     ~socket_ex() override;
