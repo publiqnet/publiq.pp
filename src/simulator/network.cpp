@@ -19,25 +19,26 @@ network_simulation::~network_simulation()
 void network_simulation::add_handler(event_handler_ex& eh)
 {
     network_status.insert(std::make_pair(eh, sockets()));
-    //network_status[eh];
 }
 
 void network_simulation::remove_handler(event_handler_ex& eh)
 {
-    network_status.erase(eh);
+    network_status.erase(network_status.find(eh));
 }
 
 void network_simulation::add_socket(event_handler_ex& eh,
                                     beltpp::event_item& ev_it)
 {
-    network_status[eh].insert(ev_it, connections());
+    network_status[eh].insert(std::pair<beltpp::event_item, connections>(ev_it, connections()));
 }
 
 void network_simulation::add_connection(event_handler_ex& eh,
                                         beltpp::event_item& ev_it,
                                         beltpp::ip_address address)
 {
-    network_status[eh][ev_it].push_back(std::make_pair(address, connection_status::connection_listen), packs());
+    std::map< connection, packs > connect;
+    connect[std::make_pair(address, connection_status::connection_listen)] = packs();
+    network_status[eh][ev_it].push_back(connect);
 }
 
 bool network_simulation::change_connection_status(event_handler_ex& eh,
@@ -50,7 +51,7 @@ bool network_simulation::change_connection_status(event_handler_ex& eh,
         for (auto& connection : connections)
             if (connection.first.first == address)
             {
-                connection.first.seconde = status;
+                connection.first.second = status;
                 return true;
             }
     }
@@ -67,9 +68,9 @@ void network_simulation::send_packet(event_handler_ex& eh,
         for (auto& connection : connections)
         {
             if (connection.first.first == address &&
-                connection.first.seconde == connection_status::connection_open)
+                connection.first.second == connection_status::connection_open)
             {
-                connection.seconde.push_back(std::make_pair(packet, packet_status::sent));
+                connection.second.push_back(std::make_pair(packet, packet_status::sent));
                 return;
             }
         }
@@ -86,14 +87,14 @@ void network_simulation::receive_packet(event_handler_ex& eh,
         for (auto& connection : connections)
         {
             if (connection.first.first == address &&
-                connection.first.seconde == connection_status::connection_open)
+                connection.first.second == connection_status::connection_open)
             {
-                for (auto& item : connection.seconde)
+                for (auto& item : connection.second)
                 {
-                    if (item.seconde == packet_status::sent)
+                    if (item.second == packet_status::sent)
                     {
                         packets.push_back(item.first);
-                        item.seconde = packet_status::received;
+                        item.second = packet_status::received;
                     }
                 }
             }
@@ -104,19 +105,19 @@ void network_simulation::receive_packet(event_handler_ex& eh,
 bool network_simulation::check_packets(event_handler_ex& eh,
                                        std::unordered_set<beltpp::event_item const*>& set_items)
 {
-    bool found = false;;
+    bool found = false;
 
     for (auto& socket : network_status[eh])
     {
         found = false;
         
-        for (auto& connection : socket.seconde)
+        for (auto& connection : socket.second)
         {
-            if (connection.first.seconde == connection_status::connection_open)
+            if (connection.first.second == connection_status::connection_open)
             {
-                for (auto& pack : connection.seconde)
+                for (auto& pack : connection.second)
                 {
-                    if (pack.seconde == packet_status::sent)
+                    if (pack.second == packet_status::sent)
                         found = true;
                 }
             }
@@ -221,7 +222,7 @@ socket_ex::peer_ids socket_ex::listen(ip_address const& address,
 
     m_eh->m_ns->add_connection(*m_eh,
                                *this,
-                                address))
+                                address);
     peers.emplace_back(address_to_peer(address));
 
     return peers;
