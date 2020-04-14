@@ -29,7 +29,9 @@ void network_simulation::remove_handler(event_handler_ex& eh)
 void network_simulation::add_socket(event_handler_ex& eh,
                                     beltpp::event_item& ev_it)
 {
-    network_status[eh].insert(std::pair<beltpp::event_item, connections>(ev_it, connections()));
+    sockets socks;
+    socks[ev_it] = connections();
+    network_status[eh] = socks;
 }
 
 void network_simulation::add_connection(event_handler_ex& eh,
@@ -48,12 +50,17 @@ bool network_simulation::change_connection_status(event_handler_ex& eh,
 {
     for (auto& connections : network_status[eh][ev_it])
     {
-        for (auto& connection : connections)
-            if (connection.first.first == address)
+        auto it = connections.begin();
+        while (it != connections.end())
+        {
+            if (it->first.first == address)
             {
-                connection.first.second = status;
+                auto value = std::move(it->second);
+                connections.erase(it);
+                connections[std::make_pair(address, status)] = value;
                 return true;
             }
+        }
     }
     return false;
 }
@@ -107,24 +114,31 @@ bool network_simulation::check_packets(event_handler_ex& eh,
 {
     bool found = false;
 
-    for (auto& socket : network_status[eh])
+    auto it = network_status[eh].begin();
+    while (it != network_status[eh].end())
     {
         found = false;
         
-        for (auto& connection : socket.second)
+        for (auto& connection : it->second)
         {
-            if (connection.first.second == connection_status::connection_open)
+            for (auto& conn : connection)
             {
-                for (auto& pack : connection.second)
+                if (conn.first.second == connection_status::connection_open)
                 {
-                    if (pack.second == packet_status::sent)
-                        found = true;
+                    for (auto& pack : conn.second)
+                    {
+                        if (pack.second == packet_status::sent)
+                            found = true;
+                    }
                 }
             }
         }
 
         if (found)
-            set_items.insert(socket.first);
+        {
+            beltpp::event_item const* item = it->first;
+            set_items.insert(item);
+        }
     }
     return found;
 }
@@ -179,10 +193,13 @@ event_handler::wait_result event_handler_ex::wait(std::unordered_set<event_item 
 
 std::unordered_set<uint64_t> event_handler_ex::waited(event_item& ev_it) const
 {
+    std::unordered_set<uint64_t> set;
+    return set;
 }
 
 void event_handler_ex::wake()
 {
+    return;
 }
 
 void event_handler_ex::set_timer(std::chrono::steady_clock::duration const& period)
@@ -245,7 +262,7 @@ socket_ex::peer_ids socket_ex::open(ip_address address,
 
 void socket_ex::prepare_wait()
 {
-
+    return;
 }
 
 socket_ex::packets socket_ex::receive(peer_id& peer)
@@ -269,32 +286,36 @@ void socket_ex::send(peer_id const& peer,
 
 void socket_ex::timer_action()
 {
-
+    return;
 }
 
 socket::peer_type socket_ex::get_peer_type(peer_id const& peer)
 {
-
+    socket::peer_type type;
+    return type;
 }
 
 ip_address socket_ex::info(peer_id const& peer)
 {
-
+    ip_address addr;
+    return addr;
 }
 
 ip_address socket_ex::info_connection(peer_id const& peer)
 {
-
+    ip_address addr;
+    return addr;
 }
 
 beltpp::detail::session_special_data& socket_ex::session_data(peer_id const& peer)
 {
-
+    beltpp::detail::session_special_data m_special_data;
+    return m_special_data;
 }
 
 std::string socket_ex::dump() const
 {
-
+    return std::string();
 }
 
 }// simulator_network_impl

@@ -53,20 +53,20 @@ public:
     void remove_socket(             event_handler_ex& eh,
                                     beltpp::event_item& ev_it);
 
-    bool check_socket(              event_handler_ex& eh,
-                                    beltpp::event_item& ev_it);
+//    bool check_socket(              event_handler_ex& eh,
+//                                    beltpp::event_item& ev_it);
 
     void add_connection(            event_handler_ex& eh,
                                     beltpp::event_item& ev_it,
                                     beltpp::ip_address addres);
 
-    bool remove_connection(         event_handler_ex& eh,
-                                    beltpp::event_item& ev_it,
-                                    beltpp::ip_address address);
+//    bool remove_connection(         event_handler_ex& eh,
+//                                    beltpp::event_item& ev_it,
+//                                    beltpp::ip_address address);
 
-    bool check_concection(          event_handler_ex& eh,
-                                    beltpp::event_item& ev_it,
-                                    beltpp::ip_address address);
+//    bool check_concection(          event_handler_ex& eh,
+//                                    beltpp::event_item& ev_it,
+//                                    beltpp::ip_address address);
 
     bool change_connection_status(  event_handler_ex& eh,
                                     beltpp::event_item& ev_it,
@@ -86,13 +86,13 @@ public:
     bool check_packets(             event_handler_ex& eh,
                                     std::unordered_set<beltpp::event_item const*>& set_items);
 
-    bool change_packet_status(      event_handler_ex& eh,
-                                    beltpp::event_item& ev_it,
-                                    beltpp::ip_address address,
-                                    beltpp::socket::packets packets,
-                                    packet_status status);
+//    bool change_packet_status(      event_handler_ex& eh,
+//                                    beltpp::event_item& ev_it,
+//                                    beltpp::ip_address address,
+//                                    beltpp::socket::packets packets,
+//                                    packet_status status);
 
-    void dump_network();
+//    void dump_network();
 };
 
 class event_handler_ex : public beltpp::event_handler
