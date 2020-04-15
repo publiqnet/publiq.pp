@@ -45,18 +45,21 @@ bool network_simulation::change_connection_status(event_handler_ns& eh,
                                                   beltpp::ip_address address,
                                                   connection_status status)
 {
+    B_UNUSED(address);
+    B_UNUSED(status);
+
     for (auto& connections : network_status[eh][ev_it])
     {
         auto it = connections.begin();
         while (it != connections.end())
         {
-            if (it->first.first == address)
-            {
-                auto value = std::move(it->second);
-                connections.erase(it);
-                connections[std::make_pair(address, status)] = value;
-                return true;
-            }
+            //if (it->first.first == address)
+            //{
+            //    auto value = std::move(it->second);
+            //    connections.erase(it);
+            //    connections[std::make_pair(address, status)] = value;
+            //    return true;
+            //}
         }
     }
     return false;
@@ -67,16 +70,21 @@ void network_simulation::send_packet(event_handler_ns& eh,
                                      beltpp::ip_address address,
                                      beltpp::packet const& packet)
 {
+    B_UNUSED(address);
+    B_UNUSED(packet);
+
     for (auto& connections : network_status[eh][ev_it])
     {
         for (auto& connection : connections)
         {
-            if (connection.first.first == address &&
-                connection.first.second == connection_status::connection_open)
-            {
-                connection.second.push_back(std::make_pair(packet, packet_status::sent));
-                return;
-            }
+            B_UNUSED(connection);
+
+            //if (connection.first.first == address &&
+            //    connection.first.second == connection_status::connection_open)
+            //{
+            //    connection.second.push_back(std::make_pair(packet, packet_status::sent));
+            //    return;
+            //}
         }
     }
 }
@@ -86,22 +94,27 @@ void network_simulation::receive_packet(event_handler_ns& eh,
                                         beltpp::ip_address address,
                                         beltpp::socket::packets& packets)
 {
+    B_UNUSED(address);
+    B_UNUSED(packets);
+
     for (auto& connections : network_status[eh][ev_it])
     {
         for (auto& connection : connections)
         {
-            if (connection.first.first == address &&
-                connection.first.second == connection_status::connection_open)
-            {
-                for (auto& item : connection.second)
-                {
-                    if (item.second == packet_status::sent)
-                    {
-                        packets.push_back(item.first);
-                        item.second = packet_status::received;
-                    }
-                }
-            }
+            B_UNUSED(connection);
+
+            //if (connection.first.first == address &&
+            //    connection.first.second == connection_status::connection_open)
+            //{
+            //    for (auto& item : connection.second)
+            //    {
+            //        if (item.second == packet_status::sent)
+            //        {
+            //            packets.push_back(item.first);
+            //            item.second = packet_status::received;
+            //        }
+            //    }
+            //}
         }
     }
 }
@@ -133,8 +146,8 @@ bool network_simulation::check_packets(event_handler_ns& eh,
 
         if (found)
         {
-            beltpp::event_item const* item = it->first;
-            set_items.insert(item);
+            //beltpp::event_item const* item = it->first;
+            //set_items.insert(item);
         }
     }
     return found;
@@ -144,7 +157,8 @@ bool network_simulation::check_packets(event_handler_ns& eh,
 //  event_handler_ns implementation
 //
 
-event_handler_ns::event_handler_ns(network_simulation& ns) : m_ns (&ns)
+event_handler_ns::event_handler_ns(network_simulation& ns) 
+    : m_ns (&ns)
 {
     m_ns->add_handler(*this);
 }
@@ -185,18 +199,21 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
 
 //    if (on_timer &&
 //        on_event)
+
         return event_handler_ns::timer_out_and_event;
 }
 
 std::unordered_set<uint64_t> event_handler_ns::waited(event_item& ev_it) const
 {
     std::unordered_set<uint64_t> set;
+
+    //TODO
+
     return set;
 }
 
 void event_handler_ns::wake()
 {
-    return;
 }
 
 void event_handler_ns::set_timer(std::chrono::steady_clock::duration const& period)
@@ -256,7 +273,6 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t attempts/* = 0*/)
 
 void socket_ns::prepare_wait()
 {
-    return;
 }
 
 socket_ns::packets socket_ns::receive(peer_id& peer)
@@ -279,30 +295,41 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 
 void socket_ns::timer_action()
 {
-    return;
 }
 
 socket::peer_type socket_ns::get_peer_type(peer_id const& peer)
 {
     socket::peer_type type;
+
+    //TODO
+
     return type;
 }
 
 ip_address socket_ns::info(peer_id const& peer)
 {
     ip_address addr;
+
+    //TODO
+
     return addr;
 }
 
 ip_address socket_ns::info_connection(peer_id const& peer)
 {
     ip_address addr;
+
+    //TODO
+
     return addr;
 }
 
 beltpp::detail::session_special_data& socket_ns::session_data(peer_id const& peer)
 {
     beltpp::detail::session_special_data m_special_data;
+
+    //TODO
+
     return m_special_data;
 }
 
