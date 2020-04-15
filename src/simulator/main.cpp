@@ -271,10 +271,10 @@ int main()
             if (enable_inbox)
                 fs_inbox = meshpp::data_directory_path("inbox");
 
-            event_handler_ex* peh = new event_handler_ex(ns);
+            event_handler_ns* peh = new event_handler_ns(ns);
             unique_ptr<beltpp::event_handler> inject_eh(peh);
-            unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ex(*peh));
-            unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ex(*peh));
+            unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh));
+            unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh));
 
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
