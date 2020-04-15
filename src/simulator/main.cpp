@@ -32,7 +32,7 @@
 
 #include <csignal>
 
-using namespace simulator_network_impl;
+using namespace network_simulation_impl;
 
 using namespace BlockchainMessage;
 namespace program_options = boost::program_options;

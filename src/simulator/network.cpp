@@ -1,6 +1,6 @@
 #include "network.hpp"
 
-namespace simulator_network_impl
+namespace network_simulation_impl
 {
 
 //  network_simulation
@@ -8,12 +8,10 @@ namespace simulator_network_impl
 
 network_simulation::network_simulation()
 {
-
 }
 
 network_simulation::~network_simulation()
 {
-
 }
 
 void network_simulation::add_handler(event_handler_ns& eh)
@@ -26,8 +24,7 @@ void network_simulation::remove_handler(event_handler_ns& eh)
     network_status.erase(network_status.find(eh));
 }
 
-void network_simulation::add_socket(event_handler_ns& eh,
-                                    beltpp::event_item& ev_it)
+void network_simulation::add_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
 {
     sockets socks;
     socks[ev_it] = connections();
@@ -223,17 +220,15 @@ void event_handler_ns::remove(beltpp::event_item& ev_it)
 
 socket_ns::socket_ns(event_handler_ns& eh)
     : socket(eh)
+    , m_eh(&eh)
 {
-    m_eh = &eh;
 }
 
 socket_ns::~socket_ns()
 {
-
 }
 
-socket_ns::peer_ids socket_ns::listen(ip_address const& address,
-                                      int backlog/* = 100*/)
+socket_ns::peer_ids socket_ns::listen(ip_address const& address, int backlog/* = 100*/)
 {
     peer_ids peers;
 
@@ -245,8 +240,7 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address,
     return peers;
 }
 
-socket_ns::peer_ids socket_ns::open(ip_address address,
-                                    size_t attempts/* = 0*/)
+socket_ns::peer_ids socket_ns::open(ip_address address, size_t attempts/* = 0*/)
 {
     network_simulation::connection_status status = network_simulation::connection_status::connection_open;
     peer_ids peers;
@@ -275,8 +269,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     return result;
 }
 
-void socket_ns::send(peer_id const& peer,
-                     beltpp::packet&& pack)
+void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 {
      m_eh->m_ns->send_packet(*m_eh,
                              *this,
@@ -315,7 +308,7 @@ beltpp::detail::session_special_data& socket_ns::session_data(peer_id const& pee
 
 std::string socket_ns::dump() const
 {
-    return std::string();
+    return std::string("dump is not implemented yet!");
 }
 
-}// simulator_network_impl
+}// network_simulation_impl

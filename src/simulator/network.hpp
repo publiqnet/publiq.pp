@@ -15,23 +15,22 @@
 #include <exception>
 #include <string>
 
-using beltpp::event_handler;
-using beltpp::event_item;
+using beltpp::packet;
 using beltpp::socket;
 using beltpp::ip_address;
-using beltpp::packet;
+using beltpp::event_item;
+using beltpp::event_handler;
 
-namespace simulator_network_impl
+namespace network_simulation_impl
 {
-
 class event_handler_ns;
 
 class network_simulation
 {
 public:
 
-    enum class connection_status    {connection_listen, connection_open};
-    enum class packet_status        {received, sent};
+    enum class packet_status        { received, sent };
+    enum class connection_status    { connection_listen, connection_open };
 
     using packs         = std::list< std::pair< beltpp::packet, packet_status > >;
     using connection    = std::pair< beltpp::ip_address, connection_status >;
@@ -123,18 +122,15 @@ public:
     socket_ns(event_handler_ns& eh);
     ~socket_ns() override;
 
-    peer_ids listen(beltpp::ip_address const& address,
-                    int backlog = 100) override;
+    peer_ids listen(beltpp::ip_address const& address, int backlog = 100) override;
 
-    peer_ids open(beltpp::ip_address address,
-                  size_t attempts = 0) override;
+    peer_ids open(beltpp::ip_address address, size_t attempts = 0) override;
 
     void prepare_wait() override;
 
     packets receive(peer_id& peer) override;
 
-    void send(peer_id const& peer,
-              beltpp::packet&& pack) override;
+    void send(peer_id const& peer, beltpp::packet&& pack) override;
 
     void timer_action() override;
 
@@ -153,6 +149,6 @@ private:
 beltpp::ip_address peer_to_address(beltpp::socket::peer_id id);
 beltpp::socket::peer_id address_to_peer(beltpp::ip_address address);
 
-}// simulator_network_impl
+}// network_simulation_impl
 
 
