@@ -323,11 +323,9 @@ ip_address socket_ns::info_connection(peer_id const& /*peer*/)
 
 beltpp::detail::session_special_data& socket_ns::session_data(peer_id const& /*peer*/)
 {
-    beltpp::detail::session_special_data special_data;
-
     //TODO
 
-    return special_data;
+    return temp_special_data;
 }
 
 std::string socket_ns::dump() const

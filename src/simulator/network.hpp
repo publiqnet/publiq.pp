@@ -127,6 +127,7 @@ public:
 
 private:
     event_handler_ns* m_eh;
+    beltpp::detail::session_special_data temp_special_data;
 };
 
 
