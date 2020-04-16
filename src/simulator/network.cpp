@@ -247,10 +247,7 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& /*address*/, int /*backl
 {
     peer_ids peers;
 
-//    m_eh->m_ns->add_connection(*m_eh,
-//                               *this,
-//                                address);
-//    peers.emplace_back(address_to_peer(address));
+
 
     return peers;
 }
