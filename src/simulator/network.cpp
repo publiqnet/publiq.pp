@@ -243,7 +243,7 @@ socket_ns::~socket_ns()
 {
 }
 
-socket_ns::peer_ids socket_ns::listen(ip_address const& /*address*/, int /*backlog/* = 100*/)
+socket_ns::peer_ids socket_ns::listen(ip_address const& /*address*/, int /*backlog = 100*/)
 {
     peer_ids peers;
 
@@ -255,7 +255,7 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& /*address*/, int /*backl
     return peers;
 }
 
-socket_ns::peer_ids socket_ns::open(ip_address /*address*/, size_t /*attempts/* = 0*/)
+socket_ns::peer_ids socket_ns::open(ip_address /*address*/, size_t /*attempts = 0*/)
 {
     peer_ids peers;
 

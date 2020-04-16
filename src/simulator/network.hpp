@@ -126,7 +126,7 @@ public:
     std::string dump() const override;
 
 private:
-    event_handler_ns* m_eh;
+    [[maybe_unused]] event_handler_ns* m_eh;
     beltpp::detail::session_special_data temp_special_data;
 };
 
