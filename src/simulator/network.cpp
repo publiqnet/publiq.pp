@@ -16,30 +16,30 @@ network_simulation::~network_simulation()
 
 void network_simulation::add_handler(event_handler_ns& eh)
 {
-    B_UNUSED(eh);
+    B_UNUSED(eh)
 
     //TODO
 }
 
 void network_simulation::remove_handler(event_handler_ns& eh)
 {
-    B_UNUSED(eh);
+    B_UNUSED(eh)
 
     //TODO
 }
 
 void network_simulation::add_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
 {
-    B_UNUSED(eh);
-    B_UNUSED(ev_it);
+    B_UNUSED(eh)
+    B_UNUSED(ev_it)
 
     //TODO
 }
 
 void network_simulation::remove_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
 {
-    B_UNUSED(eh);
-    B_UNUSED(ev_it);
+    B_UNUSED(eh)
+    B_UNUSED(ev_it)
 
     //TODO
 }
@@ -83,7 +83,7 @@ void network_simulation::send_packet(event_handler_ns& eh,
                                      ip_address const& to_address,
                                      packet const& packet)
 {
-    B_UNUSED(eh);
+    B_UNUSED(eh)
     ip_address from_address;//TODO find it, use eh
 
     auto from_it = send_receive_status.find(from_address);
@@ -95,7 +95,7 @@ void network_simulation::send_packet(event_handler_ns& eh,
     if(to_it == to.end())
         throw std::exception();//TODO
 
-    B_UNUSED(packet);
+    B_UNUSED(packet)
     //to_it->second.emplace_back(packet);
 }
 
@@ -106,7 +106,7 @@ void network_simulation::receive_packet(event_handler_ns& eh,
 {
     packets.clear();
 
-    B_UNUSED(eh);
+    B_UNUSED(eh)
     ip_address to_address;//TODO find it, use eh
 
     auto from_it = send_receive_status.find(from_address);
@@ -118,7 +118,7 @@ void network_simulation::receive_packet(event_handler_ns& eh,
     if (to_it == to.end())
         throw std::exception();//TODO
 
-    B_UNUSED(packets);
+    B_UNUSED(packets)
     //packets.emplace_back(to_it->second);
     to_it->second.clear();
 }
@@ -271,7 +271,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 
 void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 {
-    B_UNUSED(peer);
+    B_UNUSED(peer)
     m_eh->m_ns->send_packet(*m_eh,
                             //*this,
                             ip_address(),// peer_to_address(peer),
