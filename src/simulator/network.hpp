@@ -144,14 +144,10 @@ public:
 
 private:
     event_handler_ns* m_eh;
-    network_simulation* m_ns;
+    //network_simulation* m_ns;
 
     beltpp::detail::session_special_data temp_special_data;
 };
-
-
-beltpp::ip_address peer_to_address(beltpp::socket::peer_id id);
-beltpp::socket::peer_id address_to_peer(beltpp::ip_address address);
 
 }// network_simulation_impl
 

@@ -75,12 +75,12 @@ void network_simulation::send_packet(event_handler_ns& eh,
 
     auto from_it = send_receive_status.find(from_address);
     if (from_it == send_receive_status.end())
-        throw std::exception("no connection");//TODO
+        throw std::exception();//TODO
 
     auto& to = from_it->second;
     auto to_it = to.find(to_address);
     if(to_it == to.end())
-        throw std::exception("no connection");//TODO
+        throw std::exception();//TODO
 
     B_UNUSED(packet);
     //to_it->second.emplace_back(packet);
@@ -98,12 +98,12 @@ void network_simulation::receive_packet(event_handler_ns& eh,
 
     auto from_it = send_receive_status.find(from_address);
     if (from_it == send_receive_status.end())
-        throw std::exception("no connection");//TODO
+        throw std::exception();//TODO
 
     auto& to = from_it->second;
     auto to_it = to.find(to_address);
     if (to_it == to.end())
-        throw std::exception("no connection");//TODO
+        throw std::exception();//TODO
 
     B_UNUSED(packets);
     //packets.emplace_back(to_it->second);
