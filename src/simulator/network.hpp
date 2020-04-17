@@ -15,6 +15,11 @@
 #include <exception>
 #include <string>
 
+using std::map;
+using std::pair;
+using std::list;
+using std::vector;
+
 using beltpp::packet;
 using beltpp::socket;
 using beltpp::ip_address;
@@ -23,21 +28,33 @@ using beltpp::event_handler;
 
 namespace network_simulation_impl
 {
+class socket_ns;
 class event_handler_ns;
 
 class network_simulation
 {
 public:
+    using peer_type = beltpp::socket::peer_type;
 
-    std::map< beltpp::ip_address, std::map<beltpp::ip_address, std::vector<beltpp::packet>>> network_status;
+    struct ip_cmp
+    {
+        bool operator()(const ip_address& a, const ip_address& b) const
+        {
+            return a.to_string() < b.to_string();
+        }
+    };
+
+    //  from_addr       to_addr     packets
+    map<ip_address, map<ip_address, list<packet>, ip_cmp>, ip_cmp> send_receive_status;
+
 
     network_simulation();
     ~network_simulation();
 
-//    void add_handler(               event_handler_ns& eh);
-//
-//    void remove_handler(            event_handler_ns& eh);
-//
+    void add_handler(               event_handler_ns& eh);
+
+    void remove_handler(            event_handler_ns& eh);
+
 //    void add_socket(                event_handler_ns& eh,
 //                                    beltpp::event_item& ev_it);
 //
@@ -63,13 +80,13 @@ public:
 //                                    beltpp::event_item& ev_it,
 //                                    beltpp::ip_address address,
 //                                    connection_status status);
-//
-//    void send_packet(               event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it,
-//                                    beltpp::ip_address address,
-//                                    beltpp::packet const& packets);
-//
-//    void receive_packet(            event_handler_ns& eh,
+
+    void send_packet(               event_handler_ns& eh,
+                                    //beltpp::event_item& ev_it,
+                                    beltpp::ip_address to_address,
+                                    beltpp::packet const& packets);
+
+    //    void receive_packet(            event_handler_ns& eh,
 //                                    beltpp::event_item& ev_it,
 //                                    beltpp::ip_address address,
 //                                    beltpp::socket::packets& packets);
@@ -126,7 +143,9 @@ public:
     std::string dump() const override;
 
 private:
-    [[maybe_unused]] event_handler_ns* m_eh;
+    event_handler_ns* m_eh;
+    network_simulation* m_ns;
+
     beltpp::detail::session_special_data temp_special_data;
 };
 
