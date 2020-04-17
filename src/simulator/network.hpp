@@ -91,8 +91,8 @@ public:
                                     beltpp::ip_address const& address,
                                     beltpp::socket::packets& packets);
 
-//    bool check_packets(             event_handler_ns& eh,
-//                                    std::unordered_set<beltpp::event_item const*>& set_items);
+    bool check_packets(             event_handler_ns& eh,
+                                    std::unordered_set<beltpp::event_item const*>& set_items);
 };
 
 class event_handler_ns : public beltpp::event_handler

@@ -110,39 +110,19 @@ void network_simulation::receive_packet(event_handler_ns& eh,
     to_it->second.clear();
 }
 
-//bool network_simulation::check_packets(event_handler_ns& eh,
-//                                       std::unordered_set<beltpp::event_item const*>& set_items)
-//{
-//    bool found = false;
-//
-//    auto it = network_status[eh].begin();
-//    while (it != network_status[eh].end())
-//    {
-//        found = false;
-//        
-//        for (auto& connection : it->second)
-//        {
-//            for (auto& conn : connection)
-//            {
-//                if (conn.first.second == connection_status::connection_open)
-//                {
-//                    for (auto& pack : conn.second)
-//                    {
-//                        if (pack.second == packet_status::sent)
-//                            found = true;
-//                    }
-//                }
-//            }
-//        }
-//
-//        if (found)
-//        {
-//            //beltpp::event_item const* item = it->first;
-//            //set_items.insert(item);
-//        }
-//    }
-//    return found;
-//}
+bool network_simulation::check_packets(event_handler_ns& eh,
+                                       std::unordered_set<beltpp::event_item const*>& set_items)
+{
+    B_UNUSED(eh)
+    B_UNUSED(set_items)
+
+    for (auto const& from_it : send_receive_status)
+        for(auto const& to_if : from_it.second)
+            if (false == to_if.second.empty())
+                return true;
+
+    return false;
+}
 
 
 //  event_handler_ns implementation
@@ -167,7 +147,7 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
         return event_handler_ns::timer_out;
     }
 
-    bool on_event = false;// m_ns->check_packets(*this, set_items);
+    bool on_event = m_ns->check_packets(*this, set_items);
 
     bool on_timer = m_timer_helper.expired();
 
