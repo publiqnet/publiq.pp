@@ -14,23 +14,36 @@ network_simulation::~network_simulation()
 {
 }
 
-void network_simulation::add_handler(event_handler_ns& /*eh*/)
+void network_simulation::add_handler(event_handler_ns& eh)
 {
+    B_UNUSED(eh);
+
     //TODO
 }
 
-void network_simulation::remove_handler(event_handler_ns& /*eh*/)
+void network_simulation::remove_handler(event_handler_ns& eh)
 {
+    B_UNUSED(eh);
+
     //TODO
 }
 
-//void network_simulation::add_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
-//{
-//    sockets socks;
-//    socks[ev_it] = connections();
-//    network_status[eh] = socks;
-//}
-//
+void network_simulation::add_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
+{
+    B_UNUSED(eh);
+    B_UNUSED(ev_it);
+
+    //TODO
+}
+
+void network_simulation::remove_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
+{
+    B_UNUSED(eh);
+    B_UNUSED(ev_it);
+
+    //TODO
+}
+
 //void network_simulation::add_connection(event_handler_ns& eh,
 //                                        beltpp::event_item& ev_it,
 //                                        beltpp::ip_address address)
@@ -131,10 +144,12 @@ bool network_simulation::check_packets(event_handler_ns& eh,
 event_handler_ns::event_handler_ns(network_simulation& ns) 
     : m_ns (&ns)
 {
+    m_ns->add_handler(*this);
 }
 
 event_handler_ns::~event_handler_ns()
 {
+    m_ns->remove_handler(*this);
 }
 
 event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item const*>& set_items)
@@ -204,11 +219,14 @@ void event_handler_ns::remove(beltpp::event_item& /*ev_it*/)
 socket_ns::socket_ns(event_handler_ns& eh)
     : socket(eh)
     , m_eh(&eh)
+    , m_ns(eh.m_ns)
 {
+    m_ns->add_socket(*m_eh, *this);
 }
 
 socket_ns::~socket_ns()
 {
+    m_ns->remove_socket(*m_eh, *this);
 }
 
 socket_ns::peer_ids socket_ns::listen(ip_address const& /*address*/, int /*backlog = 100*/)

@@ -55,12 +55,12 @@ public:
 
     void remove_handler(            event_handler_ns& eh);
 
-//    void add_socket(                event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it);
-//
-//    void remove_socket(             event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it);
-//
+    void add_socket(                event_handler_ns& eh,
+                                    beltpp::event_item& ev_it);
+
+    void remove_socket(             event_handler_ns& eh,
+                                    beltpp::event_item& ev_it);
+
 //    bool check_socket(              event_handler_ns& eh,
 //                                    beltpp::event_item& ev_it);
 //
@@ -144,7 +144,7 @@ public:
 
 private:
     event_handler_ns* m_eh;
-    //network_simulation* m_ns;
+    network_simulation* m_ns;
 
     beltpp::detail::session_special_data temp_special_data;
 };
