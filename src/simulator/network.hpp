@@ -28,6 +28,9 @@ using beltpp::event_handler;
 
 namespace network_simulation_impl
 {
+
+beltpp::ip_address peer_to_address(beltpp::socket::peer_id id);
+
 class socket_ns;
 class event_handler_ns;
 

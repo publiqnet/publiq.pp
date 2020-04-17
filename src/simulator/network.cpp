@@ -3,6 +3,20 @@
 namespace network_simulation_impl
 {
 
+beltpp::ip_address peer_to_address(beltpp::socket::peer_id id)
+{
+    size_t delimiter_index = id.find("<=>");
+    std::string str_address;
+    if (std::string::npos != delimiter_index)
+        str_address = id.substr(delimiter_index + 3);
+    else
+        throw std::exception();
+
+    beltpp::ip_address address;
+    address.from_string(str_address);
+
+    return address;
+}
 //  network_simulation
 //
 
@@ -130,8 +144,8 @@ bool network_simulation::check_packets(event_handler_ns& eh,
     B_UNUSED(set_items)
 
     for (auto const& from_it : send_receive_status)
-        for(auto const& to_if : from_it.second)
-            if (false == to_if.second.empty())
+        for(auto const& to_it : from_it.second)
+            if (false == to_it.second.empty())
                 return true;
 
     return false;
@@ -258,12 +272,12 @@ void socket_ns::prepare_wait()
 socket_ns::packets socket_ns::receive(peer_id& peer)
 {
     socket_ns::packets result;
-    
+
     peer = peer_id();
 
     m_eh->m_ns->receive_packet(*m_eh,
                                //*this,
-                               ip_address(),
+                               peer_to_address(peer),
                                result);
 
     return result;
@@ -272,9 +286,10 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 {
     B_UNUSED(peer)
+
     m_eh->m_ns->send_packet(*m_eh,
                             //*this,
-                            ip_address(),// peer_to_address(peer),
+                            peer_to_address(peer),
                             pack);
 }
 
