@@ -67,7 +67,7 @@ void network_simulation::remove_handler(event_handler_ns& /*eh*/)
 
 void network_simulation::send_packet(event_handler_ns& eh,
                                      //beltpp::event_item& ev_it,
-                                     ip_address to_address,
+                                     ip_address const& to_address,
                                      packet const& packet)
 {
     B_UNUSED(eh);
@@ -86,36 +86,30 @@ void network_simulation::send_packet(event_handler_ns& eh,
     //to_it->second.emplace_back(packet);
 }
 
-//void network_simulation::receive_packet(event_handler_ns& eh,
-//                                        beltpp::event_item& ev_it,
-//                                        beltpp::ip_address address,
-//                                        beltpp::socket::packets& packets)
-//{
-//    B_UNUSED(address);
-//    B_UNUSED(packets);
-//
-//    for (auto& connections : network_status[eh][ev_it])
-//    {
-//        for (auto& connection : connections)
-//        {
-//            B_UNUSED(connection);
-//
-//            //if (connection.first.first == address &&
-//            //    connection.first.second == connection_status::connection_open)
-//            //{
-//            //    for (auto& item : connection.second)
-//            //    {
-//            //        if (item.second == packet_status::sent)
-//            //        {
-//            //            packets.push_back(item.first);
-//            //            item.second = packet_status::received;
-//            //        }
-//            //    }
-//            //}
-//        }
-//    }
-//}
-//
+void network_simulation::receive_packet(event_handler_ns& eh,
+                                        //beltpp::event_item& ev_it,
+                                        beltpp::ip_address const& from_address,
+                                        beltpp::socket::packets& packets)
+{
+    packets.clear();
+
+    B_UNUSED(eh);
+    ip_address to_address;//TODO find it, use eh
+
+    auto from_it = send_receive_status.find(from_address);
+    if (from_it == send_receive_status.end())
+        throw std::exception("no connection");//TODO
+
+    auto& to = from_it->second;
+    auto to_it = to.find(to_address);
+    if (to_it == to.end())
+        throw std::exception("no connection");//TODO
+
+    B_UNUSED(packets);
+    //packets.emplace_back(to_it->second);
+    to_it->second.clear();
+}
+
 //bool network_simulation::check_packets(event_handler_ns& eh,
 //                                       std::unordered_set<beltpp::event_item const*>& set_items)
 //{
@@ -269,7 +263,10 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     
     peer = peer_id();
 
-
+    m_eh->m_ns->receive_packet(*m_eh,
+                               //*this,
+                               ip_address(),
+                               result);
 
     return result;
 }
@@ -278,9 +275,9 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 {
     B_UNUSED(peer);
     m_eh->m_ns->send_packet(*m_eh,
-                             //*this,
-                             ip_address(),// peer_to_address(peer),
-                             pack);
+                            //*this,
+                            ip_address(),// peer_to_address(peer),
+                            pack);
 }
 
 void socket_ns::timer_action()

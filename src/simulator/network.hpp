@@ -83,14 +83,14 @@ public:
 
     void send_packet(               event_handler_ns& eh,
                                     //beltpp::event_item& ev_it,
-                                    beltpp::ip_address to_address,
+                                    beltpp::ip_address const& to_address,
                                     beltpp::packet const& packets);
 
-    //    void receive_packet(            event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it,
-//                                    beltpp::ip_address address,
-//                                    beltpp::socket::packets& packets);
-//
+    void receive_packet(            event_handler_ns& eh,
+                                    //beltpp::event_item& ev_it,
+                                    beltpp::ip_address const& address,
+                                    beltpp::socket::packets& packets);
+
 //    bool check_packets(             event_handler_ns& eh,
 //                                    std::unordered_set<beltpp::event_item const*>& set_items);
 };
