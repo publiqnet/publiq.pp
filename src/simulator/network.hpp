@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
+#include <set>
 #include <vector>
 #include <list>
 #include <exception>
@@ -18,13 +19,21 @@
 using std::map;
 using std::pair;
 using std::list;
+using std::string;
 using std::vector;
+using std::unordered_map;
+using std::unordered_set;
 
 using beltpp::packet;
 using beltpp::socket;
 using beltpp::ip_address;
 using beltpp::event_item;
 using beltpp::event_handler;
+using beltpp::ip_destination;
+
+using peer_id = beltpp::socket::peer_id;
+using peer_ids = beltpp::socket::peer_ids;
+using peer_type = beltpp::socket::peer_type;
 
 namespace network_simulation_impl
 {
@@ -37,9 +46,8 @@ class event_handler_ns;
 class network_simulation
 {
 public:
-    using peer_type = beltpp::socket::peer_type;
 
-    struct ip_cmp
+    struct ip_addr_cmp
     {
         bool operator()(const ip_address& a, const ip_address& b) const
         {
@@ -47,9 +55,21 @@ public:
         }
     };
 
-    //  from_addr       to_addr     packets
-    map<ip_address, map<ip_address, list<packet>, ip_cmp>, ip_cmp> send_receive_status;
+    struct ip_dest_cmp
+    {
+        bool operator()(const ip_destination& a, const ip_destination& b) const
+        {
+            return a.address + ":" + std::to_string(a.port) < b.address + ":" + std::to_string(b.port);
+        }
+    };
 
+    //  from_addr       to_addr     packets
+    map<ip_address, map<ip_address, list<packet>, ip_addr_cmp>, ip_addr_cmp> send_receive;
+
+    map<ip_destination, peer_id, ip_dest_cmp> listen_attempts;
+    map<ip_destination, pair<peer_id, size_t>, ip_dest_cmp> open_attempts;
+
+    map<peer_id, ip_address> peer_to_ip;
 
     network_simulation();
     ~network_simulation();
@@ -84,16 +104,6 @@ public:
 //                                    beltpp::ip_address address,
 //                                    connection_status status);
 
-    void send_packet(               event_handler_ns& eh,
-                                    //beltpp::event_item& ev_it,
-                                    beltpp::ip_address const& to_address,
-                                    beltpp::packet const& packets);
-
-    void receive_packet(            event_handler_ns& eh,
-                                    //beltpp::event_item& ev_it,
-                                    beltpp::ip_address const& address,
-                                    beltpp::socket::packets& packets);
-
     bool check_packets(             event_handler_ns& eh,
                                     std::unordered_set<beltpp::event_item const*>& set_items);
 };
@@ -120,8 +130,6 @@ public:
 class socket_ns : public beltpp::socket
 {
 public:
-    using peer_id = socket::peer_id;
-    using peer_ids = socket::peer_ids;
 
     socket_ns(event_handler_ns& eh);
     ~socket_ns() override;
@@ -146,6 +154,7 @@ public:
     std::string dump() const override;
 
 private:
+    size_t index = 0;
     event_handler_ns* m_eh;
     network_simulation* m_ns;
 
