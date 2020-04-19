@@ -84,26 +84,6 @@ public:
     void remove_socket(             event_handler_ns& eh,
                                     beltpp::event_item& ev_it);
 
-//    bool check_socket(              event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it);
-//
-//    void add_connection(            event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it,
-//                                    beltpp::ip_address addres);
-//
-//    bool remove_connection(         event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it,
-//                                    beltpp::ip_address address);
-//
-//    bool check_concection(          event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it,
-//                                    beltpp::ip_address address);
-//
-//    bool change_connection_status(  event_handler_ns& eh,
-//                                    beltpp::event_item& ev_it,
-//                                    beltpp::ip_address address,
-//                                    connection_status status);
-
     bool check_packets(             event_handler_ns& eh,
                                     std::unordered_set<beltpp::event_item const*>& set_items);
 };

@@ -58,40 +58,6 @@ void network_simulation::remove_socket(event_handler_ns& eh, beltpp::event_item&
     //TODO
 }
 
-//void network_simulation::add_connection(event_handler_ns& eh,
-//                                        beltpp::event_item& ev_it,
-//                                        beltpp::ip_address address)
-//{
-//    std::map< connection, packs > connect;
-//    connect[std::make_pair(address, connection_status::connection_listen)] = packs();
-//    network_status[eh][ev_it].push_back(connect);
-//}
-//
-//bool network_simulation::change_connection_status(event_handler_ns& eh,
-//                                                  beltpp::event_item& ev_it,
-//                                                  beltpp::ip_address address,
-//                                                  connection_status status)
-//{
-//    B_UNUSED(address);
-//    B_UNUSED(status);
-//
-//    for (auto& connections : network_status[eh][ev_it])
-//    {
-//        auto it = connections.begin();
-//        while (it != connections.end())
-//        {
-//            //if (it->first.first == address)
-//            //{
-//            //    auto value = std::move(it->second);
-//            //    connections.erase(it);
-//            //    connections[std::make_pair(address, status)] = value;
-//            //    return true;
-//            //}
-//        }
-//    }
-//    return false;
-//}
-
 bool network_simulation::check_packets(event_handler_ns& eh,
                                        std::unordered_set<beltpp::event_item const*>& set_items)
 {
@@ -304,29 +270,29 @@ void socket_ns::timer_action()
 
 socket::peer_type socket_ns::get_peer_type(peer_id const& /*peer*/)
 {
-    socket::peer_type type = socket::peer_type::listening;
-
     //TODO
+
+    socket::peer_type type = socket::peer_type::streaming_opened;
 
     return type;
 }
 
-ip_address socket_ns::info(peer_id const& /*peer*/)
+ip_address socket_ns::info(peer_id const& peer)
 {
-    ip_address addr;
+    if(m_ns->peer_to_ip.find(peer) != m_ns->peer_to_ip.end())
+        return m_ns->peer_to_ip[peer];
 
-    //TODO
-
-    return addr;
+    throw std::runtime_error("info() unknown peer " + peer);
 }
 
-ip_address socket_ns::info_connection(peer_id const& /*peer*/)
+ip_address socket_ns::info_connection(peer_id const& peer)
 {
-    ip_address addr;
-
     //TODO
 
-    return addr;
+    if (m_ns->peer_to_ip.find(peer) != m_ns->peer_to_ip.end())
+        return m_ns->peer_to_ip[peer];
+
+    throw std::runtime_error("info() unknown peer " + peer);
 }
 
 beltpp::detail::session_special_data& socket_ns::session_data(peer_id const& /*peer*/)
