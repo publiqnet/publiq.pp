@@ -17,6 +17,7 @@
 #include <string>
 
 using std::map;
+using std::set;
 using std::pair;
 using std::list;
 using std::string;
@@ -71,21 +72,15 @@ public:
 
     map<peer_id, ip_address> peer_to_ip;
 
+    map<event_handler_ns*, unordered_set<beltpp::event_item*>> handler_to_sockets;
+
+    size_t connection_index = 0;
+
     network_simulation();
     ~network_simulation();
 
-    void add_handler(               event_handler_ns& eh);
-
-    void remove_handler(            event_handler_ns& eh);
-
-    void add_socket(                event_handler_ns& eh,
-                                    beltpp::event_item& ev_it);
-
-    void remove_socket(             event_handler_ns& eh,
-                                    beltpp::event_item& ev_it);
-
-    bool check_packets(             event_handler_ns& eh,
-                                    std::unordered_set<beltpp::event_item const*>& set_items);
+    void check_packets(     event_handler_ns& eh,
+                            std::unordered_set<beltpp::event_item const*>& wait_sockets);
 };
 
 class event_handler_ns : public beltpp::event_handler
@@ -94,7 +89,7 @@ public:
     event_handler_ns(network_simulation& ns);
     ~event_handler_ns() override;
 
-    wait_result wait(std::unordered_set<beltpp::event_item const*>& set_items) override;
+    wait_result wait(std::unordered_set<beltpp::event_item const*>& event_items) override;
     std::unordered_set<uint64_t> waited(beltpp::event_item& ev_it) const override;
 
     void wake() override;
@@ -134,7 +129,6 @@ public:
     std::string dump() const override;
 
 private:
-    size_t index = 0;
     event_handler_ns* m_eh;
     network_simulation* m_ns;
 

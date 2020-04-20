@@ -28,48 +28,43 @@ network_simulation::~network_simulation()
 {
 }
 
-void network_simulation::add_handler(event_handler_ns& eh)
+void network_simulation::check_packets(event_handler_ns& eh,
+                                       std::unordered_set<beltpp::event_item const*>& wait_sockets)
 {
-    B_UNUSED(eh)
+    B_UNUSED(eh);
 
-    //TODO
-}
+    wait_sockets.clear();
 
-void network_simulation::remove_handler(event_handler_ns& eh)
-{
-    B_UNUSED(eh)
+    ip_address to_address;//TODO
 
-    //TODO
-}
+    auto open_it = open_attempts.find(to_address.remote);
+    if (open_it != open_attempts.end())
+    {
+        ip_address from_address;//TODO
 
-void network_simulation::add_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
-{
-    B_UNUSED(eh)
-    B_UNUSED(ev_it)
+        auto listen_it = listen_attempts.find(to_address.remote);
+        if (listen_it != listen_attempts.end())
+        {
+            //TODO
+            send_receive[from_address][to_address].emplace_back(beltpp::stream_join());
+            send_receive[to_address][from_address].emplace_back(beltpp::stream_join());
 
-    //TODO
-}
-
-void network_simulation::remove_socket(event_handler_ns& eh, beltpp::event_item& ev_it)
-{
-    B_UNUSED(eh)
-    B_UNUSED(ev_it)
-
-    //TODO
-}
-
-bool network_simulation::check_packets(event_handler_ns& eh,
-                                       std::unordered_set<beltpp::event_item const*>& set_items)
-{
-    B_UNUSED(eh)
-    B_UNUSED(set_items)
+            open_attempts.erase(open_it);
+            listen_attempts.erase(listen_it);
+        }
+    }
 
     for (auto const& from_it : send_receive)
         for(auto const& to_it : from_it.second)
-            if (false == to_it.second.empty())
-                return true;
+            if (to_address == to_it.first &&
+                false == to_it.second.empty())
+            {
+                beltpp::event_item const* socket;
 
-    return false;
+                //TODO
+
+                wait_sockets.insert(socket);
+            }
 }
 
 
@@ -79,27 +74,29 @@ bool network_simulation::check_packets(event_handler_ns& eh,
 event_handler_ns::event_handler_ns(network_simulation& ns) 
     : m_ns (&ns)
 {
-    m_ns->add_handler(*this);
+    auto insert_result = m_ns->handler_to_sockets.insert({ this, unordered_set<beltpp::event_item*>() });
+
+    if (false == insert_result.second)
+        throw std::runtime_error("event handler was already added!");
 }
 
 event_handler_ns::~event_handler_ns()
 {
-    m_ns->remove_handler(*this);
+    m_ns->handler_to_sockets.erase(this);
 }
 
-event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item const*>& set_items)
+event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item const*>& event_items)
 {
-    set_items.clear();
-
     if (m_timer_helper.expired())
     {
         m_timer_helper.update();
         return event_handler_ns::timer_out;
     }
 
-    bool on_event = m_ns->check_packets(*this, set_items);
-
     bool on_timer = m_timer_helper.expired();
+    m_ns->check_packets(*this, event_items);
+
+    bool on_event = false == event_items.empty();
 
     if (on_timer)
         m_timer_helper.update();
@@ -137,14 +134,20 @@ void event_handler_ns::set_timer(std::chrono::steady_clock::duration const& peri
     m_timer_helper.set(period);
 }
 
-void event_handler_ns::add(event_item& /*ev_it*/)
+void event_handler_ns::add(event_item& ev_it)
 {
-//    m_ns->add_socket(*this, ev_it);
+    auto& sockets = m_ns->handler_to_sockets[this];
+    auto insert_relult = sockets.insert(&ev_it);
+
+    if(false == insert_relult.second)
+        throw std::runtime_error("socket was already added!");
 }
 
-void event_handler_ns::remove(beltpp::event_item& /*ev_it*/)
+void event_handler_ns::remove(beltpp::event_item& ev_it)
 {
-//    m_ns->remove_socket(*this, ev_it); //not sure
+    auto& sockets = m_ns->handler_to_sockets[this];
+
+    sockets.erase(&ev_it);
 }
 
 
@@ -156,12 +159,12 @@ socket_ns::socket_ns(event_handler_ns& eh)
     , m_eh(&eh)
     , m_ns(eh.m_ns)
 {
-    m_ns->add_socket(*m_eh, *this);
+    m_eh->add(*this);
 }
 
 socket_ns::~socket_ns()
 {
-    m_ns->remove_socket(*m_eh, *this);
+    m_eh->remove(*this);
 }
 
 socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog = 100*/)
@@ -170,7 +173,8 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
 
     if (m_ns->listen_attempts.find(address.local) == m_ns->listen_attempts.end())
     {
-        peer_id peer = std::to_string(++index) + "<=>" + address.local.address + ":" + std::to_string(address.local.port);
+        peer_id peer = std::to_string(++m_ns->connection_index) + "<=>" + 
+                                      address.local.address + ":" + std::to_string(address.local.port);
 
         m_ns->listen_attempts[address.local] = peer;
 
@@ -196,7 +200,8 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t attempts /*= 0*/)
     }
     else
     {
-        peer_id peer = std::to_string(++index) + "<=>" + address.remote.address + ":" + std::to_string(address.remote.port);
+        peer_id peer = std::to_string(++m_ns->connection_index) + "<=>" + 
+                                      address.remote.address + ":" + std::to_string(address.remote.port);
 
         m_ns->open_attempts[address.remote] = { peer, attempts };
 
@@ -216,20 +221,6 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 
     ip_address from_address;//TODO
     ip_address to_address;//TODO
-
-    auto open_it = m_ns->open_attempts.find(to_address.remote);
-    if (open_it != m_ns->open_attempts.end())
-    {
-        auto listen_it = m_ns->listen_attempts.find(to_address.remote);
-        if (listen_it != m_ns->listen_attempts.end())
-        {
-            m_ns->send_receive[from_address][to_address].emplace_back(beltpp::stream_join());
-            m_ns->send_receive[to_address][from_address].emplace_back(beltpp::stream_join());
-
-            m_ns->open_attempts.erase(open_it);
-            m_ns->listen_attempts.erase(listen_it);
-        }
-    }
 
     auto from_it = m_ns->send_receive.find(from_address);
     if (from_it == m_ns->send_receive.end())
