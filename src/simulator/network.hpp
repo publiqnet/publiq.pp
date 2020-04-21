@@ -75,12 +75,6 @@ public:
     map<event_handler_ns*, unordered_set<beltpp::event_item*>> handler_to_sockets;
 
     size_t connection_index = 0;
-
-    network_simulation();
-    ~network_simulation();
-
-    void check_packets(     event_handler_ns& eh,
-                            std::unordered_set<beltpp::event_item const*>& wait_sockets);
 };
 
 class event_handler_ns : public beltpp::event_handler

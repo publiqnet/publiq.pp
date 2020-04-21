@@ -17,55 +17,6 @@ beltpp::ip_address peer_to_address(beltpp::socket::peer_id id)
 
     return address;
 }
-//  network_simulation
-//
-
-network_simulation::network_simulation()
-{
-}
-
-network_simulation::~network_simulation()
-{
-}
-
-void network_simulation::check_packets(event_handler_ns& eh,
-                                       std::unordered_set<beltpp::event_item const*>& wait_sockets)
-{
-    B_UNUSED(eh);
-
-    wait_sockets.clear();
-
-    ip_address to_address;//TODO
-
-    auto open_it = open_attempts.find(to_address.remote);
-    if (open_it != open_attempts.end())
-    {
-        ip_address from_address;//TODO
-
-        auto listen_it = listen_attempts.find(to_address.remote);
-        if (listen_it != listen_attempts.end())
-        {
-            //TODO
-            send_receive[from_address][to_address].emplace_back(beltpp::stream_join());
-            send_receive[to_address][from_address].emplace_back(beltpp::stream_join());
-
-            open_attempts.erase(open_it);
-            listen_attempts.erase(listen_it);
-        }
-    }
-
-    for (auto const& from_it : send_receive)
-        for(auto const& to_it : from_it.second)
-            if (to_address == to_it.first &&
-                false == to_it.second.empty())
-            {
-                beltpp::event_item const* socket;
-
-                //TODO
-
-                wait_sockets.insert(socket);
-            }
-}
 
 
 //  event_handler_ns implementation
@@ -87,42 +38,100 @@ event_handler_ns::~event_handler_ns()
 
 event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item const*>& event_items)
 {
+    event_items.clear();
+
+    for (auto& event_item : m_ns->handler_to_sockets[this])
+    {
+        event_item->prepare_wait();
+    }
+
     if (m_timer_helper.expired())
     {
         m_timer_helper.update();
         return event_handler_ns::timer_out;
     }
 
-    bool on_timer = m_timer_helper.expired();
-    m_ns->check_packets(*this, event_items);
+    ip_address to_address;//TODO
 
-    bool on_event = false == event_items.empty();
+    auto open_it = m_ns->open_attempts.find(to_address.remote);
+    if (open_it != m_ns->open_attempts.end())
+    {
+        ip_address from_address;//TODO
+
+        auto listen_it = m_ns->listen_attempts.find(to_address.remote);
+        if (listen_it != m_ns->listen_attempts.end())
+        {
+            //TODO
+            m_ns->send_receive[from_address][to_address].emplace_back(beltpp::stream_join());
+            m_ns->send_receive[to_address][from_address].emplace_back(beltpp::stream_join());
+
+            m_ns->open_attempts.erase(open_it);
+            m_ns->listen_attempts.erase(listen_it);
+        }
+    }
+
+    for (auto const& from_it : m_ns->send_receive)
+        for (auto const& to_it : from_it.second)
+            if (to_address == to_it.first &&
+                false == to_it.second.empty())
+            {
+                beltpp::event_item const* socket;
+
+                //TODO
+
+                event_items.insert(socket);
+            }
+
+    bool on_timer = m_timer_helper.expired(); // @Tigran why 2 times ?
 
     if (on_timer)
         m_timer_helper.update();
 
-    if (false == on_timer &&
+    // bellow is a copy from event_handler_ex.wait()
+
+    bool on_event = (false == event_items.empty());
+
+    if (false == on_demand &&
+        false == on_timer &&
         false == on_event)
         return event_handler_ns::nothing;
 
-    if (on_timer &&
+    if (on_demand &&
+        false == on_timer &&
+        false == on_event)
+        return event_handler_ns::on_demand;
+
+    if (false == on_demand &&
+        on_timer &&
         false == on_event)
         return event_handler_ns::timer_out;
 
-    if (false == on_timer &&
+    if (false == on_demand &&
+        false == on_timer &&
         on_event)
         return event_handler_ns::event;
 
-    return event_handler_ns::timer_out_and_event;
+    if (on_demand &&
+        on_timer &&
+        false == on_event)
+        return event_handler_ns::on_demand_and_timer_out;
+
+    if (on_demand &&
+        false == on_timer &&
+        on_event)
+        return event_handler_ns::on_demand_and_event;
+
+    if (false == on_demand &&
+        on_timer &&
+        on_event)
+        return event_handler_ns::timer_out_and_event;
+
+    return event_handler_ns::on_demand_and_timer_out_and_event;
 }
 
 std::unordered_set<uint64_t> event_handler_ns::waited(event_item& /*ev_it*/) const
 {
-    std::unordered_set<uint64_t> set;
-
-    //TODO
-
-    return set;
+    return std::unordered_set<uint64_t>();
 }
 
 void event_handler_ns::wake()
@@ -242,6 +251,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 {
     ip_address from_address;//TODO
+
     auto from_it = m_ns->send_receive.find(from_address);
     if (from_it == m_ns->send_receive.end())
         throw std::runtime_error("send_packet() no any connections");
