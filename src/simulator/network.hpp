@@ -39,7 +39,7 @@ using peer_type = beltpp::socket::peer_type;
 namespace network_simulation_impl
 {
 
-beltpp::ip_address peer_to_address(beltpp::socket::peer_id id);
+//beltpp::ip_address peer_to_address(beltpp::socket::peer_id id);
 
 class socket_ns;
 class event_handler_ns;
@@ -67,10 +67,13 @@ public:
     //  from_addr       to_addr     packets
     map<ip_address, map<ip_address, list<packet>, ip_addr_cmp>, ip_addr_cmp> send_receive;
 
-    map<ip_destination, peer_id, ip_dest_cmp> listen_attempts;
-    map<ip_destination, pair<peer_id, size_t>, ip_dest_cmp> open_attempts;
+    map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> listen_attempts;
+    map<ip_destination, pair<pair<peer_id, ip_address>, size_t>, ip_dest_cmp> open_attempts;
+    
+    //  peer          from        to
+    map<peer_id, pair<ip_address, ip_address>> peer_to_ip;
 
-    map<peer_id, ip_address> peer_to_ip;
+    map<ip_address, event_handler_ns*, ip_addr_cmp> ip_to_eh;
 
     map<event_handler_ns*, unordered_set<beltpp::event_item*>> handler_to_sockets;
 
