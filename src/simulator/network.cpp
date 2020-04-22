@@ -3,21 +3,6 @@
 namespace network_simulation_impl
 {
 
-//beltpp::ip_address peer_to_address(beltpp::socket::peer_id id)
-//{
-//    size_t delimiter_index = id.find("<=>");
-//    std::string str_address;
-//    if (std::string::npos != delimiter_index)
-//        str_address = id.substr(delimiter_index + 3);
-//    else
-//        throw std::exception();
-//
-//    beltpp::ip_address address;
-//    address.from_string(str_address);
-//
-//    return address;
-//}
-
 string construct_peer_id(uint64_t id, ip_address const& socket_bundle)
 {
     return std::to_string(id) + "<=>" + socket_bundle.to_string();
