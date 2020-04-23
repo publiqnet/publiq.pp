@@ -72,7 +72,6 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
             m_ns->peer_to_ip.insert({ open_peer, open_address });
             m_ns->peer_to_ip.insert({ listen_peer, listen_address });
 
-            m_ns->peer_to_socket.insert({ open_peer, open_socket });
             m_ns->peer_to_socket.insert({ listen_peer, listen_socket });
 
             // close open attempt
@@ -114,14 +113,9 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
                 m_ns->peer_to_ip.insert({ first_peer, first_address });
                 m_ns->peer_to_ip.insert({ second_peer, second_address });
 
-                m_ns->peer_to_socket.insert({ first_peer, first_socket });
-                m_ns->peer_to_socket.insert({ second_peer, second_socket });
-
                 // close open attempt
-                first_it = m_ns->open_attempts.erase(first_it);
                 second_it = m_ns->open_attempts.erase(second_it);
-
-                break;
+                first_it = m_ns->open_attempts.erase(first_it);
             }
 
             if (pair_found)
@@ -181,6 +175,7 @@ void event_handler_ns::remove(beltpp::event_item& ev_it)
     auto& sockets = m_ns->eh_to_sockets[this];
 
     sockets.erase(&ev_it);
+    m_ns->send_receive.erase(&ev_it);
 }
 
 
@@ -208,8 +203,6 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
 
     m_ns->listen_attempts[address.local] = { peer, address };
 
-    // probably useless this two
-    m_ns->peer_to_ip[peer] = address;
     m_ns->peer_to_socket[peer] = this;
 
     peers.emplace_back(peer);
@@ -245,6 +238,8 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
     }
 
     m_ns->open_attempts[address.remote] = { peer, address };
+
+    m_ns->peer_to_socket[peer] = this;
 
     peers.emplace_back(peer);
 
@@ -290,6 +285,9 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     {
         my_buffers.erase(peer);
 
+        if (my_buffers_it->second.empty())
+            m_ns->send_receive.erase(my_buffers_it);
+
         //clear storage
         m_ns->peer_to_ip.erase(peer);
         m_ns->peer_to_peer.erase(peer);
@@ -313,8 +311,7 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
     if (sender_peer_it == m_ns->peer_to_peer.end())
         throw std::logic_error("send_packet() peer_to_peer association error");
 
-    auto sender_peer = sender_peer_it->second;
-    auto& receiver_buffer = receiver_it->second[sender_peer];
+    auto& receiver_buffer = receiver_it->second[sender_peer_it->second];
 
     if (pack.type() == beltpp::stream_drop::rtt)
     {
@@ -329,10 +326,13 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 
         my_buffers_it->second.erase(peer_buffer_it);
 
+        if (my_buffers_it->second.empty())
+            m_ns->send_receive.erase(my_buffers_it);
+
         //clear storage
-        m_ns->peer_to_ip.erase(sender_peer);
-        m_ns->peer_to_peer.erase(sender_peer);
-        m_ns->peer_to_socket.erase(sender_peer);
+        m_ns->peer_to_ip.erase(peer);
+        m_ns->peer_to_peer.erase(peer);
+        m_ns->peer_to_socket.erase(peer);
     }
 
     receiver_buffer.emplace_back(std::move(pack));
