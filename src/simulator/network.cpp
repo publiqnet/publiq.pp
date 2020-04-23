@@ -15,6 +15,7 @@ string network_simulation::construct_peer_id(ip_address const& socket_bundle)
 
 event_handler_ns::event_handler_ns(network_simulation& ns) 
     : m_ns (&ns)
+    , m_wake_triggered(false)
 {
     // create an empty slot for sockets
     auto insert_result = m_ns->eh_to_sockets.insert({ this, unordered_set<beltpp::event_item*>() });
@@ -135,7 +136,8 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
         if (item.second.size() && m_ns->eh_to_sockets[this].count(item.first))
             event_items.insert(item.first);
 
-    bool on_demand = false;//TODO ??
+    bool on_demand = m_wake_triggered;
+    m_wake_triggered = false;
     bool on_event = (false == event_items.empty());
 
     if (false == on_demand && false == on_event)
@@ -152,11 +154,12 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
 
 std::unordered_set<uint64_t> event_handler_ns::waited(event_item& /*ev_it*/) const
 {
-    return std::unordered_set<uint64_t>();//TODO ??
+    return std::unordered_set<uint64_t>();
 }
 
 void event_handler_ns::wake()
 {
+    m_wake_triggered = true;
 }
 
 void event_handler_ns::set_timer(std::chrono::steady_clock::duration const& period)
@@ -199,7 +202,7 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
     peer_ids peers;
 
     if (m_ns->listen_attempts.find(address.local) != m_ns->listen_attempts.end())
-        throw std::logic_error("ip is already listening : " + address.to_string());
+        throw std::runtime_error("ip is already listening : " + address.to_string());
 
     peer_id peer = m_ns->construct_peer_id(address);
 
@@ -224,8 +227,9 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
         address.local = ip_destination();
     }
 
-    if (m_ns->open_attempts.find(address.remote) != m_ns->open_attempts.end())
-        throw std::logic_error("ip address is already opening : " + address.to_string());
+    if (m_ns->open_attempts.find(address.remote) != m_ns->open_attempts.end() &&
+        address == m_ns->open_attempts[address.remote].second)
+        throw std::runtime_error("ip address is already opening : " + address.to_string());
 
     peer_id peer = m_ns->construct_peer_id(address);
 
@@ -236,9 +240,7 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
 
         for (auto& item : my_buffers)
             if (address == m_ns->peer_to_ip[item.first])
-                throw std::logic_error("connection is already open : " + address.to_string());
-
-        //TODO local/remote conflict ??
+                throw std::runtime_error("connection is already open : " + address.to_string());
     }
 
     m_ns->open_attempts[address.remote] = { peer, address };
@@ -341,8 +343,6 @@ void socket_ns::timer_action()
 
 socket::peer_type socket_ns::get_peer_type(peer_id const& /*peer*/)
 {
-    //TODO ??
-
     socket::peer_type type = socket::peer_type::streaming_opened;
 
     return type;

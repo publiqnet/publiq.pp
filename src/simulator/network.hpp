@@ -18,12 +18,9 @@
 #include <string>
 
 using std::map;
-//using std::set;
 using std::pair;
 using std::list;
 using std::string;
-//using std::vector;
-//using std::unordered_map;
 using std::unordered_set;
 
 using beltpp::packet;
@@ -87,6 +84,8 @@ public:
     void add(beltpp::event_item& ev_it) override;
     void remove(beltpp::event_item& ev_it) override;
 
+
+    bool m_wake_triggered;
     network_simulation* m_ns;
     beltpp::timer m_timer_helper;
 };
@@ -117,9 +116,8 @@ public:
 
     std::string dump() const override;
 
-private:
-    network_simulation* m_ns;
 
+    network_simulation* m_ns;
     beltpp::detail::session_special_data temp_special_data;
 };
 
