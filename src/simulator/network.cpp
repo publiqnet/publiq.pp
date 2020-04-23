@@ -135,7 +135,6 @@ void event_handler_ns::remove(beltpp::event_item& ev_it)
 
 socket_ns::socket_ns(event_handler_ns& eh)
     : socket(eh)
-    , m_eh(&eh)
     , m_ns(eh.m_ns)
 {
 }
@@ -164,7 +163,7 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
     return peers;
 }
 
-socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts /*= 0*/)
+socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
 {
     peer_ids peers;
     

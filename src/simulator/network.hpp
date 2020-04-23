@@ -119,7 +119,6 @@ public:
     std::string dump() const override;
 
 private:
-    event_handler_ns* m_eh;
     network_simulation* m_ns;
 
     beltpp::detail::session_special_data temp_special_data;
