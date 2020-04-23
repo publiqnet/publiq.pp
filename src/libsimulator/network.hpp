@@ -84,9 +84,8 @@ public:
     void add(beltpp::event_item& ev_it) override;
     void remove(beltpp::event_item& ev_it) override;
 
-
-    bool m_wake_triggered;
     network_simulation* m_ns;
+    bool m_wake_triggered;
     beltpp::timer m_timer_helper;
 };
 
@@ -115,7 +114,6 @@ public:
     beltpp::detail::session_special_data& session_data(peer_id const& peer) override;
 
     std::string dump() const override;
-
 
     network_simulation* m_ns;
     beltpp::detail::session_special_data temp_special_data;

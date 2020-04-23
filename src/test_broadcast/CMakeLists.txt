@@ -1,10 +1,10 @@
 
 # define the executable
-add_executable(test_simulator
+add_executable(test_broadcast
         main.cpp)
 
 # libraries this module links to
-target_link_libraries(test_simulator
+target_link_libraries(test_broadcast
     PRIVATE
         publiq.pp
         mesh.pp
@@ -21,10 +21,10 @@ target_link_libraries(test_simulator
         simulator
 )
 
-add_dependencies(test_simulator simulator)
+add_dependencies(test_broadcast simulator)
 
 # what to do on make install
-install(TARGETS test_simulator
+install(TARGETS test_broadcast
         EXPORT publiq.pp.package
         RUNTIME DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_RUNTIME}
         LIBRARY DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY}

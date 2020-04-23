@@ -1,4 +1,4 @@
-#include "network.hpp"
+#include <publiq.pp/network.hpp>
 
 #include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>

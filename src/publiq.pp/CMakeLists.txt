@@ -23,7 +23,8 @@ set(SRC_FILES
     message.tmpl.hpp
     node.hpp
     storage_node.hpp
-    storage_utility_rpc.hpp)
+    storage_utility_rpc.hpp
+    network.hpp)
 
 install(FILES
     ${SRC_FILES}

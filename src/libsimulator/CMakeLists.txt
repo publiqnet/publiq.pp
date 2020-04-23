@@ -1,9 +1,3 @@
-# define the executable
-#add_executable(simulator
-#    main.cpp
-#    network.cpp
-#    network.hpp)
-
 add_definitions(-DSIMULATOR_LIBRARY)
 
 # define the library
@@ -44,4 +38,4 @@ install(TARGETS simulator
 install(FILES
     global.hpp
     network.hpp
-    DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/simulator)
+    DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/libsimulator)

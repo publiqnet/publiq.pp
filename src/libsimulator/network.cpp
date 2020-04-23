@@ -241,6 +241,7 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
         for (auto& item : my_buffers)
             if (address == m_ns->peer_to_ip[item.first])
                 throw std::runtime_error("connection is already open : " + address.to_string());
+
     }
 
     m_ns->open_attempts[address.remote] = { peer, address };
