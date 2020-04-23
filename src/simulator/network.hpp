@@ -48,14 +48,6 @@ class network_simulation
 {
 public:
 
-    struct ip_addr_cmp
-    {
-        bool operator()(const ip_address& a, const ip_address& b) const
-        {
-            return a.to_string() < b.to_string();
-        }
-    };
-
     struct ip_dest_cmp
     {
         bool operator()(const ip_destination& a, const ip_destination& b) const
