@@ -1,4 +1,5 @@
 #pragma once
+#include "global.hpp"
 
 #include <belt.pp/isocket.hpp>
 #include <belt.pp/ievent.hpp>
@@ -39,12 +40,10 @@ using peer_type = beltpp::socket::peer_type;
 namespace network_simulation_impl
 {
 
-//beltpp::ip_address peer_to_address(beltpp::socket::peer_id id);
-
 class socket_ns;
 class event_handler_ns;
 
-class network_simulation
+class SIMULATORSHARED_EXPORT network_simulation
 {
 public:
 
@@ -73,7 +72,7 @@ public:
     string construct_peer_id(ip_address const& socket_bundle);
 };
 
-class event_handler_ns : public beltpp::event_handler
+class SIMULATORSHARED_EXPORT event_handler_ns : public beltpp::event_handler
 {
 public:
     event_handler_ns(network_simulation& ns);
@@ -92,7 +91,7 @@ public:
     beltpp::timer m_timer_helper;
 };
 
-class socket_ns : public beltpp::socket
+class SIMULATORSHARED_EXPORT socket_ns : public beltpp::socket
 {
 public:
 

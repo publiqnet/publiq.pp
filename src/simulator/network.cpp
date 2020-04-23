@@ -225,7 +225,7 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
     }
 
     if (m_ns->open_attempts.find(address.remote) != m_ns->open_attempts.end())
-        throw std::logic_error("ip address os already opening : " + address.to_string());
+        throw std::logic_error("ip address is already opening : " + address.to_string());
 
     peer_id peer = m_ns->construct_peer_id(address);
 
@@ -309,7 +309,7 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
     auto sender_peer_it = m_ns->peer_to_peer.find(peer);
     if (sender_peer_it == m_ns->peer_to_peer.end())
         throw std::logic_error("send_packet() peer_to_peer association error");
-    
+
     auto sender_peer = sender_peer_it->second;
     auto& receiver_buffer = receiver_it->second[sender_peer];
 

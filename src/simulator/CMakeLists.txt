@@ -1,8 +1,16 @@
 # define the executable
-add_executable(simulator
-    main.cpp
+#add_executable(simulator
+#    main.cpp
+#    network.cpp
+#    network.hpp)
+
+add_definitions(-DSIMULATOR_LIBRARY)
+
+# define the library
+add_library(simulator
     network.cpp
-    network.hpp)
+    network.hpp
+    global.hpp)
 
 # libraries this module links to
 target_link_libraries(simulator PRIVATE
@@ -32,3 +40,8 @@ install(TARGETS simulator
         RUNTIME DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_RUNTIME}
         LIBRARY DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_LIBRARY}
         ARCHIVE DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_ARCHIVE})
+
+install(FILES
+    global.hpp
+    network.hpp
+    DESTINATION ${PUBLIQPP_INSTALL_DESTINATION_INCLUDE}/simulator)
