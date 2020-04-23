@@ -74,11 +74,11 @@ public:
     map<peer_id, ip_address> peer_to_ip;
     map<peer_id, event_item*> peer_to_socket;
 
-    map<ip_address, event_handler_ns*, ip_addr_cmp> ip_to_eh;
-
     map<event_handler_ns*, unordered_set<beltpp::event_item*>> eh_to_sockets;
 
     size_t connection_index = 0;
+
+    string construct_peer_id(ip_address const& socket_bundle);
 };
 
 class event_handler_ns : public beltpp::event_handler

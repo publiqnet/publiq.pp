@@ -2,10 +2,12 @@
 
 namespace network_simulation_impl
 {
+//  event_handler_ns implementation
+//
 
-string construct_peer_id(uint64_t id, ip_address const& socket_bundle)
+string network_simulation::construct_peer_id(ip_address const& socket_bundle)
 {
-    return std::to_string(id) + "<=>" + socket_bundle.to_string();
+    return std::to_string(++connection_index) + "<=>" + socket_bundle.to_string();
 }
 
 //  event_handler_ns implementation
@@ -14,6 +16,7 @@ string construct_peer_id(uint64_t id, ip_address const& socket_bundle)
 event_handler_ns::event_handler_ns(network_simulation& ns) 
     : m_ns (&ns)
 {
+    // create an empty slot for sockets
     auto insert_result = m_ns->eh_to_sockets.insert({ this, unordered_set<beltpp::event_item*>() });
 
     if (false == insert_result.second)
@@ -52,7 +55,7 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
             
             ip_address listen_address = listen_it->second.second;
             listen_address.remote = open_address.local;
-            peer_id listen_peer = construct_peer_id(++m_ns->connection_index, listen_address);
+            peer_id listen_peer = m_ns->construct_peer_id(listen_address);
             event_item* listen_socket = m_ns->peer_to_socket[listen_it->second.first];
 
             // create symmetric connections
@@ -148,12 +151,13 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
     if (m_ns->listen_attempts.find(address.local) != m_ns->listen_attempts.end())
         throw std::logic_error("ip is already listening : " + address.to_string());
 
-    peer_id peer = construct_peer_id(++m_ns->connection_index, address);
+    peer_id peer = m_ns->construct_peer_id(address);
 
-    // store some relations for future use
-    m_ns->ip_to_eh[address] = m_eh;
-    m_ns->peer_to_socket[peer] = this;
     m_ns->listen_attempts[address.local] = { peer, address };
+
+    // probably useless this two
+    m_ns->peer_to_ip[peer] = address;
+    m_ns->peer_to_socket[peer] = this;
 
     peers.emplace_back(peer);
 
@@ -173,21 +177,20 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts /*= 0*
     if (m_ns->open_attempts.find(address.remote) != m_ns->open_attempts.end())
         throw std::logic_error("ip address os already opening : " + address.to_string());
 
-    peer_id peer = construct_peer_id(++m_ns->connection_index, address);
+    peer_id peer = m_ns->construct_peer_id(address);
 
     //check already active connection and reject open
     if (m_ns->send_receive.find(this) != m_ns->send_receive.end())
     {
-        auto& connections = m_ns->send_receive[this];
+        auto& my_buffers = m_ns->send_receive[this];
 
-        if (connections.find(peer) != connections.end())
-            throw std::logic_error("connection is already open : " + address.to_string());
+        for (auto& item : my_buffers)
+            if (address == m_ns->peer_to_ip[item.first])
+                throw std::logic_error("connection is already open : " + address.to_string());
 
-        //TODO local/remote conflict
+        //TODO local/remote conflict ??
     }
 
-    // store some relations for future use
-    m_ns->ip_to_eh[address] = m_eh;
     m_ns->open_attempts[address.remote] = { peer, address };
 
     peers.emplace_back(peer);
@@ -234,7 +237,10 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     {
         my_buffers.erase(peer);
 
-        //TODO clear storage
+        //clear storage
+        m_ns->peer_to_ip.erase(peer);
+        m_ns->peer_to_peer.erase(peer);
+        m_ns->peer_to_socket.erase(peer);
     }
 
     return result;
@@ -242,6 +248,21 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 
 void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 {
+    auto receiver_socket_it = m_ns->peer_to_socket.find(peer);
+    if (receiver_socket_it == m_ns->peer_to_socket.end())
+        throw std::logic_error("send_packet() peer_to_socket association error");
+
+    auto receiver_it = m_ns->send_receive.find(receiver_socket_it->second);
+    if (receiver_it == m_ns->send_receive.end())
+        throw std::logic_error("send_packet() no any connections");
+
+    auto sender_peer_it = m_ns->peer_to_peer.find(peer);
+    if (sender_peer_it == m_ns->peer_to_peer.end())
+        throw std::logic_error("send_packet() peer_to_peer association error");
+    
+    auto sender_peer = sender_peer_it->second;
+    auto& receiver_buffer = receiver_it->second[sender_peer];
+
     if (pack.type() == beltpp::stream_drop::rtt)
     {
         // remove connection from peer to me
@@ -255,20 +276,11 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 
         my_buffers_it->second.erase(peer_buffer_it);
 
-        //TODO clear storage
+        //clear storage
+        m_ns->peer_to_ip.erase(sender_peer);
+        m_ns->peer_to_peer.erase(sender_peer);
+        m_ns->peer_to_socket.erase(sender_peer);
     }
-
-    auto receiver_socket = m_ns->peer_to_socket[peer];
-    auto receiver_it = m_ns->send_receive.find(receiver_socket);
-    if (receiver_it == m_ns->send_receive.end())
-        throw std::logic_error("send_packet() no any connections");
-
-    auto sender_peer_it = m_ns->peer_to_peer.find(peer);
-    if (sender_peer_it == m_ns->peer_to_peer.end())
-        throw std::logic_error("send_packet() peer_to_peer association error");
-    
-    auto& sender_peer = sender_peer_it->second;
-    auto& receiver_buffer = receiver_it->second[sender_peer];
 
     receiver_buffer.emplace_back(std::move(pack));
 }
@@ -279,7 +291,7 @@ void socket_ns::timer_action()
 
 socket::peer_type socket_ns::get_peer_type(peer_id const& /*peer*/)
 {
-    //TODO
+    //TODO ??
 
     socket::peer_type type = socket::peer_type::streaming_opened;
 
