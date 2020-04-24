@@ -65,9 +65,42 @@ manager::manager(string const& str_pv_key,
     rpc_socket->listen(rpc_address);
 }
 
+void send_command(meshpp::private_key const& pv_key,
+                  string const& file_uri,
+                  string const& storage_address,
+                  string const& channel_address,
+                  sm_daemon& dm)
+{
+    BlockchainMessage::StorageUpdateCommand update_command;
+    update_command.status = BlockchainMessage::UpdateType::store;
+    update_command.file_uri = file_uri;
+    update_command.storage_address = storage_address;
+    update_command.channel_address = channel_address;
+
+    BlockchainMessage::Transaction transaction;
+    transaction.action = std::move(update_command);
+    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
+
+    BlockchainMessage::Authority authorization;
+    authorization.address = pv_key.get_public_key().to_string();
+    authorization.signature = pv_key.sign(transaction.to_string()).base58;
+
+    BlockchainMessage::SignedTransaction signed_transaction;
+    signed_transaction.authorizations.push_back(authorization);
+    signed_transaction.transaction_details = transaction;
+
+    BlockchainMessage::Broadcast broadcast;
+    broadcast.echoes = 2;
+    broadcast.package = signed_transaction;
+
+    dm.socket->send(dm.peerid, beltpp::packet(broadcast));
+    dm.wait_response(string());
+}
+
 void import_storage(string const& storage_address,
                               manager& sm_server,
-                              beltpp::ip_address const& /*connect_to_address*/)
+                              beltpp::ip_address const& connect_to_address)
 {
     if (false == sm_server.storages.contains(storage_address))
     {
@@ -102,6 +135,32 @@ void import_storage(string const& storage_address,
 
         sm_server.files.commit();
         sm_server.storages.commit();
+    }
+    else
+    {
+        sm_daemon dm(sm_server);
+        dm.open(connect_to_address);
+        beltpp::finally finally_close([&dm] { dm.close(); });
+
+        meshpp::private_key pv_key = meshpp::private_key(sm_server.m_str_pv_key);
+
+        auto keys = sm_server.files.keys();
+        for (auto const& key : keys)
+        {
+            FileInfo& file_info = sm_server.files.at(key);
+
+            for (auto const& address : file_info.own_storages)
+                if (address == storage_address)
+                {
+                    send_command(pv_key,
+                                 file_info.uri,
+                                 storage_address,
+                                 file_info.channel_address,
+                                 dm);
+
+                    break;
+                }
+        }
     }
 }
 
@@ -200,7 +259,7 @@ void manager::run()
         dm.commit();
 
         // send broadcast packet with storage management command
-        if (false == m_str_pv_key.empty() &&
+        if (false == m_str_pv_key.empty() && 
             storage_update_timer.expired())
         {
             storage_update_timer.update();
@@ -245,31 +304,11 @@ void manager::run()
                     for (auto const& storage : it->second.own_storages)
                         temp_storages.erase(storage);
 
-                    BlockchainMessage::StorageUpdateCommand update_command;
-                    update_command.status = BlockchainMessage::UpdateType::store;
-                    update_command.file_uri = it->second.uri;
-                    update_command.storage_address = *temp_storages.begin();
-                    update_command.channel_address = it->second.channel_address;
-
-                    BlockchainMessage::Transaction transaction;
-                    transaction.action = std::move(update_command);
-                    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-                    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
-
-                    BlockchainMessage::Authority authorization;
-                    authorization.address = pv_key.get_public_key().to_string();
-                    authorization.signature = pv_key.sign(transaction.to_string()).base58;
-
-                    BlockchainMessage::SignedTransaction signed_transaction;
-                    signed_transaction.authorizations.push_back(authorization);
-                    signed_transaction.transaction_details = transaction;
-
-                    BlockchainMessage::Broadcast broadcast;
-                    broadcast.echoes = 2;
-                    broadcast.package = signed_transaction;
-
-                    dm.socket->send(dm.peerid, beltpp::packet(broadcast));
-                    dm.wait_response(string());
+                    send_command(pv_key,
+                                 it->second.uri,
+                                 *temp_storages.begin(),
+                                 it->second.channel_address,
+                                 dm);
 
                     ++it;
                 }
