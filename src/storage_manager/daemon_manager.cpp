@@ -316,7 +316,7 @@ void sm_daemon::sync()
         size_t count = 0;
         
 #ifdef LOGGING
-        std::cout << std::endl << std::endl << time_now() << "  Request -> ";
+        std::cout << std::endl << std::endl << time_now() << "  Request from index -> " + std::to_string(log_index->value);
 #endif
         
         while (true)
