@@ -202,8 +202,8 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
     peer_id peer = m_ns->construct_peer_id(address);
 
     m_ns->listen_attempts[address.local] = { peer, address };
-
     m_ns->peer_to_socket[peer] = this;
+    m_ns->peer_to_ip[peer] = address;
 
     peers.emplace_back(peer);
 
