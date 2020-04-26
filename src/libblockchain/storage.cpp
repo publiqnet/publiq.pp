@@ -166,12 +166,7 @@ void storage_controller::enqueue(string const& file_uri, string const& channel_a
     StorageTypes::FileRequest fr;
     fr.file_uri = file_uri;
     fr.channel_address = channel_address;
-
-    beltpp::on_failure guard([this] { discard(); });
     m_pimpl->map.insert(file_uri, fr);
-    save();
-    guard.dismiss();
-    commit();
 }
 
 void storage_controller::pop(string const& file_uri, string const& channel_address)
