@@ -136,7 +136,7 @@ void import_storage(string const& storage_address,
         sm_server.files.commit();
         sm_server.storages.commit();
     }
-    else
+    else if (false == sm_server.m_str_pv_key.empty())
     {
         sm_daemon dm(sm_server);
         dm.open(connect_to_address);
