@@ -263,7 +263,6 @@ void node::run(bool& stop_check)
                 case StorageUpdate::rtt:
                 case ServiceStatistics::rtt:
                 case SponsorContentUnit::rtt:
-                case SponsorContentUnitEx::rtt:
                 case CancelSponsorContentUnit::rtt:
                 {
                     if (m_pimpl->m_blockchain.length() >= m_pimpl->m_freeze_before_block)

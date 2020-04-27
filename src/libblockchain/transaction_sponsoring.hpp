@@ -37,32 +37,6 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    BlockchainMessage::SponsorContentUnit const& sponsor_content_unit,
                    state_layer layer);
 
-// sponsoring stuff Ex
-std::vector<std::string> action_owners(BlockchainMessage::SponsorContentUnitEx const& sponsor_content_unit_ex);
-std::vector<std::string> action_participants(BlockchainMessage::SponsorContentUnitEx const& sponsor_content_unit_ex);
-
-void action_validate(BlockchainMessage::SignedTransaction const& signed_transaction,
-                     BlockchainMessage::SponsorContentUnitEx const& sponsor_content_unit_ex,
-                     bool check_complete);
-
-bool action_is_complete(BlockchainMessage::SignedTransaction const& signed_transaction,
-                        BlockchainMessage::SponsorContentUnitEx const& sponsor_content_unit_ex);
-
-bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      BlockchainMessage::SignedTransaction const& signed_transaction,
-                      BlockchainMessage::SponsorContentUnitEx const& sponsor_content_unit_ex,
-                      state_layer layer);
-
-void action_apply(publiqpp::detail::node_internals& impl,
-                  BlockchainMessage::SignedTransaction const& signed_transaction,
-                  BlockchainMessage::SponsorContentUnitEx const& sponsor_content_unit_ex,
-                  state_layer layer);
-
-void action_revert(publiqpp::detail::node_internals& impl,
-                   BlockchainMessage::SignedTransaction const& signed_transaction,
-                   BlockchainMessage::SponsorContentUnitEx const& sponsor_content_unit_ex,
-                   state_layer layer);
-
 // cancel sponsoring stuff
 std::vector<std::string> action_owners(BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit);
 std::vector<std::string> action_participants(BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit);

@@ -62,13 +62,6 @@ public:
                                      BlockchainMessage::SponsorContentUnit const& spi,
                                      std::string const& transaction_hash);
 
-    void sponsor_content_unit_ex_apply(publiqpp::detail::node_internals& impl,
-                                       BlockchainMessage::SponsorContentUnitEx const& spi,
-                                       std::string const& transaction_hash);
-    void sponsor_content_unit_ex_revert(publiqpp::detail::node_internals& impl,
-                                        BlockchainMessage::SponsorContentUnitEx const& spi,
-                                        std::string const& transaction_hash);
-
     enum e_sponsored_content_unit_set_used
     {
         sponsored_content_unit_set_used_apply,

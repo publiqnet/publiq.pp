@@ -108,7 +108,7 @@ int main(int argc, char** argv)
         //transfer.to = tigran_key.public_key;
         //transfer.amount.fraction = 100;
 
-        SponsorContentUnitEx sponsor;
+        SponsorContentUnit sponsor;
         sponsor.type = SponsorType::article;
         sponsor.sponsor_address = armen_key.public_key;
         sponsor.uri = "EZyfDCxSM6dePBmKhDsjL72QDZkSqNAMVfrDFZjxRK92";

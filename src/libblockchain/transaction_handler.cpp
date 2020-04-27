@@ -134,13 +134,6 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
         code = action_process_on_chain_t(signed_transaction, *paction, impl);
         break;
     }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
-        package.get(paction);
-        code = action_process_on_chain_t(signed_transaction, *paction, impl);
-        break;
-    }
     case CancelSponsorContentUnit::rtt:
     {
         CancelSponsorContentUnit const* paction;
@@ -218,13 +211,6 @@ vector<string> action_owners(SignedTransaction const& signed_transaction)
         result = action_owners(*paction);
         break;
     }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
-        package.get(paction);
-        result = action_owners(*paction);
-        break;
-    }
     case CancelSponsorContentUnit::rtt:
     {
         CancelSponsorContentUnit const* paction;
@@ -298,13 +284,6 @@ vector<string> action_participants(SignedTransaction const& signed_transaction)
     case SponsorContentUnit::rtt:
     {
         SponsorContentUnit const* paction;
-        package.get(paction);
-        result = action_participants(*paction);
-        break;
-    }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
         package.get(paction);
         result = action_participants(*paction);
         break;
@@ -390,13 +369,6 @@ void action_validate(publiqpp::detail::node_internals const& impl,
         action_validate(signed_transaction, *paction, check_complete);
         break;
     }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
-        package.get(paction);
-        action_validate(signed_transaction, *paction, check_complete);
-        break;
-    }
     case CancelSponsorContentUnit::rtt:
     {
         CancelSponsorContentUnit const* paction;
@@ -472,13 +444,6 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
     case SponsorContentUnit::rtt:
     {
         SponsorContentUnit const* paction;
-        package.get(paction);
-        complete = action_is_complete(signed_transaction, *paction);
-        break;
-    }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
         package.get(paction);
         complete = action_is_complete(signed_transaction, *paction);
         break;
@@ -565,13 +530,6 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
     }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
-        package.get(paction);
-        code = action_can_apply(impl, signed_transaction, *paction, layer);
-        break;
-    }
     case CancelSponsorContentUnit::rtt:
     {
         CancelSponsorContentUnit const* paction;
@@ -653,13 +611,6 @@ void action_apply(publiqpp::detail::node_internals& impl,
         action_apply(impl, signed_transaction, *paction, layer);
         break;
     }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
-        package.get(paction);
-        action_apply(impl, signed_transaction, *paction, layer);
-        break;
-    }
     case CancelSponsorContentUnit::rtt:
     {
         CancelSponsorContentUnit const* paction;
@@ -735,13 +686,6 @@ void action_revert(publiqpp::detail::node_internals& impl,
     case SponsorContentUnit::rtt:
     {
         SponsorContentUnit const* paction;
-        package.get(paction);
-        action_revert(impl, signed_transaction, *paction, layer);
-        break;
-    }
-    case SponsorContentUnitEx::rtt:
-    {
-        SponsorContentUnitEx const* paction;
         package.get(paction);
         action_revert(impl, signed_transaction, *paction, layer);
         break;

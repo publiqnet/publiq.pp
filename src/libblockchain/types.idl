@@ -57,7 +57,6 @@ module StorageTypes
 
     enum SponsorType
     {
-        all
         global
         article
     }
