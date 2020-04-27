@@ -69,21 +69,31 @@ string convert_type(string const& type_name, state_holder& state, g_type_info& t
     return type_name;
 }
 
-void construct_type_name(expression_tree const* member_type,
+void construct_type_name(   expression_tree const* member_type,
                             state_holder& state,
                             g_type_info& type_detail,
                             string* result)
 {
-    if (member_type->lexem.rtt == identifier::rtt)
+    expression_tree const* member;
+    if (member_type->lexem.rtt == keyword_optional::rtt &&
+        member_type->children.size() == 1)
     {
-        result[0] = convert_type(member_type->lexem.value, state, type_detail);
+        result[3] = "Optional";
+        member =  member_type->children.front();
     }
-    else if (member_type->lexem.rtt == keyword_array::rtt &&
-             member_type->children.size() == 1 )
+    else
+        member = member_type;
+
+    if (member->lexem.rtt == identifier::rtt)
+    {
+        result[0] = convert_type(member->lexem.value, state, type_detail);
+    }
+    else if (member->lexem.rtt == keyword_array::rtt &&
+             member->children.size() == 1 )
     {
         result[0] = "array";
         int count = 1;
-        auto it = member_type->children.front();
+        auto it = member->children.front();
         for(; it->lexem.rtt != identifier::rtt; it = it->children.front()){
             count++;
         }
@@ -280,7 +290,7 @@ void analyze_struct(    state_holder& state,
 
         g_type_info type_detail;
 
-        string info[3];
+        string info[4];
         construct_type_name(member_type, state, type_detail, info);
         string camelCaseMemberName = transformString( member_name.value );
         memberNamesMap += "            " + camelCaseMemberName  + " : '" + member_name.value + "',\n";
@@ -299,11 +309,20 @@ void analyze_struct(    state_holder& state,
                 import += "import " + prefix + info[0] + " from './" + prefix + info[0] + "';\n";
                 imported.push_back(info[0]);
             }
-            params +=
-                 "    " + camelCaseMemberName + ": number;\n";
-            constructor +=
-                        "            this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + addToConstructor + ");\n";
-
+            if ( info[3] == "Optional")
+            {
+                params +=
+                     "    " + camelCaseMemberName + "?: number;\n";
+                constructor +=
+                    "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + addToConstructor + ");}\n";
+            }
+            else
+            {
+                params +=
+                    "    " + camelCaseMemberName + ": number;\n";
+                constructor +=
+                    "            this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + addToConstructor + ");\n";
+            }
         }
 
         /////////////////////////// array of non primitive types ///////////////////
@@ -316,45 +335,109 @@ void analyze_struct(    state_holder& state,
                     import += "import " + prefix + info[1] + " from './" + prefix + info[1] + "';\n";
                     imported.push_back(info[1]);
                 }
-                params +=
+                if ( info[3] == "Optional")
+                    params +=
+                            "    " + camelCaseMemberName + "?: Array<" + prefix + info[1] + ">;\n";
+                else
+                    params +=
                         "    " + camelCaseMemberName + ": Array<" + prefix + info[1] + ">;\n";
 
                 if (camelCaseMemberName == member_name.value)
-                    constructor +=
-                                "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
+                {
+                    if ( info[3] == "Optional")
+                    {
+                        constructor +=
+                                    "             if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));}\n";
+                    }
+                    else
+                    {
+                        constructor +=
+                                    "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
+
+                    }
+                }
                 else
-                    constructor +=
-                                "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
+                {
+                    if ( info[3] == "Optional")
+                    {
+                        constructor +=
+                                    "             if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));}\n";
+                    }
+                    else
+                    {
+                        constructor +=
+                                    "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
+                    }
+                }
             }
             else
             {
-                params +=
+                if ( info[3] == "Optional")
+                {
+                    params +=
+                            "    " + camelCaseMemberName + "?: Array<" + info[1] + ">;\n";
+
+                    if (camelCaseMemberName == member_name.value)
+                        constructor +=
+                            "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));}\n";
+                    else
+                        constructor +=
+                            "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + info[1] + "(d));}\n";
+
+                }
+                else
+                {
+                    params +=
                         "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
 
-                if (camelCaseMemberName == member_name.value)
-                    constructor +=
-                                "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
-                else
-                    constructor +=
-                                "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
-            }
-
+                    if (camelCaseMemberName == member_name.value)
+                        constructor +=
+                            "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
+                    else
+                        constructor +=
+                            "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
+                }
+        }
         }
         ////////////////////// array of objects //////////////////////////////
         else if ( info[0] == "array" && info[1] == "::beltpp::packet" )
         {
-            params +=
+            if ( info[3] == "Optional")
+            {
+                params +=
+                        "    " + camelCaseMemberName + "?: Array<Object>;\n";
+
+                constructor +=
+                    "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";}\n";
+            }
+            else
+            {
+                params +=
                     "    " + camelCaseMemberName + ": Array<Object>;\n";
-            constructor +=
-                        "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
-        }      
+
+                constructor +=
+                    "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
+            }
+        }
         ////////////////////// array of primitive types /////////////////////
         else if ( info[0] == "array" && ( info[1] == "number" || info[1] == "String" || info[1] == "boolean" ) )
         {
-            params +=
+            if ( info[3] == "Optional")
+            {
+                params +=
+                        "    " + camelCaseMemberName + "?: Array<" + info[1] + ">;\n";
+
+                constructor +=
+                    "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";}\n";
+            }
+            else
+            {
+                params +=
                     "    " + camelCaseMemberName + ": Array<" + info[1] + ">;\n";
-            constructor +=
-                        "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
+
+                constructor +=
+                    "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
+            }
         }
         ///////////////////////// non primitive type /////////////////////////
         else if ( info[0] != "number" && info[0] != "string" && info[0] != "boolean" && info[0] != "::beltpp::packet"  && !isEnum)
@@ -366,36 +449,82 @@ void analyze_struct(    state_holder& state,
                     import += "import " + prefix + info[0] + " from './" + prefix + info[0] + "';\n";
                     imported.push_back(info[0]);
                 }
-                params +=
+                if ( info[3] == "Optional")
+                {
+                    params +=
+                            "    " + camelCaseMemberName + "?: " + prefix + info[0] + ";\n";
+
+                    constructor +=
+                        "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + addToConstructor + ");}\n";
+                }
+                else
+                {
+                    params +=
                         "    " + camelCaseMemberName + ": " + prefix + info[0] + ";\n";
-                constructor +=
-                            "            this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
+
+                    constructor +=
+                        "            this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
+
+                }
             }
             else
             {
-                params +=
-                     "    " + camelCaseMemberName + ": " + info[0] + ";\n";
-                constructor +=
-                            "            this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
+                if ( info[3] == "Optional")
+                {
+                    params +=
+                         "    " + camelCaseMemberName + "?: " + info[0] + ";\n";
+                    constructor +=
+                        "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + addToConstructor + ");}\n";
+
+                }
+                else
+                {
+                    params +=
+                        "    " + camelCaseMemberName + ": " + info[0] + ";\n";
+
+                    constructor +=
+                                "            this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
+
+                }
             }
 
         }
         /////////////////////////// object type ///////////////////////////////
         else if ( info[0] == "::beltpp::packet")
         {
-            params +=
+            if ( info[3] == "Optional")
+            {
+                params +=
+                        "    " + camelCaseMemberName + "?: Object;\n";
+                constructor +=
+                    "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + addToConstructor + ");}\n";
+            }
+            else
+            {
+                params +=
                     "    " + camelCaseMemberName + ": Object;\n";
-            constructor +=
-                        "            this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + addToConstructor + ");\n";
+                constructor +=
+                            "            this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + addToConstructor + ");\n";
 
+            }
         }
         /////////////////////////// primitive type ///////////////////////////
         else if ( info[0] == "number" || info[0] == "string" || info[0] == "boolean" )
         {
-            params +=
+            if ( info[3] == "Optional")
+            {
+                params +=
+                        "    " + camelCaseMemberName + "?: " + info[0] + ";\n";
+                constructor +=
+                    "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";}\n";
+            }
+            else
+            {
+                params +=
                     "    " + camelCaseMemberName + ": " + info[0] + ";\n";
-            constructor +=
-                        "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
+                constructor +=
+                            "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
+            }
         }
     }
 
