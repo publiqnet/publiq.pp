@@ -26,8 +26,8 @@ module StorageTypes
     }
     enum SponsoringScope
     {
-        global
         content
+        global
     }
 
     class SponsoredInformationHeaders

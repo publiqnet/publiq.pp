@@ -342,8 +342,8 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
 
     if (false == spi.scope.has_value())
         si.scope = StorageTypes::SponsoringScope::global;
-    else// if (*spi.scope == BlockchainMessage::SponsoringScope::article)
-        si.scope = StorageTypes::SponsoringScope::content;
+    else
+        si.scope = static_cast<StorageTypes::SponsoringScope>(*spi.scope);
 
     si.cancelled = false;
 
