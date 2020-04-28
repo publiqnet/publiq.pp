@@ -340,7 +340,7 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
     si.sponsor_address = spi.sponsor_address;
     si.transaction_hash = transaction_hash;
 
-    if (false == spi.scope.has_value())
+    if (!spi.scope)
         si.scope = StorageTypes::SponsoringScope::global;
     else
         si.scope = static_cast<StorageTypes::SponsoringScope>(*spi.scope);
