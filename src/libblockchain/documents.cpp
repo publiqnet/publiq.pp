@@ -325,15 +325,12 @@ size_t get_expiring_block_number(publiqpp::detail::node_internals const& impl,
 }
 }
 
-SponsorType convert_type(StorageTypes::SponsorType sponsor_type)
+SponsorType convert_type(boost::optional<StorageTypes::SponsorType> sponsor_type)
 {
-    switch (sponsor_type)
-    {
-    case StorageTypes::SponsorType::global: return SponsorType::global;
-    case StorageTypes::SponsorType::article: return SponsorType::article;
-    }
+    if (sponsor_type == StorageTypes::SponsorType::article)
+        return SponsorType::article;
 
-    throw std::logic_error("SponsorType is not syncronized between message.idl and types.idl");
+    return SponsorType::global;
 }
 
 void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& impl,
@@ -395,34 +392,6 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
 
         m_pimpl->m_content_unit_sponsored_information.insert(spi.uri, cusi);
     }
-
-//    // additional part for Ex
-//    StorageTypes::SponsoredTypeInformation sti;
-//    sti.type = convert_type(spi.type);
-//    sti.transaction_hash = transaction_hash;
-//
-//    if (m_pimpl->m_content_unit_sponsored_type_information.contains(spi.uri))
-//    {
-//        StorageTypes::ContentUnitSponsoredTypeInformation& custi =
-//            m_pimpl->m_content_unit_sponsored_type_information.at(spi.uri);
-//
-//        assert(false == custi.sponsored_type_informations.empty());
-//
-//        if (custi.sponsored_type_informations.empty())
-//            throw std::logic_error("cusi.sponsored_informations.empty()");
-//
-//        custi.sponsored_type_informations.push_back(sti);
-//    }
-//    else
-//    {
-//        StorageTypes::ContentUnitSponsoredTypeInformation custi;
-//        custi.uri = spi.uri;
-//
-//        custi.sponsored_type_informations.push_back(sti);
-//
-//        m_pimpl->m_content_unit_sponsored_type_information.insert(spi.uri, custi);
-//    }
-//    // Ex
 
     size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 
@@ -492,26 +461,6 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     else
         refresh_index(cusi);
 
- //   // additional part for Ex
- //   StorageTypes::ContentUnitSponsoredTypeInformation& custi =
- //       m_pimpl->m_content_unit_sponsored_type_information.at(spi.uri);
- //
- //   assert(false == custi.sponsored_type_informations.empty());
- //
- //   if (custi.sponsored_type_informations.empty())
- //       throw std::logic_error("cusi.sponsored_type_informations.empty()");
- //
- //   auto sti = custi.sponsored_type_informations.back();
- //   assert(sti.transaction_hash == transaction_hash);
- //   if (sti.transaction_hash != transaction_hash)
- //       throw std::logic_error("sti.transaction_hash != transaction_hash");
- //
- //   custi.sponsored_type_informations.pop_back();
- //
- //   if (custi.sponsored_type_informations.empty())
- //       m_pimpl->m_content_unit_sponsored_type_information.erase(spi.uri);
- //   // Ex
-
     size_t expiring_block_number = get_expiring_block_number(impl, item_end_tp);
 
     StorageTypes::SponsoredInformationHeaders& expirings =
@@ -579,11 +528,6 @@ documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals cons
     {
         StorageTypes::ContentUnitSponsoredInformation& cusi =
                 m_pimpl->m_content_unit_sponsored_information.at(content_unit_uri);
-
-//        // Ex
-//        StorageTypes::ContentUnitSponsoredTypeInformation custi;
-//        if (m_pimpl->m_content_unit_sponsored_type_information.contains(content_unit_uri))
-//            custi = m_pimpl->m_content_unit_sponsored_type_information.at(content_unit_uri);
 
         assert(false == cusi.sponsored_informations.empty());
         assert(false == cusi.time_points_used.empty());
@@ -664,21 +608,11 @@ documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals cons
                 if (part == coin())
                     throw std::logic_error("part == coin()");
 
-//                // Ex
-//                SponsorType sponsor_type = SponsorType::global;
-//                for (auto const& sti : custi.sponsored_type_informations)
-//                    if (sti.transaction_hash == item.transaction_hash)
-//                    {
-//                        sponsor_type = convert_type(sti.type);
-//                        break;
-//                    }
-//
-//
-//                auto& temp_result = result[item.sponsor_address][sponsor_type];
-//
-//                auto insert_result = temp_result.insert({ item.transaction_hash, {cusi.uri, part} });
-//                if (false == insert_result.second)
-//                    throw std::logic_error("temp_result.insert({item.transaction_hash, part})");
+                auto& temp_result = result[item.sponsor_address][convert_type(item.type)];
+
+                auto insert_result = temp_result.insert({ item.transaction_hash, {cusi.uri, part} });
+                if (false == insert_result.second)
+                    throw std::logic_error("temp_result.insert({item.transaction_hash, part})");
 
                 if (false == manual_by_account.empty())
                 {

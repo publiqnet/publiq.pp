@@ -5,6 +5,12 @@ module StorageTypes
         Set String addresses
     }
 
+    enum SponsorType
+    {
+        global
+        article
+    }
+
     class ContentUnitSponsoredInformation
     {
         String uri
@@ -15,6 +21,7 @@ module StorageTypes
 
     class SponsoredInformation
     {
+        Optional SponsorType type
         TimePoint start_time_point
         TimePoint end_time_point
         Coin amount
@@ -53,24 +60,6 @@ module StorageTypes
     {
         String file_uri
         String channel_address
-    }
-
-    enum SponsorType
-    {
-        global
-        article
-    }
-
-    class ContentUnitSponsoredTypeInformation
-    {
-        String uri
-        Array SponsoredTypeInformation sponsored_type_informations
-    }
-
-    class SponsoredTypeInformation
-    {
-        SponsorType type
-        String transaction_hash
     }
 
     ///
