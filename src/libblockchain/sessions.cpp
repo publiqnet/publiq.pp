@@ -148,13 +148,13 @@ session_action_signatures::session_action_signatures(beltpp::socket& sk,
     : session_action<meshpp::nodeid_session_header>()
     , psk(&sk)
     , pnodeid_service(&service)
+    , need_to_revert_keep_successful(false)
     , address()
 {}
 
 session_action_signatures::~session_action_signatures()
 {
-    if (completed &&
-        false == errored)
+    if (need_to_revert_keep_successful)
         pnodeid_service->keep_successful(nodeid, address, false);
     else if (expected_next_package_type != size_t(-1))
         pnodeid_service->erase_failed(nodeid, address);
@@ -162,7 +162,9 @@ session_action_signatures::~session_action_signatures()
 
 void session_action_signatures::initiate(meshpp::nodeid_session_header& header)
 {
-    psk->send(header.peerid, beltpp::packet(BlockchainMessage::Ping()));
+    BlockchainMessage::Ping msg;
+    msg.address = header.nodeid;
+    psk->send(header.peerid, beltpp::packet(std::move(msg)));
     expected_next_package_type = BlockchainMessage::Pong::rtt;
 
     nodeid = header.nodeid;
@@ -193,6 +195,7 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid
                 header.nodeid == msg.node_address)
             {
                 pnodeid_service->keep_successful(nodeid, address, true);
+                need_to_revert_keep_successful = true;
             }
             else
             {

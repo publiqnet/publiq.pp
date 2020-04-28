@@ -52,14 +52,6 @@ public:
 class nodeid_container
 {
 public:
-    struct by_address
-    {
-        inline static std::string extract(nodeid_address_unit const& ob)
-        {
-            return ob.header.address.to_string();
-        }
-    };
-
     struct by_nodeid
     {
         inline static std::string extract(nodeid_address_unit const& ob)
@@ -88,8 +80,6 @@ public:
     boost::multi_index::indexed_by<
         boost::multi_index::hashed_non_unique<boost::multi_index::tag<struct by_nodeid>,
             boost::multi_index::global_fun<nodeid_address_unit const&, std::string, &by_nodeid::extract>>,
-        boost::multi_index::hashed_non_unique<boost::multi_index::tag<struct by_address>,
-            boost::multi_index::global_fun<nodeid_address_unit const&, std::string, &by_address::extract>>,
         boost::multi_index::hashed_unique<boost::multi_index::tag<struct by_nodeid_and_address>,
             boost::multi_index::global_fun<nodeid_address_unit const&, pair<string, string>, &by_nodeid_and_address::extract>>,
         boost::multi_index::ordered_non_unique<boost::multi_index::tag<struct by_checked_time_point>,
@@ -132,14 +122,17 @@ void nodeid_service::add(std::string const& node_address,
         it_find->verified == nodeid_address_unit::verified_type::current)
         return;
 
-    auto& index_by_address = m_pimpl->nodeids.template get<typename nodeid_container::by_address>();
-    auto it_find2 = index_by_address.find(address.to_string());
-    if (it_find2 != index_by_address.end() &&
-        it_find2->verified == nodeid_address_unit::verified_type::current)
-        return;
+    auto header_address = nodeid_item.header.address;
+    auto header_node_address = nodeid_item.header.node_address;
 
     auto insert_result = m_pimpl->nodeids.insert(std::move(nodeid_item));
     auto it_nodeid = insert_result.first;
+
+    //  not really clear why below code checks for address and node_address equality
+    //  seems in any cases, even if this object was not inserted, the object preventing insertion
+    //  must be identical, set this assert for now
+    assert(it_nodeid->header.address == header_address);
+    assert(it_nodeid->header.node_address == header_node_address);
 
     if (insert_result.second ||
         (
@@ -226,44 +219,6 @@ void nodeid_service::keep_successful(std::string const& node_address,
             assert(modified);
         }
     }
-
-    auto& index_by_address = m_pimpl->nodeids.template get<typename nodeid_container::by_address>();
-    auto it2 = index_by_address.find(address.to_string());
-    if (it2 == index_by_address.end())
-    {
-        assert(false);
-        throw std::logic_error("nodeid_service::keep_successful "
-            "cannot find the expected address");
-    }
-    else
-    {
-        size_t erased_count = 0, kept_count = 0;
-        while (it2 != index_by_address.end() &&
-               it2->header.address == address)
-        {
-            if (it2->header.node_address != node_address)
-            {
-                it2 = index_by_address.erase(it2);
-                ++erased_count;
-            }
-            else
-            {
-                ++it2;
-                ++kept_count;
-            }
-        }
-
-        assert(kept_count == 1);
-        if (kept_count != 1)
-            throw std::logic_error("nodeid_service keep_successful2()");
-
-        if (false == verified)
-        {
-            assert(erased_count == 0);
-            if (erased_count != 0)
-                throw std::logic_error("nodeid_service keep_successful2(false)");
-        }
-    }
 }
 
 void nodeid_service::erase_failed(std::string const& node_address,
@@ -299,22 +254,19 @@ void nodeid_service::erase_failed(std::string const& node_address,
     }
 }
 
-void nodeid_service::take_actions(std::function<void (std::string const& node_address,
-                                                      beltpp::ip_address const& /*address*/,    // appears this was unused
-                                                      std::unique_ptr<session_action_broadcast_address_info>&& ptr_action)> const& callback)
+void nodeid_service::take_actions(std::function<void (std::string const&/* node_address*/,
+                                                      beltpp::ip_address const&/* address*/,
+                                                      std::unique_ptr<session_action_broadcast_address_info>&&/* ptr_action*/)> const& callback)
 {
     std::unordered_set<string> prev_node_addresses;
-    std::unordered_set<string> prev_addresses;
 
     for (auto it = m_pimpl->nodeids.begin(); it != m_pimpl->nodeids.end(); ++it)
     {
         auto const& nodeid_item = *it;
         if (nodeid_item.ptr_action &&
-            0 == prev_node_addresses.count(nodeid_item.header.node_address) &&
-            0 == prev_addresses.count(nodeid_item.header.address.to_string()))
+            0 == prev_node_addresses.count(nodeid_item.header.node_address))
         {
             prev_node_addresses.insert(nodeid_item.header.node_address);
-            prev_addresses.insert(nodeid_item.header.address.to_string());
 
             std::unique_ptr<session_action_broadcast_address_info> ptr_action;
 
