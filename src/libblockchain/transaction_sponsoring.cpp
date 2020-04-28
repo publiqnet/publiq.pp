@@ -165,7 +165,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         return false;
 
-    map<string, map<SponsorType, map<string, pair<string, coin>>>> temp_sponsored_rewards =
+    map<string, map<StorageTypes::SponsoringScope, map<string, pair<string, coin>>>> temp_sponsored_rewards =
         const_cast<publiqpp::detail::node_internals&>(impl).
             m_documents.sponsored_content_unit_set_used(impl,
                                                         cancel_sponsor_content_unit.uri,
@@ -194,7 +194,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
     if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         throw uri_exception(cancel_sponsor_content_unit.uri, uri_exception::missing);
 
-    map<string, map<SponsorType, map<string, pair<string, coin>>>> temp_sponsored_rewards =
+    map<string, map<StorageTypes::SponsoringScope, map<string, pair<string, coin>>>> temp_sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
                                                          cancel_sponsor_content_unit.uri,
                                                          impl.m_blockchain.length(),
@@ -218,7 +218,7 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    CancelSponsorContentUnit const& cancel_sponsor_content_unit,
                    state_layer /*layer*/)
 {
-    map<string, map<SponsorType, map<string, pair<string, coin>>>> temp_sponsored_rewards =
+    map<string, map<StorageTypes::SponsoringScope, map<string, pair<string, coin>>>> temp_sponsored_rewards =
         impl.m_documents.sponsored_content_unit_set_used(impl,
                                                          cancel_sponsor_content_unit.uri,
                                                          impl.m_blockchain.length(),

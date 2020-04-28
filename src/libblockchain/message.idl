@@ -22,6 +22,8 @@ module BlockchainMessage
         TimePoint creation
         TimePoint expiry
         Coin fee
+        //  Transfer, File, ContentUnit, Content, Role, StorageUpdate,
+        //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
         Object action
     }
 
@@ -222,20 +224,18 @@ module BlockchainMessage
         String peer_address
     }
 
-    enum SponsorType
-    {
-        global
-        article
-    }
-
     class SponsorContentUnit
     {
-        Optional SponsorType type
         String sponsor_address
         String uri
         TimePoint start_time_point
         UInt64 hours
         Coin amount
+        Optional SponsoringScope scope
+    }
+    enum SponsoringScope
+    {
+        content
     }
 
     class CancelSponsorContentUnit
@@ -245,7 +245,7 @@ module BlockchainMessage
         String transaction_hash
     }
 
-    class TransactionReserve18{}
+    class TransactionReserve18 {}
     class TransactionReserve19 {}
     class TransactionReserve20 {}
     class TransactionReserve21 {}

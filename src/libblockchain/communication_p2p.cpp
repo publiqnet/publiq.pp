@@ -458,8 +458,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
 
     for (auto const& unit_uri : unit_uri_view_counts)
     {
-        // sponsor       type            txid         uri     amount
-        map<string, map<SponsorType, map<string, pair<string, coin>>>> sponsored_rewards =
+        // sponsor                    scope                 txid         uri     amount
+        map<string, map<StorageTypes::SponsoringScope, map<string, pair<string, coin>>>> sponsored_rewards =
             impl.m_documents.sponsored_content_unit_set_used(impl,
                                                              unit_uri.first,
                                                              block_header.block_number,
@@ -475,7 +475,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                 for (auto const& sponsored_reward_by_sponsor_by_txid : sponsored_reward_by_type.second)
                 {
                     // only old global type of sponsor are supported
-                    if (sponsored_reward_by_type.first == SponsorType::global)
+                    if (sponsored_reward_by_type.first == StorageTypes::SponsoringScope::global)
                         sponsored_reward_global += sponsored_reward_by_sponsor_by_txid.second.second;
                     else
                     {
@@ -501,8 +501,8 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
         auto const& expiring_item_transaction_hash = expiring_item.second;
         if (0 == unit_uri_view_counts.count(expiring_item_uri))
         {
-            // author       type             txid         uri     amount
-            map<string, map<SponsorType, map<string, pair<string, coin>>>> temp_sponsored_rewards =
+            // author                         scope             txid         uri     amount
+            map<string, map<StorageTypes::SponsoringScope, map<string, pair<string, coin>>>> temp_sponsored_rewards =
                 impl.m_documents.sponsored_content_unit_set_used(impl,
                                                                  expiring_item_uri,
                                                                  block_header.block_number,

@@ -442,7 +442,6 @@ public:
                    filesystem::path const& fs_state,
                    filesystem::path const& fs_documents,
                    filesystem::path const& fs_storages,
-                   filesystem::path const& fs_sponsoring,
                    filesystem::path const& fs_storage,
                    filesystem::path const& fs_inbox,
                    beltpp::ilog* _plogger_p2p,
@@ -499,7 +498,7 @@ public:
         , m_action_log(fs_action_log, log_enabled)
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state, *this)
-        , m_documents(fs_documents, fs_storages, fs_sponsoring)
+        , m_documents(fs_documents, fs_storages)
         , m_storage_controller(fs_storage)
         , m_inbox(fs_inbox)
         , all_sync_info(*this)

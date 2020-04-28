@@ -109,7 +109,7 @@ int main(int argc, char** argv)
         //transfer.amount.fraction = 100;
 
         SponsorContentUnit sponsor;
-        sponsor.type = SponsorType::article;
+        sponsor.scope = SponsoringScope::content;
         sponsor.sponsor_address = armen_key.public_key;
         sponsor.uri = "EZyfDCxSM6dePBmKhDsjL72QDZkSqNAMVfrDFZjxRK92";
         sponsor.start_time_point.tm = system_clock::to_time_t(system_clock::now());

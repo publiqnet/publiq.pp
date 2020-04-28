@@ -42,18 +42,14 @@ class documents_internals
 {
 public:
     documents_internals(filesystem::path const& path_documents,
-                        filesystem::path const& path_storages,
-                        filesystem::path const& path_sponsoring)
+                        filesystem::path const& path_storages)
         : m_files("file", path_documents, 10000, detail::get_putl())
         , m_units("unit", path_documents, 10000, detail::get_putl())
         , m_storages("storages", path_storages, 10000, get_putl_types())
         , m_content_unit_sponsored_information("content_unit_info", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_expiring("sponsored_info_expiring", path_documents, 10000, get_putl_types())
         , m_sponsored_informations_hash_to_block("sponsored_info_hash_to_block", path_documents, 10000, get_putl_types())
-    {
-        B_UNUSED(path_sponsoring);
-        //to move sponsoring related information into this folder
-    }
+    {}
 
     meshpp::map_loader<File> m_files;
     meshpp::map_loader<ContentUnit> m_units;
@@ -65,9 +61,8 @@ public:
 }
 
 documents::documents(filesystem::path const& path_documents,
-                     filesystem::path const& path_storages,
-                     filesystem::path const& path_sponsoring)
-    : m_pimpl(path_documents.empty() ? nullptr : new detail::documents_internals(path_documents, path_storages, path_sponsoring))
+                     filesystem::path const& path_storages)
+    : m_pimpl(path_documents.empty() ? nullptr : new detail::documents_internals(path_documents, path_storages))
 {}
 
 documents::~documents() = default;
@@ -325,14 +320,6 @@ size_t get_expiring_block_number(publiqpp::detail::node_internals const& impl,
 }
 }
 
-SponsorType convert_type(boost::optional<StorageTypes::SponsorType> sponsor_type)
-{
-    if (sponsor_type == StorageTypes::SponsorType::article)
-        return SponsorType::article;
-
-    return SponsorType::global;
-}
-
 void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& impl,
                                            BlockchainMessage::SponsorContentUnit const& spi,
                                            string const& transaction_hash)
@@ -352,6 +339,12 @@ void documents::sponsor_content_unit_apply(publiqpp::detail::node_internals& imp
 
     si.sponsor_address = spi.sponsor_address;
     si.transaction_hash = transaction_hash;
+
+    if (false == spi.scope.has_value())
+        si.scope = StorageTypes::SponsoringScope::global;
+    else// if (*spi.scope == BlockchainMessage::SponsoringScope::article)
+        si.scope = StorageTypes::SponsoringScope::content;
+
     si.cancelled = false;
 
     if (m_pimpl->m_content_unit_sponsored_information.contains(spi.uri))
@@ -495,7 +488,7 @@ void documents::sponsor_content_unit_revert(publiqpp::detail::node_internals& im
     m_pimpl->m_sponsored_informations_hash_to_block.erase(hash_to_block.transaction_hash);
 }
 
-map<string, map<SponsorType, map<string, pair<string, coin>>>>
+map<string, map<StorageTypes::SponsoringScope, map<string, pair<string, coin>>>>
 documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals const& impl,
                                            string const& content_unit_uri,
                                            size_t block_number,
@@ -504,8 +497,8 @@ documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals cons
                                            string const& manual_by_account,
                                            bool pretend)
 {
-    //  sp_addr     type             hash         uri     part
-    map<string, map<SponsorType, map<string, pair<string, coin>>>> result;
+    //  sp_addr                      scope             hash         uri     part
+    map<string, map<StorageTypes::SponsoringScope, map<string, pair<string, coin>>>> result;
 
     if (transaction_hash_to_cancel.empty() ||
         sponsored_content_unit_set_used_revert == type)
@@ -608,7 +601,8 @@ documents::sponsored_content_unit_set_used(publiqpp::detail::node_internals cons
                 if (part == coin())
                     throw std::logic_error("part == coin()");
 
-                auto& temp_result = result[item.sponsor_address][convert_type(item.type)];
+                auto& temp_result = result[item.sponsor_address]
+                                          [item.scope.value_or(StorageTypes::SponsoringScope::global)];
 
                 auto insert_result = temp_result.insert({ item.transaction_hash, {cusi.uri, part} });
                 if (false == insert_result.second)
