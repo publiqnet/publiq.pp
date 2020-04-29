@@ -280,16 +280,30 @@ void manager::run()
                 else
                     ++it;
         
+            // main solution
+            //multimap<uint64_t, FileInfo> info_map;
+            //for (auto it = usage_map.begin(); it != usage_map.end(); ++it)
+            //{
+            //    if (!files.contains(it->first))
+            //        continue;
+            //
+            //    FileInfo const& file_info = files.at(it->first);
+            //
+            //    if(file_info.own_storages.size() < storages_count)
+            //        info_map.insert({ it->second / file_info.all_storages.size(), file_info });
+            //}
+
+            // temp solution
             multimap<uint64_t, FileInfo> info_map;
             for (auto it = usage_map.begin(); it != usage_map.end(); ++it)
             {
                 if (!files.contains(it->first))
                     continue;
-
+            
                 FileInfo const& file_info = files.at(it->first);
-
+            
                 if(file_info.own_storages.size() < storages_count)
-                    info_map.insert({ it->second / file_info.all_storages.size(), file_info });
+                    info_map.insert({ it->second, file_info });
             }
 
             if (info_map.size())
