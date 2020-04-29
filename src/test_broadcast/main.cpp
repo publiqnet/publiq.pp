@@ -124,9 +124,6 @@ bool content_unit_validate_check(std::vector<std::string> const& content_unit_fi
     return true;
 }
 
-template <typename NODE>
-void loop(NODE& node, /*beltpp::ilog_ptr& plogger_exceptions,*/ bool& termination_handled);
-
 struct node_info
 {
     string data_dir;
@@ -162,6 +159,8 @@ int main()
     std::vector<node_info> nodes_info;
 
     network_simulation ns;
+
+    __debugbreak();
 
     try
     {
@@ -259,8 +258,7 @@ int main()
             plogger_p2p->disable();
             //plogger_rpc->disable();
 
-            info.plogger_exceptions = meshpp::file_logger("publiqd_exceptions",
-                                                          fs_log / "exceptions.txt");
+            info.plogger_exceptions = meshpp::file_logger("publiqd_exceptions", fs_log / "exceptions.txt");
             //plogger_storage_exceptions = meshpp::file_logger("storage_exceptions", fs_log / "storage_exceptions.txt");
 
             boost::filesystem::path fs_storage;
