@@ -53,16 +53,19 @@ public:
     };
 
     //  receiver_socket          sender     packets
-    map<beltpp::event_item*, map<peer_id, list<packet>>> send_receive;
+    map<string, map<peer_id, list<packet>>> send_receive;
 
     map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> open_attempts;
     map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> listen_attempts;
     
     map<peer_id, peer_id> peer_to_peer;
     map<peer_id, ip_address> peer_to_ip;
-    map<peer_id, event_item*> peer_to_socket;
+    map<peer_id, string> peer_to_socket;
 
-    map<event_handler_ns*, unordered_set<beltpp::event_item*>> eh_to_sockets;
+    map<event_item*, string> socket_to_name;
+    map<string, pair<event_item*, event_item*>> name_to_sockets;
+
+    map<event_handler_ns*, unordered_set<string>> eh_to_sockets;
 
     size_t connection_index = 0;
 
@@ -84,6 +87,7 @@ public:
     void add(beltpp::event_item& ev_it) override;
     void remove(beltpp::event_item& ev_it) override;
 
+    string last_socket_name;
     network_simulation* m_ns;
     bool m_wake_triggered;
     beltpp::timer m_timer_helper;
@@ -93,7 +97,7 @@ class SIMULATORSHARED_EXPORT socket_ns : public beltpp::socket
 {
 public:
 
-    socket_ns(event_handler_ns& eh);
+    socket_ns(event_handler_ns& eh, string& address, string name);
     ~socket_ns() override;
 
     peer_ids listen(beltpp::ip_address const& address, int backlog = 100) override;
@@ -115,6 +119,9 @@ public:
 
     std::string dump() const override;
 
+    string m_name; // unique identifier
+    string m_address; // local address
+    event_handler_ns* m_eh;
     network_simulation* m_ns;
     beltpp::detail::session_special_data temp_special_data;
 };

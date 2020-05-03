@@ -30,6 +30,7 @@
 #include <map>
 #include <unordered_set>
 
+#include <thread>
 #include <csignal>
 
 using namespace network_simulation_impl;
@@ -58,6 +59,8 @@ static bool g_termination_handled = false;
 void termination_handler(int /*signum*/)
 {
     cout << "stopping..." << endl;
+
+    g_termination_handled = true;
 }
 
 
@@ -153,17 +156,17 @@ int main()
     ::sigaction(SIGTERM, &signal_handler, nullptr);
 #endif
 
-    meshpp::settings::set_application_name("simulation_publiqd");
-    size_t const node_count = 10;
-
+    network_simulation ns;
+    size_t const node_count = 2;
     std::vector<node_info> nodes_info;
 
-    network_simulation ns;
-
-    __debugbreak();
+    // just for debug
+    int d;
+    std::cin >> d;
 
     try
     {
+        meshpp::settings::set_application_name("simulation_publiqd");
         meshpp::create_config_directory();
         nodes_info.resize(node_count);
 
@@ -189,8 +192,8 @@ int main()
             p2p_bind_to_address.local.port = 14500;
 
             beltpp::ip_address rpc_bind_to_address;
-            rpc_bind_to_address.local.address = current_ip_address;
-            rpc_bind_to_address.local.port = 14501;
+            //rpc_bind_to_address.local.address = current_ip_address;
+            //rpc_bind_to_address.local.port = 14501;
 
             beltpp::ip_address slave_bind_to_address;
             beltpp::ip_address public_address;
@@ -210,7 +213,6 @@ int main()
             bool log_enabled = false;
             bool testnet = true;
             bool resync = false;
-            bool enable_inbox = true;
             bool discovery_server = (node_index == 0);
             meshpp::random_seed seed;
             meshpp::private_key pv_key = seed.get_private_key(0);
@@ -241,38 +243,36 @@ int main()
             auto fs_log = meshpp::data_directory_path("log");
             auto fs_documents = meshpp::data_directory_path("documents");
             auto fs_storages = meshpp::data_directory_path("storages");
+            auto fs_storage = meshpp::data_directory_path("storage");
+            auto fs_inbox = meshpp::data_directory_path("inbox");
 
             beltpp::ilog_ptr plogger_p2p;
             beltpp::ilog_ptr plogger_rpc;
 
             if (0 == node_index)
             {
-                plogger_p2p = meshpp::file_logger("publiqd_p2p", fs_log / "publiqd_p2p.txt");
-                plogger_rpc = meshpp::file_logger("publiqd_rpc", fs_log / "publiqd_rpc.txt");
-            }
-            else
-            {
                 plogger_p2p = beltpp::console_logger("publiqd_p2p", true);
                 plogger_rpc = beltpp::console_logger("publiqd_rpc", true);
             }
+            else
+            {
+                plogger_p2p = meshpp::file_logger("publiqd_p2p", fs_log / "publiqd_p2p.txt");
+                plogger_rpc = meshpp::file_logger("publiqd_rpc", fs_log / "publiqd_rpc.txt");
+            }
             plogger_p2p->disable();
-            //plogger_rpc->disable();
+            plogger_rpc->disable();
 
             info.plogger_exceptions = meshpp::file_logger("publiqd_exceptions", fs_log / "exceptions.txt");
             //plogger_storage_exceptions = meshpp::file_logger("storage_exceptions", fs_log / "storage_exceptions.txt");
 
-            boost::filesystem::path fs_storage;
-            if (n_type == NodeType::storage)
-                fs_storage = meshpp::data_directory_path("storage");
-
-            boost::filesystem::path fs_inbox;
-            if (enable_inbox)
-                fs_inbox = meshpp::data_directory_path("inbox");
-
             event_handler_ns* peh = new event_handler_ns(ns);
             unique_ptr<beltpp::event_handler> inject_eh(peh);
-            unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh));
-            unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh));
+            unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh, 
+                                                                       rpc_bind_to_address.local.address, 
+                                                                       "rpc_" + std::to_string(node_index)));
+            unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh, 
+                                                                       p2p_bind_to_address.local.address,
+                                                                       "p2p_" + std::to_string(node_index)));
 
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
@@ -289,7 +289,7 @@ int main()
                                     fs_storages,
                                     fs_storage,
                                     fs_inbox,
-                                    plogger_p2p.get(),
+                                    nullptr,//plogger_p2p.get(),
                                     plogger_rpc.get(),
                                     pv_key,
                                     n_type,
@@ -311,31 +311,20 @@ int main()
                                     std::move(inject_rpc_socket),
                                     std::move(inject_p2p_socket)));
 
-            if (0 == node_index)
-            {
-                cout << endl;
-                cout << "Node: " << info.node->name() << endl;
-                cout << "Type: " << static_cast<int>(n_type) << endl;
-                cout << endl;
-            }
-
-//            unique_ptr<publiqpp::storage_node> ptr_storage_node;
-//            if (n_type != NodeType::blockchain)
-//            {
-//                fs_storage = meshpp::data_directory_path("storage");
-//                ptr_storage_node.reset(new publiqpp::storage_node(*node,
-//                                                                  slave_bind_to_address,
-//                                                                  fs_storage,
-//                                                                  pv_key,
-//                                                                  plogger_rpc.get()));
-//                g_pstorage_nodes.push_back(ptr_storage_node.get());
-//            }
+            //if (0 == node_index)
+            //{
+            //    cout << endl;
+            //    cout << "Node: " << info.node->name() << endl;
+            //    cout << "Type: " << static_cast<int>(n_type) << endl;
+            //    cout << endl;
+            //}
         }   //  for that initializes nodes
 
         while (false == nodes_info.empty())
         {
             if (g_termination_handled)
                 break;
+
             for (size_t node_index = nodes_info.size() - 1;
                  node_index < nodes_info.size();
                  --node_index)
@@ -346,6 +335,7 @@ int main()
                 {
                     bool stop_check = false;
                     info.node->run(stop_check);
+
                     if (stop_check)
                         nodes_info.erase(nodes_info.begin() + node_index);
                 }
@@ -382,6 +372,9 @@ int main()
                     break;
                 }
             }
+
+            // there is no wait in sockets
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
         for (auto& info : nodes_info)

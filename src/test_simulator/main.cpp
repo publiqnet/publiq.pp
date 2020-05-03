@@ -21,14 +21,14 @@ int main()
     network_simulation ns;
     event_handler_ns eh(ns);
 
-    socket_ns socket1(eh);
-    eh.add(socket1);
-
-    socket_ns socket2(eh);
-    eh.add(socket2);
-
     ip_address address1("127.0.0.1", 1111);
     ip_address address2("127.0.0.2", 2222, "127.0.0.1", 1111);
+
+    socket_ns socket1(eh, address1.local.address, "socket_1");
+    eh.add(socket1);
+
+    socket_ns socket2(eh, address2.local.address, "socket_2");
+    eh.add(socket2);
 
     socket1.listen(address1);
     auto peers = socket2.open(address2);

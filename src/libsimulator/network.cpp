@@ -18,7 +18,7 @@ event_handler_ns::event_handler_ns(network_simulation& ns)
     , m_wake_triggered(false)
 {
     // create an empty slot for sockets
-    auto insert_result = m_ns->eh_to_sockets.insert({ this, unordered_set<beltpp::event_item*>() });
+    auto insert_result = m_ns->eh_to_sockets.insert({ this, unordered_set<string>() });
 
     if (false == insert_result.second)
         throw std::logic_error("event handler was already added!");
@@ -33,8 +33,9 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
 {
     event_items.clear();
 
-    for (auto& event_item : m_ns->eh_to_sockets[this])
-        event_item->prepare_wait();
+    for (auto& socket_name : m_ns->eh_to_sockets[this])
+        if (nullptr != m_ns->name_to_sockets[socket_name].second)
+            m_ns->name_to_sockets[socket_name].second->prepare_wait();
 
     if (m_timer_helper.expired())
     {
@@ -54,16 +55,16 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
         {
             peer_id& open_peer = open_it->second.first;
             ip_address& open_address = open_it->second.second;
-            event_item* open_socket = m_ns->peer_to_socket[open_peer];
+            string& open_socket_name = m_ns->peer_to_socket[open_peer];
             
             ip_address listen_address = listen_it->second.second;
             listen_address.remote = open_address.local;
             peer_id listen_peer = m_ns->construct_peer_id(listen_address);
-            event_item* listen_socket = m_ns->peer_to_socket[listen_it->second.first];
+            string& listen_socket_name = m_ns->peer_to_socket[listen_it->second.first];
 
             // create symmetric connections
-            m_ns->send_receive[open_socket][listen_peer].emplace_back(beltpp::stream_join());
-            m_ns->send_receive[listen_socket][open_peer].emplace_back(beltpp::stream_join());
+            m_ns->send_receive[open_socket_name][listen_peer].emplace_back(beltpp::stream_join());
+            m_ns->send_receive[listen_socket_name][open_peer].emplace_back(beltpp::stream_join());
 
             // fill associations for future use
             m_ns->peer_to_peer.insert({ open_peer, listen_peer });
@@ -72,7 +73,7 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
             m_ns->peer_to_ip.insert({ open_peer, open_address });
             m_ns->peer_to_ip.insert({ listen_peer, listen_address });
 
-            m_ns->peer_to_socket.insert({ listen_peer, listen_socket });
+            m_ns->peer_to_socket.insert({ listen_peer, listen_socket_name });
 
             // close open attempt
             open_it = m_ns->open_attempts.erase(open_it);
@@ -96,15 +97,15 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
 
                 peer_id& first_peer = first_it->second.first;
                 ip_address& first_address = first_it->second.second;
-                event_item* first_socket = m_ns->peer_to_socket[first_peer];
+                string& first_socket_name = m_ns->peer_to_socket[first_peer];
 
                 peer_id& second_peer = second_it->second.first;
                 ip_address& second_address = second_it->second.second;
-                event_item* second_socket = m_ns->peer_to_socket[second_peer];
+                string& second_socket_name = m_ns->peer_to_socket[second_peer];
 
                 // create symmetric connections
-                m_ns->send_receive[first_socket][second_peer].emplace_back(beltpp::stream_join());
-                m_ns->send_receive[second_socket][first_peer].emplace_back(beltpp::stream_join());
+                m_ns->send_receive[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
+                m_ns->send_receive[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
 
                 // fill associations for future use
                 m_ns->peer_to_peer.insert({ first_peer, second_peer });
@@ -126,9 +127,17 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
     }
 
     // check sent packets to my sockets
+    auto& sockets = m_ns->eh_to_sockets[this];
     for (auto const& item : m_ns->send_receive)
-        if (item.second.size() && m_ns->eh_to_sockets[this].count(item.first))
-            event_items.insert(item.first);
+        if (false == item.second.empty() && sockets.count(item.first))
+        {
+            auto& temp = m_ns->name_to_sockets[item.first];
+
+            if (nullptr == temp.second)
+                event_items.insert(temp.first);
+            else
+                event_items.insert(temp.first);
+        }
 
     bool on_demand = m_wake_triggered;
     m_wake_triggered = false;
@@ -163,8 +172,15 @@ void event_handler_ns::set_timer(std::chrono::steady_clock::duration const& peri
 
 void event_handler_ns::add(event_item& ev_it)
 {
+    // chemistry implementation
+    if (m_ns->socket_to_name.find(&ev_it) == m_ns->socket_to_name.end())
+    {
+        m_ns->socket_to_name[&ev_it] = last_socket_name;
+        m_ns->name_to_sockets[last_socket_name].second = &ev_it;
+    }
+
     auto& sockets = m_ns->eh_to_sockets[this];
-    auto insert_relult = sockets.insert(&ev_it);
+    auto insert_relult = sockets.insert(m_ns->socket_to_name[&ev_it]);
 
     if(false == insert_relult.second)
         throw std::logic_error("socket was already added!");
@@ -174,36 +190,53 @@ void event_handler_ns::remove(beltpp::event_item& ev_it)
 {
     auto& sockets = m_ns->eh_to_sockets[this];
 
-    sockets.erase(&ev_it);
-    m_ns->send_receive.erase(&ev_it);
+    sockets.erase(m_ns->socket_to_name[&ev_it]);
+    m_ns->send_receive.erase(m_ns->socket_to_name[&ev_it]);
+
+    m_ns->socket_to_name.erase(&ev_it);
 }
 
 
 //  socket_ns implementation
 //
 
-socket_ns::socket_ns(event_handler_ns& eh)
+socket_ns::socket_ns(event_handler_ns& eh, string& address, string name)
     : socket(eh)
+    , m_name(name)
+    , m_address(address)
+    , m_eh(&eh)
     , m_ns(eh.m_ns)
 {
+    if (false == m_ns->socket_to_name.insert({ this, m_name }).second)
+        throw std::logic_error("socket name is not unique!");
+
+    if (false == m_ns->name_to_sockets.insert({ m_name, { this, nullptr } }).second)
+        throw std::logic_error("socket name is not unique!");
+
+    // chemistry support
+    m_eh->last_socket_name = m_name;
 }
 
 socket_ns::~socket_ns()
 {
+    m_ns->socket_to_name.erase(this);
+    m_ns->name_to_sockets.erase(m_name);
 }
 
 socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog = 100*/)
 {
     peer_ids peers;
+    ip_address tmp_address = address;
+    tmp_address.local.address = m_address;
 
-    if (m_ns->listen_attempts.find(address.local) != m_ns->listen_attempts.end())
-        throw std::runtime_error("ip is already listening : " + address.to_string());
+    if (m_ns->listen_attempts.find(tmp_address.local) != m_ns->listen_attempts.end())
+        throw std::runtime_error("ip is already listening : " + tmp_address.to_string());
 
-    peer_id peer = m_ns->construct_peer_id(address);
+    peer_id peer = m_ns->construct_peer_id(tmp_address);
 
-    m_ns->listen_attempts[address.local] = { peer, address };
-    m_ns->peer_to_socket[peer] = this;
-    m_ns->peer_to_ip[peer] = address;
+    m_ns->listen_attempts[tmp_address.local] = { peer, tmp_address };
+    m_ns->peer_to_socket[peer] = m_name;
+    m_ns->peer_to_ip[peer] = tmp_address;
 
     peers.emplace_back(peer);
 
@@ -213,7 +246,8 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
 socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
 {
     peer_ids peers;
-    
+    address.local.address = m_address;
+
     if (address.remote.empty())
     {
         address.remote = address.local;
@@ -227,19 +261,18 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
     peer_id peer = m_ns->construct_peer_id(address);
 
     //check already active connection and reject open
-    if (m_ns->send_receive.find(this) != m_ns->send_receive.end())
+    if (m_ns->send_receive.find(m_name) != m_ns->send_receive.end())
     {
-        auto& my_buffers = m_ns->send_receive[this];
+        auto& my_buffers = m_ns->send_receive[m_name];
 
         for (auto& item : my_buffers)
             if (address == m_ns->peer_to_ip[item.first])
                 throw std::runtime_error("connection is already open : " + address.to_string());
-
     }
 
     m_ns->open_attempts[address.remote] = { peer, address };
 
-    m_ns->peer_to_socket[peer] = this;
+    m_ns->peer_to_socket[peer] = m_name;
 
     peers.emplace_back(peer);
 
@@ -254,7 +287,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 {
     socket_ns::packets result;
 
-    auto my_buffers_it = m_ns->send_receive.find(this);
+    auto my_buffers_it = m_ns->send_receive.find(m_name);
     if (my_buffers_it == m_ns->send_receive.end())
         throw std::runtime_error("receive_packet() no any connection");
 
@@ -316,7 +349,7 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
     if (pack.type() == beltpp::stream_drop::rtt)
     {
         // remove connection from peer to me
-        auto my_buffers_it = m_ns->send_receive.find(this);
+        auto my_buffers_it = m_ns->send_receive.find(m_name);
         if (my_buffers_it == m_ns->send_receive.end())
             throw std::logic_error("send_packet() my all connections are droped");
 
@@ -353,7 +386,7 @@ ip_address socket_ns::info(peer_id const& peer)
 {
     if(m_ns->peer_to_ip.find(peer) != m_ns->peer_to_ip.end())
         return m_ns->peer_to_ip[peer];
-
+    
     throw std::runtime_error("info() unknown peer " + peer);
 }
 
