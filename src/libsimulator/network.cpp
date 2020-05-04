@@ -130,14 +130,7 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
     auto& sockets = m_ns->eh_to_sockets[this];
     for (auto const& item : m_ns->send_receive)
         if (false == item.second.empty() && sockets.count(item.first))
-        {
-            auto& temp = m_ns->name_to_sockets[item.first];
-
-            if (nullptr == temp.second)
-                event_items.insert(temp.first);
-            else
-                event_items.insert(temp.first);
-        }
+            event_items.insert(m_ns->name_to_sockets[item.first].first);
 
     bool on_demand = m_wake_triggered;
     m_wake_triggered = false;
@@ -204,7 +197,6 @@ socket_ns::socket_ns(event_handler_ns& eh, string& address, string name)
     : socket(eh)
     , m_name(name)
     , m_address(address)
-    , m_eh(&eh)
     , m_ns(eh.m_ns)
 {
     if (false == m_ns->socket_to_name.insert({ this, m_name }).second)
@@ -214,7 +206,7 @@ socket_ns::socket_ns(event_handler_ns& eh, string& address, string name)
         throw std::logic_error("socket name is not unique!");
 
     // chemistry support
-    m_eh->last_socket_name = m_name;
+    eh.last_socket_name = m_name;
 }
 
 socket_ns::~socket_ns()

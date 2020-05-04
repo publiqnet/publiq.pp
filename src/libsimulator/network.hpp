@@ -121,7 +121,6 @@ public:
 
     string m_name; // unique identifier
     string m_address; // local address
-    event_handler_ns* m_eh;
     network_simulation* m_ns;
     beltpp::detail::session_special_data temp_special_data;
 };

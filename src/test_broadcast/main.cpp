@@ -222,9 +222,6 @@ int main()
             else
                 meshpp::config::set_public_key_prefix("PBQ");
 
-            //beltpp::ilog_ptr plogger_exceptions; moved to nodes_info
-            //beltpp::ilog_ptr plogger_storage_exceptions;
-
             meshpp::create_data_directory();
 
             info.dda.reset(new DataDirAttributeLoader(meshpp::data_file_path("running.txt")));
@@ -263,7 +260,6 @@ int main()
             plogger_rpc->disable();
 
             info.plogger_exceptions = meshpp::file_logger("publiqd_exceptions", fs_log / "exceptions.txt");
-            //plogger_storage_exceptions = meshpp::file_logger("storage_exceptions", fs_log / "storage_exceptions.txt");
 
             event_handler_ns* peh = new event_handler_ns(ns);
             unique_ptr<beltpp::event_handler> inject_eh(peh);
@@ -289,7 +285,7 @@ int main()
                                     fs_storages,
                                     fs_storage,
                                     fs_inbox,
-                                    nullptr,//plogger_p2p.get(),
+                                    plogger_p2p.get(),
                                     plogger_rpc.get(),
                                     pv_key,
                                     n_type,
@@ -312,12 +308,10 @@ int main()
                                     std::move(inject_p2p_socket)));
 
             //if (0 == node_index)
-            //{
-            //    cout << endl;
-            //    cout << "Node: " << info.node->name() << endl;
-            //    cout << "Type: " << static_cast<int>(n_type) << endl;
-            //    cout << endl;
-            //}
+            {
+                cout << "Node: " << info.node->name();
+                cout << "    Type: " << static_cast<int>(n_type) << endl;
+            }
         }   //  for that initializes nodes
 
         while (false == nodes_info.empty())

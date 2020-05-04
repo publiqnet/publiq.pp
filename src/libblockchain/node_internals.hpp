@@ -36,7 +36,6 @@
 #include <map>
 #include <unordered_map>
 #include <unordered_set>
-#include <iostream>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -555,19 +554,13 @@ public:
     void writeln_node(string const& value)
     {
         if (plogger_node)
-        {
-            std::cout << value << " cout" << std::endl;
-//            plogger_node->message(value);
-        }
+            plogger_node->message(value);
     }
 
     void writeln_node_warning(string const& value)
     {
         if (plogger_node)
-        {
-            std::cout << value << " cout" << std::endl;
-            //plogger_node->warning(value);
-        }
+            plogger_node->warning(value);
     }
 
     void add_peer(socket::peer_id const& peerid)
