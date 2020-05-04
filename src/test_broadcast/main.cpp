@@ -130,9 +130,13 @@ bool content_unit_validate_check(std::vector<std::string> const& content_unit_fi
 struct node_info
 {
     string data_dir;
-    unique_ptr<DataDirAttributeLoader> dda;
-    unique_ptr<publiqpp::node> node;
+
+    beltpp::ilog_ptr plogger_p2p;
+    beltpp::ilog_ptr plogger_rpc;
     beltpp::ilog_ptr plogger_exceptions;
+
+    unique_ptr<publiqpp::node> node;
+    unique_ptr<DataDirAttributeLoader> dda;
 };
 
 int main()
@@ -243,21 +247,19 @@ int main()
             auto fs_storage = meshpp::data_directory_path("storage");
             auto fs_inbox = meshpp::data_directory_path("inbox");
 
-            beltpp::ilog_ptr plogger_p2p;
-            beltpp::ilog_ptr plogger_rpc;
-
             if (0 == node_index)
             {
-                plogger_p2p = beltpp::console_logger("publiqd_p2p", true);
-                plogger_rpc = beltpp::console_logger("publiqd_rpc", true);
+                info.plogger_p2p = beltpp::console_logger("publiqd_p2p", true);
+                info.plogger_rpc = beltpp::console_logger("publiqd_rpc", true);
             }
             else
             {
-                plogger_p2p = meshpp::file_logger("publiqd_p2p", fs_log / "publiqd_p2p.txt");
-                plogger_rpc = meshpp::file_logger("publiqd_rpc", fs_log / "publiqd_rpc.txt");
+                info.plogger_p2p = meshpp::file_logger("publiqd_p2p", fs_log / "publiqd_p2p.txt");
+                info.plogger_rpc = meshpp::file_logger("publiqd_rpc", fs_log / "publiqd_rpc.txt");
             }
-            plogger_p2p->disable();
-            plogger_rpc->disable();
+
+            info.plogger_p2p->disable();
+            info.plogger_rpc->disable();
 
             info.plogger_exceptions = meshpp::file_logger("publiqd_exceptions", fs_log / "exceptions.txt");
 
@@ -285,8 +287,8 @@ int main()
                                     fs_storages,
                                     fs_storage,
                                     fs_inbox,
-                                    plogger_p2p.get(),
-                                    plogger_rpc.get(),
+                                    info.plogger_p2p.get(),
+                                    info.plogger_rpc.get(),
                                     pv_key,
                                     n_type,
                                     fractions,
