@@ -161,10 +161,11 @@ int main()
 #endif
 
     network_simulation ns;
-    size_t const node_count = 2;
+    size_t const node_count = 10;
     std::vector<node_info> nodes_info;
 
-#ifdef 0
+//#define ATTACH
+#ifdef ATTACH
     // just for debug
     int d;
     std::cout << "Now you can attach debugger" << endl;
