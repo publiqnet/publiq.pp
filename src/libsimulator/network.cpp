@@ -70,8 +70,8 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
             m_ns->peer_to_peer.insert({ open_peer, listen_peer });
             m_ns->peer_to_peer.insert({ listen_peer, open_peer });
 
-            m_ns->peer_to_ip.insert({ open_peer, open_address });
-            m_ns->peer_to_ip.insert({ listen_peer, listen_address });
+            m_ns->peer_to_ip.insert({ open_peer, listen_address });
+            m_ns->peer_to_ip.insert({ listen_peer, open_address });
 
             m_ns->peer_to_socket.insert({ listen_peer, listen_socket_name });
 
@@ -111,8 +111,8 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
                 m_ns->peer_to_peer.insert({ first_peer, second_peer });
                 m_ns->peer_to_peer.insert({ second_peer, first_peer });
 
-                m_ns->peer_to_ip.insert({ first_peer, first_address });
-                m_ns->peer_to_ip.insert({ second_peer, second_address });
+                m_ns->peer_to_ip.insert({ first_peer, second_address });
+                m_ns->peer_to_ip.insert({ second_peer, first_address });
 
                 // close open attempt
                 second_it = m_ns->open_attempts.erase(second_it);

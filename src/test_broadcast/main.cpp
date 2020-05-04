@@ -164,9 +164,13 @@ int main()
     size_t const node_count = 2;
     std::vector<node_info> nodes_info;
 
+#ifdef 0
     // just for debug
     int d;
+    std::cout << "Now you can attach debugger" << endl;
+    std::cout << "Enter a number to continue ..." << endl;
     std::cin >> d;
+#endif
 
     try
     {
