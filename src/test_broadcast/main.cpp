@@ -139,7 +139,10 @@ struct node_info
     unique_ptr<DataDirAttributeLoader> dda;
 };
 
-int main()
+bool process_command_line(int argc, char** argv,
+                          string& data_directory_root);
+
+int main(int argc, char** argv)
 {
     try
     {
@@ -179,11 +182,23 @@ int main()
         meshpp::create_config_directory();
         nodes_info.resize(node_count);
 
+        string data_directory_root;
+
+        if (false == process_command_line(argc, argv,
+                                          data_directory_root))
+            return 1;
+
+        boost::filesystem::path root = data_directory_root;
+
+        if (!boost::filesystem::exists(root) &&
+            !boost::filesystem::is_directory(root))
+                boost::filesystem::create_directory (root);
+
         for (size_t node_index = 0; node_index != node_count; ++node_index)
         {
             node_info& info = nodes_info[node_index];
 
-            info.data_dir = (meshpp::config_directory_path() / std::to_string(node_index)).string();
+            info.data_dir = (root / std::to_string(node_index)).string();
 
             meshpp::settings::set_data_directory(info.data_dir);
 
@@ -401,6 +416,52 @@ int main()
 
     return 0;
 }
+
+bool process_command_line(int argc, char** argv,
+                          string& data_directory_root)
+{
+    program_options::options_description options_description;
+    try
+    {
+        auto desc_init = options_description.add_options()
+                             ("help,h", "Print this help message and exit.")
+                             ("data_directory,d", program_options::value<string>(&data_directory_root),
+                              "Data directory path");
+        (void)(desc_init);
+
+        program_options::variables_map options;
+
+        program_options::store(
+            program_options::parse_command_line(argc, argv, options_description),
+            options);
+
+        program_options::notify(options);
+
+        if (options.count("help"))
+        {
+            throw std::runtime_error("");
+        }
+    }
+    catch (std::exception const& ex)
+    {
+        std::stringstream ss;
+        ss << options_description;
+
+        string ex_message = ex.what();
+        if (false == ex_message.empty())
+            cout << ex.what() << endl << endl;
+        cout << ss.str();
+        return false;
+    }
+    catch (...)
+    {
+        cout << "always throw std::exceptions" << endl;
+        return false;
+    }
+
+    return true;
+}
+
 
 string genesis_signed_block(bool testnet)
 {
