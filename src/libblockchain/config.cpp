@@ -245,10 +245,19 @@ bool config::key_set() const
 
 void config::add_secondary_key(private_key const& pk)
 {
-    if (!pimpl->config_loader->private_keys)
-        pimpl->config_loader->private_keys = vector<string>();
+    if (key_set() &&
+        get_key().get_base58_wif() == pk.get_base58_wif())
+        return;
 
-    pimpl->config_loader->private_keys->push_back(pk.get_base58_wif());
+    auto& pks = pimpl->config_loader->private_keys;
+    if (pks &&
+        pks->end() != std::find(pks->begin(), pks->end(), pk.get_base58_wif()))
+        return;
+
+    if (!pks)
+        pks = vector<string>();
+
+    pks->push_back(pk.get_base58_wif());
 
     pimpl->config_loader.save();
     pimpl->config_loader.commit();

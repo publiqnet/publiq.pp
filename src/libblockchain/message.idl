@@ -550,6 +550,12 @@ module BlockchainMessage
         Optional Bool transfer_only
     }
 
+    class ConfigKeyUpdate
+    {
+        String private_key
+        UpdateType update_type
+    }
+
     class GenericModelReserve1 {}
     class GenericModelReserve2 {}
     class GenericModelReserve3 {}

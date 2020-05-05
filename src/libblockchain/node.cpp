@@ -476,7 +476,10 @@ void node::run(bool& stop_check)
                 }
                 case LoggedTransactionsRequest::rtt:
                 {
-                    if (it == detail::wait_result_item::interface_type::rpc)
+                    if (it == detail::wait_result_item::interface_type::rpc &&
+                            m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) ==
+                            beltpp::socket::peer_type::streaming_accepted
+                        )
                     {
                         LoggedTransactionsRequest msg_get_actions;
                         std::move(ref_packet).get(msg_get_actions);
@@ -671,7 +674,9 @@ void node::run(bool& stop_check)
                 }
                 case CheckInbox::rtt:
                 {
-                    if (it != detail::wait_result_item::interface_type::rpc)
+                    if (it != detail::wait_result_item::interface_type::rpc ||
+                            m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) !=
+                            beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("CheckInbox received not through rpc!");
 
                     Inbox response;
@@ -687,6 +692,25 @@ void node::run(bool& stop_check)
                     m_pimpl->m_inbox.commit();
 
                     psk->send(peerid, beltpp::packet(std::move(response)));
+
+                    break;
+                }
+                case ConfigKeyUpdate::rtt:
+                {
+                    if (it != detail::wait_result_item::interface_type::rpc ||
+                            m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) !=
+                            beltpp::socket::peer_type::streaming_accepted)
+                        throw wrong_request_exception("ConfigKeyUpdate received not through rpc!");
+
+                    ConfigKeyUpdate msg;
+                    std::move(ref_packet).get(msg);
+
+                    if (msg.update_type == UpdateType::store)
+                        m_pimpl->pconfig->add_secondary_key(meshpp::private_key(msg.private_key));
+                    else
+                        m_pimpl->pconfig->remove_secondary_key(meshpp::private_key(msg.private_key));
+
+                    psk->send(peerid, beltpp::packet(Done()));
 
                     break;
                 }
