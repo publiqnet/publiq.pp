@@ -189,13 +189,13 @@ int main(int argc, char** argv)
             return 1;
 
         boost::filesystem::path root = data_directory_root;
-        boost::filesystem::create_directory (root);
+        boost::filesystem::create_directory(root);
 
         for (size_t node_index = 0; node_index != node_count; ++node_index)
         {
             node_info& info = nodes_info[node_index];
 
-            info.data_dir = (root / std::to_string(node_index)).string();
+            info.data_dir = (root / ("node_" + std::to_string(node_index))).string();
 
             meshpp::settings::set_data_directory(info.data_dir);
 
