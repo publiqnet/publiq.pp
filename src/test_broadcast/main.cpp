@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 #endif
 
     network_simulation ns;
-    size_t const node_count = 10;
+    size_t const node_count = 3;
     std::vector<node_info> nodes_info;
 
 //#define ATTACH
@@ -237,6 +237,9 @@ int main(int argc, char** argv)
             bool discovery_server = (node_index == 0);
             meshpp::random_seed seed;
             meshpp::private_key pv_key = seed.get_private_key(0);
+
+            if (testnet && 0 == node_index)
+                pv_key = meshpp::private_key("5Kfu9216aabe2L942As4mGm91MC5RJKHP9tLWr5MMwcgVcRjFuz");
 
             if (testnet)
                 meshpp::config::set_public_key_prefix("TPBQ");
