@@ -1033,7 +1033,8 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         expected_next_package_type = size_t(-1);
 
         // when all blocks are synced it's time to share service statistics for last period
-        if (pimpl->m_node_type == NodeType::channel || pimpl->m_node_type == NodeType::storage)
+        if (pimpl->pconfig->get_node_type() == NodeType::channel ||
+            pimpl->pconfig->get_node_type() == NodeType::storage)
             pimpl->m_service_statistics_broadcast_triggered = true;
     }
 }
@@ -1150,7 +1151,9 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 #ifdef EXTRA_LOGGING
                     beltpp::on_failure guard([&impl, file_uri_local]{impl.writeln_node(file_uri_local + " flew");});
 #endif
-                    if (false == impl.m_documents.storage_has_uri(file_uri_local, impl.m_pb_key.to_string()))
+                    if (false ==
+                        impl.m_documents.storage_has_uri(file_uri_local,
+                                                         impl.front_public_key().to_string()))
                         broadcast_storage_update(impl, file_uri_local, UpdateType::store);
 #ifdef EXTRA_LOGGING
                     guard.dismiss();

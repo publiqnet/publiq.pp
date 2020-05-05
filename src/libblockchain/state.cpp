@@ -100,7 +100,7 @@ void state::set_balance(std::string const& key, coin const& amount, state_layer 
         m_pimpl->m_accounts.insert(key, Amount);
 
     if (state_layer::chain == layer &&
-        m_pimpl->pimpl_node->m_pb_key.to_string() == key)
+        m_pimpl->pimpl_node->front_public_key().to_string() == key)
     {
         if (amount.empty())
             m_pimpl->m_node_accounts.erase(key);

@@ -42,7 +42,7 @@ void signed_transaction_validate(SignedTransaction const& signed_transaction,
         meshpp::signature signature_check(pb_key, signed_message, authority.signature);
     }
 
-    if (false == impl.m_testnet &&
+    if (false == impl.pconfig->testnet() &&
         signed_transaction.authorizations.size() > 1)
         throw wrong_data_exception("for now multi-account transactions are disabled");
 
@@ -73,7 +73,8 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
     bool code;
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (impl.m_transfer_only && package.type() != Transfer::rtt)
+    if (impl.pconfig->transfer_only() &&
+        package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -308,7 +309,8 @@ void action_validate(publiqpp::detail::node_internals const& impl,
 {
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (impl.m_transfer_only && package.type() != Transfer::rtt)
+    if (impl.pconfig->transfer_only() &&
+        package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -387,7 +389,8 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
     bool complete;
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (impl.m_transfer_only && package.type() != Transfer::rtt)
+    if (impl.pconfig->transfer_only() &&
+        package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -467,7 +470,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       beltpp::packet const& package,
                       state_layer layer)
 {
-    if (impl.m_transfer_only &&
+    if (impl.pconfig->transfer_only() &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
@@ -549,7 +552,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   beltpp::packet const& package,
                   state_layer layer)
 {
-    if (impl.m_transfer_only &&
+    if (impl.pconfig->transfer_only() &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
@@ -628,7 +631,7 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    beltpp::packet const& package,
                    state_layer layer)
 {
-    if (impl.m_transfer_only &&
+    if (impl.pconfig->transfer_only() &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 

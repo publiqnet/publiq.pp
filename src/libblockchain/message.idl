@@ -530,6 +530,26 @@ module BlockchainMessage
         Array Letter items
     }
 
+    class Config
+    {
+        Optional IPAddress p2p_bind_to_address
+        Optional Array IPAddress p2p_connect_to_addresses
+        Optional IPAddress rpc_bind_to_address
+        Optional IPAddress slave_bind_to_address
+        Optional IPAddress public_address
+        Optional IPAddress public_ssl_address
+        Optional String private_key
+        Optional Array String private_keys
+        Optional String manager_address
+        Optional NodeType node_type
+        Optional Coin automatic_fee
+        Optional Bool enable_action_log
+        Optional Bool enable_inbox
+        Optional Bool testnet
+        Optional Bool discovery_server
+        Optional Bool transfer_only
+    }
+
     class GenericModelReserve1 {}
     class GenericModelReserve2 {}
     class GenericModelReserve3 {}
