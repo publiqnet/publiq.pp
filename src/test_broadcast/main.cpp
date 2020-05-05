@@ -189,10 +189,7 @@ int main(int argc, char** argv)
             return 1;
 
         boost::filesystem::path root = data_directory_root;
-
-        if (!boost::filesystem::exists(root) &&
-            !boost::filesystem::is_directory(root))
-                boost::filesystem::create_directory (root);
+        boost::filesystem::create_directory (root);
 
         for (size_t node_index = 0; node_index != node_count; ++node_index)
         {
