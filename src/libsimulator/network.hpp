@@ -6,6 +6,7 @@
 #include <belt.pp/queue.hpp>
 #include <belt.pp/timer.hpp>
 #include <belt.pp/packet.hpp>
+#include <belt.pp/utility.hpp>
 
 #include <chrono>
 #include <unordered_set>
@@ -18,6 +19,7 @@
 #include <string>
 
 using std::map;
+using std::set;
 using std::pair;
 using std::list;
 using std::string;
@@ -74,10 +76,14 @@ public:
     map<string, pair<event_item*, event_item*>> name_to_sockets;
     map<event_handler_ns*, unordered_set<string>> eh_to_sockets;
 
+    map<string, set<string>> permanent_allowed_connections;
+    map<string, set<string>> permanent_refused_connections;
+
     size_t connection_index = 0;
-    string construct_peer_id(ip_address const& socket_bundle);
+    uint32_t chance_of_refuse_base = 10;
 
     void process_attempts();
+    string construct_peer_id(ip_address const& socket_bundle);
     string export_connections(string socket_name = string());
 };
 

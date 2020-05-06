@@ -33,9 +33,48 @@ void network_simulation::process_attempts()
                 ip_address second_address = second_it->first;
                 string& second_socket_name = peer_to_socket[second_peer];
 
-                // create symmetric connections
-                send_receive[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
-                send_receive[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
+                bool connection_allowed = true;
+                auto refused_it = permanent_refused_connections.find(first_socket_name);
+                
+                if (refused_it != permanent_refused_connections.end() && 
+                    refused_it->second.count(second_socket_name))
+                    connection_allowed = false;
+                else
+                {
+                    auto allowed_it = permanent_allowed_connections.find(first_socket_name);
+                    
+                    if (allowed_it == permanent_allowed_connections.end() ||
+                        (allowed_it != permanent_allowed_connections.end() && 0 == allowed_it->second.count(second_socket_name)))
+                    {
+                        // connection allow/refuse chance will be
+                        // checked only once during program work time
+                        connection_allowed = !beltpp::chance_one_of(chance_of_refuse_base);
+
+                        if (connection_allowed)
+                        {
+                            permanent_allowed_connections[first_socket_name].insert(second_socket_name);
+                            permanent_allowed_connections[second_socket_name].insert(first_socket_name);
+                        }
+                        else
+                        {
+                            permanent_refused_connections[first_socket_name].insert(second_socket_name);
+                            permanent_refused_connections[second_socket_name].insert(first_socket_name);
+                        }
+                    }
+                }
+
+                if (connection_allowed)
+                {
+                    // send join to peers
+                    send_receive[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
+                    send_receive[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
+                }
+                else
+                {
+                    // send refuse to peers
+                    send_receive[first_socket_name][second_peer].emplace_back(beltpp::socket_open_refused());
+                    send_receive[second_socket_name][first_peer].emplace_back(beltpp::socket_open_refused());
+                }
 
                 // fill associations for future use
                 peer_to_peer.insert({ first_peer, second_peer });
@@ -63,7 +102,8 @@ void network_simulation::process_attempts()
     {
         auto listen_it = listen_attempts.find(open_it->first.remote);
 
-        if (listen_it == listen_attempts.end())
+        if (listen_it == listen_attempts.end() ||
+            listen_it->first.address != "test.brdhub.com") // rpc will work only on first node
             ++open_it;
         else
         {
@@ -104,13 +144,29 @@ string network_simulation::export_connections(string socket_name)
             continue;
         else
         {
-            result += item.first + " < == > ";
-    
-            for (auto it = item.second.begin(); it != item.second.end();)
+            list<string> tmp;
+            for (auto const& it : item.second)
             {
-                result += peer_to_socket[it->first];
+                bool refuse = false;
 
-                if (++it != item.second.end())
+                for(auto const& pack : it.second)
+                    if (pack.type() == beltpp::socket_open_refused::rtt)
+                    {
+                        refuse = true;
+                        break;
+                    }
+
+                if (!refuse)
+                    tmp.push_back(peer_to_socket[it.first]);
+            }
+
+            tmp.sort();
+            result += item.first + " < == > ";
+            for (auto it = tmp.begin(); it != tmp.end();)
+            {
+                result += *it;
+
+                if (++it != tmp.end())
                     result += " , ";
             }
 
@@ -309,7 +365,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     if (my_buffers_it == m_ns->send_receive.end())
         throw std::runtime_error("receive_packet() no any connection");
 
-    bool drop_received = false;
+    bool disconnect = false;
     auto& my_buffers = my_buffers_it->second;
     
     for (auto& item : my_buffers)
@@ -319,11 +375,12 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 
             for (auto& pack : item.second)
             {
-                drop_received = (pack.type() == beltpp::stream_drop::rtt);
+                disconnect = (pack.type() == beltpp::stream_drop::rtt) ||
+                             (pack.type() == beltpp::socket_open_refused::rtt);
 
                 result.emplace_back(std::move(pack));
                 
-                if (drop_received)
+                if (disconnect)
                     break;
             }
 
@@ -332,7 +389,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
             break;
         }
 
-    if (drop_received)
+    if (disconnect)
     {
         my_buffers.erase(peer);
 

@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 #endif
 
     network_simulation ns;
-    size_t const node_count = 5;
+    size_t const node_count = 10;
     std::vector<node_info> nodes_info;
 
 //#define ATTACH
