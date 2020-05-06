@@ -57,12 +57,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         impl.pconfig->get_node_type() != role.node_type)
         return false;
 
+    auto balance = coin(impl.m_state.get_balance(role.node_address, state_layer::pool));
+
     if (role.node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+        balance < CHANNEL_AMOUNT_THRESHOLD)
         return false;
 
     if (role.node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+        balance < STORAGE_AMOUNT_THRESHOLD)
         return false;
 
     return true;
@@ -87,17 +89,15 @@ void action_apply(publiqpp::detail::node_internals& impl,
                                  " can have only the following role: " +
                                  BlockchainMessage::to_string(impl.pconfig->get_node_type()));
 
+    auto balance = coin(impl.m_state.get_balance(role.node_address, state_layer::pool));
+
     if (role.node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
-        throw std::runtime_error("the node: " +
-                                    role.node_address +
-                                    " must have at least 100.000 verified balance.");
+        balance < CHANNEL_AMOUNT_THRESHOLD)
+        throw not_enough_balance_exception(role.node_address, balance, CHANNEL_AMOUNT_THRESHOLD);
 
     if (role.node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(role.node_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
-        throw std::runtime_error("the node: " +
-                                    role.node_address +
-                                    " must have at least 10.000 verified balance.");
+        balance < STORAGE_AMOUNT_THRESHOLD)
+        throw not_enough_balance_exception(role.node_address, balance, STORAGE_AMOUNT_THRESHOLD);
 
     impl.m_state.insert_role(role);
 }

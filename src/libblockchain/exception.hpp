@@ -65,7 +65,9 @@ public:
 class BLOCKCHAINSHARED_EXPORT not_enough_balance_exception : public std::runtime_error
 {
 public:
-    explicit not_enough_balance_exception(coin const& balance, coin const& spending);
+    explicit not_enough_balance_exception(std::string const& address,
+                                          coin const& balance,
+                                          coin const& spending);
 
     not_enough_balance_exception(not_enough_balance_exception const&) noexcept;
     not_enough_balance_exception& operator=(not_enough_balance_exception const&) noexcept;
@@ -74,6 +76,7 @@ public:
 
     coin balance;
     coin spending;
+    std::string address;
 };
 
 class BLOCKCHAINSHARED_EXPORT too_long_string_exception : public std::runtime_error

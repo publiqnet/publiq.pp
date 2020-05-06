@@ -131,7 +131,7 @@ void state::decrease_balance(string const& key, coin const& amount, state_layer 
     Coin balance = get_balance(key, state_layer::pool);
 
     if (coin(balance) < amount)
-        throw not_enough_balance_exception(coin(balance), amount);
+        throw not_enough_balance_exception(key, coin(balance), amount);
 
     set_balance(key, balance - amount, layer);
 }

@@ -84,12 +84,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         node_type == NodeType::blockchain)
         return false;
 
+    auto balance = coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool));
+
     if (node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+        balance < CHANNEL_AMOUNT_THRESHOLD)
         return false;
 
     if (node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+        balance < STORAGE_AMOUNT_THRESHOLD)
         return false;
 
     if (state_layer::chain == layer)
@@ -192,17 +194,19 @@ void action_apply(publiqpp::detail::node_internals& impl,
         node_type == NodeType::blockchain)
         throw wrong_data_exception("process_stat_info -> wrong authority type : " + service_statistics.server_address);
 
+    auto balance = coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool));
+
     if (node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
-        throw wrong_data_exception("the node: " +
-                                    service_statistics.server_address +
-                                    " must have at least 100.000 verified balance.");
+        balance < CHANNEL_AMOUNT_THRESHOLD)
+        throw not_enough_balance_exception(service_statistics.server_address,
+                                           balance,
+                                           CHANNEL_AMOUNT_THRESHOLD);
 
     if (node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
-        throw wrong_data_exception("the node: " +
-                                    service_statistics.server_address +
-                                    " must have at least 10.000 verified balance.");
+        balance < STORAGE_AMOUNT_THRESHOLD)
+        throw not_enough_balance_exception(service_statistics.server_address,
+                                           balance,
+                                           STORAGE_AMOUNT_THRESHOLD);
 
     if (state_layer::chain == layer)
     {

@@ -708,9 +708,12 @@ void action_revert(publiqpp::detail::node_internals& impl,
 void fee_validate(publiqpp::detail::node_internals const& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction)
 {
-    Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address, state_layer::pool);
+    auto address = signed_transaction.authorizations.front().address;
+
+    Coin balance = impl.m_state.get_balance(address, state_layer::pool);
     if (coin(balance) < signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance),
+        throw not_enough_balance_exception(address,
+                                           coin(balance),
                                            signed_transaction.transaction_details.fee);
 }
 
