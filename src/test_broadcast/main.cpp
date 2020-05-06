@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 #endif
 
     network_simulation ns;
-    size_t const node_count = 3;
+    size_t const node_count = 5;
     std::vector<node_info> nodes_info;
 
 //#define ATTACH
@@ -201,7 +201,7 @@ int main(int argc, char** argv)
 
             string current_ip_address;
             if (0 == node_index)
-                current_ip_address = "north.google.com";
+                current_ip_address = "test.brdhub.com";
             else
                 current_ip_address = std::to_string((node_index / 250 / 250 / 250) % 250) + "." +
                                      std::to_string((node_index / 250 / 250) % 250) + "." +
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
 
             vector<beltpp::ip_address> p2p_connect_to_addresses;
             beltpp::ip_address connect_to_address;
-            connect_to_address.from_string("north.google.com:14500");
+            connect_to_address.from_string("test.brdhub.com:14500");
             p2p_connect_to_addresses.push_back(connect_to_address);
 
             NodeType n_type = BlockchainMessage::NodeType::blockchain;

@@ -43,18 +43,63 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
         return event_handler_ns::timer_out;
     }
 
+    // connect all waiting open/open pairs
+    auto first_it = m_ns->open_attempts.begin();
+    for (; first_it != m_ns->open_attempts.end();)
+    {
+        bool pair_found = false;
+        auto second_it = first_it;
+        for (++second_it; second_it != m_ns->open_attempts.end(); ++second_it)
+        {
+            if (first_it->first.local == second_it->first.remote && 
+                first_it->first.remote == second_it->first.local)
+            {
+                pair_found = true;
+
+                peer_id& first_peer = first_it->second;
+                ip_address first_address = first_it->first;
+                string& first_socket_name = m_ns->peer_to_socket[first_peer];
+
+                peer_id& second_peer = second_it->second;
+                ip_address second_address = second_it->first;
+                string& second_socket_name = m_ns->peer_to_socket[second_peer];
+
+                // create symmetric connections
+                m_ns->send_receive[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
+                m_ns->send_receive[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
+
+                // fill associations for future use
+                m_ns->peer_to_peer.insert({ first_peer, second_peer });
+                m_ns->peer_to_peer.insert({ second_peer, first_peer });
+
+                m_ns->peer_to_ip.insert({ first_peer, second_address });
+                m_ns->peer_to_ip.insert({ second_peer, first_address });
+
+                // close open attempt
+                second_it = m_ns->open_attempts.erase(second_it);
+
+                break; // second for
+            }
+        }
+
+        if (pair_found)
+            first_it = m_ns->open_attempts.erase(first_it);
+        else
+            ++first_it;
+    }
+
     // connect all waiting listen/open pairs
     auto open_it = m_ns->open_attempts.begin();
     for (; open_it != m_ns->open_attempts.end();)
     {
-        auto listen_it = m_ns->listen_attempts.find(open_it->first);
+        auto listen_it = m_ns->listen_attempts.find(open_it->first.remote);
 
         if (listen_it == m_ns->listen_attempts.end())
             ++open_it;
         else
         {
-            peer_id& open_peer = open_it->second.first;
-            ip_address& open_address = open_it->second.second;
+            peer_id& open_peer = open_it->second;
+            ip_address open_address = open_it->first;
             string& open_socket_name = m_ns->peer_to_socket[open_peer];
             
             ip_address listen_address = listen_it->second.second;
@@ -77,52 +122,6 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
 
             // close open attempt
             open_it = m_ns->open_attempts.erase(open_it);
-        }
-    }
-
-    // connect all waiting open/open pairs
-    auto first_it = m_ns->open_attempts.begin();
-    for (; first_it != m_ns->open_attempts.end();)
-    {
-        bool pair_found = false;
-        auto second_it = first_it;
-        for (++second_it; second_it != m_ns->open_attempts.end(); ++second_it)
-        {
-            if (first_it->second.second.local != second_it->second.second.remote ||
-                first_it->second.second.remote != second_it->second.second.local)
-                ++second_it;
-            else
-            {
-                pair_found = true;
-
-                peer_id& first_peer = first_it->second.first;
-                ip_address& first_address = first_it->second.second;
-                string& first_socket_name = m_ns->peer_to_socket[first_peer];
-
-                peer_id& second_peer = second_it->second.first;
-                ip_address& second_address = second_it->second.second;
-                string& second_socket_name = m_ns->peer_to_socket[second_peer];
-
-                // create symmetric connections
-                m_ns->send_receive[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
-                m_ns->send_receive[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
-
-                // fill associations for future use
-                m_ns->peer_to_peer.insert({ first_peer, second_peer });
-                m_ns->peer_to_peer.insert({ second_peer, first_peer });
-
-                m_ns->peer_to_ip.insert({ first_peer, second_address });
-                m_ns->peer_to_ip.insert({ second_peer, first_address });
-
-                // close open attempt
-                second_it = m_ns->open_attempts.erase(second_it);
-                first_it = m_ns->open_attempts.erase(first_it);
-            }
-
-            if (pair_found)
-                break;
-            else
-                ++first_it;
         }
     }
 
@@ -246,27 +245,25 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
         address.local = ip_destination();
     }
 
-    if (m_ns->open_attempts.find(address.remote) != m_ns->open_attempts.end() &&
-        address == m_ns->open_attempts[address.remote].second)
+    if (m_ns->open_attempts.find(address) != m_ns->open_attempts.end())
         throw std::runtime_error("ip address is already opening : " + address.to_string());
 
+    bool no_connection = true;
     peer_id peer = m_ns->construct_peer_id(address);
 
     //check already active connection and reject open
     if (m_ns->send_receive.find(m_name) != m_ns->send_receive.end())
-    {
-        auto& my_buffers = m_ns->send_receive[m_name];
-
-        for (auto& item : my_buffers)
+        for (auto& item : m_ns->send_receive[m_name])
             if (address == m_ns->peer_to_ip[item.first])
-                throw std::runtime_error("connection is already open : " + address.to_string());
+                no_connection = false;
+
+    if (no_connection)
+    {
+        m_ns->open_attempts.insert({ address, peer });
+        m_ns->peer_to_socket.insert({ peer, m_name });
+
+        peers.emplace_back(peer);
     }
-
-    m_ns->open_attempts[address.remote] = { peer, address };
-
-    m_ns->peer_to_socket[peer] = m_name;
-
-    peers.emplace_back(peer);
 
     return peers;
 }

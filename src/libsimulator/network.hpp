@@ -44,6 +44,14 @@ class SIMULATORSHARED_EXPORT network_simulation
 {
 public:
 
+    struct ip_cmp
+    {
+        bool operator()(const ip_address& a, const ip_address& b) const
+        {
+            return a.to_string() < b.to_string();
+        }
+    };
+
     struct ip_dest_cmp
     {
         bool operator()(const ip_destination& a, const ip_destination& b) const
@@ -55,7 +63,7 @@ public:
     //  receiver_socket          sender     packets
     map<string, map<peer_id, list<packet>>> send_receive;
 
-    map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> open_attempts;
+    map<ip_address, peer_id, ip_cmp> open_attempts;
     map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> listen_attempts;
     
     map<peer_id, peer_id> peer_to_peer;
