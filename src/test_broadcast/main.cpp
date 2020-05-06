@@ -391,12 +391,14 @@ int main(int argc, char** argv)
                 }
             }
 
-            string tmp_state = ns.export_connections();
+            ns.process_attempts();
 
+            // print network connections
+            string tmp_state = ns.export_connections();
             if (tmp_state != connection_state)
             {
                 cout << endl << "Connections state now is : " << endl;
-                cout << tmp_state;
+                cout << tmp_state << endl;
 
                 connection_state = tmp_state;
             }

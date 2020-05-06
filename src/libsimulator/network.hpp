@@ -77,6 +77,7 @@ public:
     size_t connection_index = 0;
     string construct_peer_id(ip_address const& socket_bundle);
 
+    void process_attempts();
     string export_connections(string socket_name = string());
 };
 
