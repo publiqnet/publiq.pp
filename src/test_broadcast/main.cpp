@@ -191,6 +191,9 @@ int main(int argc, char** argv)
         boost::filesystem::path root = data_directory_root;
         boost::filesystem::create_directory(root);
 
+        boost::filesystem::path state_file_path = root.string() + "/" + "state.txt";
+        boost::filesystem::ofstream file_temp_state(state_file_path);
+
         for (size_t node_index = 0; node_index != node_count; ++node_index)
         {
             node_info& info = nodes_info[node_index];
@@ -393,12 +396,16 @@ int main(int argc, char** argv)
 
             ns.process_attempts();
 
+
             // print network connections
             string tmp_state = ns.export_connections();
             if (tmp_state != connection_state)
             {
                 cout << endl << "Connections state now is : " << endl;
                 cout << tmp_state << endl;
+
+                file_temp_state << endl << "Connections state now is : " << endl;
+                file_temp_state << tmp_state << endl;
 
                 connection_state = tmp_state;
             }
