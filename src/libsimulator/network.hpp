@@ -72,12 +72,12 @@ public:
 
     map<event_item*, string> socket_to_name;
     map<string, pair<event_item*, event_item*>> name_to_sockets;
-
     map<event_handler_ns*, unordered_set<string>> eh_to_sockets;
 
     size_t connection_index = 0;
-
     string construct_peer_id(ip_address const& socket_bundle);
+
+    string export_connections(string socket_name = string());
 };
 
 class SIMULATORSHARED_EXPORT event_handler_ns : public beltpp::event_handler

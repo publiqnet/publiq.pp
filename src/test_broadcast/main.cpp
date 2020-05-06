@@ -238,8 +238,8 @@ int main(int argc, char** argv)
             meshpp::random_seed seed;
             meshpp::private_key pv_key = seed.get_private_key(0);
 
-            if (testnet && 0 == node_index)
-                pv_key = meshpp::private_key("5Kfu9216aabe2L942As4mGm91MC5RJKHP9tLWr5MMwcgVcRjFuz");
+            //if (testnet && 0 == node_index)
+            //    pv_key = meshpp::private_key("5Kfu9216aabe2L942As4mGm91MC5RJKHP9tLWr5MMwcgVcRjFuz");
 
             if (testnet)
                 meshpp::config::set_public_key_prefix("TPBQ");
@@ -336,6 +336,8 @@ int main(int argc, char** argv)
             }
         }   //  for that initializes nodes
 
+        string connection_state;
+
         while (false == nodes_info.empty())
         {
             if (g_termination_handled)
@@ -389,6 +391,16 @@ int main(int argc, char** argv)
                 }
             }
 
+            string tmp_state = ns.export_connections();
+
+            if (tmp_state != connection_state)
+            {
+                cout << endl << "Connections state now is : " << endl;
+                cout << tmp_state;
+
+                connection_state = tmp_state;
+            }
+
             // there is no wait in sockets
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
@@ -401,14 +413,10 @@ int main(int argc, char** argv)
     }
     catch (std::exception const& ex)
     {
-//        if (plogger_exceptions)
-//            plogger_exceptions->message(ex.what());
         cout << "exception cought: " << ex.what() << endl;
     }
     catch (...)
     {
-//        if (plogger_exceptions)
-//            plogger_exceptions->message("always throw std::exceptions");
         cout << "always throw std::exceptions" << endl;
     }
 

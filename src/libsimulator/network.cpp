@@ -10,6 +10,32 @@ string network_simulation::construct_peer_id(ip_address const& socket_bundle)
     return std::to_string(++connection_index) + "<=>" + socket_bundle.to_string();
 }
 
+string network_simulation::export_connections(string socket_name)
+{
+    string result;
+
+    for (auto const& item : send_receive)
+        if (false == socket_name.empty() && item.first != socket_name)
+            continue;
+        else
+        {
+            result += item.first + " < == > ";
+    
+            for (auto it = item.second.begin(); it != item.second.end();)
+            {
+                result += peer_to_socket[it->first];
+
+                if (++it != item.second.end())
+                    result += " , ";
+            }
+
+            result += "\n";
+        }
+
+    return result;
+}
+
+
 //  event_handler_ns implementation
 //
 
