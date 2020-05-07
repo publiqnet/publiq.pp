@@ -396,7 +396,7 @@ int main(int argc, char** argv)
 
             ns.process_attempts();
 
-            file_temp_state << ns.export_packets(-10);
+            file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
 
             // print network connections
             string tmp_state = ns.export_connections();

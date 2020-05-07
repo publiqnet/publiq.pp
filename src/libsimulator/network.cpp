@@ -184,8 +184,43 @@ string network_simulation::export_packets(const size_t rtt)
         for (auto const& it : item.second)
             for(auto const& pack : it.second)
                 if (pack.type() == rtt)
-                    result += item.first + " < == > " + peer_to_socket[it.first] + "  " + std::to_string(rtt) + "\n";
+                {
+                    result += item.first + " < == > " + peer_to_socket[it.first] + "  ";
 
+                    switch (rtt)
+                    {
+                    case beltpp::stream_join::rtt:
+                    {
+                        result += "join\n";
+                        break;
+                    }
+                    case beltpp::stream_drop::rtt:
+                    {
+                        result += "drop\n";
+                        break;
+                    }
+                    case beltpp::stream_protocol_error::rtt:
+                    {
+                        result += "protocol error\n";
+                        break;
+                    }
+                    case beltpp::socket_open_refused::rtt:
+                    {
+                        result += "open refused\n";
+                        break;
+                    }
+                    case beltpp::socket_open_error::rtt:
+                    {
+                        result += "open error\n";
+                        break;
+                    }
+                    default:
+                    {
+                        result += "unknown type! \n";
+                        break;
+                    }
+                    }
+                }
     return result;
 }
 
