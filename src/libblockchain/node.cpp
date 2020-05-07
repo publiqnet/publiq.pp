@@ -720,9 +720,11 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(msg);
 
                     auto pv_key = m_pimpl->front_private_key();
+                    m_pimpl->writeln_node("choosing key");
                     if (msg.address)
                     for (auto const& key_item : m_pimpl->pconfig->keys())
                     {
+                        m_pimpl->writeln_node("checking " + key_item.get_public_key().to_string());
                         if (key_item.get_public_key().to_string() == *msg.address)
                         {
                             pv_key = key_item;
