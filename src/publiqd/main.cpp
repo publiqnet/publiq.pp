@@ -328,7 +328,7 @@ int main(int argc, char** argv)
 
     if (false == str_private_key.empty())
         config.set_key(meshpp::private_key(str_private_key));
-    else if (false == config.key_set())
+    else if (false == config.is_key_set())
     {
         meshpp::random_seed seed;
         meshpp::private_key pv_key = seed.get_private_key(0);
@@ -452,9 +452,8 @@ int main(int argc, char** argv)
         {
             fs_storage = meshpp::data_directory_path("storage");
             ptr_storage_node.reset(new publiqpp::storage_node(node,
-                                                              config.get_slave_bind_to_address(),
+                                                              config,
                                                               fs_storage,
-                                                              config.get_key(),
                                                               plogger_rpc.get()));
             g_pstorage_node = ptr_storage_node.get();
         }

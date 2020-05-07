@@ -51,7 +51,7 @@ public:
 
     void set_key(meshpp::private_key const& pk);
     meshpp::private_key get_key() const;
-    bool key_set() const;
+    bool is_key_set() const;
 
     void add_secondary_key(meshpp::private_key const& pk);
     void remove_secondary_key(meshpp::private_key const& pk);
