@@ -176,6 +176,18 @@ string network_simulation::export_connections(string socket_name)
     return result;
 }
 
+string network_simulation::export_packets(const size_t rtt)
+{
+    string result;
+
+    for (auto const& item : send_receive)
+        for (auto const& it : item.second)
+            for(auto const& pack : it.second)
+                if (pack.type() == rtt)
+                    result += item.first + " < == > " + peer_to_socket[it.first] + "  " + std::to_string(rtt) + "\n";
+
+    return result;
+}
 
 //  event_handler_ns implementation
 //

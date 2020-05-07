@@ -396,6 +396,7 @@ int main(int argc, char** argv)
 
             ns.process_attempts();
 
+            file_temp_state << ns.export_packets(-10);
 
             // print network connections
             string tmp_state = ns.export_connections();
@@ -404,8 +405,8 @@ int main(int argc, char** argv)
                 cout << endl << "Connections state now is : " << endl;
                 cout << tmp_state << endl;
 
-                file_temp_state << endl << "Connections state now is : " << endl;
-                file_temp_state << tmp_state << endl;
+//                file_temp_state << endl << "Connections state now is : " << endl;
+//                file_temp_state << tmp_state << endl;
 
                 connection_state = tmp_state;
             }

@@ -62,7 +62,7 @@ public:
         }
     };
 
-    //  receiver_socket          sender     packets
+    //receiver_socket sender      packets
     map<string, map<peer_id, list<packet>>> send_receive;
 
     map<ip_address, peer_id, ip_cmp> open_attempts;
@@ -85,6 +85,7 @@ public:
     void process_attempts();
     string construct_peer_id(ip_address const& socket_bundle);
     string export_connections(string socket_name = string());
+    string export_packets(const size_t rtt = -1);
 };
 
 class SIMULATORSHARED_EXPORT event_handler_ns : public beltpp::event_handler
@@ -132,7 +133,7 @@ public:
     beltpp::ip_address info_connection(peer_id const& peer) override;
     beltpp::detail::session_special_data& session_data(peer_id const& peer) override;
 
-    std::string dump() const override;
+    string dump() const override;
 
     string m_name; // unique identifier
     string m_address; // local address
