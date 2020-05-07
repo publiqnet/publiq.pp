@@ -318,6 +318,8 @@ void config::set_automatic_fee(size_t fractions)
         if (!pimpl->config_loader->automatic_fee)
             pimpl->config_loader->automatic_fee = BlockchainMessage::Coin();
 
+        result.to_Coin(*pimpl->config_loader->automatic_fee);
+
         pimpl->config_loader.save();
         pimpl->config_loader.commit();
     }
