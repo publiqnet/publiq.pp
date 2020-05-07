@@ -283,11 +283,11 @@ bool config::is_key_set() const
 
 void config::add_secondary_key(private_key const& pk)
 {
-    auto locker = unique_lock<mutex>(pimpl->m_mutex);
-
     if (is_key_set() &&
         get_key().get_base58_wif() == pk.get_base58_wif())
         return;
+
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
 
     auto& pks = pimpl->config_loader->private_keys;
     if (pks &&
@@ -322,10 +322,10 @@ void config::remove_secondary_key(private_key const& pk)
 
 std::vector<private_key> config::keys() const
 {
-    auto locker = unique_lock<mutex>(pimpl->m_mutex);
-
     std::vector<private_key> result;
     result.push_back(get_key());
+
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
 
     if (pimpl->config_loader->private_keys)
     for (auto const& pkitem : *pimpl->config_loader->private_keys)
@@ -489,8 +489,6 @@ bool config::discovery_server() const
 
 string config::check_for_error() const
 {
-    auto locker = unique_lock<mutex>(pimpl->m_mutex);
-
     string result;
 
     if (get_p2p_bind_to_address().local.empty())
