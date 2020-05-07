@@ -203,11 +203,9 @@ void storage_node::run(bool& stop)
                 std::move(ref_packet).get(msg);
 
                 auto pv_key = m_pimpl->pconfig->get_key();
-                m_pimpl->writeln_node("choosing key");
                 if (msg.address)
                 for (auto const& key_item : m_pimpl->pconfig->keys())
                 {
-                    m_pimpl->writeln_node("checking " + key_item.get_public_key().to_string());
                     if (key_item.get_public_key().to_string() == *msg.address)
                     {
                         pv_key = key_item;
