@@ -314,7 +314,7 @@ int main(int argc, char** argv)
                                                                        "r" + format_index(node_index, node_count)));
             unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh, 
                                                                        p2p_bind_to_address.local.address,
-                                                                       "p" + format_index(node_index, node_count)));
+                                                                       /*"p" +*/ format_index(node_index, node_count)));
 
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
@@ -353,7 +353,7 @@ int main(int argc, char** argv)
                                     std::move(inject_rpc_socket),
                                     std::move(inject_p2p_socket)));
 
-            cout << "Node: " << info.node->name();
+            cout << "Node: " << node_index << "  " << info.node->name();
             cout << "    Type: " << static_cast<int>(n_type) << endl;
             //std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }   //  for that initializes nodes

@@ -62,12 +62,14 @@ public:
         }
     };
 
-    //receiver_socket sender      packets
+    //receiver      sender       packets
     map<string, map<peer_id, list<packet>>> send_receive;
 
     map<ip_address, peer_id, ip_cmp> open_attempts;
     map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> listen_attempts;
     
+    set<peer_id> peers_to_drop;
+
     map<peer_id, peer_id> peer_to_peer;
     map<peer_id, ip_address> peer_to_ip;
     map<peer_id, string> peer_to_socket;
@@ -83,6 +85,7 @@ public:
     uint32_t chance_of_refuse_base = 10;
 
     void process_attempts();
+    bool connection_closed(size_t const packet_type) const;
     string construct_peer_id(ip_address const& socket_bundle);
     string export_connections(string socket_name = string());
     string export_packets(const size_t rtt = -1);
