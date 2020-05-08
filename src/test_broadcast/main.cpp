@@ -32,6 +32,7 @@
 
 #include <thread>
 #include <csignal>
+#include <iomanip>
 
 using namespace network_simulation_impl;
 
@@ -140,7 +141,23 @@ struct node_info
 };
 
 bool process_command_line(int argc, char** argv,
-                          string& data_directory_root);
+                          string& data_directory_root,
+                          size_t& node_count,
+                          uint32_t& refuze_base);
+
+string format_index(size_t node_index, size_t node_count) 
+{
+    size_t base = 0;
+    while (node_count > 0)
+    {
+        ++base;
+        node_count /= 10;
+    }
+
+    std::stringstream ss;
+    ss << std::setw(base) << std::setfill('0') << node_index;
+    return ss.str();
+}
 
 int main(int argc, char** argv)
 {
@@ -163,10 +180,6 @@ int main(int argc, char** argv)
     ::sigaction(SIGTERM, &signal_handler, nullptr);
 #endif
 
-    network_simulation ns;
-    size_t const node_count = 10;
-    std::vector<node_info> nodes_info;
-
 //#define ATTACH
 #ifdef ATTACH
     // just for debug
@@ -180,12 +193,15 @@ int main(int argc, char** argv)
     {
         meshpp::settings::set_application_name("simulation_publiqd");
         meshpp::create_config_directory();
-        nodes_info.resize(node_count);
 
+        size_t node_count = 2;
+        uint32_t refuse_base = 10;
         string data_directory_root;
 
         if (false == process_command_line(argc, argv,
-                                          data_directory_root))
+                                          data_directory_root,
+                                          node_count,
+                                          refuse_base))
             return 1;
 
         boost::filesystem::path root = data_directory_root;
@@ -193,6 +209,11 @@ int main(int argc, char** argv)
 
         boost::filesystem::path state_file_path = root.string() + "/" + "state.txt";
         boost::filesystem::ofstream file_temp_state(state_file_path);
+
+        network_simulation ns;
+        ns.chance_of_refuse_base = refuse_base;
+        std::vector<node_info> nodes_info;
+        nodes_info.resize(node_count);
 
         for (size_t node_index = 0; node_index != node_count; ++node_index)
         {
@@ -290,10 +311,10 @@ int main(int argc, char** argv)
             unique_ptr<beltpp::event_handler> inject_eh(peh);
             unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh, 
                                                                        rpc_bind_to_address.local.address, 
-                                                                       "rpc_" + std::to_string(node_index)));
+                                                                       "r" + format_index(node_index, node_count)));
             unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh, 
                                                                        p2p_bind_to_address.local.address,
-                                                                       "p2p_" + std::to_string(node_index)));
+                                                                       "p" + format_index(node_index, node_count)));
 
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
@@ -332,13 +353,12 @@ int main(int argc, char** argv)
                                     std::move(inject_rpc_socket),
                                     std::move(inject_p2p_socket)));
 
-            //if (0 == node_index)
-            {
-                cout << "Node: " << info.node->name();
-                cout << "    Type: " << static_cast<int>(n_type) << endl;
-            }
+            cout << "Node: " << info.node->name();
+            cout << "    Type: " << static_cast<int>(n_type) << endl;
+            //std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }   //  for that initializes nodes
 
+        size_t step = 0;
         string connection_state;
 
         while (false == nodes_info.empty())
@@ -355,7 +375,12 @@ int main(int argc, char** argv)
                 try
                 {
                     bool stop_check = false;
-                    info.node->run(stop_check);
+                    bool event_check = true;
+
+                    // allow each node read all waiting 
+                    // packets from network
+                    while (!stop_check && event_check)
+                        event_check = info.node->run(stop_check);
 
                     if (stop_check)
                         nodes_info.erase(nodes_info.begin() + node_index);
@@ -402,7 +427,7 @@ int main(int argc, char** argv)
             string tmp_state = ns.export_connections();
             if (tmp_state != connection_state)
             {
-                cout << endl << "Connections state now is : " << endl;
+                cout << endl << "Connections state : step " << std::to_string(step) << endl;
                 cout << tmp_state << endl;
 
 //                file_temp_state << endl << "Connections state now is : " << endl;
@@ -410,6 +435,9 @@ int main(int argc, char** argv)
 
                 connection_state = tmp_state;
             }
+
+            ++step;
+            //cout << "Step " << std::to_string(step) << endl;
 
             // there is no wait in sockets
             std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -436,15 +464,18 @@ int main(int argc, char** argv)
 }
 
 bool process_command_line(int argc, char** argv,
-                          string& data_directory_root)
+                          string& data_directory_root,
+                          size_t& node_count,
+                          uint32_t& refuse_base)
 {
     program_options::options_description options_description;
     try
     {
         auto desc_init = options_description.add_options()
-                             ("help,h", "Print this help message and exit.")
-                             ("data_directory,d", program_options::value<string>(&data_directory_root),
-                              "Data directory path");
+            ("help,h", "Print this help message and exit.")
+            ("data_directory,d", program_options::value<string>(&data_directory_root), "Data directory path")
+            ("nodes_count,n", program_options::value<size_t>(&node_count), "Nodes count")
+            ("refuse_base,r", program_options::value<uint32_t>(&refuse_base), "Chance of refse base");
         (void)(desc_init);
 
         program_options::variables_map options;

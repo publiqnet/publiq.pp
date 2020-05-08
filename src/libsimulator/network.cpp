@@ -161,7 +161,7 @@ string network_simulation::export_connections(string socket_name)
             }
 
             tmp.sort();
-            result += item.first + " < == > ";
+            result += item.first + " <=> ";
             for (auto it = tmp.begin(); it != tmp.end();)
             {
                 result += *it;
@@ -460,7 +460,8 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 
     auto receiver_it = m_ns->send_receive.find(receiver_socket_it->second);
     if (receiver_it == m_ns->send_receive.end())
-        throw std::logic_error("send_packet() no any connections");
+        return;
+        //throw std::logic_error("send_packet() no any connections");
 
     auto sender_peer_it = m_ns->peer_to_peer.find(peer);
     if (sender_peer_it == m_ns->peer_to_peer.end())

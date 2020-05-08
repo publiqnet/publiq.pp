@@ -133,16 +133,17 @@ string node::name() const
     return m_pimpl->m_ptr_p2p_socket->name();
 }
 
-void node::run(bool& stop_check)
+bool node::run(bool& stop_check)
 {
-    stop_check = false;
+    bool event_check = true;
 
+    stop_check = false;
     if (m_pimpl->m_initialize)
     {
         beltpp::on_failure guard_initialize([&stop_check]{ stop_check = true; });
         stop_check = m_pimpl->initialize();
         guard_initialize.dismiss();
-        return;
+        return false;
     }
 
     if (m_pimpl->m_service_statistics_broadcast_triggered)
@@ -1010,6 +1011,10 @@ void node::run(bool& stop_check)
             }
         }   // if not processed by sessions
     }
+    else
+    {
+        event_check = false;
+    }
 
     m_pimpl->m_sessions.erase_all_pending();
     m_pimpl->m_sync_sessions.erase_all_pending();
@@ -1080,8 +1085,7 @@ void node::run(bool& stop_check)
         });
 
         // collect verified channel addresses and send to slave node
-        if (m_pimpl->m_node_type == NodeType::storage &&
-            m_pimpl->m_slave_node)
+        if (m_pimpl->m_node_type == NodeType::storage && m_pimpl->m_slave_node)
         {
             StorageTypes::SetVerifiedChannels set_channels;
 
@@ -1274,6 +1278,8 @@ void node::run(bool& stop_check)
             }
         }
     }
+
+    return event_check;
 }
 
 void node::set_slave_node(storage_node& slave_node)
