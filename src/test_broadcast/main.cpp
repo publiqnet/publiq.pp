@@ -32,7 +32,6 @@
 
 #include <thread>
 #include <csignal>
-#include <iomanip>
 
 using namespace network_simulation_impl;
 
@@ -145,20 +144,6 @@ bool process_command_line(int argc, char** argv,
                           size_t& node_count,
                           uint32_t& refuze_base);
 
-string format_index(size_t node_index, size_t node_count) 
-{
-    size_t base = 0;
-    while (node_count > 0)
-    {
-        ++base;
-        node_count /= 10;
-    }
-
-    std::stringstream ss;
-    ss << std::setw(base) << std::setfill('0') << node_index;
-    return ss.str();
-}
-
 int main(int argc, char** argv)
 {
     try
@@ -194,8 +179,8 @@ int main(int argc, char** argv)
         meshpp::settings::set_application_name("simulation_publiqd");
         meshpp::create_config_directory();
 
-        size_t node_count = 2;
-        uint32_t refuse_base = 10;
+        size_t node_count = 10;
+        uint32_t refuse_base = 2;
         string data_directory_root;
 
         if (false == process_command_line(argc, argv,
@@ -211,6 +196,7 @@ int main(int argc, char** argv)
         boost::filesystem::ofstream file_temp_state(state_file_path);
 
         network_simulation ns;
+        ns.node_count = node_count;
         ns.chance_of_refuse_base = refuse_base;
         std::vector<node_info> nodes_info;
         nodes_info.resize(node_count);
@@ -314,7 +300,7 @@ int main(int argc, char** argv)
                                                                        "r" + format_index(node_index, node_count)));
             unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh, 
                                                                        p2p_bind_to_address.local.address,
-                                                                       "p" + format_index(node_index, node_count)));
+                                                                       /*"p" +*/ format_index(node_index, node_count)));
 
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
@@ -353,7 +339,7 @@ int main(int argc, char** argv)
                                     std::move(inject_rpc_socket),
                                     std::move(inject_p2p_socket)));
 
-            cout << "Node: " << info.node->name();
+            cout << "Node: " << node_index << "  " << info.node->name();
             cout << "    Type: " << static_cast<int>(n_type) << endl;
             //std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }   //  for that initializes nodes
@@ -421,17 +407,14 @@ int main(int argc, char** argv)
 
             ns.process_attempts();
 
-            file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
+            //file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
 
             // print network connections
-            string tmp_state = ns.export_connections();
+            string tmp_state = ns.export_connections_matrix();
             if (tmp_state != connection_state)
             {
                 cout << endl << "Connections state : step " << std::to_string(step) << endl;
                 cout << tmp_state << endl;
-
-//                file_temp_state << endl << "Connections state now is : " << endl;
-//                file_temp_state << tmp_state << endl;
 
                 connection_state = tmp_state;
             }

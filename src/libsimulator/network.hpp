@@ -20,6 +20,8 @@
 #include <list>
 #include <exception>
 #include <string>
+#include <iomanip>
+#include <sstream>
 
 using std::map;
 using std::set;
@@ -38,6 +40,20 @@ using beltpp::ip_destination;
 using peer_id = beltpp::socket::peer_id;
 using peer_ids = beltpp::socket::peer_ids;
 using peer_type = beltpp::socket::peer_type;
+
+inline string format_index(size_t node_index, size_t node_count)
+{
+    size_t base = 0;
+    while (node_count > 0)
+    {
+        ++base;
+        node_count /= 10;
+    }
+
+    std::stringstream ss;
+    ss << std::setw(base) << std::setfill('0') << node_index;
+    return ss.str();
+}
 
 namespace network_simulation_impl
 {
@@ -65,12 +81,14 @@ public:
         }
     };
 
-    //receiver_socket sender      packets
+    //receiver      sender       packets
     map<string, map<peer_id, list<packet>>> send_receive;
 
     map<ip_address, peer_id, ip_cmp> open_attempts;
     map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> listen_attempts;
     
+    set<peer_id> peers_to_drop;
+
     map<peer_id, peer_id> peer_to_peer;
     map<peer_id, ip_address> peer_to_ip;
     map<peer_id, string> peer_to_socket;
@@ -82,12 +100,16 @@ public:
     map<string, set<string>> permanent_allowed_connections;
     map<string, set<string>> permanent_refused_connections;
 
+    size_t node_count = 0;
+    size_t timer_shuffle = 0;
     size_t connection_index = 0;
     uint32_t chance_of_refuse_base = 10;
 
     void process_attempts();
+    bool connection_closed(size_t const packet_type) const;
     string construct_peer_id(ip_address const& socket_bundle);
     string export_connections(string socket_name = string());
+    string export_connections_matrix();
     string export_packets(const size_t rtt = -1);
 };
 
