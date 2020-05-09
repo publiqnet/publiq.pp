@@ -120,6 +120,8 @@ public:
     event_handler_ns(network_simulation& ns);
     ~event_handler_ns() override;
 
+    bool read();
+
     wait_result wait(std::unordered_set<beltpp::event_item const*>& event_items) override;
     std::unordered_set<uint64_t> waited(beltpp::event_item& ev_it) const override;
 

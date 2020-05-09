@@ -350,6 +350,18 @@ event_handler_ns::~event_handler_ns()
     m_ns->eh_to_sockets.erase(this);
 }
 
+bool event_handler_ns::read()
+{
+    auto& my_sockets = m_ns->eh_to_sockets[this];
+    for (auto const& item : m_ns->send_receive)
+        if (my_sockets.count(item.first))
+            for (auto const& it : item.second)
+                if (it.second.size())
+                    return true;
+
+    return false;
+}
+
 event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item const*>& event_items)
 {
     event_items.clear();
@@ -546,36 +558,33 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     auto& my_buffers = my_buffers_it->second;
     
     // find the mîst filled buffer
-    size_t count = 0;
     for (auto& buffer : my_buffers)
-        if (buffer.second.size() > count)
+        if (buffer.second.size())
         {
             peer = buffer.first;
-            count = buffer.second.size();
-        }
 
-    if (count == 0)
-        return result;
+            // read the buffer
+            for (auto& pack : buffer.second)
+            {
+                disconnect = m_ns->connection_closed(pack.type());
 
-    // read the buffer
-    for (auto& pack : my_buffers[peer])
-    {
-        disconnect = m_ns->connection_closed(pack.type());
+                result.emplace_back(std::move(pack));
 
-        result.emplace_back(std::move(pack));
-            
-        if (disconnect)
+                if (disconnect)
+                    break;
+            }
+
+            buffer.second.clear();
+
+            if (disconnect)
+            {
+                my_buffers.erase(peer);
+
+                m_ns->peers_to_drop.insert(peer);
+            }
+
             break;
-    }
-
-    my_buffers[peer].clear();
-
-    if (disconnect)
-    {
-        my_buffers.erase(peer);
-
-        m_ns->peers_to_drop.insert(peer);
-    }
+        }
 
     return result;
 }

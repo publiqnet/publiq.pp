@@ -135,6 +135,7 @@ struct node_info
     beltpp::ilog_ptr plogger_rpc;
     beltpp::ilog_ptr plogger_exceptions;
 
+    event_handler_ns* peh;
     unique_ptr<publiqpp::node> node;
     unique_ptr<DataDirAttributeLoader> dda;
 };
@@ -302,6 +303,7 @@ int main(int argc, char** argv)
                                                                        p2p_bind_to_address.local.address,
                                                                        /*"p" +*/ format_index(node_index, node_count)));
 
+            info.peh = peh;
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(testnet),
                                     public_address,
@@ -360,12 +362,12 @@ int main(int argc, char** argv)
 
                 try
                 {
-                    bool stop_check = false;
                     bool event_check = true;
+                    bool stop_check = false;
 
                     // allow each node read all waiting 
                     // packets from network
-                    while (!stop_check && event_check)
+                    while (!stop_check && (event_check || info.peh->read()))
                         event_check = info.node->run(stop_check);
 
                     if (stop_check)
