@@ -1,5 +1,8 @@
 #pragma once
+
 #include "global.hpp"
+#include <publiq.pp/message.hpp>
+#include <publiq.pp/message.tmpl.hpp>
 
 #include <belt.pp/isocket.hpp>
 #include <belt.pp/ievent.hpp>
