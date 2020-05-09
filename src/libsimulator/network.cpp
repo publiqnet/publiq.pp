@@ -558,7 +558,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     bool disconnect = false;
     auto& my_buffers = my_buffers_it->second;
     
-    // find the mîst filled buffer
+    // find the most filled buffer
     for (auto& buffer : my_buffers)
         if (buffer.second.size())
         {
