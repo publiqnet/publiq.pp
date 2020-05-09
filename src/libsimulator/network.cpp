@@ -11,6 +11,36 @@ string network_simulation::construct_peer_id(ip_address const& socket_bundle)
 
 void network_simulation::process_attempts()
 {
+    //clear storage
+    set<peer_id> to_delete;
+    for (auto& peer : peers_to_drop)
+    {
+        bool peers_not_used = true;
+        auto pair_peer = peer_to_peer[peer];
+
+        for (auto it = send_receive.begin(); peers_not_used && it != send_receive.end(); ++it)
+            peers_not_used = it->second.find(peer) == it->second.end() &&
+            it->second.find(pair_peer) == it->second.end();
+
+        if (peers_not_used)
+        {
+            to_delete.insert(peer);
+            to_delete.insert(pair_peer);
+
+            peer_to_ip.erase(peer);
+            peer_to_ip.erase(pair_peer);
+
+            peer_to_peer.erase(peer);
+            peer_to_peer.erase(pair_peer);
+
+            peer_to_socket.erase(peer);
+            peer_to_socket.erase(pair_peer);
+        }
+    }
+
+    for (auto& peer : to_delete)
+        peers_to_drop.erase(peer);
+
     // connect all waiting open/open pairs
     auto first_it = open_attempts.begin();
     for (; first_it != open_attempts.end();)
@@ -73,6 +103,9 @@ void network_simulation::process_attempts()
                     // send refuse to peers
                     send_receive[first_socket_name][second_peer].emplace_back(beltpp::socket_open_refused());
                     send_receive[second_socket_name][first_peer].emplace_back(beltpp::socket_open_refused());
+
+                    peers_to_drop.insert(first_peer);
+                    peers_to_drop.insert(second_peer);
                 }
 
                 // fill associations for future use
@@ -132,36 +165,6 @@ void network_simulation::process_attempts()
             open_it = open_attempts.erase(open_it);
         }
     }
-
-    //clear storage
-    set<peer_id> to_delete;
-    for (auto& peer : peers_to_drop)
-    {
-        bool peers_not_used = true;
-        auto pair_peer = peer_to_peer[peer];
-
-        for (auto it = send_receive.begin(); peers_not_used && it != send_receive.end(); ++it)
-            peers_not_used = it->second.find(peer) == it->second.end() &&
-                             it->second.find(pair_peer) == it->second.end();
-
-        if (peers_not_used)
-        {
-            to_delete.insert(peer);
-            to_delete.insert(pair_peer);
-
-            peer_to_ip.erase(peer);
-            peer_to_ip.erase(pair_peer);
-
-            peer_to_peer.erase(peer);
-            peer_to_peer.erase(pair_peer);
-
-            peer_to_socket.erase(peer);
-            peer_to_socket.erase(pair_peer);
-        }
-    }
-
-    for (auto& peer : to_delete)
-        peers_to_drop.erase(peer);
 }
 
 bool network_simulation::connection_closed(size_t const packet_type) const
@@ -183,12 +186,8 @@ string network_simulation::export_connections(string socket_name)
         {
             list<string> tmp;
             for (auto const& it : item.second)
-            {
-                if (peer_to_socket.find(it.first) != peer_to_socket.end())
+                if (0 == peers_to_drop.count(it.first))
                     tmp.push_back(peer_to_socket[it.first]);
-                else
-                    tmp.push_back(it.first);
-            }
 
             tmp.sort();
             result += item.first + " <=> ";
@@ -202,6 +201,41 @@ string network_simulation::export_connections(string socket_name)
 
             result += "\n";
         }
+
+    return result;
+}
+
+string network_simulation::export_connections_matrix()
+{
+    string result;
+
+    for (auto const& item : send_receive)
+    {
+        list<string> tmp;
+        for (auto const& it : item.second)
+            if (0 == peers_to_drop.count(it.first))
+                tmp.push_back(peer_to_socket[it.first]);
+
+        tmp.sort();
+        result += item.first + " <=> ";
+        size_t node_index = 0;
+        for (auto it = tmp.begin(); it != tmp.end();)
+        {
+            while (*it != format_index(node_index, node_count))
+            {
+                ++node_index;
+                result += "   ";
+            }
+
+            ++node_index;
+            result += *it;
+
+            if (++it != tmp.end())
+                result += " ";
+        }
+
+        result += "\n";
+    }
 
     return result;
 }
@@ -320,7 +354,7 @@ void event_handler_ns::wake()
 
 void event_handler_ns::set_timer(std::chrono::steady_clock::duration const& period)
 {
-    m_timer_helper.set(period);
+    m_timer_helper.set(period + std::chrono::steady_clock::duration(m_ns->timer_shuffle++));
 }
 
 void event_handler_ns::add(event_item& ev_it)
@@ -507,7 +541,7 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         throw std::logic_error("send_packet() peer_to_peer association error");
 
     if (receiver_it->second.find(sender_peer_it->second) == receiver_it->second.end())
-        throw std::logic_error("send_packet() no connection with peer");
+        throw std::runtime_error("send_packet() no connection with peer");
 
     auto& receiver_buffer = receiver_it->second[sender_peer_it->second];
 
