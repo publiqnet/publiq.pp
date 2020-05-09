@@ -315,16 +315,17 @@ string network_simulation::export_packets(const size_t rtt)
                     }
                     default:
                     {
-                        //try
-                        //{
-                        //    auto models = BlockchainMessage::detail::models();
-                        //    string model_name = models.at(rtt);
-                        //    result += model_name + "\n";
-                        //}
-                        //catch (std::out_of_range const& ex)
-                        //{
-                        //    result += "unknown type! \n";
-                        //}
+                        try
+                        {
+                            auto models = BlockchainMessage::detail::models();
+                            string model_name = models.at(rtt);
+                            result += model_name + "\n";
+                        }
+                        catch (std::out_of_range const& ex)
+                        {
+                            B_UNUSED(ex);
+                            result += "unknown type! \n";
+                        }
                         break;
                     }
                     }
