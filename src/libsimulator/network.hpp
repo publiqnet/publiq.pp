@@ -110,6 +110,7 @@ public:
     string construct_peer_id(ip_address const& socket_bundle);
     string export_connections(string socket_name = string());
     string export_connections_matrix();
+    string export_connections_load();
     string export_packets(const size_t rtt = -1);
 };
 

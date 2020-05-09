@@ -240,6 +240,41 @@ string network_simulation::export_connections_matrix()
     return result;
 }
 
+string network_simulation::export_connections_load()
+{
+    string result;
+
+    for (auto const& item : send_receive)
+    {
+        list<pair<string, size_t>> tmp;
+        for (auto const& it : item.second)
+            if (0 == peers_to_drop.count(it.first))
+                tmp.push_back({ peer_to_socket[it.first], it.second.size() });
+
+        tmp.sort();
+        result += item.first + " <=> ";
+        size_t node_index = 0;
+        for (auto it = tmp.begin(); it != tmp.end();)
+        {
+            while (it->first != format_index(node_index, node_count))
+            {
+                ++node_index;
+                result += "   ";
+            }
+
+            ++node_index;
+            result += format_index(it->second, node_count);
+
+            if (++it != tmp.end())
+                result += " ";
+        }
+
+        result += "\n";
+    }
+
+    return result;
+}
+
 string network_simulation::export_packets(const size_t rtt)
 {
     string result;
@@ -320,7 +355,9 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
     event_items.clear();
 
     for (auto& socket_name : m_ns->eh_to_sockets[this])
-        if (nullptr != m_ns->name_to_sockets[socket_name].second)
+        if (nullptr == m_ns->name_to_sockets[socket_name].second)
+            m_ns->name_to_sockets[socket_name].first->prepare_wait();
+        else
             m_ns->name_to_sockets[socket_name].second->prepare_wait();
 
     if (m_timer_helper.expired())
@@ -330,10 +367,15 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
     }
 
     // check sent packets to my sockets
-    auto& sockets = m_ns->eh_to_sockets[this];
+    auto& my_sockets = m_ns->eh_to_sockets[this];
     for (auto const& item : m_ns->send_receive)
-        if (false == item.second.empty() && sockets.count(item.first))
-            event_items.insert(m_ns->name_to_sockets[item.first].first);
+        if (my_sockets.count(item.first))
+            for (auto const& it : item.second)
+                if (it.second.size())
+                {
+                    event_items.insert(m_ns->name_to_sockets[item.first].first);
+                    break;
+                }
 
     bool on_demand = m_wake_triggered;
     m_wake_triggered = false;
@@ -503,27 +545,30 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     bool disconnect = false;
     auto& my_buffers = my_buffers_it->second;
     
+    // find the mîst filled buffer
+    size_t count = 0;
     for (auto& buffer : my_buffers)
-    {
-        if (buffer.second.empty())
-            continue;
-        
-        peer = buffer.first;
-
-        for (auto& pack : buffer.second)
+        if (buffer.second.size() > count)
         {
-            disconnect = m_ns->connection_closed(pack.type());
-
-            result.emplace_back(std::move(pack));
-            
-            if (disconnect)
-                break;
+            peer = buffer.first;
+            count = buffer.second.size();
         }
 
-        buffer.second.clear();
+    if (count == 0)
+        return result;
 
-        break;
+    // read the buffer
+    for (auto& pack : my_buffers[peer])
+    {
+        disconnect = m_ns->connection_closed(pack.type());
+
+        result.emplace_back(std::move(pack));
+            
+        if (disconnect)
+            break;
     }
+
+    my_buffers[peer].clear();
 
     if (disconnect)
     {

@@ -369,7 +369,10 @@ int main(int argc, char** argv)
                         event_check = info.node->run(stop_check);
 
                     if (stop_check)
+                    {
+                        cout << endl << "Stop node : " << info.node->name();
                         nodes_info.erase(nodes_info.begin() + node_index);
+                    }
                 }
                 catch (std::bad_alloc const& ex)
                 {
@@ -409,8 +412,10 @@ int main(int argc, char** argv)
 
             //file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
 
-            // print network connections
-            string tmp_state = ns.export_connections_matrix();
+            // print network info
+            //string tmp_state = ns.export_connections();
+            //string tmp_state = ns.export_connections_matrix();
+            string tmp_state = ns.export_connections_load();
             if (tmp_state != connection_state)
             {
                 cout << endl << "Connections state : step " << std::to_string(step) << endl;
