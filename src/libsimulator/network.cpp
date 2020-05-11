@@ -549,22 +549,20 @@ void socket_ns::prepare_wait()
 
 socket_ns::packets socket_ns::receive(peer_id& peer)
 {
-    socket_ns::packets result;
-
     auto my_buffers_it = m_ns->send_receive.find(m_name);
     if (my_buffers_it == m_ns->send_receive.end())
         throw std::logic_error("receive_packet() no any connection");
 
     bool disconnect = false;
+    socket_ns::packets result;
     auto& my_buffers = my_buffers_it->second;
     
-    // find the most filled buffer
+    // read first filled buffer and return
     for (auto& buffer : my_buffers)
         if (buffer.second.size())
         {
             peer = buffer.first;
 
-            // read the buffer
             for (auto& pack : buffer.second)
             {
                 disconnect = m_ns->connection_closed(pack.type());
