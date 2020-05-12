@@ -432,7 +432,7 @@ int main(int argc, char** argv)
             }
 
             ns.process_attempts();
-            file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
+            //file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
 
             ++step;
             time_point tmp_time = system_clock::now();
@@ -442,6 +442,8 @@ int main(int argc, char** argv)
             //string tmp_state = ns.export_connections();
             string tmp_state = ns.export_connections_matrix();
             //string tmp_state = ns.export_connections_load();
+            //string tmp_state = ns.export_connections_info();
+
             if (tmp_state != connection_state)
             {
                 cout << endl << endl;

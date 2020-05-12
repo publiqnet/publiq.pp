@@ -111,7 +111,13 @@ public:
     string export_connections(string socket_name = string());
     string export_connections_matrix();
     string export_connections_load();
+    string export_connections_info();
     string export_packets(const size_t rtt = -1);
+
+private:
+
+    size_t specific_connections_count(const size_t rtt = beltpp::stream_drop::rtt);
+    size_t triangle_connections_count();
 };
 
 class SIMULATORSHARED_EXPORT event_handler_ns : public beltpp::event_handler

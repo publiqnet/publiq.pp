@@ -293,8 +293,16 @@ string network_simulation::export_connections_load()
     return result;
 }
 
+string network_simulation::export_connections_info()
+{
+    string result;
+
+    return result;
+}
+
 string network_simulation::export_packets(const size_t rtt)
 {
+
     string result;
 
     for (auto const& item : send_receive)
@@ -348,7 +356,31 @@ string network_simulation::export_packets(const size_t rtt)
                     }
                     }
                 }
+
     return result;
+}
+
+size_t network_simulation::specific_connections_count(const size_t rtt)
+{
+    size_t count = 0;
+
+    for (auto const& receiver_item : send_receive)
+        for (auto const& sender_item : receiver_item.second)
+            for (auto const& pack : sender_item.second)
+                if (pack.type() == rtt)
+                {
+                    ++count;
+                    break;
+                }
+
+    return count;
+}
+
+size_t network_simulation::triangle_connections_count()
+{
+    size_t count = 0;
+
+    return count;
 }
 
 //  event_handler_ns implementation
