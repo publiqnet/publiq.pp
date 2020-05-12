@@ -26,6 +26,7 @@
 using namespace BlockchainMessage;
 
 using beltpp::packet;
+using beltpp::event_handler;
 using beltpp::socket;
 using beltpp::ip_address;
 using peer_id = socket::peer_id;
@@ -77,7 +78,10 @@ node::node(string const& genesis_signed_block,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
            detail::fp_counts_per_channel_views p_counts_per_channel_views,
-           detail::fp_content_unit_validate_check p_content_unit_validate_check)
+           detail::fp_content_unit_validate_check p_content_unit_validate_check,
+           unique_ptr<event_handler>&& inject_eh,
+           unique_ptr<socket>&& inject_rpc_socket,
+           unique_ptr<socket>&& inject_p2p_socket)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
                                          public_address,
                                          public_ssl_address,
@@ -109,7 +113,10 @@ node::node(string const& genesis_signed_block,
                                          mine_amount_threshhold,
                                          block_reward_array,
                                          p_counts_per_channel_views,
-                                         p_content_unit_validate_check))
+                                         p_content_unit_validate_check,
+                                         std::move(inject_eh),
+                                         std::move(inject_rpc_socket),
+                                         std::move(inject_p2p_socket)))
 {}
 
 node::node(node&&) noexcept = default;

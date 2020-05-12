@@ -42,6 +42,7 @@ namespace filesystem = boost::filesystem;
 
 using beltpp::ip_address;
 using beltpp::ip_destination;
+using beltpp::event_handler;
 using beltpp::socket;
 using beltpp::packet;
 using peer_id = socket::peer_id;
@@ -465,11 +466,16 @@ public:
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views,
-                   detail::fp_content_unit_validate_check p_content_unit_validate_check)
+                   detail::fp_content_unit_validate_check p_content_unit_validate_check,
+                   unique_ptr<event_handler>&& inject_eh,
+                   unique_ptr<socket>&& inject_rpc_socket,
+                   unique_ptr<socket>&& inject_p2p_socket)
         : m_slave_node(nullptr)
         , plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
-        , m_ptr_eh(beltpp::libsocket::construct_event_handler())
+        , m_ptr_eh(nullptr == inject_eh ?
+                       beltpp::take_unique_ptr(beltpp::libsocket::construct_event_handler()) :
+                       beltpp::take_unique_ptr(std::move(inject_eh)) )
         , m_ptr_p2p_socket(new meshpp::p2psocket(
                                meshpp::getp2psocket(*m_ptr_eh,
                                                     p2p_bind_to_address,
@@ -477,9 +483,12 @@ public:
                                                     get_putl(),
                                                     _plogger_p2p,
                                                     pv_key,
-                                                    discovery_server)
+                                                    discovery_server,
+                                                    std::move(inject_p2p_socket))
         ))
-        , m_ptr_rpc_socket(beltpp::libsocket::getsocket<rpc_sf>(*m_ptr_eh))
+        , m_ptr_rpc_socket(nullptr == inject_rpc_socket ?
+                               beltpp::take_unique_ptr(beltpp::libsocket::getsocket<rpc_sf>(*m_ptr_eh)) :
+                               beltpp::take_unique_ptr(std::move(inject_rpc_socket)) )
         , m_sync_timer()
         , m_check_timer()
         , m_broadcast_timer()
@@ -679,9 +688,9 @@ public:
     storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;
-    unique_ptr<beltpp::event_handler> m_ptr_eh;
+    beltpp::t_unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
-    unique_ptr<beltpp::socket> m_ptr_rpc_socket;
+    beltpp::t_unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
