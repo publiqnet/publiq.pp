@@ -42,7 +42,11 @@ config::config()
     : pimpl(nullptr)
 {}
 
+config::config(config&&) noexcept = default;
+
 config::~config() = default;
+
+config& config::operator = (config&& other) noexcept = default;
 
 void config::set_data_directory(string const& str_data_directory)
 {
