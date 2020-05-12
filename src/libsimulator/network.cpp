@@ -41,6 +41,9 @@ void network_simulation::process_attempts()
     for (auto& peer : to_delete)
         peers_to_drop.erase(peer);
 
+    if (to_delete.size())
+        return;
+
     // connect all waiting open/open pairs
     auto first_it = open_attempts.begin();
     for (; first_it != open_attempts.end();)
@@ -212,26 +215,41 @@ string network_simulation::export_connections_matrix()
     for (auto const& item : send_receive)
     {
         list<string> tmp;
+        bool to_drop = false;
+
         for (auto const& it : item.second)
-            if (0 == peers_to_drop.count(it.first))
-                tmp.push_back(peer_to_socket[it.first]);
+        {
+            for (auto const& pack : it.second)
+                if (connection_closed(pack.type()))
+                {
+                    to_drop = true;
+                    break;
+                }
+
+            if (to_drop)
+                continue;
+
+            tmp.push_back(peer_to_socket[it.first]);
+        }
 
         tmp.sort();
         result += item.first + " <=> ";
         size_t node_index = 0;
         for (auto it = tmp.begin(); it != tmp.end();)
         {
-            while (*it != format_index(node_index, node_count))
+            while (node_index < node_count &&
+                   *it != format_index(node_index, node_count))
             {
                 ++node_index;
-                result += "   ";
+                result += " ";
             }
 
+            ++it;
             ++node_index;
-            result += *it;
+            result += "*";
 
-            if (++it != tmp.end())
-                result += " ";
+            //if (it != tmp.end())
+            //    result += " ";
         }
 
         result += "\n";
