@@ -43,8 +43,7 @@ module ManagerMessage
     }
 
     class StoragesRequest
-    {
-    }
+    {}
 
     class StoragesResponse
     {
