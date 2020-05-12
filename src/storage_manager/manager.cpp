@@ -51,9 +51,9 @@ manager::manager(string const& str_pv_key,
     : m_str_pv_key(str_pv_key)
     , eh(beltpp::libsocket::construct_event_handler())
     , rpc_socket(beltpp::libsocket::getsocket<sf>(*eh))
-    , head_block_index(meshpp::data_file_path("head_block_index.txt"))
     , files("files", meshpp::data_directory_path("files"), 10000, get_putl())
     , storages("storages", meshpp::data_directory_path("storages"), 100, get_putl())
+    , head_block_index(meshpp::data_file_path("head_block_index.txt"))
     , connect_to_address(connect_to_address)
 {
     eh->set_timer(chrono::seconds(sync_interval));
