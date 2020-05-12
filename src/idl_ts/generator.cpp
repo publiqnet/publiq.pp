@@ -45,13 +45,13 @@ state_holder::state_holder()
 namespace
 {
 enum g_type_info {type_empty = 0x0,
-                type_simple = 0x1,
-                type_object = 0x2,
-                type_extension = 0x4,
-                type_simple_object = type_simple | type_object,
-                type_simple_extension = type_simple | type_extension,
-                type_object_extension = type_object | type_extension,
-                type_simple_object_extension = type_simple | type_object_extension};
+                   type_simple = 0x1,
+                   type_object = 0x2,
+                   type_extension = 0x4,
+                   type_simple_object = type_simple | type_object,
+                   type_simple_extension = type_simple | type_extension,
+                   type_object_extension = type_object | type_extension,
+                   type_simple_object_extension = type_simple | type_object_extension};
 
 string convert_type(string const& type_name, state_holder& state, g_type_info& type_detail)
 {
@@ -70,9 +70,9 @@ string convert_type(string const& type_name, state_holder& state, g_type_info& t
 }
 
 void construct_type_name(   expression_tree const* member_type,
-                            state_holder& state,
-                            g_type_info& type_detail,
-                            string* result)
+                         state_holder& state,
+                         g_type_info& type_detail,
+                         string* result)
 {
     expression_tree const* member;
     if (member_type->lexem.rtt == keyword_optional::rtt &&
@@ -105,7 +105,7 @@ void construct_type_name(   expression_tree const* member_type,
     }
     else
         throw runtime_error("can't get type definition, wtf!");
-    }
+}
 }
 
 string transformString( string const& scoreString )
@@ -126,9 +126,9 @@ string transformString( string const& scoreString )
 }
 
 void analyze(   state_holder& state,
-                expression_tree const* pexpression,
-                std::string const& outputFilePath,
-                std::string const& prefix)
+             expression_tree const* pexpression,
+             std::string const& outputFilePath,
+             std::string const& prefix)
 {
     boost::filesystem::path root = outputFilePath;
     boost::filesystem::create_directory( root );
@@ -150,18 +150,18 @@ void analyze(   state_holder& state,
         for ( auto item : pexpression->children.back()->children )
         {
             if (item->lexem.rtt == keyword_enum::rtt)
-                        {
-                            if (item->children.size() != 2 ||
-                                item->children.front()->lexem.rtt != identifier::rtt ||
-                                item->children.back()->lexem.rtt != scope_brace::rtt)
-                                throw runtime_error("enum syntax is wrong");
+            {
+                if (item->children.size() != 2 ||
+                    item->children.front()->lexem.rtt != identifier::rtt ||
+                    item->children.back()->lexem.rtt != scope_brace::rtt)
+                    throw runtime_error("enum syntax is wrong");
 
-                            enum_names.push_back(item->children.front()->lexem.value);
-                            string enum_name = item->children.front()->lexem.value;
-                            analyze_enum(   item->children.back(),
-                                            enum_name,
-                                            outputFilePath,
-                                            prefix );
+                enum_names.push_back(item->children.front()->lexem.value);
+                string enum_name = item->children.front()->lexem.value;
+                analyze_enum(   item->children.back(),
+                             enum_name,
+                             outputFilePath,
+                             prefix );
             }
         }
 
@@ -176,15 +176,15 @@ void analyze(   state_holder& state,
 
                 string type_name = item->children.front()->lexem.value;
                 analyze_struct( state,
-                                item->children.back(),
-                                type_name, enum_names,
-                                outputFilePath,
-                                prefix,
-                                rtt);
+                               item->children.back(),
+                               type_name, enum_names,
+                               outputFilePath,
+                               prefix,
+                               rtt);
                 class_names.insert(std::make_pair(rtt, type_name));
                 ++rtt;
 
-            }           
+            }
         }
     }
 
@@ -245,12 +245,12 @@ export default MODELS_TYPES;)file_template";
 }
 
 void analyze_struct(    state_holder& state,
-                        expression_tree const* pexpression,
-                        string const& type_name,
-                        std::vector<std::string> enum_names,
-                        std::string const& outputFilePath,
-                        std::string const& prefix,
-                        size_t rtt )
+                    expression_tree const* pexpression,
+                    string const& type_name,
+                    std::vector<std::string> enum_names,
+                    std::string const& outputFilePath,
+                    std::string const& prefix,
+                    size_t rtt )
 {
     assert(pexpression);
 
@@ -306,22 +306,22 @@ void analyze_struct(    state_holder& state,
 
             if ( std::find( imported.begin(), imported.end(), info[0]) == imported.end() )
             {
-                import += "import " + prefix + info[0] + " from './" + prefix + info[0] + "';\n";
+                import += "import { " + prefix + info[0] + " } from './" + prefix + info[0] + "';\n";
                 imported.push_back(info[0]);
             }
             if ( info[3] == "Optional")
             {
                 params +=
-                     "    " + camelCaseMemberName + "?: number;\n";
+                    "    " + camelCaseMemberName + "?: " + prefix + info[0] + ";\n";
                 constructor +=
-                    "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + addToConstructor + ");}\n";
+                    "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";}\n";
             }
             else
             {
                 params +=
-                    "    " + camelCaseMemberName + ": number;\n";
+                    "    " + camelCaseMemberName + ": " + prefix + info[0] + ";\n";
                 constructor +=
-                    "            this." + camelCaseMemberName + " = " + prefix + info[0] + ".toNumber(data." + member_name.value + addToConstructor + ");\n";
+                    "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
             }
         }
 
@@ -337,7 +337,7 @@ void analyze_struct(    state_holder& state,
                 }
                 if ( info[3] == "Optional")
                     params +=
-                            "    " + camelCaseMemberName + "?: Array<" + prefix + info[1] + ">;\n";
+                        "    " + camelCaseMemberName + "?: Array<" + prefix + info[1] + ">;\n";
                 else
                     params +=
                         "    " + camelCaseMemberName + ": Array<" + prefix + info[1] + ">;\n";
@@ -347,13 +347,12 @@ void analyze_struct(    state_holder& state,
                     if ( info[3] == "Optional")
                     {
                         constructor +=
-                                    "             if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));}\n";
+                            "             if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));}\n";
                     }
                     else
                     {
                         constructor +=
-                                    "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
-
+                            "            this." + camelCaseMemberName + " = data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
                     }
                 }
                 else
@@ -361,12 +360,12 @@ void analyze_struct(    state_holder& state,
                     if ( info[3] == "Optional")
                     {
                         constructor +=
-                                    "             if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));}\n";
+                            "             if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));}\n";
                     }
                     else
                     {
                         constructor +=
-                                    "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
+                            "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + prefix + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + prefix + info[1] + "(d));\n";
                     }
                 }
             }
@@ -375,7 +374,7 @@ void analyze_struct(    state_holder& state,
                 if ( info[3] == "Optional")
                 {
                     params +=
-                            "    " + camelCaseMemberName + "?: Array<" + info[1] + ">;\n";
+                        "    " + camelCaseMemberName + "?: Array<" + info[1] + ">;\n";
 
                     if (camelCaseMemberName == member_name.value)
                         constructor +=
@@ -383,7 +382,6 @@ void analyze_struct(    state_holder& state,
                     else
                         constructor +=
                             "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + info[1] + "(d));}\n";
-
                 }
                 else
                 {
@@ -397,7 +395,7 @@ void analyze_struct(    state_holder& state,
                         constructor +=
                             "            this." + camelCaseMemberName + " = data." + member_name.value + " === undefined ? data." + camelCaseMemberName + ".map(d => new " + info[1] + "(d)) : data." + member_name.value + ".map(d => new " + info[1] + "(d));\n";
                 }
-        }
+            }
         }
         ////////////////////// array of objects //////////////////////////////
         else if ( info[0] == "array" && info[1] == "::beltpp::packet" )
@@ -405,7 +403,7 @@ void analyze_struct(    state_holder& state,
             if ( info[3] == "Optional")
             {
                 params +=
-                        "    " + camelCaseMemberName + "?: Array<Object>;\n";
+                    "    " + camelCaseMemberName + "?: Array<Object>;\n";
 
                 constructor +=
                     "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";}\n";
@@ -425,7 +423,7 @@ void analyze_struct(    state_holder& state,
             if ( info[3] == "Optional")
             {
                 params +=
-                        "    " + camelCaseMemberName + "?: Array<" + info[1] + ">;\n";
+                    "    " + camelCaseMemberName + "?: Array<" + info[1] + ">;\n";
 
                 constructor +=
                     "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";}\n";
@@ -452,7 +450,7 @@ void analyze_struct(    state_holder& state,
                 if ( info[3] == "Optional")
                 {
                     params +=
-                            "    " + camelCaseMemberName + "?: " + prefix + info[0] + ";\n";
+                        "    " + camelCaseMemberName + "?: " + prefix + info[0] + ";\n";
 
                     constructor +=
                         "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + addToConstructor + ");}\n";
@@ -464,7 +462,6 @@ void analyze_struct(    state_holder& state,
 
                     constructor +=
                         "            this." + camelCaseMemberName + " = new " + prefix + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
-
                 }
             }
             else
@@ -472,10 +469,10 @@ void analyze_struct(    state_holder& state,
                 if ( info[3] == "Optional")
                 {
                     params +=
-                         "    " + camelCaseMemberName + "?: " + info[0] + ";\n";
+                        "    " + camelCaseMemberName + "?: " + info[0] + ";\n";
+
                     constructor +=
                         "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + addToConstructor + ");}\n";
-
                 }
                 else
                 {
@@ -483,8 +480,7 @@ void analyze_struct(    state_holder& state,
                         "    " + camelCaseMemberName + ": " + info[0] + ";\n";
 
                     constructor +=
-                                "            this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
-
+                        "            this." + camelCaseMemberName + " = new " + info[0] + "(data." + member_name.value + addToConstructor + ");\n";
                 }
             }
 
@@ -495,7 +491,7 @@ void analyze_struct(    state_holder& state,
             if ( info[3] == "Optional")
             {
                 params +=
-                        "    " + camelCaseMemberName + "?: Object;\n";
+                    "    " + camelCaseMemberName + "?: Object;\n";
                 constructor +=
                     "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + addToConstructor + ");}\n";
             }
@@ -504,7 +500,7 @@ void analyze_struct(    state_holder& state,
                 params +=
                     "    " + camelCaseMemberName + ": Object;\n";
                 constructor +=
-                            "            this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + addToConstructor + ");\n";
+                    "            this." + camelCaseMemberName + " = createInstanceFromJson(data." + member_name.value + addToConstructor + ");\n";
 
             }
         }
@@ -514,7 +510,7 @@ void analyze_struct(    state_holder& state,
             if ( info[3] == "Optional")
             {
                 params +=
-                        "    " + camelCaseMemberName + "?: " + info[0] + ";\n";
+                    "    " + camelCaseMemberName + "?: " + info[0] + ";\n";
                 constructor +=
                     "            if (data." + camelCaseMemberName + " !== undefined) { this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";}\n";
             }
@@ -523,7 +519,7 @@ void analyze_struct(    state_holder& state,
                 params +=
                     "    " + camelCaseMemberName + ": " + info[0] + ";\n";
                 constructor +=
-                            "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
+                    "            this." + camelCaseMemberName + " = data." + member_name.value + addToConstructor + ";\n";
             }
         }
     }
@@ -557,14 +553,13 @@ void analyze_struct(    state_holder& state,
 }
 
 void analyze_enum(  expression_tree const* pexpression,
-                    string const& enum_name,
-                    std::string const& outputFilePath,
-                    std::string const& prefix)
+                  string const& enum_name,
+                  std::string const& outputFilePath,
+                  std::string const& prefix)
 {
 
     if (pexpression->children.empty())
         throw runtime_error("inside enum syntax error, wtf - " + enum_name);
-
 
     boost::filesystem::path root = outputFilePath;
     string models = "models";
@@ -574,39 +569,20 @@ void analyze_enum(  expression_tree const* pexpression,
     boost::filesystem::ofstream model( FilePath );
 
     model <<
-    "export default class " + prefix + enum_name + " {\n\n";
+        "export enum " + prefix + enum_name + " {\n";
 
-    int i = 0;
+    auto const& children = pexpression->children;
+    auto iter = children.begin();
 
-    string toStringFunction =
-        "    static toString(param: number): string {\n\n"
-        "        switch (param) {\n";
-
-    string toNumberFunction =
-        "    static toNumber(param: string): number {\n\n"
-        "        switch (param) {\n";
-
-    for (auto const& item : pexpression->children)
+    while (iter != children.end())
     {
-        model << "    public static readonly " << item->lexem.value << " = " << i << ";\n" ;
+        if (iter == children.end() - 1)
+            model<< "    " << transformString( (*iter)->lexem.value ) << "\n";
+        else
+            model<< "    " << transformString( (*iter)->lexem.value ) << ",\n";
 
-        string camelCaseMemberName = transformString( item->lexem.value );
-
-        toStringFunction +=
-                "            case " + std::to_string(i) + ": return \"" + camelCaseMemberName + "\";\n";
-        toNumberFunction +=
-                "            case \"" + camelCaseMemberName + "\": return " + std::to_string(i) +  ";\n";
-        i++;
-
+        ++iter;
     }
 
-    model << "\n";
-    model << toStringFunction +
-             "        }\n"
-             "    } \n\n";
-    model << toNumberFunction +
-             "        }\n"
-             "    } \n\n";
     model << "} \n";
-
 }
