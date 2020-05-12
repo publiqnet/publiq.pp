@@ -419,7 +419,7 @@ int main(int argc, char** argv)
             }
 
             ns.process_attempts();
-            //file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
+            file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
 
             ++step;
             time_point tmp_time = system_clock::now();

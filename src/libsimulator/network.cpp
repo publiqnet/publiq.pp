@@ -335,7 +335,7 @@ string network_simulation::export_packets(const size_t rtt)
                     {
                         try
                         {
-                            auto models = BlockchainMessage::detail::models();
+                            auto models = BlockchainMessage::detail::meta_models();
                             string model_name = models.at(rtt);
                             result += model_name + "\n";
                         }
