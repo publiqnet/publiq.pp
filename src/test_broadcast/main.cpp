@@ -349,7 +349,9 @@ int main(int argc, char** argv)
             //std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }   //  for that initializes nodes
 
+        size_t cnt = 0;
         size_t step = 0;
+        size_t sleep = 2;
         string step_str;
         time_point step_time;
         string connection_state;
@@ -433,6 +435,7 @@ int main(int argc, char** argv)
                 cout << "Step " + std::to_string(step) + "   :   " + std::to_string(step_duration.count()) + " sec   ";
                 cout << endl << tmp_state << endl;
 
+                cnt = 0;
                 step_str.clear();
                 connection_state = tmp_state;
             }
@@ -440,14 +443,17 @@ int main(int argc, char** argv)
             {
                 if (false == step_str.empty())
                     cout << string(step_str.length(), '\b');
-
-                step_str = "Step " + std::to_string(step) + "   :   " + std::to_string(step_duration.count()) + " sec...";
+                
+                ++cnt;
+                step_str = "Step " + std::to_string(step) + "   :   ";
+                step_str += " stable " + std::to_string(cnt) + "   :   ";
+                step_str += std::to_string(step_duration.count() - sleep) + " sec...  ";
 
                 cout << step_str;
             }
 
             step_time = tmp_time;
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+            std::this_thread::sleep_for(std::chrono::seconds(sleep));
         }
 
         for (auto& info : nodes_info)

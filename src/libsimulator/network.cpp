@@ -241,12 +241,12 @@ string network_simulation::export_connections_matrix()
                    *it != format_index(node_index, node_count))
             {
                 ++node_index;
-                result += " ";
+                result += "  ";
             }
 
             ++it;
             ++node_index;
-            result += "*";
+            result += "**";
 
             //if (it != tmp.end())
             //    result += " ";
