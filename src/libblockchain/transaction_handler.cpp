@@ -42,10 +42,6 @@ void signed_transaction_validate(SignedTransaction const& signed_transaction,
         meshpp::signature signature_check(pb_key, signed_message, authority.signature);
     }
 
-    if (false == impl.pconfig->testnet() &&
-        signed_transaction.authorizations.size() > 1)
-        throw wrong_data_exception("for now multi-account transactions are disabled");
-
     namespace chrono = std::chrono;
     using chrono::system_clock;
     using time_point = system_clock::time_point;
