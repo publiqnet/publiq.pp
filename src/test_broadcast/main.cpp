@@ -45,6 +45,9 @@ using std::cout;
 using std::endl;
 using std::vector;
 using std::runtime_error;
+namespace chrono = std::chrono;
+using chrono::system_clock;
+using time_point = chrono::system_clock::time_point;
 
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
@@ -347,7 +350,10 @@ int main(int argc, char** argv)
         }   //  for that initializes nodes
 
         size_t step = 0;
+        string step_str;
+        time_point step_time;
         string connection_state;
+        chrono::seconds step_duration;
 
         while (false == nodes_info.empty())
         {
@@ -411,25 +417,36 @@ int main(int argc, char** argv)
             }
 
             ns.process_attempts();
-
             //file_temp_state << ns.export_packets(beltpp::stream_join::rtt);
+
+            ++step;
+            time_point tmp_time = system_clock::now();
+            step_duration = chrono::duration_cast<chrono::seconds>(tmp_time - step_time);
 
             // print network info
             //string tmp_state = ns.export_connections();
-            //string tmp_state = ns.export_connections_matrix();
-            string tmp_state = ns.export_connections_load();
+            string tmp_state = ns.export_connections_matrix();
+            //string tmp_state = ns.export_connections_load();
             if (tmp_state != connection_state)
             {
-                cout << endl << "Connections state : step " << std::to_string(step) << endl;
-                cout << tmp_state << endl;
+                cout << endl << endl;
+                cout << "Step " + std::to_string(step) + "   :   " + std::to_string(step_duration.count()) + " sec   ";
+                cout << endl << tmp_state << endl;
 
+                step_str.clear();
                 connection_state = tmp_state;
             }
+            else
+            {
+                if (false == step_str.empty())
+                    cout << string(step_str.length(), '\b');
 
-            ++step;
-            //cout << "Step " << std::to_string(step) << endl;
+                step_str = "Step " + std::to_string(step) + "   :   " + std::to_string(step_duration.count()) + " sec...";
 
-            // there is no wait in sockets
+                cout << step_str;
+            }
+
+            step_time = tmp_time;
             std::this_thread::sleep_for(std::chrono::seconds(1));
         }
 
