@@ -39,14 +39,12 @@ namespace publiqpp
  * storage_node
  */
 storage_node::storage_node(node& master_node,
-                           ip_address const& rpc_bind_to_address,
+                           config& ref_config,
                            boost::filesystem::path const& fs_storage,
-                           meshpp::private_key const& pv_key,
                            beltpp::ilog* plogger_storage_node)
     : m_pimpl(new detail::storage_node_internals(master_node,
-                                                 rpc_bind_to_address,
+                                                 ref_config,
                                                  fs_storage,
-                                                 pv_key,
                                                  plogger_storage_node))
 {
     master_node.set_slave_node(*this);
@@ -137,7 +135,7 @@ void storage_node::run(bool& stop)
                                                                             session_id,
                                                                             seconds,
                                                                             tp) ||
-                        storage_address != m_pimpl->m_pv_key.get_public_key().to_string() ||
+                        storage_address != m_pimpl->pconfig->get_key().get_public_key().to_string() ||
                         0 == m_pimpl->m_verified_channels.count(channel_address))
                         file_uri.clear();
                 }
@@ -201,11 +199,25 @@ void storage_node::run(bool& stop)
             }
             case Ping::rtt:
             {
+                Ping msg;
+                std::move(ref_packet).get(msg);
+
+                auto pv_key = m_pimpl->pconfig->get_key();
+                if (msg.address)
+                for (auto const& key_item : m_pimpl->pconfig->keys())
+                {
+                    if (key_item.get_public_key().to_string() == *msg.address)
+                    {
+                        pv_key = key_item;
+                        break;
+                    }
+                }
+
                 Pong msg_pong;
-                msg_pong.node_address = m_pimpl->m_pv_key.get_public_key().to_string();
+                msg_pong.node_address = pv_key.get_public_key().to_string();
                 msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
                 string message_pong = msg_pong.node_address + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
-                auto signed_message = m_pimpl->m_pv_key.sign(message_pong);
+                auto signed_message = pv_key.sign(message_pong);
 
                 msg_pong.signature = std::move(signed_message.base58);
                 psk->send(peerid, beltpp::packet(std::move(msg_pong)));

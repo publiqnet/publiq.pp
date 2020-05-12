@@ -108,7 +108,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     if (false == impl.pcontent_unit_validate_check(content_unit.file_uris,
                                                    duplicate_file_uri,
                                                    impl.m_blockchain.length(),
-                                                   impl.m_testnet))
+                                                   impl.pconfig->testnet()))
         return false;
 
     if (impl.m_documents.unit_exists(content_unit.uri))
@@ -131,7 +131,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
     if (false == impl.pcontent_unit_validate_check(content_unit.file_uris,
                                                    duplicate_file_uri,
                                                    impl.m_blockchain.length(),
-                                                   impl.m_testnet))
+                                                   impl.pconfig->testnet()))
         throw uri_exception(duplicate_file_uri, uri_exception::duplicate);
     /*
     unordered_set<string> file_uris;

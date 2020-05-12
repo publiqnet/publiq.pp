@@ -115,8 +115,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
             throw wrong_data_exception("the content and the content unit do not correspond to each other");
     }
 
-    if (impl.m_manager_address.empty() && 
-        impl.m_node_type == NodeType::storage &&
+    if (impl.pconfig->get_manager_address().empty() &&
+        impl.pconfig->get_node_type() == NodeType::storage &&
         state_layer::chain == layer)
     {
         for (auto const& unit_uri : content.content_unit_uris)

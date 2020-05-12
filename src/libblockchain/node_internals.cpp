@@ -123,8 +123,8 @@ bool node_internals::initialize()
         }
 
         NodeType stored_node_type;
-        if (m_state.get_role(m_pb_key.to_string(), stored_node_type) &&
-            stored_node_type != m_node_type)
+        if (m_state.get_role(front_public_key().to_string(), stored_node_type) &&
+            stored_node_type != pconfig->get_node_type())
             throw std::runtime_error("the stored node role is different");
 
         load_transaction_cache(*this, false);

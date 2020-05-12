@@ -2,6 +2,7 @@
 
 #include "global.hpp"
 #include "message.hpp"
+#include "config.hpp"
 
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/ievent.hpp>
@@ -15,6 +16,7 @@
 #include <string>
 #include <chrono>
 #include <map>
+#include <vector>
 
 namespace publiqpp
 {
@@ -40,11 +42,6 @@ class BLOCKCHAINSHARED_EXPORT node
 {
 public:
     node(std::string const& genesis_signed_block,
-         beltpp::ip_address const& public_address,
-         beltpp::ip_address const& public_ssl_address,
-         beltpp::ip_address const& rpc_bind_to_address,
-         beltpp::ip_address const& p2p_bind_to_address,
-         std::vector<beltpp::ip_address> const& p2p_connect_to_addresses,
          boost::filesystem::path const& fs_blockchain,
          boost::filesystem::path const& fs_action_log,
          boost::filesystem::path const& fs_transaction_pool,
@@ -55,18 +52,11 @@ public:
          boost::filesystem::path const& fs_inbox,
          beltpp::ilog* plogger_p2p,
          beltpp::ilog* plogger_node,
-         meshpp::private_key const& pv_key,
-         BlockchainMessage::NodeType const& n_type,
-         uint64_t fractions,
+         config& ref_config,
          uint64_t freeze_before_block,
          uint64_t revert_blocks_count,
          uint64_t revert_actions_count,
-         std::string const& manager_address,
-         bool log_enabled,
-         bool transfer_only,
-         bool testnet,
          bool resync,
-         bool discovery_server,
          coin const& mine_amount_threshhold,
          std::vector<coin> const& block_reward_array,
          detail::fp_counts_per_channel_views p_counts_per_channel_views,

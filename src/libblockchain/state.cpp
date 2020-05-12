@@ -100,7 +100,7 @@ void state::set_balance(std::string const& key, coin const& amount, state_layer 
         m_pimpl->m_accounts.insert(key, Amount);
 
     if (state_layer::chain == layer &&
-        m_pimpl->pimpl_node->m_pb_key.to_string() == key)
+        m_pimpl->pimpl_node->front_public_key().to_string() == key)
     {
         if (amount.empty())
             m_pimpl->m_node_accounts.erase(key);
@@ -131,7 +131,7 @@ void state::decrease_balance(string const& key, coin const& amount, state_layer 
     Coin balance = get_balance(key, state_layer::pool);
 
     if (coin(balance) < amount)
-        throw not_enough_balance_exception(coin(balance), amount);
+        throw not_enough_balance_exception(key, coin(balance), amount);
 
     set_balance(key, balance - amount, layer);
 }

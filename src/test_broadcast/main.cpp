@@ -14,6 +14,7 @@
 #include <publiq.pp/node.hpp>
 #include <publiq.pp/storage_node.hpp>
 #include <publiq.pp/coin.hpp>
+#include <publiq.pp/config.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/locale.hpp>
@@ -141,6 +142,7 @@ struct node_info
     event_handler_ns* peh;
     unique_ptr<publiqpp::node> node;
     unique_ptr<DataDirAttributeLoader> dda;
+    publiqpp::config config;
 };
 
 bool process_command_line(int argc, char** argv,
@@ -212,6 +214,9 @@ int main(int argc, char** argv)
             info.data_dir = (root / ("node_" + std::to_string(node_index))).string();
 
             meshpp::settings::set_data_directory(info.data_dir);
+            meshpp::create_data_directory();
+
+            info.config.set_data_directory(meshpp::settings::data_directory());
 
             string current_ip_address;
             if (0 == node_index)
@@ -226,41 +231,61 @@ int main(int argc, char** argv)
             p2p_bind_to_address.local.address = current_ip_address;
             p2p_bind_to_address.local.port = 14500;
 
-            beltpp::ip_address rpc_bind_to_address;
-            //rpc_bind_to_address.local.address = current_ip_address;
-            //rpc_bind_to_address.local.port = 14501;
-
-            beltpp::ip_address slave_bind_to_address;
-            beltpp::ip_address public_address;
-            beltpp::ip_address public_ssl_address;
-
-            vector<beltpp::ip_address> p2p_connect_to_addresses;
-            beltpp::ip_address connect_to_address;
-            connect_to_address.from_string("test.brdhub.com:14500");
-            p2p_connect_to_addresses.push_back(connect_to_address);
-
-            NodeType n_type = BlockchainMessage::NodeType::blockchain;
-            uint64_t fractions = 0;
-            uint64_t freeze_before_block = uint64_t(-1);
-            uint64_t revert_blocks_count = 0;
-            uint64_t revert_actions_count = 0;
-            string manager_address;
-            bool log_enabled = false;
-            bool testnet = true;
             bool resync = false;
-            bool discovery_server = (node_index == 0);
-            meshpp::random_seed seed;
-            meshpp::private_key pv_key = seed.get_private_key(0);
 
-            //if (testnet && 0 == node_index)
-            //    pv_key = meshpp::private_key("5Kfu9216aabe2L942As4mGm91MC5RJKHP9tLWr5MMwcgVcRjFuz");
+            if (node_index == 0)
+                info.config.set_discovery_server();
+            info.config.set_testnet();
 
-            if (testnet)
+            if (info.config.testnet())
                 meshpp::config::set_public_key_prefix("TPBQ");
             else
                 meshpp::config::set_public_key_prefix("PBQ");
 
-            meshpp::create_data_directory();
+            info.config.set_p2p_bind_to_address(p2p_bind_to_address);
+
+            vector<beltpp::ip_address> p2p_connect_to_addresses;
+            beltpp::ip_address p2p_connect_to_address;
+            p2p_connect_to_address.from_string("test.brdhub.com:14500");
+            p2p_connect_to_addresses.push_back(p2p_connect_to_address);
+            info.config.set_p2p_connect_to_addresses(p2p_connect_to_addresses);
+
+            beltpp::ip_address rpc_bind_to_address;
+            //rpc_bind_to_address.local.address = current_ip_address;
+            //rpc_bind_to_address.local.port = 14501;
+
+            info.config.set_rpc_bind_to_address(rpc_bind_to_address);
+
+            beltpp::ip_address slave_bind_to_address;
+            info.config.set_slave_bind_to_address(slave_bind_to_address);
+
+            beltpp::ip_address public_address;
+            beltpp::ip_address public_ssl_address;
+            info.config.set_public_address(public_address);
+            info.config.set_public_ssl_address(public_ssl_address);
+            info.config.set_automatic_fee(0);
+
+            string manager_address;
+            info.config.set_manager_address(manager_address);
+
+            meshpp::random_seed seed;
+            meshpp::private_key pv_key = seed.get_private_key(0);
+            info.config.set_key(pv_key);
+
+            info.config.set_node_type(string());    //  default is blockchain
+            uint64_t freeze_before_block = uint64_t(-1);
+            uint64_t revert_blocks_count = 0;
+            uint64_t revert_actions_count = 0;
+
+            //if (info.config.testnet() && 0 == node_index)
+            //    pv_key = meshpp::private_key("5Kfu9216aabe2L942As4mGm91MC5RJKHP9tLWr5MMwcgVcRjFuz");
+
+            string config_error = info.config.check_for_error();
+            if (false == config_error.empty())
+            {
+                cout << config_error << endl;
+                return 1;
+            }
 
             info.dda.reset(new DataDirAttributeLoader(meshpp::data_file_path("running.txt")));
             {
@@ -308,12 +333,7 @@ int main(int argc, char** argv)
 
             info.peh = peh;
             info.node.reset(new publiqpp::node(
-                                    genesis_signed_block(testnet),
-                                    public_address,
-                                    public_ssl_address,
-                                    rpc_bind_to_address,
-                                    p2p_bind_to_address,
-                                    p2p_connect_to_addresses,
+                                    genesis_signed_block(info.config.testnet()),
                                     fs_blockchain,
                                     fs_action_log,
                                     fs_transaction_pool,
@@ -324,18 +344,11 @@ int main(int argc, char** argv)
                                     fs_inbox,
                                     info.plogger_p2p.get(),
                                     info.plogger_rpc.get(),
-                                    pv_key,
-                                    n_type,
-                                    fractions,
+                                    info.config,
                                     freeze_before_block,
                                     revert_blocks_count,
                                     revert_actions_count,
-                                    manager_address,
-                                    log_enabled,
-                                    false,
-                                    testnet,
                                     resync,
-                                    discovery_server,
                                     mine_amount_threshhold(),
                                     block_reward_array(),
                                     &counts_per_channel_views,
@@ -345,7 +358,7 @@ int main(int argc, char** argv)
                                     std::move(inject_p2p_socket)));
 
             cout << "Node: " << node_index << "  " << info.node->name();
-            cout << "    Type: " << static_cast<int>(n_type) << endl;
+            cout << "Node Type: " << BlockchainMessage::to_string(info.config.get_node_type()) << endl;
             //std::this_thread::sleep_for(std::chrono::milliseconds(250));
         }   //  for that initializes nodes
 
