@@ -23,7 +23,10 @@ class BLOCKCHAINSHARED_EXPORT config
 {
 public:
     config();
+    config(config&&) noexcept;
     ~config();
+
+    config& operator = (config&& other) noexcept;
 
     void set_data_directory(std::string const& str_data_directory);
     //std::string get_data_directory() const;
