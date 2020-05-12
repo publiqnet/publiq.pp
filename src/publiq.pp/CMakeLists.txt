@@ -18,6 +18,7 @@ install(TARGETS publiq.pp
 
 set(SRC_FILES
     coin.hpp
+    config.hpp
     global.hpp
     message.hpp
     message.tmpl.hpp

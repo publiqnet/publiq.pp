@@ -42,10 +42,6 @@ void signed_transaction_validate(SignedTransaction const& signed_transaction,
         meshpp::signature signature_check(pb_key, signed_message, authority.signature);
     }
 
-    if (false == impl.m_testnet &&
-        signed_transaction.authorizations.size() > 1)
-        throw wrong_data_exception("for now multi-account transactions are disabled");
-
     namespace chrono = std::chrono;
     using chrono::system_clock;
     using time_point = system_clock::time_point;
@@ -73,7 +69,8 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
     bool code;
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (impl.m_transfer_only && package.type() != Transfer::rtt)
+    if (impl.pconfig->transfer_only() &&
+        package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -308,7 +305,8 @@ void action_validate(publiqpp::detail::node_internals const& impl,
 {
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (impl.m_transfer_only && package.type() != Transfer::rtt)
+    if (impl.pconfig->transfer_only() &&
+        package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -387,7 +385,8 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
     bool complete;
     auto const& package = signed_transaction.transaction_details.action;
 
-    if (impl.m_transfer_only && package.type() != Transfer::rtt)
+    if (impl.pconfig->transfer_only() &&
+        package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -467,7 +466,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       beltpp::packet const& package,
                       state_layer layer)
 {
-    if (impl.m_transfer_only &&
+    if (impl.pconfig->transfer_only() &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
@@ -549,7 +548,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   beltpp::packet const& package,
                   state_layer layer)
 {
-    if (impl.m_transfer_only &&
+    if (impl.pconfig->transfer_only() &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
@@ -628,7 +627,7 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    beltpp::packet const& package,
                    state_layer layer)
 {
-    if (impl.m_transfer_only &&
+    if (impl.pconfig->transfer_only() &&
         package.type() != Transfer::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
@@ -705,9 +704,12 @@ void action_revert(publiqpp::detail::node_internals& impl,
 void fee_validate(publiqpp::detail::node_internals const& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction)
 {
-    Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address, state_layer::pool);
+    auto address = signed_transaction.authorizations.front().address;
+
+    Coin balance = impl.m_state.get_balance(address, state_layer::pool);
     if (coin(balance) < signed_transaction.transaction_details.fee)
-        throw not_enough_balance_exception(coin(balance),
+        throw not_enough_balance_exception(address,
+                                           coin(balance),
                                            signed_transaction.transaction_details.fee);
 }
 

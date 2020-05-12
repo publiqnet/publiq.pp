@@ -12,6 +12,7 @@
 #include <publiq.pp/node.hpp>
 #include <publiq.pp/storage_node.hpp>
 #include <publiq.pp/coin.hpp>
+#include <publiq.pp/config.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/locale.hpp>
@@ -51,14 +52,14 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& public_address,
                           beltpp::ip_address& public_ssl_address,
                           string& data_directory,
-                          meshpp::private_key& pv_key,
-                          NodeType& n_type,
+                          string& private_key,
+                          string& node_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
                           uint64_t& revert_blocks_count,
                           uint64_t& revert_actions_count,
                           string& manager_address,
-                          bool& log_enabled,
+                          bool& enable_action_log,
                           bool& testnet,
                           bool& resync,
                           bool& enable_inbox,
@@ -238,19 +239,18 @@ int main(int argc, char** argv)
     beltpp::ip_address public_ssl_address;
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
-    NodeType n_type;
+    string str_private_key;
+    string node_type;
     uint64_t fractions;
     uint64_t freeze_before_block;
     uint64_t revert_blocks_count;
     uint64_t revert_actions_count;
     string manager_address;
-    bool log_enabled;
+    bool enable_action_log;
     bool testnet;
     bool resync;
     bool enable_inbox;
     bool discovery_server;
-    meshpp::random_seed seed;
-    meshpp::private_key pv_key = seed.get_private_key(0);
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
@@ -260,27 +260,89 @@ int main(int argc, char** argv)
                                       public_address,
                                       public_ssl_address,
                                       data_directory,
-                                      pv_key,
-                                      n_type,
+                                      str_private_key,
+                                      node_type,
                                       fractions,
                                       freeze_before_block,
                                       revert_blocks_count,
                                       revert_actions_count,
                                       manager_address,
-                                      log_enabled,
+                                      enable_action_log,
                                       testnet,
                                       resync,
                                       enable_inbox,
                                       discovery_server))
         return 1;
 
+    if (false == data_directory.empty())
+        meshpp::settings::set_data_directory(data_directory);
+
+    publiqpp::config config;
+    config.set_data_directory(meshpp::settings::data_directory());
+
+    if (enable_action_log)
+        config.enable_action_log();
+    if (enable_inbox)
+        config.enable_inbox();
     if (testnet)
+        config.set_testnet();
+    if (discovery_server)
+        config.set_discovery_server();
+
+    config.set_p2p_bind_to_address(p2p_bind_to_address);
+
+    if (config.testnet())
         meshpp::config::set_public_key_prefix("TPBQ");
     else
         meshpp::config::set_public_key_prefix("PBQ");
 
-    if (false == data_directory.empty())
-        meshpp::settings::set_data_directory(data_directory);
+    if (p2p_connect_to_addresses.empty() &&
+        config.get_p2p_connect_to_addresses().empty())
+    {
+        if (config.testnet())
+        {
+            beltpp::ip_address address_item;
+            address_item.from_string("north.publiq.network:14100");
+            p2p_connect_to_addresses.push_back(address_item);
+            address_item.from_string("north.publiq.network:14110");
+            p2p_connect_to_addresses.push_back(address_item);
+        }
+        else
+        {
+            beltpp::ip_address address_item;
+            address_item.from_string("north.publiq.network:14000");
+            p2p_connect_to_addresses.push_back(address_item);
+            address_item.from_string("north.publiq.network:14010");
+            p2p_connect_to_addresses.push_back(address_item);
+        }
+    }
+
+    config.set_p2p_connect_to_addresses(p2p_connect_to_addresses);
+    config.set_rpc_bind_to_address(rpc_bind_to_address);
+    config.set_slave_bind_to_address(slave_bind_to_address);
+    config.set_public_address(public_address);
+    config.set_public_ssl_address(public_ssl_address);
+    config.set_automatic_fee(fractions);
+
+    config.set_manager_address(manager_address);
+
+    if (false == str_private_key.empty())
+        config.set_key(meshpp::private_key(str_private_key));
+    else if (false == config.is_key_set())
+    {
+        meshpp::random_seed seed;
+        meshpp::private_key pv_key = seed.get_private_key(0);
+        config.set_key(pv_key);
+    }
+
+    config.set_node_type(node_type);
+
+    string config_error = config.check_for_error();
+    if (false == config_error.empty())
+    {
+        cout << config_error << endl;
+        return 1;
+    }
 
 #ifdef B_OS_WINDOWS
     signal(SIGINT, termination_handler);
@@ -299,7 +361,8 @@ int main(int argc, char** argv)
         meshpp::create_config_directory();
         meshpp::create_data_directory();
 
-        unique_ptr<port2pid_helper> port2pid(new port2pid_helper(meshpp::config_file_path("pid"), p2p_bind_to_address.local.port));
+        unique_ptr<port2pid_helper> port2pid(new port2pid_helper(meshpp::config_file_path("pid"),
+                                                                 config.get_p2p_bind_to_address().local.port));
 
         using DataDirAttributeLoader = meshpp::file_locker<meshpp::file_loader<PidConfig::DataDirAttribute,
                                                                                 &PidConfig::DataDirAttribute::from_string,
@@ -321,11 +384,17 @@ int main(int argc, char** argv)
         auto fs_documents = meshpp::data_directory_path("documents");
         auto fs_storages = meshpp::data_directory_path("storages");
 
-        cout << "p2p local address: " << p2p_bind_to_address.to_string() << endl;
-        for (auto const& item : p2p_connect_to_addresses)
+        cout << "p2p local address: " << config.get_p2p_bind_to_address().to_string() << endl;
+        for (auto const& item : config.get_p2p_connect_to_addresses())
             cout << "p2p host: " << item.to_string() << endl;
-        if (false == rpc_bind_to_address.local.empty())
-            cout << "rpc interface: " << rpc_bind_to_address.to_string() << endl;
+        if (false == config.get_rpc_bind_to_address().local.empty())
+            cout << "rpc interface: " << config.get_rpc_bind_to_address().to_string() << endl;
+        if (false == config.get_slave_bind_to_address().local.empty())
+            cout << "storage interface: " << config.get_slave_bind_to_address().to_string() << endl;
+        if (false == config.get_public_address().local.empty())
+            cout << "public address: " << config.get_public_address().to_string() << endl;
+        if (false == config.get_public_ssl_address().local.empty())
+            cout << "public tls address: " << config.get_public_ssl_address().to_string() << endl;
 
         beltpp::ilog_ptr plogger_p2p = beltpp::console_logger("publiqd_p2p", true);
         plogger_p2p->disable();
@@ -336,21 +405,15 @@ int main(int argc, char** argv)
         plogger_storage_exceptions = meshpp::file_logger("storage_exceptions",
                                                          fs_log / "storage_exceptions.txt");
 
-        //__debugbreak();
         boost::filesystem::path fs_storage;
-        if (n_type == NodeType::storage)
+        if (config.get_node_type() == NodeType::storage)
             fs_storage = meshpp::data_directory_path("storage");
 
         boost::filesystem::path fs_inbox;
-        if (enable_inbox)
+        if (config.inbox())
             fs_inbox = meshpp::data_directory_path("inbox");
 
-        publiqpp::node node(genesis_signed_block(testnet),
-                            public_address,
-                            public_ssl_address,
-                            rpc_bind_to_address,
-                            p2p_bind_to_address,
-                            p2p_connect_to_addresses,
+        publiqpp::node node(genesis_signed_block(config.testnet()),
                             fs_blockchain,
                             fs_action_log,
                             fs_transaction_pool,
@@ -361,18 +424,11 @@ int main(int argc, char** argv)
                             fs_inbox,
                             plogger_p2p.get(),
                             plogger_rpc.get(),
-                            pv_key,
-                            n_type,
-                            fractions,
+                            config,
                             freeze_before_block,
                             revert_blocks_count,
                             revert_actions_count,
-                            manager_address,
-                            log_enabled,
-                            false,
-                            testnet,
                             resync,
-                            discovery_server,
                             mine_amount_threshhold(),
                             block_reward_array(),
                             &counts_per_channel_views,
@@ -380,19 +436,24 @@ int main(int argc, char** argv)
 
         cout << endl;
         cout << "Node: " << node.name() << endl;
-        cout << "Type: " << static_cast<int>(n_type) << endl;
+        cout << "Node Type: " << BlockchainMessage::to_string(config.get_node_type()) << endl;
+        cout << "automatic fee: " << config.get_automatic_fee().to_string() << endl;
+        cout << "action log enabled: " << config.action_log() << endl;
+        cout << "inbox enabled: " << config.inbox() << endl;
+        cout << "discovery server: " << config.discovery_server() << endl;
+        cout << "testnet: " << config.testnet() << endl;
+        cout << "transfer only: " << config.transfer_only() << endl;
         cout << endl;
 
         g_pnode = &node;
 
         unique_ptr<publiqpp::storage_node> ptr_storage_node;
-        if (n_type != NodeType::blockchain)
+        if (config.get_node_type() != NodeType::blockchain)
         {
             fs_storage = meshpp::data_directory_path("storage");
             ptr_storage_node.reset(new publiqpp::storage_node(node,
-                                                              slave_bind_to_address,
+                                                              config,
                                                               fs_storage,
-                                                              pv_key,
                                                               plogger_rpc.get()));
             g_pstorage_node = ptr_storage_node.get();
         }
@@ -405,7 +466,7 @@ int main(int argc, char** argv)
 
             beltpp::finally join_node_thread([&node_thread](){ node_thread.join(); });
 
-            if (n_type != NodeType::blockchain)
+            if (config.get_node_type() != NodeType::blockchain)
             {
                 auto& storage_node = *g_pstorage_node;
                 std::thread storage_node_thread([&storage_node, &plogger_storage_exceptions]
@@ -499,14 +560,14 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& public_address,
                           beltpp::ip_address& public_ssl_address,
                           string& data_directory,
-                          meshpp::private_key& pv_key,
-                          NodeType& n_type,
+                          string& private_key,
+                          string& node_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
                           uint64_t& revert_blocks_count,
                           uint64_t& revert_actions_count,
                           string& manager_address,
-                          bool& log_enabled,
+                          bool& enable_action_log,
                           bool& testnet,
                           bool& resync,
                           bool& enable_inbox,
@@ -517,8 +578,6 @@ bool process_command_line(int argc, char** argv,
     string slave_local_interface;
     string str_public_address;
     string str_public_ssl_address;
-    string str_pv_key;
-    string str_n_type;
     vector<string> hosts;
     program_options::options_description options_description;
     try
@@ -526,7 +585,7 @@ bool process_command_line(int argc, char** argv,
         auto desc_init = options_description.add_options()
             ("help,h", "Print this help message and exit.")
             ("action_log,g", "Keep track of blockchain actions.")
-            ("p2p_local_interface,i", program_options::value<string>(&p2p_local_interface)->required(),
+            ("p2p_local_interface,i", program_options::value<string>(&p2p_local_interface),
                             "(p2p) The local network interface and port to bind to")
             ("p2p_remote_host,p", program_options::value<vector<string>>(&hosts),
                             "Remote nodes addresss with port")
@@ -540,9 +599,9 @@ bool process_command_line(int argc, char** argv,
                              "(rpc) The public SSL IP address that will be broadcasted")
             ("data_directory,d", program_options::value<string>(&data_directory),
                             "Data directory path")
-            ("node_private_key,k", program_options::value<string>(&str_pv_key),
+            ("node_private_key,k", program_options::value<string>(&private_key),
                             "Node private key to start with")
-            ("node_type,t", program_options::value<string>(&str_n_type),
+            ("node_type,t", program_options::value<string>(&node_type),
                             "Node start mode")
             ("fee_fractions,f", program_options::value<uint64_t>(&fractions),
                             "fractions to set for statinfo fee")
@@ -578,6 +637,7 @@ bool process_command_line(int argc, char** argv,
         enable_inbox = options.count("enable_inbox");
         discovery_server = options.count("discovery_server");
 
+        if (false == p2p_local_interface.empty())
         p2p_bind_to_address.from_string(p2p_local_interface);
         if (false == rpc_local_interface.empty())
             rpc_bind_to_address.from_string(rpc_local_interface);
@@ -595,45 +655,7 @@ bool process_command_line(int argc, char** argv,
             p2p_connect_to_addresses.push_back(address_item);
         }
 
-        if (p2p_connect_to_addresses.empty())
-        {
-            if (testnet)
-            {
-                beltpp::ip_address address_item;
-                address_item.from_string("north.publiq.network:14100");
-                p2p_connect_to_addresses.push_back(address_item);
-                address_item.from_string("north.publiq.network:14110");
-                p2p_connect_to_addresses.push_back(address_item);
-            }
-            else
-            {
-                beltpp::ip_address address_item;
-                address_item.from_string("north.publiq.network:14000");
-                p2p_connect_to_addresses.push_back(address_item);
-                address_item.from_string("north.publiq.network:14010");
-                p2p_connect_to_addresses.push_back(address_item);
-            }
-        }
-
-        if (false == str_pv_key.empty())
-            pv_key = meshpp::private_key(str_pv_key);
-
-        log_enabled = options.count("action_log");
-
-        n_type = BlockchainMessage::NodeType::blockchain;
-        if (false == str_n_type.empty())
-            BlockchainMessage::from_string(str_n_type, n_type);
-
-        if (n_type == BlockchainMessage::NodeType::blockchain &&
-            false == str_public_address.empty() &&
-            rpc_local_interface.empty())
-            throw std::runtime_error("rpc_local_interface is not specified");
-        if (n_type != BlockchainMessage::NodeType::blockchain &&
-            str_public_address.empty())
-            throw std::runtime_error("public_address is not specified");
-        if (n_type != BlockchainMessage::NodeType::blockchain &&
-            slave_local_interface.empty())
-            throw std::runtime_error("slave_local_interface is not specified");
+        enable_action_log = options.count("action_log");
 
         if (0 == options.count("fee_fractions"))
             fractions = 0;

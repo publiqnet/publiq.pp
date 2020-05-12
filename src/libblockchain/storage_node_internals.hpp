@@ -63,23 +63,21 @@ class storage_node_internals
 public:
     storage_node_internals(
         node& master_node,
-        ip_address const& rpc_bind_to_address,
+        config& ref_config,
         filesystem::path const& fs_storage,
-        meshpp::private_key const& pv_key,
         beltpp::ilog* _plogger_storage_node)
         : m_master_node(&master_node)
         , plogger_storage_node(_plogger_storage_node)
+        , pconfig(&ref_config)
         , m_node_type(NodeType::blockchain)
         , m_ptr_eh(beltpp::libsocket::construct_event_handler())
         , m_ptr_rpc_socket(beltpp::libsocket::getsocket<rpc_storage_sf>(*m_ptr_eh))
-        , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_storage(fs_storage)
-        , m_pv_key(pv_key)
     {
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
 
-        if (false == rpc_bind_to_address.local.empty())
-            m_ptr_rpc_socket->listen(rpc_bind_to_address);
+        if (false == pconfig->get_slave_bind_to_address().local.empty())
+            m_ptr_rpc_socket->listen(pconfig->get_slave_bind_to_address());
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
     }
@@ -195,13 +193,12 @@ public:
 
     node* m_master_node;
     beltpp::ilog* plogger_storage_node;
+    config* pconfig;
     NodeType m_node_type;
     unique_ptr<beltpp::event_handler> m_ptr_eh;
     unique_ptr<beltpp::socket> m_ptr_rpc_socket;
 
-    beltpp::ip_address m_rpc_bind_to_address;
     publiqpp::storage m_storage;
-    meshpp::private_key m_pv_key;
 
     std::mutex m_messages_mutex;
     list<pair<beltpp::packet, beltpp::packet>> m_messages;
