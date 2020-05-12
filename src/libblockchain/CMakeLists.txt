@@ -27,6 +27,8 @@ add_library(blockchain
     coin.cpp
     coin.hpp
     common.hpp
+    config.cpp
+    config.hpp
     documents.cpp
     documents.hpp
     exception.hpp
@@ -112,6 +114,7 @@ install(TARGETS blockchain
 
 install(FILES
     coin.hpp
+    config.hpp
     global.hpp
     node.hpp
     message.hpp
