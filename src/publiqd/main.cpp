@@ -277,6 +277,9 @@ int main(int argc, char** argv)
     if (false == data_directory.empty())
         meshpp::settings::set_data_directory(data_directory);
 
+    meshpp::create_config_directory();
+    meshpp::create_data_directory();
+
     publiqpp::config config;
     config.set_data_directory(meshpp::settings::data_directory());
 
@@ -358,9 +361,6 @@ int main(int argc, char** argv)
 
     try
     {
-        meshpp::create_config_directory();
-        meshpp::create_data_directory();
-
         unique_ptr<port2pid_helper> port2pid(new port2pid_helper(meshpp::config_file_path("pid"),
                                                                  config.get_p2p_bind_to_address().local.port));
 
