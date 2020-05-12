@@ -289,7 +289,7 @@ void validate_statistics(map<string, ServiceStatistics> const& channel_provided_
             }*/
             uint64_t count = impl.pcounts_per_channel_views(item_per_owner.second,
                                                             block_number,
-                                                            impl.m_testnet);
+                                                            impl.pconfig->testnet());
 
             if (serving_channel == owner_channel)
             {
@@ -810,8 +810,8 @@ revert_pool(time_t expiry_time, publiqpp::detail::node_internals& impl)
     assert(impl.m_transaction_pool.length() == 0);
 
     //  sync the node balance at chain level
-    impl.m_state.set_balance(impl.m_pb_key.to_string(),
-                             impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool),
+    impl.m_state.set_balance(impl.front_public_key().to_string(),
+                             impl.m_state.get_balance(impl.front_public_key().to_string(), state_layer::pool),
                              state_layer::chain);
 
     return pool_transactions;
@@ -850,7 +850,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     SignedBlock const& prev_signed_block = impl.m_blockchain.at(block_number);
     BlockHeader const& prev_header = impl.m_blockchain.last_header();
-    string own_key = impl.m_pb_key.to_string();
+    string own_key = impl.front_public_key().to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
 
     uint64_t delta = impl.calc_delta(own_key,
@@ -1195,7 +1195,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
                   unit_uri_view_counts,
                   applied_sponsor_items);
 
-    meshpp::signature sgn = impl.m_pv_key.sign(block.to_string());
+    meshpp::signature sgn = impl.front_private_key().sign(block.to_string());
 
     SignedBlock signed_block;
     signed_block.authorization.address = sgn.pb_key.to_string();
@@ -1252,28 +1252,28 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
         return;
 
     NodeType my_state_type;
-    if (m_pimpl->m_state.get_role(m_pimpl->m_pb_key.to_string(), my_state_type))
+    if (m_pimpl->m_state.get_role(m_pimpl->front_public_key().to_string(), my_state_type))
     {
-        assert(my_state_type == m_pimpl->m_node_type);
+        assert(my_state_type == m_pimpl->pconfig->get_node_type());
         return; //  if already stored, do nothing
     }
 
-    if (m_pimpl->m_node_type == BlockchainMessage::NodeType::blockchain)
+    if (m_pimpl->pconfig->get_node_type() == BlockchainMessage::NodeType::blockchain)
         return; //  no need to explicitly broadcast in this case
 
     Role role;
-    role.node_address = m_pimpl->m_pb_key.to_string();
-    role.node_type = m_pimpl->m_node_type;
+    role.node_address = m_pimpl->front_public_key().to_string();
+    role.node_type = m_pimpl->pconfig->get_node_type();
 
     Transaction transaction;
     transaction.action = std::move(role);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
-    m_pimpl->m_fee_transactions.to_Coin(transaction.fee);
+    m_pimpl->pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = m_pimpl->m_pb_key.to_string();
-    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+    authorization.address = m_pimpl->front_public_key().to_string();
+    authorization.signature = m_pimpl->front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
     signed_transaction.authorizations.push_back(authorization);
@@ -1290,35 +1290,42 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
 
 void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m_pimpl)
 {
-    NodeType my_state_type;
-    if (false == m_pimpl->m_state.get_role(m_pimpl->m_pb_key.to_string(), my_state_type))
-        my_state_type = NodeType::blockchain;
-    if (m_pimpl->m_public_address.local.empty() &&
-        m_pimpl->m_public_address.remote.empty())
+    if (m_pimpl->pconfig->get_public_address().local.empty() &&
+        m_pimpl->pconfig->get_public_address().remote.empty())
         return;
 
-    AddressInfo address_info;
-    address_info.node_address = m_pimpl->m_pb_key.to_string();
-    beltpp::assign(address_info.ip_address, m_pimpl->m_public_address);
-    beltpp::assign(address_info.ssl_ip_address, m_pimpl->m_public_ssl_address);
+    auto pks = m_pimpl->pconfig->keys();
+    for (auto const& pk : pks)
+    {
+        auto pbk = pk.get_public_key();
 
-    Transaction transaction;
-    transaction.action = address_info;
-    transaction.creation.tm = system_clock::to_time_t(system_clock::now());
-    transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
+        NodeType my_state_type;
+        if (false == m_pimpl->m_state.get_role(pbk.to_string(), my_state_type))
+            my_state_type = NodeType::blockchain;
 
-    Authority authorization;
-    authorization.address = m_pimpl->m_pb_key.to_string();
-    authorization.signature = m_pimpl->m_pv_key.sign(transaction.to_string()).base58;
+        AddressInfo address_info;
+        address_info.node_address = pbk.to_string();
+        beltpp::assign(address_info.ip_address, m_pimpl->pconfig->get_public_address());
+        beltpp::assign(address_info.ssl_ip_address, m_pimpl->pconfig->get_public_ssl_address());
 
-    SignedTransaction signed_transaction;
-    signed_transaction.transaction_details = transaction;
-    signed_transaction.authorizations.push_back(authorization);
+        Transaction transaction;
+        transaction.action = address_info;
+        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
 
-    Broadcast broadcast;
-    broadcast.package = signed_transaction;
+        Authority authorization;
+        authorization.address = pbk.to_string();
+        authorization.signature = pk.sign(transaction.to_string()).base58;
 
-    broadcast_message(std::move(broadcast), *m_pimpl);
+        SignedTransaction signed_transaction;
+        signed_transaction.transaction_details = transaction;
+        signed_transaction.authorizations.push_back(authorization);
+
+        Broadcast broadcast;
+        broadcast.package = signed_transaction;
+
+        broadcast_message(std::move(broadcast), *m_pimpl);
+    }
 }
 
 bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
@@ -1417,11 +1424,9 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     return true;
 }
 
-
-
 void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
 {
-    if (impl.m_node_type == NodeType::blockchain)
+    if (impl.pconfig->get_node_type() == NodeType::blockchain)
         return; // error case should never happen
 
     ServiceStatistics service_statistics = impl.service_counter.take_statistics_info();
@@ -1429,7 +1434,7 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     if (service_statistics.file_items.empty())
         return; // nothing to broadcast
 
-    service_statistics.server_address = impl.m_pb_key.to_string();
+    service_statistics.server_address = impl.front_public_key().to_string();
     auto tp_end = system_clock::from_time_t(impl.m_blockchain.last_header().time_signed.tm);
     auto tp_start = tp_end - chrono::seconds(BLOCK_MINE_DELAY);
     service_statistics.start_time_point.tm = system_clock::to_time_t(tp_start);
@@ -1439,11 +1444,11 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     transaction.action = std::move(service_statistics);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(2 * BLOCK_MINE_DELAY));
-    impl.m_fee_transactions.to_Coin(transaction.fee);
+    impl.pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = impl.m_pb_key.to_string();
-    authorization.signature = impl.m_pv_key.sign(transaction.to_string()).base58;
+    authorization.address = impl.front_public_key().to_string();
+    authorization.signature = impl.front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
     signed_transaction.authorizations.push_back(authorization);
@@ -1463,7 +1468,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
                               UpdateType const& status)
 {
     StorageUpdate storage_update;
-    storage_update.storage_address = impl.m_pb_key.to_string();
+    storage_update.storage_address = impl.front_public_key().to_string();
     storage_update.file_uri = uri;
     storage_update.status = status;
 
@@ -1471,11 +1476,11 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
     transaction.action = std::move(storage_update);
     transaction.creation.tm = system_clock::to_time_t(system_clock::now());
     transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
-    impl.m_fee_transactions.to_Coin(transaction.fee);
+    impl.pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = impl.m_pb_key.to_string();
-    authorization.signature = impl.m_pv_key.sign(transaction.to_string()).base58;
+    authorization.address = impl.front_public_key().to_string();
+    authorization.signature = impl.front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
     signed_transaction.authorizations.push_back(authorization);
@@ -1499,7 +1504,7 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
     std::function<void(beltpp::packet&&)> callback_lambda =
         [psk, peerid, uri, pimpl](beltpp::packet&& package)
     {
-        if (NodeType::storage == pimpl->m_node_type && package.type() == Done::rtt)
+        if (NodeType::storage == pimpl->pconfig->get_node_type() && package.type() == Done::rtt)
             broadcast_storage_update(*pimpl, uri, UpdateType::remove);
 
         if (false == package.empty())
@@ -1544,7 +1549,7 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_transacti
         return false;
 
     impl.m_transaction_cache.backup();
-    bool letter_to_me = letter.to == impl.m_pb_key.to_string();
+    bool letter_to_me = letter.to == impl.front_public_key().to_string();
 
     beltpp::on_failure guard([&impl, letter_to_me]
     {

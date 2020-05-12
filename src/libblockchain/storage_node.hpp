@@ -2,6 +2,8 @@
 
 #include "global.hpp"
 
+#include "config.hpp"
+
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/isocket.hpp>
 
@@ -24,9 +26,8 @@ class BLOCKCHAINSHARED_EXPORT storage_node
     friend class node;
 public:
     storage_node(node& master_node,
-                 beltpp::ip_address const& rpc_bind_to_address,
+                 config& ref_config,
                  boost::filesystem::path const& fs_storage,
-                 meshpp::private_key const& pv_key,
                  beltpp::ilog* plogger_storage_node);
     storage_node(storage_node&& other) noexcept;
     ~storage_node();

@@ -12,6 +12,7 @@
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
 #include "inbox.hpp"
+#include "config.hpp"
 
 #include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
@@ -378,13 +379,6 @@ protected:
     unordered_map<string, data_type> data_backup;
 };
 
-inline coin coin_from_fractions(uint64_t fractions)
-{
-    coin result(0, 1);
-    result *= fractions;
-    return result;
-}
-
 using fp_counts_per_channel_views =
 uint64_t (*)(std::map<uint64_t, std::map<std::string, std::map<std::string, uint64_t>>> const& item_per_owner,
 uint64_t block_number,
@@ -436,11 +430,6 @@ class node_internals
 {
 public:
     node_internals(string const& genesis_signed_block,
-                   ip_address const& public_address,
-                   ip_address const& public_ssl_address,
-                   ip_address const& rpc_bind_to_address,
-                   ip_address const& p2p_bind_to_address,
-                   std::vector<ip_address> const& p2p_connect_to_addresses,
                    filesystem::path const& fs_blockchain,
                    filesystem::path const& fs_action_log,
                    filesystem::path const& fs_transaction_pool,
@@ -451,18 +440,11 @@ public:
                    filesystem::path const& fs_inbox,
                    beltpp::ilog* _plogger_p2p,
                    beltpp::ilog* _plogger_node,
-                   meshpp::private_key const& pv_key,
-                   NodeType const& n_type,
-                   uint64_t fractions,
+                   config& ref_config,
                    uint64_t freeze_before_block,
                    uint64_t revert_blocks_count,
                    uint64_t revert_actions_count,
-                   string const& manager_address,
-                   bool log_enabled,
-                   bool transfer_only,
-                   bool testnet,
                    bool resync,
-                   bool discovery_server,
                    coin const& mine_amount_threshhold,
                    std::vector<coin> const& block_reward_array,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views,
@@ -478,12 +460,12 @@ public:
                        beltpp::take_unique_ptr(std::move(inject_eh)) )
         , m_ptr_p2p_socket(new meshpp::p2psocket(
                                meshpp::getp2psocket(*m_ptr_eh,
-                                                    p2p_bind_to_address,
-                                                    p2p_connect_to_addresses,
+                                                    ref_config.get_p2p_bind_to_address(),
+                                                    ref_config.get_p2p_connect_to_addresses(),
                                                     get_putl(),
                                                     _plogger_p2p,
-                                                    pv_key,
-                                                    discovery_server,
+                                                    ref_config.get_key(),
+                                                    ref_config.discovery_server(),
                                                     std::move(inject_p2p_socket))
         ))
         , m_ptr_rpc_socket(nullptr == inject_rpc_socket ?
@@ -496,27 +478,18 @@ public:
         , m_summary_report_timer()
         , m_storage_sync_delay()
         , m_stuck_on_old_blockchain_timer()
-        , m_public_address(public_address)
-        , m_public_ssl_address(public_ssl_address)
-        , m_rpc_bind_to_address(rpc_bind_to_address)
         , m_blockchain(fs_blockchain)
-        , m_action_log(fs_action_log, log_enabled)
+        , m_action_log(fs_action_log, ref_config.action_log())
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state, *this)
         , m_documents(fs_documents, fs_storages)
         , m_storage_controller(fs_storage)
         , m_inbox(fs_inbox)
         , all_sync_info(*this)
-        , m_node_type(n_type)
-        , m_fee_transactions(std::move(coin_from_fractions(fractions)))
-        , m_pv_key(pv_key)
-        , m_pb_key(pv_key.get_public_key())
-        , m_testnet(testnet)
-        , m_transfer_only(transfer_only)
+        , pconfig(&ref_config)
         , m_service_statistics_broadcast_triggered(false)
         , m_initialize(true)
         , m_freeze_before_block(freeze_before_block)
-        , m_manager_address(manager_address)
         , m_resync_blockchain(resync ? 10 : uint64_t(-1))
         , m_revert_blocks_count(revert_blocks_count)
         , m_revert_actions_count(revert_actions_count)
@@ -543,8 +516,8 @@ public:
         m_broadcast_timer.update();
         m_storage_sync_delay.update();
 
-        if (false == rpc_bind_to_address.local.empty())
-            m_ptr_rpc_socket->listen(rpc_bind_to_address);
+        if (false == pconfig->get_rpc_bind_to_address().local.empty())
+            m_ptr_rpc_socket->listen(pconfig->get_rpc_bind_to_address());
 
         m_ptr_eh->add(*m_ptr_rpc_socket);
         m_ptr_eh->add(*m_ptr_p2p_socket);
@@ -636,12 +609,12 @@ public:
 
     BlockchainMessage::Coin get_balance() const
     {
-        return m_state.get_balance(m_pb_key.to_string(), state_layer::chain);
+        return m_state.get_balance(front_public_key().to_string(), state_layer::chain);
     }
 
     bool is_miner() const
     {
-        bool result = (m_node_type == NodeType::blockchain) &&
+        bool result = (pconfig->get_node_type() == NodeType::blockchain) &&
                       (coin(get_balance()) >= m_mine_amount_threshhold);
 
         return result;
@@ -682,6 +655,16 @@ public:
         return last_block_age < chrono::seconds(BLOCK_MINE_DELAY);
     }
 
+    meshpp::public_key front_public_key() const
+    {
+        return front_private_key().get_public_key();
+    }
+
+    meshpp::private_key front_private_key() const
+    {
+        return pconfig->get_key();
+    }
+
     bool initialize();
     wait_result_item wait_and_receive_one();
 
@@ -699,10 +682,6 @@ public:
     beltpp::timer m_summary_report_timer;
     beltpp::timer m_storage_sync_delay;
     beltpp::timer m_stuck_on_old_blockchain_timer;
-
-    beltpp::ip_address m_public_address;
-    beltpp::ip_address m_public_ssl_address;
-    beltpp::ip_address m_rpc_bind_to_address;
 
     publiqpp::blockchain m_blockchain;
     publiqpp::action_log m_action_log;
@@ -723,18 +702,12 @@ public:
     unordered_set<beltpp::stream::peer_id> m_p2p_peers;
     transaction_cache m_transaction_cache;
 
-    NodeType m_node_type;
-    coin m_fee_transactions;
-    meshpp::private_key m_pv_key;
-    meshpp::public_key m_pb_key;
+    config* pconfig;
 
-    bool m_testnet;
-    bool m_transfer_only;
     bool m_service_statistics_broadcast_triggered;
     bool m_initialize;
 
     uint64_t m_freeze_before_block;
-    string m_manager_address;
     uint64_t m_resync_blockchain;
     uint64_t m_revert_blocks_count;
     uint64_t m_revert_actions_count;

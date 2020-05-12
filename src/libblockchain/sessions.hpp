@@ -59,6 +59,7 @@ public:
 
     beltpp::socket* psk;
     nodeid_service* pnodeid_service;
+    bool need_to_revert_keep_successful;
     std::string nodeid;
     beltpp::ip_address address;
 };

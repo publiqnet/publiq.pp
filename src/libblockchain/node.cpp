@@ -48,11 +48,6 @@ void sync_worker(detail::node_internals& impl);
  * node
  */
 node::node(string const& genesis_signed_block,
-           ip_address const& public_address,
-           beltpp::ip_address const& public_ssl_address,
-           ip_address const& rpc_bind_to_address,
-           ip_address const& p2p_bind_to_address,
-           std::vector<ip_address> const& p2p_connect_to_addresses,
            filesystem::path const& fs_blockchain,
            filesystem::path const& fs_action_log,
            filesystem::path const& fs_transaction_pool,
@@ -63,18 +58,11 @@ node::node(string const& genesis_signed_block,
            filesystem::path const& fs_inbox,
            beltpp::ilog* plogger_p2p,
            beltpp::ilog* plogger_node,
-           meshpp::private_key const& pv_key,
-           NodeType const& n_type,
-           uint64_t fractions,
+           config& ref_config,
            uint64_t freeze_before_block,
            uint64_t revert_blocks_count,
            uint64_t revert_actions_count,
-           string const& manager_address,
-           bool log_enabled,
-           bool transfer_only,
-           bool testnet,
            bool resync,
-           bool discovery_server,
            coin const& mine_amount_threshhold,
            std::vector<coin> const& block_reward_array,
            detail::fp_counts_per_channel_views p_counts_per_channel_views,
@@ -83,11 +71,6 @@ node::node(string const& genesis_signed_block,
            unique_ptr<socket>&& inject_rpc_socket,
            unique_ptr<socket>&& inject_p2p_socket)
     : m_pimpl(new detail::node_internals(genesis_signed_block,
-                                         public_address,
-                                         public_ssl_address,
-                                         rpc_bind_to_address,
-                                         p2p_bind_to_address,
-                                         p2p_connect_to_addresses,
                                          fs_blockchain,
                                          fs_action_log,
                                          fs_transaction_pool,
@@ -98,18 +81,11 @@ node::node(string const& genesis_signed_block,
                                          fs_inbox,
                                          plogger_p2p,
                                          plogger_node,
-                                         pv_key,
-                                         n_type,
-                                         fractions,
+                                         ref_config,
                                          freeze_before_block,
                                          revert_blocks_count,
                                          revert_actions_count,
-                                         manager_address,
-                                         log_enabled,
-                                         transfer_only,
-                                         testnet,
                                          resync,
-                                         discovery_server,
                                          mine_amount_threshhold,
                                          block_reward_array,
                                          p_counts_per_channel_views,
@@ -208,7 +184,7 @@ void node::run(bool& stop_check)
                         assert(external_address.local.empty() == false);
                         assert(external_address.remote.empty());
                         external_address.local.port =
-                                m_pimpl->m_rpc_bind_to_address.local.port;
+                                m_pimpl->pconfig->get_rpc_bind_to_address().local.port;
 
                         guard.dismiss();
                     }
@@ -287,7 +263,7 @@ void node::run(bool& stop_check)
                     if (broadcast_signed_transaction.items.empty())
                         throw wrong_data_exception("will process only \"broadcast signed transaction\"");
 
-                    if (m_pimpl->m_transfer_only && ref_packet.type() != Transfer::rtt)
+                    if (m_pimpl->pconfig->transfer_only() && ref_packet.type() != Transfer::rtt)
                         throw std::runtime_error("this is coin only blockchain");
 
                     Broadcast* p_broadcast = nullptr;
@@ -377,7 +353,7 @@ void node::run(bool& stop_check)
                     if (process_update_command(signed_tx, update_command, m_pimpl))
                     {
                         // command is addressed to me
-                        if (signed_tx.authorizations.front().address == m_pimpl->m_manager_address)
+                        if (signed_tx.authorizations.front().address == m_pimpl->pconfig->get_manager_address())
                         {
                             if (update_command.status == UpdateType::remove)
                             {
@@ -399,7 +375,7 @@ void node::run(bool& stop_check)
                 }
                 case StorageFile::rtt:
                 {
-                    if (NodeType::blockchain == m_pimpl->m_node_type ||
+                    if (NodeType::blockchain == m_pimpl->pconfig->get_node_type() ||
                         nullptr == m_pimpl->m_slave_node ||
                         it != detail::wait_result_item::interface_type::rpc ||
                         m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
@@ -412,13 +388,13 @@ void node::run(bool& stop_check)
                     std::function<void(beltpp::packet&&)> callback_lambda =
                             [psk, peerid, pimpl](beltpp::packet&& package)
                     {
-                        if (NodeType::storage == pimpl->m_node_type &&
+                        if (NodeType::storage == pimpl->pconfig->get_node_type() &&
                             package.type() == StorageFileAddress::rtt)
                         {
                             StorageFileAddress* pfile_address;
                             package.get(pfile_address);
                             if (false == pimpl->m_documents.storage_has_uri(pfile_address->uri,
-                                                                            pimpl->m_pb_key.to_string()))
+                                                                            pimpl->front_public_key().to_string()))
                                 broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
                         }
 
@@ -441,7 +417,7 @@ void node::run(bool& stop_check)
                 }
                 case StorageFileDelete::rtt:
                 {
-                    if (NodeType::blockchain == m_pimpl->m_node_type ||
+                    if (NodeType::blockchain == m_pimpl->pconfig->get_node_type() ||
                         nullptr == m_pimpl->m_slave_node ||
                         it != detail::wait_result_item::interface_type::rpc ||
                         m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
@@ -456,7 +432,7 @@ void node::run(bool& stop_check)
                 }
                 case FileUrisRequest::rtt:
                 {
-                    if (NodeType::blockchain == m_pimpl->m_node_type ||
+                    if (NodeType::blockchain == m_pimpl->pconfig->get_node_type() ||
                         nullptr == m_pimpl->m_slave_node ||
                         it != detail::wait_result_item::interface_type::rpc ||
                         m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
@@ -482,7 +458,10 @@ void node::run(bool& stop_check)
                 }
                 case LoggedTransactionsRequest::rtt:
                 {
-                    if (it == detail::wait_result_item::interface_type::rpc)
+                    if (it == detail::wait_result_item::interface_type::rpc &&
+                            m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) ==
+                            beltpp::socket::peer_type::streaming_accepted
+                        )
                     {
                         LoggedTransactionsRequest msg_get_actions;
                         std::move(ref_packet).get(msg_get_actions);
@@ -643,7 +622,9 @@ void node::run(bool& stop_check)
                 }
                 case CheckInbox::rtt:
                 {
-                    if (it != detail::wait_result_item::interface_type::rpc)
+                    if (it != detail::wait_result_item::interface_type::rpc ||
+                            m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) !=
+                            beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("CheckInbox received not through rpc!");
 
                     Inbox response;
@@ -662,13 +643,46 @@ void node::run(bool& stop_check)
 
                     break;
                 }
+                case ConfigKeyUpdate::rtt:
+                {
+                    if (it != detail::wait_result_item::interface_type::rpc ||
+                            m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) !=
+                            beltpp::socket::peer_type::streaming_accepted)
+                        throw wrong_request_exception("ConfigKeyUpdate received not through rpc!");
+
+                    ConfigKeyUpdate msg;
+                    std::move(ref_packet).get(msg);
+
+                    if (msg.update_type == UpdateType::store)
+                        m_pimpl->pconfig->add_secondary_key(meshpp::private_key(msg.private_key));
+                    else
+                        m_pimpl->pconfig->remove_secondary_key(meshpp::private_key(msg.private_key));
+
+                    psk->send(peerid, beltpp::packet(Done()));
+
+                    break;
+                }
                 case Ping::rtt:
                 {
+                    Ping msg;
+                    std::move(ref_packet).get(msg);
+
+                    auto pv_key = m_pimpl->front_private_key();
+                    if (msg.address)
+                    for (auto const& key_item : m_pimpl->pconfig->keys())
+                    {
+                        if (key_item.get_public_key().to_string() == *msg.address)
+                        {
+                            pv_key = key_item;
+                            break;
+                        }
+                    }
+
                     Pong msg_pong;
-                    msg_pong.node_address = m_pimpl->m_pb_key.to_string();
+                    msg_pong.node_address = pv_key.get_public_key().to_string();
                     msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
                     string message_pong = msg_pong.node_address + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
-                    auto signed_message = m_pimpl->m_pv_key.sign(message_pong);
+                    auto signed_message = pv_key.sign(message_pong);
 
                     msg_pong.signature = std::move(signed_message.base58);
                     psk->send(peerid, beltpp::packet(std::move(msg_pong)));
@@ -676,7 +690,7 @@ void node::run(bool& stop_check)
                 }
                 case Served::rtt:
                 {
-                    if (NodeType::channel != m_pimpl->m_node_type ||
+                    if (NodeType::channel != m_pimpl->pconfig->get_node_type() ||
                         it != detail::wait_result_item::interface_type::rpc ||
                         m_pimpl->m_ptr_rpc_socket->get_peer_type(peerid) != beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("Do not disturb!");
@@ -700,7 +714,7 @@ void node::run(bool& stop_check)
                                                                             unit_counter.time_point))
                         throw wrong_request_exception("wrong storage order token");
 
-                    if (channel_address != m_pimpl->m_pb_key.to_string())
+                    if (channel_address != m_pimpl->front_public_key().to_string())
                         throw wrong_request_exception("channel_address != m_pimpl->m_pb_key.to_string()");
 
                     m_pimpl->service_counter.served(unit, unit_counter);
@@ -924,7 +938,7 @@ void node::run(bool& stop_check)
                 {
                     Served msg;
                     std::move(msg_container.package).get(msg);
-                    if (m_pimpl->m_node_type == NodeType::storage)
+                    if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
                     {
                         detail::service_counter::service_unit unit;
                         detail::service_counter::service_unit_counter unit_counter;
@@ -940,7 +954,7 @@ void node::run(bool& stop_check)
                                                                        unit_counter.session_id,
                                                                        unit_counter.seconds,
                                                                        unit_counter.time_point) &&
-                            storage_address == m_pimpl->m_pb_key.to_string() &&
+                            storage_address == m_pimpl->front_public_key().to_string() &&
                             m_pimpl->m_documents.file_exists(unit.file_uri))
                         {
                             unit.content_unit_uri.clear(); // simulate the old behavior
@@ -1020,7 +1034,7 @@ void node::run(bool& stop_check)
         });
 
         // collect verified channel addresses and send to slave node
-        if (m_pimpl->m_node_type == NodeType::storage &&
+        if (m_pimpl->pconfig->get_node_type() == NodeType::storage &&
             m_pimpl->m_slave_node)
         {
             StorageTypes::SetVerifiedChannels set_channels;
@@ -1059,7 +1073,7 @@ void node::run(bool& stop_check)
         if (m_pimpl->m_storage_sync_delay.expired() &&
             m_pimpl->blockchain_updated() &&
             m_pimpl->m_transaction_pool.length() < BLOCK_MAX_TRANSACTIONS / 2 &&
-            NodeType::storage == m_pimpl->m_node_type &&
+            NodeType::storage == m_pimpl->pconfig->get_node_type() &&
             m_pimpl->m_slave_node)
         {
             auto& impl = *m_pimpl.get();
@@ -1161,7 +1175,7 @@ void node::run(bool& stop_check)
 #ifdef EXTRA_LOGGING
                         beltpp::on_failure guard([&impl, file_uri]{impl.writeln_node(file_uri + " flew");});
 #endif
-                        if (false == impl.m_documents.storage_has_uri(file_uri, impl.m_pb_key.to_string()))
+                        if (false == impl.m_documents.storage_has_uri(file_uri, impl.front_public_key().to_string()))
                             broadcast_storage_update(impl, file_uri, UpdateType::store);
 
 #ifdef EXTRA_LOGGING
@@ -1219,7 +1233,7 @@ void node::run(bool& stop_check)
 void node::set_slave_node(storage_node& slave_node)
 {
     m_pimpl->m_slave_node = &slave_node;
-    m_pimpl->m_slave_node->m_pimpl->m_node_type = m_pimpl->m_node_type;
+    m_pimpl->m_slave_node->m_pimpl->m_node_type = m_pimpl->pconfig->get_node_type();
 }
 
 //#define log_log_log
@@ -1311,7 +1325,7 @@ void block_worker(detail::node_internals& impl)
     }
 
     auto own_vote = detail::node_internals::vote_info{
-                        impl.m_state.get_balance(impl.m_pb_key.to_string(), state_layer::pool),
+                        impl.m_state.get_balance(impl.front_public_key().to_string(), state_layer::pool),
                         impl.m_blockchain.last_header_ex().block_hash,
                         steady_clock_now};
     {
@@ -1327,7 +1341,7 @@ void block_worker(detail::node_internals& impl)
     }
 
     uint64_t const poll_participants_with_stake_treshhold =
-            false == impl.m_testnet ?
+            false == impl.pconfig->testnet() ?
                 std::max(uint64_t(2), uint64_t(impl.m_p2p_peers.size() / 4)) :
                 1;
 
@@ -1703,7 +1717,7 @@ void sync_worker(detail::node_internals& impl)
             NodeType node_type;
             if (impl.m_state.get_role(item.node_address, node_type))
                 continue;
-            if (impl.m_pb_key.to_string() == item.node_address)
+            if (impl.front_public_key().to_string() == item.node_address)
                 continue;
 
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
