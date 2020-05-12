@@ -16,6 +16,8 @@
 #include <unordered_set>
 #include <set>
 #include <map>
+#include <iostream>
+#include <thread>
 
 using std::set;
 using std::string;
@@ -144,9 +146,26 @@ void import_storage(string const& storage_address,
 
         meshpp::private_key pv_key = meshpp::private_key(sm_server.m_str_pv_key);
 
+        string progress_str;
         auto keys = sm_server.files.keys();
+        size_t keys_count = keys.size();
+        size_t index = 0;
+
+        std::cout << std::endl << std::endl;
         for (auto const& key : keys)
         {
+            ++index;
+
+            if (index % 10 == 0)
+            {
+                std::cout << string(progress_str.length(), '\b');
+
+                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scaned...";
+                std::cout << progress_str;
+
+                std::this_thread::sleep_for(std::chrono::milliseconds(25));
+            }
+
             FileInfo& file_info = sm_server.files.at(key);
 
             for (auto const& address : file_info.own_storages)
