@@ -84,6 +84,8 @@ public:
     //receiver      sender       packets
     map<string, map<peer_id, list<packet>>> receive_send;
 
+    map<string, map<string, size_t>> receive_send_counter;
+
     map<ip_address, peer_id, ip_cmp> open_attempts;
     map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> listen_attempts;
     
@@ -113,6 +115,9 @@ public:
     string export_connections_load();
     string export_connections_info();
     string export_packets(const size_t rtt = -1);
+
+    string export_counter();
+    void process_counter_state(string const& receiver, string const& sender, bool connect);
 
 private:
     size_t active_connections_count();

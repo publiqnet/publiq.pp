@@ -100,6 +100,9 @@ void network_simulation::process_attempts()
                     // send join to peers
                     receive_send[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
                     receive_send[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
+
+                    process_counter_state(first_socket_name, second_socket_name, true);
+                    process_counter_state(second_socket_name, first_socket_name, true);
                 }
                 else
                 {
@@ -154,6 +157,9 @@ void network_simulation::process_attempts()
             // create symmetric connections
             receive_send[open_socket_name][listen_peer].emplace_back(beltpp::stream_join());
             receive_send[listen_socket_name][open_peer].emplace_back(beltpp::stream_join());
+
+            process_counter_state(open_socket_name, listen_socket_name, true);
+            process_counter_state(listen_socket_name, open_socket_name, true);
 
             // fill associations for future use
             peer_to_peer.insert({ open_peer, listen_peer });
@@ -424,6 +430,44 @@ size_t network_simulation::triangle_connections_count()
     return triangles.size();
 }
 
+string network_simulation::export_counter()
+{
+    string result;
+    size_t count = 0;
+
+    for (auto const& item : receive_send_counter)
+    {
+        result += item.first + " <=> ";
+
+        size_t node_index = 0;
+        for (auto it = item.second.begin(); it != item.second.end(); ++it)
+        {
+            while (node_index < node_count && it->first != format_index(node_index, node_count))
+            {
+                ++node_index;
+                result += "  ";
+            }
+
+            ++node_index;
+            count += it->second;
+            result += format_index(it->second, 99);
+        }
+
+        result += "\n";
+    }
+
+    result += "\nTotal messages : " + std::to_string(count) + "\n";
+
+    return result;
+}
+
+void network_simulation::process_counter_state(string const& receiver, string const& sender, bool connect)
+{
+    if (connect)
+        receive_send_counter[receiver][sender] = 0;
+    else
+        receive_send_counter[receiver].erase(sender);
+}
 //  event_handler_ns implementation
 
 event_handler_ns::event_handler_ns(network_simulation& ns) 
@@ -697,6 +741,7 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         throw std::runtime_error("send_packet() no connection with peer");
 
     auto& receiver_buffer = receiver_it->second[sender_peer_it->second];
+    receiver_buffer.emplace_back(std::move(pack));
 
     if (pack.type() == beltpp::stream_drop::rtt)
     {
@@ -712,9 +757,13 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         my_buffers_it->second.erase(peer_buffer_it);
 
         m_ns->peers_to_drop.insert(peer);
+
+        m_ns->process_counter_state(m_name, receiver_socket_it->second, false);
+        m_ns->process_counter_state(receiver_socket_it->second, m_name, false);
     }
 
-    receiver_buffer.emplace_back(std::move(pack));
+    if (pack.type() == BlockchainMessage::Broadcast::rtt)
+        ++m_ns->receive_send_counter[m_name][receiver_socket_it->second];
 }
 
 void socket_ns::timer_action()

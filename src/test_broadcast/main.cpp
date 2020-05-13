@@ -375,6 +375,12 @@ int main(int argc, char** argv)
             if (g_termination_handled)
                 break;
 
+            // inject broadcast
+            if (step == node_count)
+            {
+                //TODO
+            }
+
             for (size_t node_index = nodes_info.size() - 1;
                  node_index < nodes_info.size();
                  --node_index)
@@ -440,8 +446,9 @@ int main(int argc, char** argv)
 
             // print network info
             //string tmp_state = ns.export_connections();
-            string tmp_state = ns.export_connections_matrix();
+            //string tmp_state = ns.export_connections_matrix();
             //string tmp_state = ns.export_connections_load();
+            string tmp_state = ns.export_counter();
             string info = ns.export_connections_info();
 
             if (tmp_state != connection_state)
