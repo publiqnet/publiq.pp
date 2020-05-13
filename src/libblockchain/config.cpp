@@ -4,6 +4,7 @@
 
 #include <mesh.pp/settings.hpp>
 #include <mesh.pp/fileutility.hpp>
+#include <mesh.pp/cryptoutility.hpp>
 
 #include <boost/filesystem.hpp>
 
@@ -27,6 +28,7 @@ class config_internal
 {
 public:
     mutex m_mutex;
+    string aes_key;
     meshpp::file_loader<BlockchainMessage::Config,
                         &BlockchainMessage::Config::from_string,
                         &BlockchainMessage::Config::to_string> config_loader;
@@ -52,6 +54,12 @@ void config::set_data_directory(string const& str_data_directory)
 {
     filesystem::path data_directory(str_data_directory);
     pimpl.reset(new detail::config_internal(data_directory));
+}
+
+void config::set_aes_key(std::string const& key)
+{
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
+    pimpl->aes_key = key;
 }
 
 void config::set_p2p_bind_to_address(ip_address const& address)
@@ -250,6 +258,7 @@ void config::set_manager_address(string const& manager_address)
         pimpl->config_loader.commit();
     }
 }
+
 string config::get_manager_address() const
 {
     auto locker = unique_lock<mutex>(pimpl->m_mutex);
@@ -261,7 +270,9 @@ void config::set_key(const private_key &pk)
 {
     auto locker = unique_lock<mutex>(pimpl->m_mutex);
 
-    pimpl->config_loader->private_key = pk.get_base58_wif();
+    string encrypted_private_key =
+            meshpp::aes_encrypt(pimpl->aes_key, pk.get_base58_wif());
+    pimpl->config_loader->private_key = encrypted_private_key;
 
     pimpl->config_loader.save();
     pimpl->config_loader.commit();
@@ -271,8 +282,14 @@ private_key config::get_key() const
 {
     auto locker = unique_lock<mutex>(pimpl->m_mutex);
 
-    if (pimpl->config_loader->private_key)
-        return private_key(*pimpl->config_loader->private_key);
+    auto& pk = pimpl->config_loader->private_key;
+    if (pk)
+    {
+        string decrypted_private_key =
+                meshpp::aes_decrypt(pimpl->aes_key,
+                                    *pk);
+        return private_key(decrypted_private_key);
+    }
 
     throw std::logic_error("config::get_key");
 }
@@ -291,17 +308,20 @@ void config::add_secondary_key(private_key const& pk)
         get_key().get_base58_wif() == pk.get_base58_wif())
         return;
 
+    string encrypted_private_key =
+            meshpp::aes_encrypt(pimpl->aes_key, pk.get_base58_wif());
+
     auto locker = unique_lock<mutex>(pimpl->m_mutex);
 
     auto& pks = pimpl->config_loader->private_keys;
     if (pks &&
-        pks->end() != std::find(pks->begin(), pks->end(), pk.get_base58_wif()))
+        pks->end() != std::find(pks->begin(), pks->end(), encrypted_private_key))
         return;
 
     if (!pks)
         pks = vector<string>();
 
-    pks->push_back(pk.get_base58_wif());
+    pks->push_back(encrypted_private_key);
 
     pimpl->config_loader.save();
     pimpl->config_loader.commit();
@@ -315,9 +335,12 @@ void config::remove_secondary_key(private_key const& pk)
     if (!pks)
         return;
 
+    string encrypted_private_key =
+            meshpp::aes_encrypt(pimpl->aes_key, pk.get_base58_wif());
+
     pks->erase(std::remove_if(pks->begin(),
                               pks->end(),
-                              [&pk](string const& value) { return value == pk.get_base58_wif(); }),
+                              [&encrypted_private_key](string const& value) { return value == encrypted_private_key; }),
                pks->end());
 
     pimpl->config_loader.save();
@@ -331,9 +354,16 @@ std::vector<private_key> config::keys() const
 
     auto locker = unique_lock<mutex>(pimpl->m_mutex);
 
-    if (pimpl->config_loader->private_keys)
-    for (auto const& pkitem : *pimpl->config_loader->private_keys)
-        result.push_back(private_key(pkitem));
+    auto& pks = pimpl->config_loader->private_keys;
+
+    if (pks)
+    for (auto const& pkitem : *pks)
+    {
+        string decrypted_private_key =
+                meshpp::aes_decrypt(pimpl->aes_key,
+                                    pkitem);
+        result.push_back(private_key(decrypted_private_key));
+    }
 
     return result;
 }
