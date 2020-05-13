@@ -18,7 +18,7 @@ void network_simulation::process_attempts()
         bool peers_not_used = true;
         auto pair_peer = peer_to_peer[peer];
 
-        for (auto it = send_receive.begin(); peers_not_used && it != send_receive.end(); ++it)
+        for (auto it = receive_send.begin(); peers_not_used && it != receive_send.end(); ++it)
             peers_not_used = it->second.find(peer) == it->second.end() &&
             it->second.find(pair_peer) == it->second.end();
 
@@ -98,14 +98,14 @@ void network_simulation::process_attempts()
                 if (connection_allowed)
                 {
                     // send join to peers
-                    send_receive[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
-                    send_receive[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
+                    receive_send[first_socket_name][second_peer].emplace_back(beltpp::stream_join());
+                    receive_send[second_socket_name][first_peer].emplace_back(beltpp::stream_join());
                 }
                 else
                 {
                     // send refuse to peers
-                    send_receive[first_socket_name][second_peer].emplace_back(beltpp::socket_open_refused());
-                    send_receive[second_socket_name][first_peer].emplace_back(beltpp::socket_open_refused());
+                    receive_send[first_socket_name][second_peer].emplace_back(beltpp::socket_open_refused());
+                    receive_send[second_socket_name][first_peer].emplace_back(beltpp::socket_open_refused());
 
                     peers_to_drop.insert(first_peer);
                     peers_to_drop.insert(second_peer);
@@ -152,8 +152,8 @@ void network_simulation::process_attempts()
             string& listen_socket_name = peer_to_socket[listen_it->second.first];
 
             // create symmetric connections
-            send_receive[open_socket_name][listen_peer].emplace_back(beltpp::stream_join());
-            send_receive[listen_socket_name][open_peer].emplace_back(beltpp::stream_join());
+            receive_send[open_socket_name][listen_peer].emplace_back(beltpp::stream_join());
+            receive_send[listen_socket_name][open_peer].emplace_back(beltpp::stream_join());
 
             // fill associations for future use
             peer_to_peer.insert({ open_peer, listen_peer });
@@ -182,7 +182,7 @@ string network_simulation::export_connections(string socket_name)
 {
     string result;
 
-    for (auto const& item : send_receive)
+    for (auto const& item : receive_send)
         if (false == socket_name.empty() && item.first != socket_name)
             continue;
         else
@@ -212,7 +212,7 @@ string network_simulation::export_connections_matrix()
 {
     string result;
 
-    for (auto const& item : send_receive)
+    for (auto const& item : receive_send)
     {
         list<string> tmp;
         bool to_drop = false;
@@ -262,7 +262,7 @@ string network_simulation::export_connections_load()
 {
     string result;
 
-    for (auto const& item : send_receive)
+    for (auto const& item : receive_send)
     {
         list<pair<string, size_t>> tmp;
         for (auto const& it : item.second)
@@ -295,9 +295,14 @@ string network_simulation::export_connections_load()
 
 string network_simulation::export_connections_info()
 {
+
     string result;
 
+    result += "active connections count   : " + std::to_string(active_connections_count())   + "\n";
+    result += "triangle connections count : " + std::to_string(triangle_connections_count()) + "\n";
+
     return result;
+
 }
 
 string network_simulation::export_packets(const size_t rtt)
@@ -305,7 +310,7 @@ string network_simulation::export_packets(const size_t rtt)
 
     string result;
 
-    for (auto const& item : send_receive)
+    for (auto const& item : receive_send)
         for (auto const& it : item.second)
             for(auto const& pack : it.second)
                 if (pack.type() == rtt)
@@ -360,27 +365,61 @@ string network_simulation::export_packets(const size_t rtt)
     return result;
 }
 
-size_t network_simulation::specific_connections_count(const size_t rtt)
+size_t network_simulation::active_connections_count()
 {
+
     size_t count = 0;
 
-    for (auto const& receiver_item : send_receive)
-        for (auto const& sender_item : receiver_item.second)
-            for (auto const& pack : sender_item.second)
-                if (pack.type() == rtt)
+    for (auto const& receiver : receive_send)
+        for (auto const& sender : receiver.second)
+            for (auto const& pack : sender.second)
+                if (false != connection_closed(pack.type()))
                 {
                     ++count;
                     break;
                 }
 
     return count;
+
 }
 
 size_t network_simulation::triangle_connections_count()
 {
-    size_t count = 0;
+    std::vector<std::vector<string>> triangles;
 
-    return count;
+    for (auto const& peers : peer_to_peer)
+    {
+        auto first_socket = peer_to_socket[peers.first];
+        auto second_socket = peer_to_socket[peers.second];
+
+        auto const& rsf = receive_send[first_socket];
+        auto const& rss = receive_send[second_socket];
+
+        for (auto const& sender_first : rsf)
+        {
+            peer_id third_peer;
+
+            if (sender_first.first != peers.second)
+            {
+                third_peer = sender_first.first;
+
+                auto res = rss.find(third_peer);
+                if (res != rss.end() &&
+                    res->first != peers.first)
+                {
+                    auto third_socket = peer_to_socket[third_peer];
+
+                    assert (first_socket != second_socket);
+                    assert (first_socket != third_socket);
+                    assert (second_socket != third_socket);
+
+                    triangles.push_back({first_socket, second_socket, third_socket});
+                }
+            }
+        }
+    }
+
+    return triangles.size();
 }
 
 //  event_handler_ns implementation
@@ -404,7 +443,7 @@ event_handler_ns::~event_handler_ns()
 bool event_handler_ns::read()
 {
     auto& my_sockets = m_ns->eh_to_sockets[this];
-    for (auto const& item : m_ns->send_receive)
+    for (auto const& item : m_ns->receive_send)
         if (my_sockets.count(item.first))
             for (auto const& it : item.second)
                 if (it.second.size())
@@ -431,7 +470,7 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
 
     // check sent packets to my sockets
     auto& my_sockets = m_ns->eh_to_sockets[this];
-    for (auto const& item : m_ns->send_receive)
+    for (auto const& item : m_ns->receive_send)
         if (my_sockets.count(item.first))
             for (auto const& it : item.second)
                 if (it.second.size())
@@ -492,7 +531,7 @@ void event_handler_ns::remove(beltpp::event_item& ev_it)
     auto& sockets = m_ns->eh_to_sockets[this];
 
     sockets.erase(m_ns->socket_to_name[&ev_it]);
-    m_ns->send_receive.erase(m_ns->socket_to_name[&ev_it]);
+    m_ns->receive_send.erase(m_ns->socket_to_name[&ev_it]);
 
     m_ns->socket_to_name.erase(&ev_it);
 }
@@ -558,8 +597,8 @@ socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
     bool no_connection = true;
 
     //check already active connection and reject open
-    if (m_ns->send_receive.find(m_name) != m_ns->send_receive.end())
-        for (auto& item : m_ns->send_receive[m_name])
+    if (m_ns->receive_send.find(m_name) != m_ns->receive_send.end())
+        for (auto& item : m_ns->receive_send[m_name])
             if (address == m_ns->peer_to_ip[item.first])
             {
                 bool disconnect = false;
@@ -599,8 +638,8 @@ void socket_ns::prepare_wait()
 
 socket_ns::packets socket_ns::receive(peer_id& peer)
 {
-    auto my_buffers_it = m_ns->send_receive.find(m_name);
-    if (my_buffers_it == m_ns->send_receive.end())
+    auto my_buffers_it = m_ns->receive_send.find(m_name);
+    if (my_buffers_it == m_ns->receive_send.end())
         throw std::logic_error("receive_packet() no any connection");
 
     bool disconnect = false;
@@ -644,8 +683,8 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
     if (receiver_socket_it == m_ns->peer_to_socket.end())
         throw std::logic_error("send_packet() peer_to_socket association error");
 
-    auto receiver_it = m_ns->send_receive.find(receiver_socket_it->second);
-    if (receiver_it == m_ns->send_receive.end())
+    auto receiver_it = m_ns->receive_send.find(receiver_socket_it->second);
+    if (receiver_it == m_ns->receive_send.end())
         throw std::logic_error("send_packet() no any connections");
 
     auto sender_peer_it = m_ns->peer_to_peer.find(peer);
@@ -660,8 +699,8 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
     if (pack.type() == beltpp::stream_drop::rtt)
     {
         // remove connection from peer to me
-        auto my_buffers_it = m_ns->send_receive.find(m_name);
-        if (my_buffers_it == m_ns->send_receive.end())
+        auto my_buffers_it = m_ns->receive_send.find(m_name);
+        if (my_buffers_it == m_ns->receive_send.end())
             throw std::logic_error("send_packet() my all connections are droped");
 
         auto peer_buffer_it = my_buffers_it->second.find(peer);

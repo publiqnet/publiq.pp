@@ -82,7 +82,7 @@ public:
     };
 
     //receiver      sender       packets
-    map<string, map<peer_id, list<packet>>> send_receive;
+    map<string, map<peer_id, list<packet>>> receive_send;
 
     map<ip_address, peer_id, ip_cmp> open_attempts;
     map<ip_destination, pair<peer_id, ip_address>, ip_dest_cmp> listen_attempts;
@@ -115,8 +115,7 @@ public:
     string export_packets(const size_t rtt = -1);
 
 private:
-
-    size_t specific_connections_count(const size_t rtt = beltpp::stream_drop::rtt);
+    size_t active_connections_count();
     size_t triangle_connections_count();
 };
 
