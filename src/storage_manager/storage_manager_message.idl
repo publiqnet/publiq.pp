@@ -1,0 +1,53 @@
+module ManagerMessage
+{
+    class StringValue
+    {
+        String value
+    }
+
+    class NumberValue
+    {
+        UInt64 value
+    }
+
+    class NumberPair
+    {
+        UInt64 first
+        UInt64 second
+    }
+
+    class FileInfo
+    {
+        String uri
+        UInt64 rep_count
+        String channel_address
+        Array String all_storages
+        Array String own_storages
+    }
+
+    class Done
+    {}
+
+    class Failed
+    {
+        String message
+        Extension reason
+    }
+
+    class HeadBlockRequest
+    {}
+
+    class ImportStorage
+    {
+        String address
+    }
+
+    class StoragesRequest
+    {}
+
+    class StoragesResponse
+    {
+        Array String storages
+    }
+}
+////3
