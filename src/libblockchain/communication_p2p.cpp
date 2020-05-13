@@ -1418,7 +1418,7 @@ bool process_update_command(BlockchainMessage::SignedTransaction const& signed_t
     if (signed_transaction.authorizations.size() != 1)
         throw wrong_data_exception("transaction authorizations error");
 
-    //ip uncomment will not alloq storage node resync
+    // comment following check because it does not allow storage node resync
     //if (pimpl->m_documents.storage_has_uri(update_command.file_uri, update_command.storage_address))
     //    return false;
 
