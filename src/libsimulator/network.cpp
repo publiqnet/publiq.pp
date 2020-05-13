@@ -295,19 +295,16 @@ string network_simulation::export_connections_load()
 
 string network_simulation::export_connections_info()
 {
-
     string result;
 
-    result += "active connections count   : " + std::to_string(active_connections_count())   + "\n";
-    result += "triangle connections count : " + std::to_string(triangle_connections_count()) + "\n";
+    result += "Active connections   : " + std::to_string(active_connections_count())   + "\n";
+    result += "Triangle connections : " + std::to_string(triangle_connections_count()) + "\n";
 
     return result;
-
 }
 
 string network_simulation::export_packets(const size_t rtt)
 {
-
     string result;
 
     for (auto const& item : receive_send)
@@ -367,20 +364,26 @@ string network_simulation::export_packets(const size_t rtt)
 
 size_t network_simulation::active_connections_count()
 {
-
     size_t count = 0;
 
     for (auto const& receiver : receive_send)
         for (auto const& sender : receiver.second)
+        {
+            bool to_drop = false;
             for (auto const& pack : sender.second)
-                if (false != connection_closed(pack.type()))
+                if (connection_closed(pack.type()))
                 {
-                    ++count;
+                    to_drop = true;
                     break;
                 }
 
-    return count;
+            if (to_drop)
+                continue;
 
+            ++count;
+        }
+
+    return count;
 }
 
 size_t network_simulation::triangle_connections_count()

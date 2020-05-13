@@ -440,16 +440,16 @@ int main(int argc, char** argv)
 
             // print network info
             //string tmp_state = ns.export_connections();
-            //string tmp_state = ns.export_connections_matrix();
-            string tmp_state = ns.export_connections_load();
+            string tmp_state = ns.export_connections_matrix();
+            //string tmp_state = ns.export_connections_load();
             string info = ns.export_connections_info();
 
             if (tmp_state != connection_state)
             {
                 cout << endl << endl;
+                cout << info << endl;
                 cout << "Step " + std::to_string(step) + "   :   " + std::to_string(step_duration.count()) + " sec   ";
                 cout << endl << tmp_state << endl;
-                cout << endl << info << endl;
 
                 cnt = 0;
                 step_str.clear();
