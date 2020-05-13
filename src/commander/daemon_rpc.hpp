@@ -43,7 +43,7 @@ public:
     LogIndexLoader& index_transactions(std::string const& account);
     LogIndexLoader& index_rewards(std::string const& account);
 
-    std::unique_ptr<detail::sync_context_detail> m_pimpl;
+    std::unique_ptr<::detail::sync_context_detail> m_pimpl;
 };
 
 class daemon_rpc
