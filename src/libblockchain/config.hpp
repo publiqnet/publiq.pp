@@ -30,6 +30,7 @@ public:
 
     void set_data_directory(std::string const& str_data_directory);
     //std::string get_data_directory() const;
+    void set_aes_key(std::string const& key);
 
     void set_p2p_bind_to_address(beltpp::ip_address const& address);
     beltpp::ip_address get_p2p_bind_to_address() const;

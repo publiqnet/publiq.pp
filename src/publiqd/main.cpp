@@ -292,6 +292,8 @@ int main(int argc, char** argv)
     if (discovery_server)
         config.set_discovery_server();
 
+    config.set_aes_key(meshpp::hash(genesis_signed_block(config.testnet())));
+
     config.set_p2p_bind_to_address(p2p_bind_to_address);
 
     if (config.testnet())
