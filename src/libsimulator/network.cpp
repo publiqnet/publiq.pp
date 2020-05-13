@@ -215,10 +215,10 @@ string network_simulation::export_connections_matrix()
     for (auto const& item : receive_send)
     {
         list<string> tmp;
-        bool to_drop = false;
 
         for (auto const& it : item.second)
         {
+            bool to_drop = false;
             for (auto const& pack : it.second)
                 if (connection_closed(pack.type()))
                 {
@@ -229,27 +229,25 @@ string network_simulation::export_connections_matrix()
             if (to_drop)
                 continue;
 
-            tmp.push_back(peer_to_socket[it.first]);
+            if (peer_to_socket.find(it.first) != peer_to_socket.end())
+                tmp.push_back(peer_to_socket[it.first]);
+            else
+                tmp.push_back("oo"); // just for error detection
         }
 
         tmp.sort();
         result += item.first + " <=> ";
         size_t node_index = 0;
-        for (auto it = tmp.begin(); it != tmp.end();)
+        for (auto it = tmp.begin(); it != tmp.end(); ++it)
         {
-            while (node_index < node_count &&
-                   *it != format_index(node_index, node_count))
+            while (node_index < node_count && *it != format_index(node_index , node_count))
             {
                 ++node_index;
                 result += "  ";
             }
 
-            ++it;
             ++node_index;
             result += "**";
-
-            //if (it != tmp.end())
-            //    result += " ";
         }
 
         result += "\n";
@@ -380,10 +378,11 @@ size_t network_simulation::active_connections_count()
             if (to_drop)
                 continue;
 
-            ++count;
+            if (peer_to_peer.find(sender.first) != peer_to_peer.end())
+                ++count;
         }
 
-    return count;
+    return count / 2;
 }
 
 size_t network_simulation::triangle_connections_count()
