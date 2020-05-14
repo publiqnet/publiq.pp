@@ -423,13 +423,16 @@ size_t network_simulation::triangle_connections_count()
                     assert (receiver_socket != third_socket);
                     assert (sender_socket != third_socket);
 
-                    triangles.push_back({receiver_socket, sender_socket, third_socket});
+                    if (receiver_socket < sender_socket &&
+                        receiver_socket < third_socket &&
+                        sender_socket < third_socket)
+                        triangles.push_back({receiver_socket, sender_socket, third_socket});
                 }
             }
         }
     }
 
-    return triangles.size() / 3;
+    return triangles.size();
 }
 
 string network_simulation::export_counter()
