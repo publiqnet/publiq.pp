@@ -395,33 +395,35 @@ size_t network_simulation::triangle_connections_count()
 {
     std::vector<std::vector<string>> triangles;
 
-    for (auto const& peers : peer_to_peer)
+    for (auto const& receiver : receive_send_counter)
     {
-        auto first_socket = peer_to_socket[peers.first];
-        auto second_socket = peer_to_socket[peers.second];
+        auto const& receiver_socket = receiver.first;
+        auto const& receiver_connectios = receiver.second;
 
-        auto const& rsf = receive_send[first_socket];
-        auto const& rss = receive_send[second_socket];
-
-        for (auto const& sender_first : rsf)
+        for (auto const& sender : receiver_connectios)
         {
-            peer_id third_peer;
+            auto const& sender_socket = sender.first;
+            auto const& sender_connections = receive_send_counter[sender_socket];
 
-            if (sender_first.first != peers.second)
+            for (auto const& rc : receiver_connectios)
             {
-                third_peer = sender_first.first;
+                auto const& result = sender_connections.find(rc.first);
 
-                auto res = rss.find(third_peer);
-                if (res != rss.end() &&
-                    res->first != peers.first)
+                if (result != sender_connections.end() &&
+                    result->first != receiver_socket)
                 {
-                    auto third_socket = peer_to_socket[third_peer];
+                    auto const& third_socket = result->first;
 
-                    assert (first_socket != second_socket);
-                    assert (first_socket != third_socket);
-                    assert (second_socket != third_socket);
+                    auto const& third_connections = receive_send_counter[third_socket];
 
-                    triangles.push_back({first_socket, second_socket, third_socket});
+                    assert (third_connections.find(receiver_socket) != third_connections.end() &&
+                            third_connections.find(sender_socket) != third_connections.end());
+
+                    assert (receiver_socket != sender_socket);
+                    assert (receiver_socket != third_socket);
+                    assert (sender_socket != third_socket);
+
+                    triangles.push_back({receiver_socket, sender_socket, third_socket});
                 }
             }
         }
