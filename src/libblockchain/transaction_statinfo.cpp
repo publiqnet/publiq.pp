@@ -84,12 +84,14 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         node_type == NodeType::blockchain)
         return false;
 
+    auto balance = coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool));
+
     if (node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
+        balance < CHANNEL_AMOUNT_THRESHOLD)
         return false;
 
     if (node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
+        balance < STORAGE_AMOUNT_THRESHOLD)
         return false;
 
     if (state_layer::chain == layer)
@@ -110,7 +112,7 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
         for (auto const& file_item : service_statistics.file_items)
             for (auto const& count_item : file_item.count_items)
                 // exclude myself from check list
-                if (count_item.peer_address != impl.m_pb_key.to_string())
+                if (count_item.peer_address != impl.front_public_key().to_string())
                     peers_set.insert(count_item.peer_address);
 
         PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
@@ -126,7 +128,8 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                 addresses_set.insert(item.ip_address.local.address);
         }
 
-        if (server_address.empty() && service_statistics.server_address == impl.m_pb_key.to_string())
+        if (server_address.empty() &&
+            service_statistics.server_address == impl.front_public_key().to_string())
             server_address = service_statistics.server_address;
 
         if (server_address.empty() ||
@@ -191,17 +194,19 @@ void action_apply(publiqpp::detail::node_internals& impl,
         node_type == NodeType::blockchain)
         throw wrong_data_exception("process_stat_info -> wrong authority type : " + service_statistics.server_address);
 
+    auto balance = coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool));
+
     if (node_type == NodeType::channel &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < CHANNEL_AMOUNT_THRESHOLD)
-        throw wrong_data_exception("the node: " +
-                                    service_statistics.server_address +
-                                    " must have at least 100.000 verified balance.");
+        balance < CHANNEL_AMOUNT_THRESHOLD)
+        throw not_enough_balance_exception(service_statistics.server_address,
+                                           balance,
+                                           CHANNEL_AMOUNT_THRESHOLD);
 
     if (node_type == NodeType::storage &&
-        coin(impl.m_state.get_balance(service_statistics.server_address, state_layer::pool)) < STORAGE_AMOUNT_THRESHOLD)
-        throw wrong_data_exception("the node: " +
-                                    service_statistics.server_address +
-                                    " must have at least 10.000 verified balance.");
+        balance < STORAGE_AMOUNT_THRESHOLD)
+        throw not_enough_balance_exception(service_statistics.server_address,
+                                           balance,
+                                           STORAGE_AMOUNT_THRESHOLD);
 
     if (state_layer::chain == layer)
     {
@@ -221,7 +226,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
         for (auto const& file_item : service_statistics.file_items)
             for (auto const& count_item : file_item.count_items)
                 // exclude myself from check list
-                if (count_item.peer_address != impl.m_pb_key.to_string())
+                if (count_item.peer_address != impl.front_public_key().to_string())
                     peers_set.insert(count_item.peer_address);
 
         PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
@@ -237,7 +242,8 @@ void action_apply(publiqpp::detail::node_internals& impl,
                 addresses_set.insert(item.ip_address.local.address);
         }
 
-        if (server_address.empty() && service_statistics.server_address == impl.m_pb_key.to_string())
+        if (server_address.empty() &&
+            service_statistics.server_address == impl.front_public_key().to_string())
             server_address = service_statistics.server_address;
 
         if (server_address.empty())

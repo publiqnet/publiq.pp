@@ -76,23 +76,29 @@ wrong_document_exception& wrong_document_exception::operator=(wrong_document_exc
 wrong_document_exception::~wrong_document_exception() noexcept
 {}
 
-not_enough_balance_exception::not_enough_balance_exception(coin const& balance, coin const& spending)
-    : runtime_error("trying to spend more than available. "
-                    "balance is " + balance.to_string() + ", "
-                    "while trying to spend " + spending.to_string())
+not_enough_balance_exception::not_enough_balance_exception(string const& address,
+                                                           coin const& balance,
+                                                           coin const& spending)
+    : runtime_error(address +
+                    " does not have enough balance. "
+                    "has: " + balance.to_string() + ", "
+                    "needs: " + spending.to_string())
     , balance(balance)
     , spending(spending)
+    , address(address)
 {}
 not_enough_balance_exception::not_enough_balance_exception(not_enough_balance_exception const& other) noexcept
     : runtime_error(other)
     , balance(other.balance)
     , spending(other.spending)
+    , address(other.address)
 {}
 not_enough_balance_exception& not_enough_balance_exception::operator=(not_enough_balance_exception const& other) noexcept
 {
     dynamic_cast<runtime_error*>(this)->operator =(other);
     balance = other.balance;
     spending = other.spending;
+    address = other.address;
     return *this;
 }
 not_enough_balance_exception::~not_enough_balance_exception() noexcept

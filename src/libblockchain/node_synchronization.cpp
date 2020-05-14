@@ -46,7 +46,7 @@ BlockHeaderExtended node_synchronization::own_sync_info() const
     // calculate delta for next block for the case if I will mine it
     if (pimpl->is_miner())
     {
-        uint64_t delta = pimpl->calc_delta(pimpl->m_pb_key.to_string(),
+        uint64_t delta = pimpl->calc_delta(pimpl->front_public_key().to_string(),
                                            pimpl->get_balance().whole,
                                            result.block_hash,
                                            result.c_const);
