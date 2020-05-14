@@ -429,7 +429,7 @@ size_t network_simulation::triangle_connections_count()
         }
     }
 
-    return triangles.size();
+    return triangles.size() / 3;
 }
 
 string network_simulation::export_counter()
