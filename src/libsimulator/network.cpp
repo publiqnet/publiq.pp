@@ -245,7 +245,7 @@ string network_simulation::export_connections_matrix()
         result += item.first + " => ";
         result += format_index(tmp.size(), node_count) + "  ";
         result += format_index(permanent_refused_connections[item.first].size(), node_count) + " | ";
- 
+
         size_t node_index = 0;
         for (auto it = tmp.begin(); it != tmp.end(); ++it)
         {
@@ -417,14 +417,27 @@ size_t network_simulation::triangle_connections_count()
                 {
                     auto const& third_socket = result->first;
 
-                    //auto const& third_connections = receive_send_counter[third_socket];
-                    //
-                    //assert (third_connections.find(receiver_socket) != third_connections.end() &&
-                    //        third_connections.find(sender_socket) != third_connections.end());
+                    auto const& third_connections = receive_send_counter[third_socket];
+
+                    assert (third_connections.find(receiver_socket) != third_connections.end());
+                    if (third_connections.find(receiver_socket) == third_connections.end())
+                        throw std::logic_error("third_connections.find(receiver_socket) == third_connections.end()");
+
+                    assert (third_connections.find(sender_socket) != third_connections.end());
+                    if (third_connections.find(sender_socket) == third_connections.end())
+                        throw std::logic_error("third_connections.find(sender_socket) == third_connections.end()");
 
                     assert (receiver_socket != sender_socket);
+                    if (receiver_socket == sender_socket)
+                        throw std::logic_error("receiver_socket == sender_socket");
+
                     assert (receiver_socket != third_socket);
+                    if (receiver_socket == third_socket)
+                        throw std::logic_error("receiver_socket == third_socket");
+
                     assert (sender_socket != third_socket);
+                    if (sender_socket == third_socket)
+                        throw std::logic_error("sender_socket == third_socket");
 
                     if (receiver_socket < sender_socket &&
                         receiver_socket < third_socket &&
@@ -699,7 +712,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
     bool disconnect = false;
     socket_ns::packets result;
     auto& my_buffers = my_buffers_it->second;
-    
+
     // read first filled buffer and return
     for (auto& buffer : my_buffers)
         if (buffer.second.size())
@@ -798,7 +811,7 @@ ip_address socket_ns::info(peer_id const& peer)
 {
     if(m_ns->peer_to_ip.find(peer) != m_ns->peer_to_ip.end())
         return m_ns->peer_to_ip[peer];
-    
+
     throw std::runtime_error("info() unknown peer " + peer);
 }
 

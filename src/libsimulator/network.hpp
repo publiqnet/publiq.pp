@@ -182,5 +182,3 @@ public:
 };
 
 }// network_simulation_impl
-
-
