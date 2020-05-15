@@ -417,10 +417,10 @@ size_t network_simulation::triangle_connections_count()
                 {
                     auto const& third_socket = result->first;
 
-                    auto const& third_connections = receive_send_counter[third_socket];
-
-                    assert (third_connections.find(receiver_socket) != third_connections.end() &&
-                            third_connections.find(sender_socket) != third_connections.end());
+                    //auto const& third_connections = receive_send_counter[third_socket];
+                    //
+                    //assert (third_connections.find(receiver_socket) != third_connections.end() &&
+                    //        third_connections.find(sender_socket) != third_connections.end());
 
                     assert (receiver_socket != sender_socket);
                     assert (receiver_socket != third_socket);
