@@ -454,30 +454,35 @@ size_t network_simulation::triangle_connections_count()
 string network_simulation::export_counter()
 {
     string result;
-    size_t count = 0;
+    size_t total = 0;
 
     for (auto const& item : receive_send_counter)
     {
-        result += item.first + " <=> ";
+        result += item.first + " => ";
+        result += format_index(item.second.size(), node_count) + "  ";
+        result += format_index(permanent_refused_connections[item.first].size(), node_count) + " | ";
 
+        string row;
+        size_t count = 0;
         size_t node_index = 0;
         for (auto it = item.second.begin(); it != item.second.end(); ++it)
         {
             while (node_index < node_count && it->first != format_index(node_index, node_count))
             {
                 ++node_index;
-                result += "  ";
+                row += "  ";
             }
 
             ++node_index;
             count += it->second;
-            result += format_index(it->second, 99);
+            row += format_index(it->second, 99);
         }
 
-        result += "\n";
+        total += count;
+        result += format_index(count, 99) + " | " + row + "\n";
     }
 
-    result += "\nTotal messages : " + std::to_string(count) + "\n";
+    result += "\nTotal messages : " + std::to_string(total) + "\n";
 
     return result;
 }
@@ -723,6 +728,18 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
             {
                 disconnect = m_ns->connection_closed(pack.type());
 
+                // broadcast calculation chemistry
+                if (pack.type() == P2PMessage::Other::rtt)
+                {
+                    P2PMessage::Other wrap;
+                    std::move(pack).get(wrap);
+
+                    if (wrap.contents.type() == BlockchainMessage::Broadcast::rtt)
+                        ++m_ns->receive_send_counter[m_name][m_ns->peer_to_socket[peer]];
+
+                    pack.set(std::move(wrap));
+                }
+
                 result.emplace_back(std::move(pack));
 
                 if (disconnect)
@@ -780,17 +797,17 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         m_ns->process_counter_state(receiver_socket_it->second, m_name, false);
     }
 
-    // broadcast calculation chemistry
-    if (pack.type() == P2PMessage::Other::rtt)
-    {
-        P2PMessage::Other wrap;
-        std::move(pack).get(wrap);
-
-        if (wrap.contents.type() == BlockchainMessage::Broadcast::rtt)
-            ++m_ns->receive_send_counter[m_name][receiver_socket_it->second];
-
-        pack.set(std::move(wrap));
-    }
+    //// broadcast calculation chemistry
+    //if (pack.type() == P2PMessage::Other::rtt)
+    //{
+    //    P2PMessage::Other wrap;
+    //    std::move(pack).get(wrap);
+    //
+    //    if (wrap.contents.type() == BlockchainMessage::Broadcast::rtt)
+    //        ++m_ns->receive_send_counter[m_name][receiver_socket_it->second];
+    //
+    //    pack.set(std::move(wrap));
+    //}
 
     auto& receiver_buffer = receiver_it->second[sender_peer_it->second];
     receiver_buffer.emplace_back(std::move(pack));
