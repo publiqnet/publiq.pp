@@ -4,6 +4,8 @@
 #include <publiq.pp/message.hpp>
 #include <publiq.pp/message.tmpl.hpp>
 
+#include <mesh.pp/src/libp2psocket/message.hpp>
+
 #include <belt.pp/isocket.hpp>
 #include <belt.pp/ievent.hpp>
 #include <belt.pp/queue.hpp>

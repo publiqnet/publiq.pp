@@ -324,7 +324,7 @@ int main(int argc, char** argv)
 
             event_handler_ns* peh = new event_handler_ns(ns);
             unique_ptr<beltpp::event_handler> inject_eh(peh);
-            unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh, 
+            unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh,
                                                                        rpc_bind_to_address.local.address, 
                                                                        "r" + format_index(node_index, node_count)));
             unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh, 
@@ -364,7 +364,7 @@ int main(int argc, char** argv)
 
         size_t cnt = 0;
         size_t step = 0;
-        size_t sleep = 2;
+        size_t sleep = 1;
         string step_str;
         time_point step_time;
         string connection_state;
@@ -374,12 +374,6 @@ int main(int argc, char** argv)
         {
             if (g_termination_handled)
                 break;
-
-            // inject broadcast
-            if (step == node_count)
-            {
-                //TODO
-            }
 
             for (size_t node_index = nodes_info.size() - 1;
                  node_index < nodes_info.size();
@@ -446,9 +440,9 @@ int main(int argc, char** argv)
 
             // print network info
             //string tmp_state = ns.export_connections();
-            //string tmp_state = ns.export_connections_matrix();
+            string tmp_state = ns.export_connections_matrix();
             //string tmp_state = ns.export_connections_load();
-            string tmp_state = ns.export_counter();
+            //string tmp_state = ns.export_counter();
             string info = ns.export_connections_info();
 
             if (tmp_state != connection_state)

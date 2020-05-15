@@ -242,7 +242,10 @@ string network_simulation::export_connections_matrix()
         }
 
         tmp.sort();
-        result += item.first + " <=> ";
+        result += item.first + " => ";
+        result += format_index(tmp.size(), node_count) + "  ";
+        result += format_index(permanent_refused_connections[item.first].size(), node_count) + " | ";
+ 
         size_t node_index = 0;
         for (auto it = tmp.begin(); it != tmp.end(); ++it)
         {
@@ -745,9 +748,6 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
     if (receiver_it->second.find(sender_peer_it->second) == receiver_it->second.end())
         throw std::runtime_error("send_packet() no connection with peer");
 
-    auto& receiver_buffer = receiver_it->second[sender_peer_it->second];
-    receiver_buffer.emplace_back(std::move(pack));
-
     if (pack.type() == beltpp::stream_drop::rtt)
     {
         // remove connection from peer to me
@@ -767,8 +767,20 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         m_ns->process_counter_state(receiver_socket_it->second, m_name, false);
     }
 
-    if (pack.type() == BlockchainMessage::Broadcast::rtt)
-        ++m_ns->receive_send_counter[m_name][receiver_socket_it->second];
+    // broadcast calculation chemistry
+    if (pack.type() == P2PMessage::Other::rtt)
+    {
+        P2PMessage::Other wrap;
+        std::move(pack).get(wrap);
+
+        if (wrap.contents.type() == BlockchainMessage::Broadcast::rtt)
+            ++m_ns->receive_send_counter[m_name][receiver_socket_it->second];
+
+        pack.set(std::move(wrap));
+    }
+
+    auto& receiver_buffer = receiver_it->second[sender_peer_it->second];
+    receiver_buffer.emplace_back(std::move(pack));
 }
 
 void socket_ns::timer_action()
