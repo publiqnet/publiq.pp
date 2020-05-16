@@ -186,13 +186,13 @@ int main(int argc, char** argv)
         meshpp::create_config_directory();
 
         size_t node_count = 10;
-        uint32_t refuse_base = 2;
+        uint32_t connect_base = 10;
         string data_directory_root;
 
         if (false == process_command_line(argc, argv,
                                           data_directory_root,
                                           node_count,
-                                          refuse_base))
+                                          connect_base))
             return 1;
 
         boost::filesystem::path root = data_directory_root;
@@ -203,7 +203,7 @@ int main(int argc, char** argv)
 
         network_simulation ns;
         ns.node_count = node_count;
-        ns.chance_of_refuse_base = refuse_base;
+        ns.chance_of_connect_base = connect_base;
         std::vector<node_info> nodes_info;
         nodes_info.resize(node_count);
 
@@ -357,9 +357,8 @@ int main(int argc, char** argv)
                                     std::move(inject_rpc_socket),
                                     std::move(inject_p2p_socket)));
 
-            cout << "Node: " << node_index << "  " << info.node->name();
-            cout << "Node Type: " << BlockchainMessage::to_string(info.config.get_node_type()) << endl;
-            //std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            cout << "Node: " << node_index << "  " << info.node->name() << " ";
+            cout << "Type: " << BlockchainMessage::to_string(info.config.get_node_type()) << endl;
         }   //  for that initializes nodes
 
         size_t cnt = 0;
@@ -448,18 +447,22 @@ int main(int argc, char** argv)
             if (tmp_state != connection_state)
             {
                 cout << endl << endl;
+                cout << tmp_state << endl;
                 cout << info << endl;
-                cout << "Step " + std::to_string(step) + "   :   " + std::to_string(step_duration.count()) + " sec   ";
-                cout << endl << tmp_state << endl;
 
                 cnt = 0;
-                step_str.clear();
+
+                step_str = "Step " + std::to_string(step) + "   :   ";
+                step_str += " stable " + std::to_string(cnt) + "   :   ";
+                step_str += std::to_string(step_duration.count() - sleep) + " sec...  ";
+
+                cout << step_str;
+
                 connection_state = tmp_state;
             }
             else
             {
-                if (false == step_str.empty())
-                    cout << string(step_str.length(), '\b');
+                cout << string(step_str.length(), '\b');
                 
                 ++cnt;
                 step_str = "Step " + std::to_string(step) + "   :   ";
@@ -496,7 +499,7 @@ int main(int argc, char** argv)
 bool process_command_line(int argc, char** argv,
                           string& data_directory_root,
                           size_t& node_count,
-                          uint32_t& refuse_base)
+                          uint32_t& connect_base)
 {
     program_options::options_description options_description;
     try
@@ -505,7 +508,7 @@ bool process_command_line(int argc, char** argv,
             ("help,h", "Print this help message and exit.")
             ("data_directory,d", program_options::value<string>(&data_directory_root), "Data directory path")
             ("nodes_count,n", program_options::value<size_t>(&node_count), "Nodes count")
-            ("refuse_base,r", program_options::value<uint32_t>(&refuse_base), "Chance of refse base");
+            ("connect_base,c", program_options::value<uint32_t>(&connect_base), "Chance of connect base");
         (void)(desc_init);
 
         program_options::variables_map options;

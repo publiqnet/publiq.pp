@@ -80,7 +80,7 @@ void network_simulation::process_attempts()
                     {
                         // connection allow/refuse chance will be
                         // checked only once during program work time
-                        connection_allowed = !beltpp::chance_one_of(chance_of_refuse_base);
+                        connection_allowed = beltpp::chance_one_of(chance_of_connect_base);
 
                         if (connection_allowed)
                         {
@@ -243,8 +243,8 @@ string network_simulation::export_connections_matrix()
 
         tmp.sort();
         result += item.first + " => ";
-        result += format_index(tmp.size(), node_count) + "  ";
-        result += format_index(permanent_refused_connections[item.first].size(), node_count) + " | ";
+        result += format_index(tmp.size(), node_count, ' ') + " | ";
+        result += format_index(permanent_refused_connections[item.first].size(), node_count, ' ') + " | ";
 
         size_t node_index = 0;
         for (auto it = tmp.begin(); it != tmp.end(); ++it)
@@ -305,7 +305,7 @@ string network_simulation::export_connections_info()
     string result;
 
     result += "Active connections   : " + std::to_string(active_connections_count())   + "\n";
-    result += "Triangle connections : " + std::to_string(triangle_connections_count()) + "\n";
+    //result += "Triangle connections : " + std::to_string(triangle_connections_count()) + "\n";
 
     return result;
 }

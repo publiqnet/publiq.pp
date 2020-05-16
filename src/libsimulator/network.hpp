@@ -107,7 +107,7 @@ public:
     size_t node_count = 0;
     size_t timer_shuffle = 0;
     size_t connection_index = 0;
-    uint32_t chance_of_refuse_base = 10;
+    uint32_t chance_of_connect_base = 10;
 
     void process_attempts();
     bool connection_closed(size_t const packet_type) const;
