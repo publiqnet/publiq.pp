@@ -20,7 +20,7 @@ void network_simulation::process_attempts()
 
         for (auto it = receive_send.begin(); peers_not_used && it != receive_send.end(); ++it)
             peers_not_used = it->second.find(peer) == it->second.end() &&
-            it->second.find(pair_peer) == it->second.end();
+                             it->second.find(pair_peer) == it->second.end();
 
         if (peers_not_used)
         {
@@ -776,7 +776,8 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         throw std::logic_error("send_packet() peer_to_peer association error");
 
     if (receiver_it->second.find(sender_peer_it->second) == receiver_it->second.end())
-        throw std::runtime_error("send_packet() no connection with peer");
+        return; // connection was dropped, I will read the drop() packet soon
+        //throw std::runtime_error(m_name + " send_packet() no connection with peer");
 
     if (pack.type() == beltpp::stream_drop::rtt)
     {
