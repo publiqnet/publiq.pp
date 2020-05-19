@@ -19,7 +19,7 @@
 + *32 bit build?* never tried to fix build errors/warnings on windows. tested successfully on linux.
 + c++11
 + *unicode support?* boost::filesystem::path ensures that unicode paths are well supported and the rest of the code assumes that std::string is utf8 encoded.
-+ *full blown blockchain?*, yes! we hope to solve the rough edges around distributed consensus algorithm and all the blockchain communication to serve the needs of PUBLIQ protocol better and better.
++ *full blown blockchain?*, yes! it is all inside this code repository. all from scratch.
 
 ## how to build publiq.pp?
 ```console
@@ -54,7 +54,7 @@ user@pc:~/projects/publiq.pp/src/mesh.pp$ git pull
 as you see, belt.pp appears twice as a submodule, the other one that relies under mesh.pp, does not participate in the build process, we just keep up with it, to have proper repository history
 
 ### how to use publiqd?
-there is a command line arguments help, use it wisely!
+there is a command line arguments help, use it wisely! we have more details on the [wiki](https://github.com/publiqnet/publiq.pp/wiki/1.2-Executables "wiki") page.
 also pay attention to all the console logging.
 everything's is in an active development stage.
 
