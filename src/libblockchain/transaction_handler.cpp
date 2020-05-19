@@ -23,7 +23,7 @@ namespace publiqpp
 void signed_transaction_validate(SignedTransaction const& signed_transaction,
                                  std::chrono::system_clock::time_point const& now,
                                  std::chrono::seconds const& time_shift,
-                                 publiqpp::detail::node_internals& impl)
+                                 publiqpp::detail::node_internals& /*impl*/)
 {
     if (signed_transaction.authorizations.empty())
         throw wrong_data_exception("transaction with no authorizations");
