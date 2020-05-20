@@ -270,7 +270,10 @@ int main(int argc, char** argv)
 
             meshpp::random_seed seed;
             meshpp::private_key pv_key = seed.get_private_key(0);
-            info.config.set_key(pv_key);
+            if (info.config.is_key_set())
+                pv_key = info.config.get_key();
+            else
+                info.config.set_key(pv_key);
 
             info.config.set_node_type(string());    //  default is blockchain
             uint64_t freeze_before_block = uint64_t(-1);
