@@ -455,6 +455,7 @@ string network_simulation::export_counter()
 {
     string result;
     size_t total = 0;
+    size_t miss_total = 0;
 
     for (auto const& item : receive_send_counter)
     {
@@ -477,12 +478,16 @@ string network_simulation::export_counter()
             count += it->second;
             row += format_index(it->second, 99);
         }
+        if (count == 0)
+            ++miss_total;
+        else
+            total += count;
 
-        total += count;
         result += format_index(count, 99, ' ') + " | " + row + "\n";
     }
 
-    result += "\nTotal messages : " + std::to_string(total) + "\n";
+    result += "\nTotal messages : " + std::to_string(total);
+    result += "\nDon't receive : " + std::to_string(miss_total) + " nodes from " + std::to_string(node_count) + "\n";
 
     return result;
 }
