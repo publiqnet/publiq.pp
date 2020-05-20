@@ -442,9 +442,9 @@ int main(int argc, char** argv)
 
             // print network info
             //string tmp_state = ns.export_connections();
-            string tmp_state = ns.export_connections_matrix();
+            //string tmp_state = ns.export_connections_matrix();
             //string tmp_state = ns.export_connections_load();
-            //string tmp_state = ns.export_counter();
+            string tmp_state = ns.export_counter();
             string info = ns.export_connections_info();
 
             if (tmp_state != connection_state)

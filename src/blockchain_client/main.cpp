@@ -48,7 +48,7 @@ int main(int argc, char** argv)
             address.local = beltpp::ip_destination();
         }
 
-        size_t count = 10;
+        size_t count = 1;
 
         if (argc > 2)
             count = std::atoi(argv[2]);
@@ -103,41 +103,49 @@ int main(int argc, char** argv)
         KeyPair tigran_key;
         receive_package.get(tigran_key);
 
-        Transfer transfer;
-        transfer.from = armen_key.public_key;
-        transfer.to = tigran_key.public_key;
-        transfer.amount.fraction = 100;
+        //Transfer transfer;
+        //transfer.from = armen_key.public_key;
+        //transfer.to = tigran_key.public_key;
+        //transfer.amount.fraction = 100;
+
+        File file;
+        file.author_addresses.push_back(armen_key.public_key);
+        file.uri = "8XHLDWYob734dGiDK2xFnpH4rA6Y7NSxL6R8fXAadADY";
+
 
         Transaction transaction;
         transaction.creation.tm = system_clock::to_time_t(system_clock::now());
         transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
-        transaction.action = transfer;
-        transaction.fee.fraction = fee;
+        transaction.action = file;
 
-        SignRequest sign_request;
-        sign_request.private_key = armen_key.private_key;
-        sign_request.package = transaction;
+        TransactionBroadcastRequest broadcast_request;
+        broadcast_request.transaction_details = transaction;
+        broadcast_request.private_key = armen_key.private_key;
 
-        Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
-
-        Signature signature;
-        receive_package.get(signature);
-
-        Authority authorization;
-        authorization.address = armen_key.public_key;
-        authorization.signature = signature.signature;
-
-        SignedTransaction signed_transaction;
-        signed_transaction.authorizations.push_back(authorization);
-        signed_transaction.transaction_details = transaction;
-
-        Broadcast broadcast;
-        broadcast.package = signed_transaction;
+        //SignRequest sign_request;
+        //sign_request.private_key = armen_key.private_key;
+        //sign_request.package = transaction;
+        //
+        //Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
+        //
+        //Signature signature;
+        //receive_package.get(signature);
+        //
+        //Authority authorization;
+        //authorization.address = armen_key.public_key;
+        //authorization.signature = signature.signature;
+        //
+        //SignedTransaction signed_transaction;
+        //signed_transaction.authorizations.push_back(authorization);
+        //signed_transaction.transaction_details = transaction;
+        //
+        //Broadcast broadcast;
+        //broadcast.package = signed_transaction;
 
         for (size_t i = 0; i < count; ++i)
         {
             cout << std::to_string(i) << endl;
-            Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
+            Send(beltpp::packet(broadcast_request), receive_package, sk, peerid, eh);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
 
