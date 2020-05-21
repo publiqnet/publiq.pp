@@ -20,7 +20,7 @@ void network_simulation::process_attempts()
 
         for (auto it = receive_send.begin(); peers_not_used && it != receive_send.end(); ++it)
             peers_not_used = it->second.find(peer) == it->second.end() &&
-            it->second.find(pair_peer) == it->second.end();
+                             it->second.find(pair_peer) == it->second.end();
 
         if (peers_not_used)
         {
@@ -80,7 +80,7 @@ void network_simulation::process_attempts()
                     {
                         // connection allow/refuse chance will be
                         // checked only once during program work time
-                        connection_allowed = !beltpp::chance_one_of(chance_of_refuse_base);
+                        connection_allowed = beltpp::chance_one_of(chance_of_connect_base);
 
                         if (connection_allowed)
                         {
@@ -243,8 +243,8 @@ string network_simulation::export_connections_matrix()
 
         tmp.sort();
         result += item.first + " => ";
-        result += format_index(tmp.size(), node_count) + "  ";
-        result += format_index(permanent_refused_connections[item.first].size(), node_count) + " | ";
+        result += format_index(tmp.size(), node_count, ' ') + " | ";
+        result += format_index(permanent_refused_connections[item.first].size(), node_count, ' ') + " | ";
 
         size_t node_index = 0;
         for (auto it = tmp.begin(); it != tmp.end(); ++it)
@@ -305,7 +305,7 @@ string network_simulation::export_connections_info()
     string result;
 
     result += "Active connections   : " + std::to_string(active_connections_count())   + "\n";
-    result += "Triangle connections : " + std::to_string(triangle_connections_count()) + "\n";
+    //result += "Triangle connections : " + std::to_string(triangle_connections_count()) + "\n";
 
     return result;
 }
@@ -455,12 +455,13 @@ string network_simulation::export_counter()
 {
     string result;
     size_t total = 0;
+    size_t miss_total = 0;
 
     for (auto const& item : receive_send_counter)
     {
         result += item.first + " => ";
-        result += format_index(item.second.size(), node_count) + "  ";
-        result += format_index(permanent_refused_connections[item.first].size(), node_count) + " | ";
+        result += format_index(item.second.size(), node_count, ' ') + " | ";
+        result += format_index(permanent_refused_connections[item.first].size(), node_count, ' ') + " | ";
 
         string row;
         size_t count = 0;
@@ -477,12 +478,16 @@ string network_simulation::export_counter()
             count += it->second;
             row += format_index(it->second, 99);
         }
+        if (count == 0)
+            ++miss_total;
+        else
+            total += count;
 
-        total += count;
-        result += format_index(count, 99) + " | " + row + "\n";
+        result += format_index(count, 99, ' ') + " | " + row + "\n";
     }
 
-    result += "\nTotal messages : " + std::to_string(total) + "\n";
+    result += "\nTotal messages : " + std::to_string(total);
+    result += "\nDon't receive : " + std::to_string(miss_total) + " nodes from " + std::to_string(node_count) + "\n";
 
     return result;
 }
@@ -739,6 +744,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 
                     pack.set(std::move(wrap));
                 }
+                // end chemistry
 
                 result.emplace_back(std::move(pack));
 
@@ -776,7 +782,8 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         throw std::logic_error("send_packet() peer_to_peer association error");
 
     if (receiver_it->second.find(sender_peer_it->second) == receiver_it->second.end())
-        throw std::runtime_error("send_packet() no connection with peer");
+        return; // connection was dropped, I will read the drop() packet soon
+        //throw std::runtime_error(m_name + " send_packet() no connection with peer");
 
     if (pack.type() == beltpp::stream_drop::rtt)
     {
@@ -796,18 +803,6 @@ void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
         m_ns->process_counter_state(m_name, receiver_socket_it->second, false);
         m_ns->process_counter_state(receiver_socket_it->second, m_name, false);
     }
-
-    //// broadcast calculation chemistry
-    //if (pack.type() == P2PMessage::Other::rtt)
-    //{
-    //    P2PMessage::Other wrap;
-    //    std::move(pack).get(wrap);
-    //
-    //    if (wrap.contents.type() == BlockchainMessage::Broadcast::rtt)
-    //        ++m_ns->receive_send_counter[m_name][receiver_socket_it->second];
-    //
-    //    pack.set(std::move(wrap));
-    //}
 
     auto& receiver_buffer = receiver_it->second[sender_peer_it->second];
     receiver_buffer.emplace_back(std::move(pack));

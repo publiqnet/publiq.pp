@@ -43,7 +43,7 @@ using peer_id = beltpp::socket::peer_id;
 using peer_ids = beltpp::socket::peer_ids;
 using peer_type = beltpp::socket::peer_type;
 
-inline string format_index(size_t node_index, size_t node_count)
+inline string format_index(size_t node_index, size_t node_count, char c = '0')
 {
     size_t base = 0;
     while (node_count > 0)
@@ -53,7 +53,7 @@ inline string format_index(size_t node_index, size_t node_count)
     }
 
     std::stringstream ss;
-    ss << std::setw(base) << std::setfill('0') << node_index;
+    ss << std::setw(base) << std::setfill(c) << node_index;
     return ss.str();
 }
 
@@ -107,7 +107,7 @@ public:
     size_t node_count = 0;
     size_t timer_shuffle = 0;
     size_t connection_index = 0;
-    uint32_t chance_of_refuse_base = 10;
+    uint32_t chance_of_connect_base = 10;
 
     void process_attempts();
     bool connection_closed(size_t const packet_type) const;
