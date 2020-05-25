@@ -369,6 +369,74 @@ string network_simulation::export_packets(const size_t rtt)
     return result;
 }
 
+string network_simulation::export_network()
+{
+    string result;
+
+    for (auto const& receiver : receive_send)
+    {
+        result += "receiver: " + receiver.first + "\n";
+
+        for (auto const& sender : receiver.second)
+        {
+            result += "    sender: "  + peer_to_socket[sender.first] + "\n";
+
+            for(auto const& pack : sender.second)
+            {
+                result += "        packet: ";
+
+                switch (pack.type())
+                {
+                case beltpp::stream_join::rtt:
+                {
+                    result += "join\n";
+                    break;
+                }
+                case beltpp::stream_drop::rtt:
+                {
+                    result += "drop\n";
+                    break;
+                }
+                case beltpp::stream_protocol_error::rtt:
+                {
+                    result += "protocol error\n";
+                    break;
+                }
+                case beltpp::socket_open_refused::rtt:
+                {
+                    result += "open refused\n";
+                    break;
+                }
+                case beltpp::socket_open_error::rtt:
+                {
+                    result += "open error\n";
+                    break;
+                }
+                default:
+                {
+                    try
+                    {
+                        auto models = BlockchainMessage::detail::meta_models();
+                        string model_name = models.at(pack.type());
+                        result += model_name + "\n";
+                    }
+                    catch (std::out_of_range const& ex)
+                    {
+                        B_UNUSED(ex);
+                        result += "unknown type! \n";
+                    }
+                    break;
+                }
+                }
+            }
+        }
+
+        result += "\n";
+    }
+
+    return result;
+}
+
 size_t network_simulation::active_connections_count()
 {
     size_t count = 0;

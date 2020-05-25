@@ -445,6 +445,7 @@ int main(int argc, char** argv)
             //string tmp_state = ns.export_connections_matrix();
             //string tmp_state = ns.export_connections_load();
             string tmp_state = ns.export_counter();
+            //string tmp_state = ns.export_network();
             string info = ns.export_connections_info();
 
             if (tmp_state != connection_state)
