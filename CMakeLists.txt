@@ -14,7 +14,7 @@ set( CMAKE_VISIBILITY_INLINES_HIDDEN 1 )
 cmake_policy( SET CMP0063 NEW )
 
 if (WIN32)
-    string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REGEX REPLACE "/W[0-4]" "/W4" "/EHsc" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     add_compile_options(/WX)
     add_compile_options(/permissive-)
     add_compile_options(/wd4127)
