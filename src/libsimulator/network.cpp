@@ -375,11 +375,18 @@ string network_simulation::export_network()
 
     for (auto const& receiver : receive_send)
     {
-        result += "receiver: " + receiver.first + "\n";
+        result += "receiver socket name: " + receiver.first + "\n";
 
         for (auto const& sender : receiver.second)
         {
-            result += "    sender: "  + peer_to_socket[sender.first] + "\n";
+            auto receiver_peerid = peer_to_peer[sender.first];
+            auto receiver_socket = peer_to_socket[receiver_peerid];
+
+            if (receiver_socket == receiver.first)
+                result += "receiver peerid: " + receiver_peerid + "\n";
+
+            result += "    sender socket name: "  + peer_to_socket[sender.first] + "\n";
+            result += "    sender peerid: "  + sender.first + "\n";
 
             for(auto const& pack : sender.second)
             {
