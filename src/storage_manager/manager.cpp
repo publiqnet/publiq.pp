@@ -278,8 +278,7 @@ void manager::run()
         dm.commit();
 
         // send broadcast packet with storage management command
-        if (false == m_str_pv_key.empty() && 
-            storage_update_timer.expired())
+        if (false == m_str_pv_key.empty() && storage_update_timer.expired())
         {
             storage_update_timer.update();
         
@@ -325,10 +324,14 @@ void manager::run()
                     info_map.insert({ it->second, file_info });
             }
 
+            size_t send_count = 0;
             if (info_map.size())
             {
                 meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
                 auto threshold = (info_map.begin()->first + info_map.rbegin()->first) / 2;
+                
+                if (threshold < 3)
+                    threshold = 3;
 
                 auto it = info_map.rbegin();
                 while (it->first > threshold && it != info_map.rend())
@@ -344,8 +347,14 @@ void manager::run()
                                  dm);
 
                     ++it;
+                    ++send_count;
                 }
             }
+
+            std::cout << std::endl << std::endl;
+            std::cout << "Total " << info_map.size();
+            std::cout << "  Sent " << send_count;
+            std::cout << " Max " << info_map.rbegin()->first;
         }
     }
 }
