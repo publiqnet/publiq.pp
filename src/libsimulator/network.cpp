@@ -238,7 +238,7 @@ string network_simulation::export_connections_matrix()
             if (peer_to_socket.find(it.first) != peer_to_socket.end())
                 tmp.push_back(peer_to_socket[it.first]);
             else
-                tmp.push_back("oo"); // just for error detection
+                tmp.push_back("o"); // just for error detection
         }
 
         tmp.sort();
@@ -252,11 +252,11 @@ string network_simulation::export_connections_matrix()
             while (node_index < node_count && *it != format_index(node_index , node_count))
             {
                 ++node_index;
-                result += "  ";
+                result += " ";
             }
 
             ++node_index;
-            result += "**";
+            result += "*";
         }
 
         result += "\n";
