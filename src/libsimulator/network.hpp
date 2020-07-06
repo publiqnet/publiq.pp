@@ -24,6 +24,7 @@
 #include <string>
 #include <iomanip>
 #include <sstream>
+#include <mutex>
 
 using std::map;
 using std::set;
@@ -42,6 +43,8 @@ using beltpp::ip_destination;
 using peer_id = beltpp::socket::peer_id;
 using peer_ids = beltpp::socket::peer_ids;
 using peer_type = beltpp::socket::peer_type;
+
+std::mutex g_mutex;
 
 inline string format_index(size_t node_index, size_t node_count, char c = '0')
 {
