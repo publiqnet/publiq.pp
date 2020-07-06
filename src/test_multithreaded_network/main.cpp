@@ -21,6 +21,7 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/asio/thread_pool.hpp>
+#include <boost/asio/post.hpp>
 
 #include <memory>
 #include <iostream>
@@ -67,7 +68,6 @@ void termination_handler(int /*signum*/)
 
     g_termination_handled = true;
 }
-
 
 uint64_t counts_per_channel_views(std::map<uint64_t, std::map<string, std::map<string, uint64_t>>> const& item_per_owner,
                                   uint64_t block_number,
@@ -180,6 +180,10 @@ int main(int argc, char** argv)
     std::cout << "Enter a number to continue ..." << endl;
     std::cin >> d;
 #endif
+
+    //create thread  pool
+    const auto processor_count = std::thread::hardware_concurrency();
+    boost::asio::thread_pool pool(processor_count);
 
     try
     {
@@ -382,56 +386,61 @@ int main(int argc, char** argv)
                  node_index < nodes_info.size();
                  --node_index)
             {
-                auto& info = nodes_info[node_index];
 
-                try
-                {
-                    bool event_check = true;
-                    bool stop_check = false;
-
-                    // allow each node read all waiting 
-                    // packets from network
-                    while (!stop_check && (event_check || info.peh->read()))
-                        event_check = info.node->run(stop_check);
-
-                    if (stop_check)
+                boost::asio::post(pool,
+                    [&nodes_info, node_index]()
                     {
-                        cout << endl << "Stop node : " << info.node->name();
-                        nodes_info.erase(nodes_info.begin() + node_index);
-                    }
-                }
-                catch (std::bad_alloc const& ex)
-                {
-                    if (info.plogger_exceptions)
-                        info.plogger_exceptions->message(ex.what());
-                    cout << "exception cought: " << ex.what() << endl;
-                    cout << "will exit now" << endl;
-                    termination_handler(0);
-                    break;
-                }
-                catch (std::logic_error const& ex)
-                {
-                    if (info.plogger_exceptions)
-                        info.plogger_exceptions->message(ex.what());
-                    cout << "logic error cought: " << ex.what() << endl;
-                    cout << "will exit now" << endl;
-                    termination_handler(0);
-                    break;
-                }
-                catch (std::exception const& ex)
-                {
-                    if (info.plogger_exceptions)
-                        info.plogger_exceptions->message(ex.what());
-                    cout << "exception cought: " << ex.what() << endl;
-                }
-                catch (...)
-                {
-                    if (info.plogger_exceptions)
-                        info.plogger_exceptions->message("always throw std::exceptions, will exit now");
-                    cout << "always throw std::exceptions, will exit now" << endl;
-                    termination_handler(0);
-                    break;
-                }
+                          auto& info = nodes_info[node_index];
+
+                          try
+                          {
+                              bool event_check = true;
+                              bool stop_check = false;
+
+                              // allow each node read all waiting
+                              // packets from network
+                              while (!stop_check && (event_check || info.peh->read()))
+                                  event_check = info.node->run(stop_check);
+
+                              if (stop_check)
+                              {
+                                  cout << endl << "Stop node : " << info.node->name();
+                                  nodes_info.erase(nodes_info.begin() + node_index);
+                              }
+                          }
+                          catch (std::bad_alloc const& ex)
+                          {
+                              if (info.plogger_exceptions)
+                                  info.plogger_exceptions->message(ex.what());
+                              cout << "exception cought: " << ex.what() << endl;
+                              cout << "will exit now" << endl;
+                              termination_handler(0);
+                              return;
+                          }
+                          catch (std::logic_error const& ex)
+                          {
+                              if (info.plogger_exceptions)
+                                  info.plogger_exceptions->message(ex.what());
+                              cout << "logic error cought: " << ex.what() << endl;
+                              cout << "will exit now" << endl;
+                              termination_handler(0);
+                              return;
+                          }
+                          catch (std::exception const& ex)
+                          {
+                              if (info.plogger_exceptions)
+                                  info.plogger_exceptions->message(ex.what());
+                              cout << "exception cought: " << ex.what() << endl;
+                          }
+                          catch (...)
+                          {
+                              if (info.plogger_exceptions)
+                                  info.plogger_exceptions->message("always throw std::exceptions, will exit now");
+                              cout << "always throw std::exceptions, will exit now" << endl;
+                              termination_handler(0);
+                              return;
+                          }
+                    });
             }
 
             ns.process_attempts();
@@ -486,6 +495,8 @@ int main(int argc, char** argv)
             (*info.dda)->history.back().end.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
             info.dda->save();
         }
+
+        pool.join();
     }
     catch (std::exception const& ex)
     {
