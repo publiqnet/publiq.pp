@@ -9,8 +9,7 @@ target_link_libraries(genesis_creator PRIVATE
     belt.pp
     utility
     blockchain
-    cryptoutility
-    Boost::system)
+    cryptoutility)
 
 # what to do on make install
 install(TARGETS genesis_creator
