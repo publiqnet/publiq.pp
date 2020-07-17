@@ -89,6 +89,7 @@ target_link_libraries(blockchain
         mesh.pp
         belt.pp
         publiq.pp
+        Boost::system
     PRIVATE
         packet
         utility
