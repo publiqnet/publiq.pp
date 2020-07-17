@@ -249,7 +249,7 @@ string network_simulation::export_connections_matrix()
         size_t node_index = 0;
         for (auto it = tmp.begin(); it != tmp.end(); ++it)
         {
-            while (node_index < node_count && *it != format_index(node_index , node_count))
+            while (node_index < node_count && *it != format_index(node_index, 0, node_count))
             {
                 ++node_index;
                 result += " ";
@@ -281,14 +281,14 @@ string network_simulation::export_connections_load()
         size_t node_index = 0;
         for (auto it = tmp.begin(); it != tmp.end();)
         {
-            while (it->first != format_index(node_index, node_count))
+            while (it->first != format_index(node_index, 0, node_count))
             {
                 ++node_index;
                 result += "   ";
             }
 
             ++node_index;
-            result += format_index(it->second, node_count);
+            result += format_index(it->second, 0, node_count);
 
             if (++it != tmp.end())
                 result += " ";
@@ -543,7 +543,7 @@ string network_simulation::export_counter()
         size_t node_index = 0;
         for (auto it = item.second.begin(); it != item.second.end(); ++it)
         {
-            while (node_index < node_count && it->first != format_index(node_index, node_count))
+            while (node_index < node_count && it->first != format_index(node_index, 0, node_count))
             {
                 ++node_index;
                 row += "  ";
@@ -551,7 +551,7 @@ string network_simulation::export_counter()
 
             ++node_index;
             count += it->second;
-            row += format_index(it->second, 99);
+            row += format_index(it->second, 0, 99);
         }
         if (count == 0)
             ++miss_total;

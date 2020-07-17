@@ -46,7 +46,7 @@ using peer_type = beltpp::socket::peer_type;
 
 std::mutex g_mutex;
 
-inline string format_index(size_t node_index, size_t node_count, char c = '0')
+inline string format_index(size_t thread_index, size_t node_index, size_t node_count, char c = '0')
 {
     size_t base = 0;
     while (node_count > 0)
@@ -56,7 +56,7 @@ inline string format_index(size_t node_index, size_t node_count, char c = '0')
     }
 
     std::stringstream ss;
-    ss << std::setw(base) << std::setfill(c) << node_index;
+    ss << std::setw(base) << std::setfill(c) << thread_index << node_index;
     return ss.str();
 }
 
