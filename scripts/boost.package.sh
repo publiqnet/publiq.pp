@@ -2,7 +2,7 @@ wget https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.gz
 tar xvzf boost_1_70_0.tar.gz
 rm boost_1_70_0.tar.gz
 cd boost_1_70_0
-./bootstrap.sh
+./bootstrap.sh cxxflags="-stdlib=libc++ -std=c++11" linkflags="-stdlib=libc++ -std=c++11"
 # toolset=clang cxxflags="-stdlib=libc++ -std=c++11" linkflags="-stdlib=libc++ -std=c++11"
 # boost.locale.winapi=off boost.locale.std=off boost.locale.posix=off boost.locale.iconv=on boost.locale.icu=off
 # variant=release
