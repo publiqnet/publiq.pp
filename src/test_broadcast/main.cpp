@@ -329,10 +329,10 @@ int main(int argc, char** argv)
             unique_ptr<beltpp::event_handler> inject_eh(peh);
             unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh,
                                                                        rpc_bind_to_address.local.address,
-                                                                       "r" + format_index(0, node_index, node_count)));
+                                                                       "r" + format_index(node_index, node_count)));
             unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh, 
                                                                        p2p_bind_to_address.local.address,
-                                                                       /*"p" +*/ format_index(0, node_index, node_count)));
+                                                                       /*"p" +*/ format_index(node_index, node_count)));
 
             info.peh = peh;
             info.node.reset(new publiqpp::node(

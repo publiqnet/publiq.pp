@@ -569,7 +569,7 @@ string network_simulation::export_counter()
 
 void network_simulation::process_counter_state(string const& receiver, string const& sender, bool connect)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     if (connect)
         receive_send_counter[receiver][sender] = 0;
@@ -582,7 +582,7 @@ event_handler_ns::event_handler_ns(network_simulation& ns)
     : m_ns (&ns)
     , m_wake_triggered(false)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     // create an empty slot for sockets
     auto insert_result = m_ns->eh_to_sockets.insert({ this, unordered_set<string>() });
@@ -593,7 +593,7 @@ event_handler_ns::event_handler_ns(network_simulation& ns)
 
 event_handler_ns::~event_handler_ns()
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
     m_ns->eh_to_sockets.erase(this);
 }
 
@@ -611,7 +611,6 @@ bool event_handler_ns::read()
 
 event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item const*>& event_items)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
     event_items.clear();
 
     for (auto& socket_name : m_ns->eh_to_sockets[this])
@@ -633,6 +632,7 @@ event_handler::wait_result event_handler_ns::wait(std::unordered_set<event_item 
             for (auto const& it : item.second)
                 if (it.second.size())
                 {
+                    std::lock_guard<std::recursive_mutex> lock(g_mutex);
                     event_items.insert(m_ns->name_to_sockets[item.first].first);
                     break;
                 }
@@ -660,19 +660,19 @@ std::unordered_set<uint64_t> event_handler_ns::waited(event_item& /*ev_it*/) con
 
 void event_handler_ns::wake()
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
     m_wake_triggered = true;
 }
 
 void event_handler_ns::set_timer(std::chrono::steady_clock::duration const& period)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
     m_timer_helper.set(period + std::chrono::steady_clock::duration(m_ns->timer_shuffle++));
 }
 
 void event_handler_ns::add(event_item& ev_it)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     // chemistry implementation
     if (m_ns->socket_to_name.find(&ev_it) == m_ns->socket_to_name.end())
@@ -690,9 +690,9 @@ void event_handler_ns::add(event_item& ev_it)
 
 void event_handler_ns::remove(beltpp::event_item& ev_it)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
-
     auto& sockets = m_ns->eh_to_sockets[this];
+
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     sockets.erase(m_ns->socket_to_name[&ev_it]);
     m_ns->receive_send.erase(m_ns->socket_to_name[&ev_it]);
@@ -708,7 +708,7 @@ socket_ns::socket_ns(event_handler_ns& eh, string& address, string name)
     , m_address(address)
     , m_ns(eh.m_ns)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     if (false == m_ns->socket_to_name.insert({ this, m_name }).second)
         throw std::logic_error("socket name is not unique!");
@@ -722,7 +722,7 @@ socket_ns::socket_ns(event_handler_ns& eh, string& address, string name)
 
 socket_ns::~socket_ns()
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     m_ns->socket_to_name.erase(this);
     m_ns->name_to_sockets.erase(m_name);
@@ -730,8 +730,6 @@ socket_ns::~socket_ns()
 
 socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog = 100*/)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
-
     peer_ids peers;
     ip_address tmp_address = address;
     tmp_address.local.address = m_address;
@@ -741,6 +739,7 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
 
     peer_id peer = m_ns->construct_peer_id(tmp_address);
 
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
     m_ns->listen_attempts[tmp_address.local] = { peer, tmp_address };
     m_ns->peer_to_socket[peer] = m_name;
     m_ns->peer_to_ip[peer] = tmp_address;
@@ -752,7 +751,7 @@ socket_ns::peer_ids socket_ns::listen(ip_address const& address, int /*backlog =
 
 socket_ns::peer_ids socket_ns::open(ip_address address, size_t /*attempts = 0*/)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     peer_ids peers;
     address.local.address = m_address;
@@ -810,7 +809,7 @@ void socket_ns::prepare_wait()
 
 socket_ns::packets socket_ns::receive(peer_id& peer)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     auto my_buffers_it = m_ns->receive_send.find(m_name);
     if (my_buffers_it == m_ns->receive_send.end())
@@ -866,7 +865,7 @@ socket_ns::packets socket_ns::receive(peer_id& peer)
 
 void socket_ns::send(peer_id const& peer, beltpp::packet&& pack)
 {
-    std::lock_guard<std::mutex> lock(g_mutex);
+    std::lock_guard<std::recursive_mutex> lock(g_mutex);
 
     auto receiver_socket_it = m_ns->peer_to_socket.find(peer);
     if (receiver_socket_it == m_ns->peer_to_socket.end())

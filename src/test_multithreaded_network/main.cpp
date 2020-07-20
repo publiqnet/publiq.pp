@@ -250,7 +250,7 @@ int main(int argc, char** argv)
         meshpp::settings::set_application_name("simulation_publiqd");
         meshpp::create_config_directory();
 
-        size_t node_count = 10;
+        size_t node_count = 16;
         uint32_t connect_base = 10;
         string data_directory_root;
 
@@ -417,10 +417,10 @@ int main(int argc, char** argv)
                 unique_ptr<beltpp::event_handler> inject_eh(peh);
                 unique_ptr<beltpp::socket> inject_rpc_socket(new socket_ns(*peh,
                                                                            rpc_bind_to_address.local.address,
-                                                                           "r" + format_index(thread_index, node_index, node_count)));
+                                                                           "r" + format_index(node_counter, node_count)));
                 unique_ptr<beltpp::socket> inject_p2p_socket(new socket_ns(*peh,
                                                                            p2p_bind_to_address.local.address,
-                                                                           /*"p" +*/ format_index(thread_index, node_index, node_count)));
+                                                                           /*"p" +*/ format_index(node_counter, node_count)));
 
                 info.peh = peh;
                 info.node.reset(new publiqpp::node(
@@ -448,7 +448,7 @@ int main(int argc, char** argv)
                     std::move(inject_rpc_socket),
                     std::move(inject_p2p_socket)));
 
-                cout << "Node: " << thread_index  << node_index << "  " << info.node->name() << " ";
+                cout << "Node: " << node_counter << "  " << info.node->name() << " ";
                 cout << "Type: " << BlockchainMessage::to_string(info.config.get_node_type()) << endl;
 
             } // for that initializes nodes
@@ -499,7 +499,7 @@ int main(int argc, char** argv)
                 {
                     cout << endl << endl;
                     cout << tmp_state << endl;
-                    cout << info << endl;
+                    cout << info << endl << std::flush;
 
                     cnt = 0;
 
@@ -507,20 +507,20 @@ int main(int argc, char** argv)
                     step_str += " stable " + std::to_string(cnt) + "   :   ";
                     step_str += std::to_string(step_duration.count() - sleep) + " sec...  ";
 
-                    cout << step_str;
+                    cout << step_str << std::flush;
 
                     connection_state = tmp_state;
                 }
                 else
                 {
-                    cout << string(step_str.length(), '\b');
+                    cout << string(step_str.length(), '\b') << std::flush;
 
                     ++cnt;
                     step_str = "Step " + std::to_string(step) + "   :   ";
                     step_str += " stable " + std::to_string(cnt) + "   :   ";
                     step_str += std::to_string(step_duration.count() - sleep) + " sec...  ";
 
-                    cout << step_str;
+                    cout << step_str << std::flush;
                 }
 
                 step_time = tmp_time;
