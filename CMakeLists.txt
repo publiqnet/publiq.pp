@@ -24,6 +24,10 @@ else (WIN32)
     add_compile_options(-Werror)
 endif (WIN32)
 
-project(publiq.pp)
+project(publiq.pp VERSION 1.0.0)
+add_compile_definitions(PUBLIQPP_VERSION_MAJOR=${PROJECT_VERSION_MAJOR})
+add_compile_definitions(PUBLIQPP_VERSION_MINOR=${PROJECT_VERSION_MINOR})
+add_compile_definitions(PUBLIQPP_VERSION_PATCH=${PROJECT_VERSION_PATCH})
+add_compile_definitions(PUBLIQPP_VERSION="${PROJECT_VERSION}")
 
 add_subdirectory(src)
