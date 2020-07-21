@@ -25,9 +25,9 @@ else (WIN32)
 endif (WIN32)
 
 project(publiq.pp VERSION 1.0.0)
-add_compile_definitions(PUBLIQPP_VERSION_MAJOR=${PROJECT_VERSION_MAJOR})
-add_compile_definitions(PUBLIQPP_VERSION_MINOR=${PROJECT_VERSION_MINOR})
-add_compile_definitions(PUBLIQPP_VERSION_PATCH=${PROJECT_VERSION_PATCH})
-add_compile_definitions(PUBLIQPP_VERSION="${PROJECT_VERSION}")
+add_definitions(-DPUBLIQPP_VERSION_MAJOR=${PROJECT_VERSION_MAJOR})
+add_definitions(-DPUBLIQPP_VERSION_MINOR=${PROJECT_VERSION_MINOR})
+add_definitions(-DPUBLIQPP_VERSION_PATCH=${PROJECT_VERSION_PATCH})
+add_definitions(-DPUBLIQPP_VERSION="${PROJECT_VERSION}")
 
 add_subdirectory(src)
