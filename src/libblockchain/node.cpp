@@ -153,8 +153,8 @@ void node::run(bool& stop_check)
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
                 open_container_packet<Broadcast> broadcast_anything;
-                bool is_container = broadcast_signed_transaction.open(received_packet, composition, *m_pimpl.get()) ||
-                                    broadcast_anything.open(received_packet, composition, *m_pimpl.get());
+                bool is_container = broadcast_signed_transaction.open(received_packet, composition, *m_pimpl) ||
+                                    broadcast_anything.open(received_packet, composition, *m_pimpl);
 
                 if (is_container == false)
                 {
@@ -260,7 +260,7 @@ void node::run(bool& stop_check)
                     Broadcast& broadcast = *p_broadcast;
                     SignedTransaction& signed_tx = *p_signed_tx;
 
-                    if (action_process_on_chain(signed_tx, *m_pimpl.get()))
+                    if (action_process_on_chain(signed_tx, *m_pimpl))
                     {
                         broadcast_message(std::move(broadcast),
                                           m_pimpl->m_ptr_p2p_socket->name(),
@@ -311,7 +311,7 @@ void node::run(bool& stop_check)
                                                       beltpp_ip_address,
                                                       beltpp_ssl_ip_address,
                                                       unique_ptr<session_action_broadcast_address_info>(
-                                                          new session_action_broadcast_address_info(*m_pimpl.get(),
+                                                          new session_action_broadcast_address_info(*m_pimpl,
                                                                                                     peerid,
                                                                                                     std::move(broadcast))));
                     }
@@ -349,7 +349,7 @@ void node::run(bool& stop_check)
                             {
                                 if (update_command.status == UpdateType::remove)
                                 {
-                                    delete_storage_file(*m_pimpl.get(), psk, peerid, update_command.file_uri);
+                                    delete_storage_file(*m_pimpl, psk, peerid, update_command.file_uri);
                                 }
                                 else //(update_command.status == UpdateType::save)
                                 {
@@ -444,7 +444,7 @@ void node::run(bool& stop_check)
                     StorageFileDelete storage_file_delete;
                     std::move(ref_packet).get(storage_file_delete);
 
-                    delete_storage_file(*m_pimpl.get(), psk, peerid, storage_file_delete.uri);
+                    delete_storage_file(*m_pimpl, psk, peerid, storage_file_delete.uri);
 
                     break;
                 }
@@ -463,7 +463,7 @@ void node::run(bool& stop_check)
                     };
 
                     vector<unique_ptr<meshpp::session_action<meshpp::session_header>>> actions;
-                    actions.emplace_back(new session_action_get_file_uris(*m_pimpl.get(),
+                    actions.emplace_back(new session_action_get_file_uris(*m_pimpl,
                                                                           callback_lambda));
 
                     meshpp::session_header header;
@@ -505,9 +505,9 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(msg);
 
                     if (msg.address_type == PublicAddressType::rpc)
-                        get_public_addresses(*psk, peerid, *m_pimpl.get());
+                        get_public_addresses(*psk, peerid, *m_pimpl);
                     else
-                        get_peers_addresses(*psk, peerid, *m_pimpl.get());
+                        get_peers_addresses(*psk, peerid, *m_pimpl);
 
                     break;
                 }
@@ -555,7 +555,7 @@ void node::run(bool& stop_check)
 
                     session_action_header::process_request(peerid,
                                                            header_request,
-                                                           *m_pimpl.get());
+                                                           *m_pimpl);
 
                     break;
                 }
@@ -569,7 +569,7 @@ void node::run(bool& stop_check)
 
                     session_action_block::process_request(peerid,
                                                           blockchain_request,
-                                                          *m_pimpl.get());
+                                                          *m_pimpl);
 
                     break;
                 }
@@ -593,9 +593,9 @@ void node::run(bool& stop_check)
                     signed_transaction_validate(signed_transaction,
                                                 std::chrono::system_clock::now(),
                                                 std::chrono::seconds(NODES_TIME_SHIFT),
-                                                *m_pimpl.get());
+                                                *m_pimpl);
 
-                    if (action_process_on_chain(signed_transaction, *m_pimpl.get()))
+                    if (action_process_on_chain(signed_transaction, *m_pimpl))
                     {
                         BlockchainMessage::Broadcast broadcast;
                         broadcast.echoes = 2;
@@ -636,7 +636,7 @@ void node::run(bool& stop_check)
                     SignedTransaction& signed_transaction = *p_signed_tx;
                     Letter& letter = *p_letter;
 
-                    if (process_letter(signed_transaction, letter, *m_pimpl.get()))
+                    if (process_letter(signed_transaction, letter, *m_pimpl))
                     {
                         if (letter.to != m_pimpl->front_public_key().to_string())
                         {
@@ -1129,7 +1129,7 @@ void node::run(bool& stop_check)
         m_pimpl->m_check_timer.update();
 
         if (m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
-            sync_worker(*m_pimpl.get());
+            sync_worker(*m_pimpl);
 
         if (m_pimpl->m_storage_sync_delay.expired() &&
             m_pimpl->blockchain_updated() &&
@@ -1137,7 +1137,7 @@ void node::run(bool& stop_check)
             NodeType::storage == m_pimpl->pconfig->get_node_type() &&
             m_pimpl->m_slave_node)
         {
-            auto& impl = *m_pimpl.get();
+            auto& impl = *m_pimpl;
 
             unordered_map<string, beltpp::ip_address> map_nodeid_ip_address;
             unordered_set<string> set_resolved_nodeids;
