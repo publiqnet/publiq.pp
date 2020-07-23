@@ -270,7 +270,12 @@ int main(int argc, char** argv)
         ns.node_count = node_count;
         ns.chance_of_connect_base = connect_base;
         std::vector<vector<node_info>> nodes_info;
+
         size_t thread_count = std::thread::hardware_concurrency();
+
+        if (0 == thread_count) // value is not well defined or not computable
+            thread_count = 8;
+
         size_t node_counter = 0;
         size_t nodes_per_thread = node_count / thread_count;
 
