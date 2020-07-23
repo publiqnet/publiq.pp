@@ -9,10 +9,15 @@
 #include <belt.pp/socket.hpp>
 #include <belt.pp/packet.hpp>
 
+#include <mesh.pp/p2psocket.hpp>
+
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <utility>
+
+std::string const node_peerid = "node";
+std::string const storage_peerid = "storage";
 
 // Blocks and headers max count per one request - 1
 // corners are included
@@ -179,30 +184,20 @@ std::string peer_short_names(std::string const& peerid)
 class wait_result_item
 {
 public:
-    enum interface_type {p2p, rpc};
-    enum event_type {nothing, event, timer, on_demand};
+    enum event_type {nothing, event, timer};
     event_type et = nothing;
-    interface_type it = rpc;
+    beltpp::event_item const* pevent_item = nullptr;
     beltpp::socket::peer_id peerid;
     beltpp::packet packet;
 
-    static wait_result_item event_result(interface_type it,
+    static wait_result_item event_result(beltpp::event_item const* pevent_item,
                                          beltpp::socket::peer_id const& peerid,
                                          beltpp::packet&& packet)
     {
         wait_result_item res;
         res.et = event;
-        res.it = it;
+        res.pevent_item = pevent_item;
         res.peerid = peerid;
-        res.packet = std::move(packet);
-
-        return res;
-    }
-
-    static wait_result_item on_demand_result(beltpp::packet&& packet)
-    {
-        wait_result_item res;
-        res.et = on_demand;
         res.packet = std::move(packet);
 
         return res;
@@ -228,18 +223,19 @@ public:
 class wait_result
 {
 public:
-    struct key_hash
-    {
-        size_t operator()(wait_result_item::interface_type const& value) const noexcept
-        {
-            return static_cast<size_t>(value);
-        }
-    };
+    using packets_result = std::pair<beltpp::socket::peer_id, beltpp::socket::packets>;
+    using event_result = std::pair<beltpp::event_item const*, packets_result>;
+    using event_results = std::unordered_map<beltpp::event_item const*, packets_result>;
 
     beltpp::event_handler::wait_result m_wait_result = beltpp::event_handler::wait_result::nothing;
-    std::unordered_map<wait_result_item::interface_type, std::pair<beltpp::socket::peer_id, beltpp::socket::packets>, key_hash> event_packets;
-    beltpp::socket::packets on_demand_packets;
+    event_results event_packets;
 };
+
+wait_result_item wait_and_receive_one(wait_result& wait_result_info,
+                                      beltpp::event_handler& eh,
+                                      beltpp::stream* rpc_stream,
+                                      meshpp::p2psocket* p2p_stream,
+                                      beltpp::stream* on_demand_stream);
 
 }
 }

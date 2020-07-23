@@ -16,6 +16,7 @@
 #include <belt.pp/scope_helper.hpp>
 #include <belt.pp/message_global.hpp>
 #include <belt.pp/timer.hpp>
+#include <belt.pp/direct_stream.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
 #include <mesh.pp/cryptoutility.hpp>
@@ -27,7 +28,6 @@
 #include <memory>
 #include <list>
 #include <utility>
-#include <mutex>
 #include <unordered_set>
 
 using namespace BlockchainMessage;
@@ -62,16 +62,15 @@ class storage_node_internals
 {
 public:
     storage_node_internals(
-        node& master_node,
         config& ref_config,
         filesystem::path const& fs_storage,
-        beltpp::ilog* _plogger_storage_node)
-        : m_master_node(&master_node)
-        , plogger_storage_node(_plogger_storage_node)
+        beltpp::ilog* _plogger_storage_node,
+        beltpp::direct_channel& channel)
+        : plogger_storage_node(_plogger_storage_node)
         , pconfig(&ref_config)
-        , m_node_type(NodeType::blockchain)
         , m_ptr_eh(beltpp::libsocket::construct_event_handler())
         , m_ptr_rpc_socket(beltpp::libsocket::getsocket<rpc_storage_sf>(*m_ptr_eh))
+        , m_ptr_direct_stream(beltpp::construct_direct_stream(storage_peerid, *m_ptr_eh, channel))
         , m_storage(fs_storage)
     {
         m_ptr_eh->set_timer(chrono::seconds(EVENT_TIMER));
@@ -94,114 +93,13 @@ public:
             plogger_storage_node->warning(value);
     }
 
-    wait_result_item wait_and_receive_one()
-    {
-        auto& wait_result = m_wait_result.m_wait_result;
-
-        if (wait_result == beltpp::event_handler::wait_result::nothing)
-        {
-            assert(m_wait_result.on_demand_packets.empty());
-            if (false == m_wait_result.on_demand_packets.empty())
-                throw std::logic_error("false == m_wait_result.on_demand_packets.empty()");
-            assert(m_wait_result.event_packets.empty());
-            if (false == m_wait_result.event_packets.empty())
-                throw std::logic_error("false == m_wait_result.event_packets.empty()");
-
-            unordered_set<beltpp::event_item const*> wait_sockets;
-
-            wait_result = m_ptr_eh->wait(wait_sockets);
-
-            if (wait_result & beltpp::event_handler::event)
-            {
-                for (auto& pevent_item : wait_sockets)
-                {
-                    B_UNUSED(pevent_item);
-                    wait_result_item::interface_type it = wait_result_item::interface_type::rpc;
-                    beltpp::stream* psk = m_ptr_rpc_socket.get();
-
-                    beltpp::socket::packets received_packets;
-                    beltpp::socket::peer_id peerid;
-                    received_packets = psk->receive(peerid);
-
-                    auto insert_res = m_wait_result.event_packets.insert(std::make_pair(it,
-                                                                                        std::make_pair(peerid,
-                                                                                                       std::move(received_packets))));
-                    assert(insert_res.second);
-                    if (false == insert_res.second)
-                        throw std::logic_error("auto insert_res = m_wait_result.event_packets.insert({it, std::move(received_packets)});");
-                }
-            }
-
-            /*if (wait_result & beltpp::event_handler::timer_out)
-            {
-            }*/
-
-            /*if (wait_result & beltpp::event_handler::on_demand)
-            {
-
-            }*/
-        }
-
-        auto result = wait_result_item::empty_result();
-
-        if (wait_result & beltpp::event_handler::event)
-        {
-            if (false == m_wait_result.event_packets.empty())
-            {
-                auto it = m_wait_result.event_packets.begin();
-
-                if (false == it->second.second.empty())
-                {
-                    auto interface_type = it->first;
-                    auto packet = std::move(it->second.second.front());
-                    auto peerid = it->second.first;
-
-                    it->second.second.pop_front();
-
-                    result = wait_result_item::event_result(interface_type, peerid, std::move(packet));
-                }
-
-                if (it->second.second.empty())
-                    m_wait_result.event_packets.erase(it);
-            }
-
-            if (m_wait_result.event_packets.empty())
-                wait_result = beltpp::event_handler::wait_result(wait_result & ~beltpp::event_handler::event);
-
-            return result;
-        }
-
-        if (wait_result & beltpp::event_handler::timer_out)
-        {
-            wait_result = beltpp::event_handler::wait_result(wait_result & ~beltpp::event_handler::timer_out);
-            result = wait_result_item::timer_result();
-            return result;
-        }
-
-        if (wait_result & beltpp::event_handler::on_demand)
-        {
-            result = wait_result_item::on_demand_result(beltpp::packet());
-
-            if (m_wait_result.on_demand_packets.empty())
-                wait_result = beltpp::event_handler::wait_result(wait_result & ~beltpp::event_handler::on_demand);
-
-            return result;
-        }
-
-        return result;
-    }
-
-    node* m_master_node;
     beltpp::ilog* plogger_storage_node;
     config* pconfig;
-    NodeType m_node_type;
-    unique_ptr<beltpp::event_handler> m_ptr_eh;
-    unique_ptr<beltpp::socket> m_ptr_rpc_socket;
+    beltpp::event_handler_ptr m_ptr_eh;
+    beltpp::socket_ptr m_ptr_rpc_socket;
+    beltpp::stream_ptr m_ptr_direct_stream;
 
     publiqpp::storage m_storage;
-
-    std::mutex m_messages_mutex;
-    list<pair<beltpp::packet, beltpp::packet>> m_messages;
 
     unordered_set<string> m_verified_channels;
     wait_result m_wait_result;

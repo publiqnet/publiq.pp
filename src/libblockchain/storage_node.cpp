@@ -38,17 +38,15 @@ namespace publiqpp
 /*
  * storage_node
  */
-storage_node::storage_node(node& master_node,
-                           config& ref_config,
+storage_node::storage_node(config& ref_config,
                            boost::filesystem::path const& fs_storage,
-                           beltpp::ilog* plogger_storage_node)
-    : m_pimpl(new detail::storage_node_internals(master_node,
-                                                 ref_config,
+                           beltpp::ilog* plogger_storage_node,
+                           beltpp::direct_channel& channel)
+    : m_pimpl(new detail::storage_node_internals(ref_config,
                                                  fs_storage,
-                                                 plogger_storage_node))
-{
-    master_node.set_slave_node(*this);
-}
+                                                 plogger_storage_node,
+                                                 channel))
+{}
 
 storage_node::storage_node(storage_node&&) noexcept = default;
 
@@ -65,9 +63,18 @@ void storage_node::run(bool& stop)
 
     unordered_set<beltpp::event_item const*> wait_sockets;
 
-    auto wait_result = m_pimpl->wait_and_receive_one();
+    auto wait_result = detail::wait_and_receive_one(m_pimpl->m_wait_result,
+                                                    *m_pimpl->m_ptr_eh,
+                                                    m_pimpl->m_ptr_rpc_socket.get(),
+                                                    nullptr,
+                                                    m_pimpl->m_ptr_direct_stream.get());
 
-    if (wait_result.et == detail::wait_result_item::event)
+    if (wait_result.et == detail::wait_result_item::timer)
+    {
+        m_pimpl->m_ptr_rpc_socket->timer_action();
+    }
+    else if (wait_result.et == detail::wait_result_item::event &&
+             wait_result.pevent_item != m_pimpl->m_ptr_direct_stream.get())
     {
         auto peerid = wait_result.peerid;
         auto ref_packet = std::move(wait_result.packet);
@@ -118,7 +125,7 @@ void storage_node::run(bool& stop)
 
                 string file_uri;
 
-                if (m_pimpl->m_node_type == NodeType::storage)
+                if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
                 {
                     string channel_address;
                     string storage_address;
@@ -150,16 +157,14 @@ void storage_node::run(bool& stop)
                 {
                     psk->send(peerid, beltpp::packet(std::move(file)));
 
-                    if (m_pimpl->m_node_type == NodeType::storage)
+                    if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
                     {
-                        std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
                         Served msg;
                         msg.storage_order_token = file_info.storage_order_token;
 
                         StorageTypes::ContainerMessage msg_response;
                         msg_response.package.set(msg);
-                        m_pimpl->m_messages.push_back(std::make_pair(beltpp::packet(), packet(std::move(msg_response))));
-                        m_pimpl->m_master_node->wake();
+                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(msg_response)));
                     }
                 }
                 else
@@ -248,123 +253,112 @@ void storage_node::run(bool& stop)
             throw;
         }
     }
-    else if (wait_result.et == detail::wait_result_item::timer)
+    else if (wait_result.et == detail::wait_result_item::event &&
+             wait_result.pevent_item == m_pimpl->m_ptr_direct_stream.get())
     {
-        m_pimpl->m_ptr_rpc_socket->timer_action();
-    }
-    else if (wait_result.et == detail::wait_result_item::on_demand)
-    {
-        std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
-        auto& messages = m_pimpl->m_messages;
-        for (auto& item : messages)
-        {
-        auto& request = item.first;
-        auto& response = item.second;
+        auto peerid = wait_result.peerid;
+        auto received_packet = std::move(wait_result.packet);
+
+        auto& stream = *m_pimpl->m_ptr_direct_stream;
+        
         try
         {
-            if (response.empty())
+            switch (received_packet.type())
             {
-                switch (request.type())
+            case StorageTypes::StorageFile::rtt:
+            {
+                StorageTypes::StorageFile storage_file_ex;
+                std::move(received_packet).get(storage_file_ex);
+
+                assert(storage_file_ex.storage_file.type() == BlockchainMessage::StorageFile::rtt);
+                if (storage_file_ex.storage_file.type() != BlockchainMessage::StorageFile::rtt)
+                    throw std::logic_error("storage_file.storage_file.type() != BlockchainMessage::StorageFile::rtt");
+
+                StorageFile storage_file;
+                std::move(storage_file_ex.storage_file).get(storage_file);
+
+                string uri;
+                if (m_pimpl->m_storage.put(std::move(storage_file), uri))
                 {
-                case StorageTypes::StorageFile::rtt:
-                {
-                    StorageTypes::StorageFile storage_file_ex;
-                    std::move(request).get(storage_file_ex);
-
-                    assert(storage_file_ex.storage_file.type() == BlockchainMessage::StorageFile::rtt);
-                    if (storage_file_ex.storage_file.type() != BlockchainMessage::StorageFile::rtt)
-                        throw std::logic_error("storage_file.storage_file.type() != BlockchainMessage::StorageFile::rtt");
-
-                    StorageFile storage_file;
-                    std::move(storage_file_ex.storage_file).get(storage_file);
-
-                    string uri;
-                    if (m_pimpl->m_storage.put(std::move(storage_file), uri))
-                    {
-                        StorageFileAddress file_address;
-                        file_address.uri = uri;
-
-                        StorageTypes::ContainerMessage msg_response;
-                        msg_response.package.set(std::move(file_address));
-                        response.set(std::move(msg_response));
-                    }
-                    else
-                    {
-                        UriError msg;
-                        msg.uri = uri;
-                        msg.uri_problem_type = UriProblemType::duplicate;
-
-                        StorageTypes::ContainerMessage msg_response;
-                        msg_response.package.set(std::move(msg));
-                        response.set(std::move(msg_response));
-                    }
-
-                    m_pimpl->m_master_node->wake();
-                    break;
-                }
-                case StorageTypes::StorageFileDelete::rtt:
-                {
-                    StorageTypes::StorageFileDelete storage_file_delete_ex;
-                    std::move(request).get(storage_file_delete_ex);
-
-                    assert(storage_file_delete_ex.storage_file_delete.type() == BlockchainMessage::StorageFileDelete::rtt);
-                    if (storage_file_delete_ex.storage_file_delete.type() != BlockchainMessage::StorageFileDelete::rtt)
-                        throw std::logic_error("storage_file_delete_ex.storage_file_delete.type() != BlockchainMessage::StorageFileDelete::rtt");
-
-                    StorageFileDelete storage_file_delete;
-                    std::move(storage_file_delete_ex.storage_file_delete).get(storage_file_delete);
-
-                    if (m_pimpl->m_storage.remove(storage_file_delete.uri))
-                    {
-                        StorageTypes::ContainerMessage msg_response;
-                        msg_response.package.set(Done());
-                        response.set(std::move(msg_response));
-                    }
-                    else
-                    {
-                        UriError msg;
-                        msg.uri = storage_file_delete.uri;
-                        msg.uri_problem_type = UriProblemType::missing;
-
-                        StorageTypes::ContainerMessage msg_response;
-                        msg_response.package.set(msg);
-                        response.set(std::move(msg_response));
-                    }
-
-                    m_pimpl->m_master_node->wake();
-                    break;
-                }
-                case StorageTypes::SetVerifiedChannels::rtt:
-                {
-                    StorageTypes::SetVerifiedChannels channels;
-                    std::move(request).get(channels);
-
-                    m_pimpl->m_verified_channels.clear();
-                    for (auto const& channel_address : channels.channel_addresses)
-                        m_pimpl->m_verified_channels.insert(channel_address);
+                    StorageFileAddress file_address;
+                    file_address.uri = uri;
 
                     StorageTypes::ContainerMessage msg_response;
-                    msg_response.package.set(Done());
-                    response.set(std::move(msg_response));
-                    m_pimpl->m_master_node->wake();
-                    break;
+                    msg_response.package.set(std::move(file_address));
+                    stream.send(peerid, packet(std::move(msg_response)));
                 }
-                case StorageTypes::FileUrisRequest::rtt:
+                else
                 {
-                    FileUris msg;
+                    UriError msg;
+                    msg.uri = uri;
+                    msg.uri_problem_type = UriProblemType::duplicate;
 
-                    auto set_file_uris = m_pimpl->m_storage.get_file_uris();
-                    msg.file_uris.reserve(set_file_uris.size());
-                    for (auto& file_uri : set_file_uris)
-                        msg.file_uris.push_back(std::move(file_uri));
+                    StorageTypes::ContainerMessage msg_response;
+                    msg_response.package.set(std::move(msg));
+                    stream.send(peerid, packet(std::move(msg_response)));
+                }
+                
+                break;
+            }
+            case StorageTypes::StorageFileDelete::rtt:
+            {
+                StorageTypes::StorageFileDelete storage_file_delete_ex;
+                std::move(received_packet).get(storage_file_delete_ex);
+
+                assert(storage_file_delete_ex.storage_file_delete.type() == BlockchainMessage::StorageFileDelete::rtt);
+                if (storage_file_delete_ex.storage_file_delete.type() != BlockchainMessage::StorageFileDelete::rtt)
+                    throw std::logic_error("storage_file_delete_ex.storage_file_delete.type() != BlockchainMessage::StorageFileDelete::rtt");
+
+                StorageFileDelete storage_file_delete;
+                std::move(storage_file_delete_ex.storage_file_delete).get(storage_file_delete);
+
+                if (m_pimpl->m_storage.remove(storage_file_delete.uri))
+                {
+                    StorageTypes::ContainerMessage msg_response;
+                    msg_response.package.set(Done());
+                    stream.send(peerid, packet(std::move(msg_response)));
+                }
+                else
+                {
+                    UriError msg;
+                    msg.uri = storage_file_delete.uri;
+                    msg.uri_problem_type = UriProblemType::missing;
 
                     StorageTypes::ContainerMessage msg_response;
                     msg_response.package.set(msg);
-                    response.set(std::move(msg_response));
-                    m_pimpl->m_master_node->wake();
-                    break;
+                    stream.send(peerid, packet(std::move(msg_response)));
                 }
-                }
+
+                break;
+            }
+            case StorageTypes::SetVerifiedChannels::rtt:
+            {
+                StorageTypes::SetVerifiedChannels channels;
+                std::move(received_packet).get(channels);
+
+                m_pimpl->m_verified_channels.clear();
+                for (auto const& channel_address : channels.channel_addresses)
+                    m_pimpl->m_verified_channels.insert(channel_address);
+
+                StorageTypes::ContainerMessage msg_response;
+                msg_response.package.set(Done());
+                stream.send(peerid, packet(std::move(msg_response)));
+                break;
+            }
+            case StorageTypes::FileUrisRequest::rtt:
+            {
+                FileUris msg;
+
+                auto set_file_uris = m_pimpl->m_storage.get_file_uris();
+                msg.file_uris.reserve(set_file_uris.size());
+                for (auto& file_uri : set_file_uris)
+                    msg.file_uris.push_back(std::move(file_uri));
+
+                StorageTypes::ContainerMessage msg_response;
+                msg_response.package.set(msg);
+                stream.send(peerid, packet(std::move(msg_response)));
+                break;
+            }
             }
         }
         catch (std::exception const& e)
@@ -374,8 +368,7 @@ void storage_node::run(bool& stop)
 
             StorageTypes::ContainerMessage msg_response;
             msg_response.package.set(msg);
-            response.set(std::move(msg_response));
-            m_pimpl->m_master_node->wake();
+            stream.send(peerid, packet(std::move(msg_response)));
             throw;
         }
         catch (...)
@@ -385,34 +378,10 @@ void storage_node::run(bool& stop)
 
             StorageTypes::ContainerMessage msg_response;
             msg_response.package.set(msg);
-            response.set(std::move(msg_response));
-            m_pimpl->m_master_node->wake();
+            stream.send(peerid, packet(std::move(msg_response)));
             throw;
         }
-        }
     }
-}
-
-beltpp::stream::packets storage_node::receive()
-{
-    std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
-    beltpp::stream::packets result;
-
-    auto& messages = m_pimpl->m_messages;
-    while (false == messages.empty() &&
-           false == messages.front().second.empty())
-    {
-        result.push_back(std::move(messages.front().second));
-        messages.pop_front();
-    }
-
-    return result;
-}
-
-void storage_node::send(beltpp::packet&& pack)
-{
-    std::lock_guard<std::mutex> lock(m_pimpl->m_messages_mutex);
-    m_pimpl->m_messages.push_back(std::make_pair(std::move(pack), beltpp::packet()));
 }
 
 }

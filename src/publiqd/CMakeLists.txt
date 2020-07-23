@@ -8,6 +8,7 @@ target_link_libraries(publiqd PRIVATE
     mesh.pp
     systemutility
     belt.pp
+    direct_stream
     blockchain
     utility
     cryptoutility
