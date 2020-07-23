@@ -324,7 +324,6 @@ void manager::run()
                     info_map.insert({ it->second, file_info });
             }
 
-            size_t send_count = 0;
             if (info_map.size())
             {
                 meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
@@ -333,6 +332,7 @@ void manager::run()
                 if (threshold < 3)
                     threshold = 3;
 
+                auto sent_count = 0;
                 auto it = info_map.rbegin();
                 while (it->first > threshold && it != info_map.rend())
                 {
@@ -347,14 +347,14 @@ void manager::run()
                                  dm);
 
                     ++it;
-                    ++send_count;
+                    ++sent_count;
                 }
-            }
 
-            std::cout << std::endl << std::endl;
-            std::cout << "Total " << info_map.size();
-            std::cout << "  Sent " << send_count;
-            std::cout << " Max " << info_map.rbegin()->first;
+                std::cout << std::endl << std::endl;
+                std::cout << "Size : " << std::to_string(info_map.size());
+                std::cout << "  Sent : " << std::to_string(sent_count);
+                std::cout << "  Max : " << std::to_string(info_map.rbegin()->first);
+            }
         }
     }
 }
