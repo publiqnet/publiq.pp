@@ -8,6 +8,7 @@
 #include <belt.pp/ievent.hpp>
 #include <belt.pp/socket.hpp>
 #include <belt.pp/packet.hpp>
+#include <belt.pp/queue.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
 
@@ -181,21 +182,21 @@ std::string peer_short_names(std::string const& peerid)
     return peerid;
 }
 
-class wait_result_item
+class stream_event
 {
 public:
-    enum event_type {nothing, event, timer};
+    enum event_type {nothing, message, timer};
     event_type et = nothing;
     beltpp::event_item const* pevent_item = nullptr;
     beltpp::socket::peer_id peerid;
     beltpp::packet packet;
 
-    static wait_result_item event_result(beltpp::event_item const* pevent_item,
-                                         beltpp::socket::peer_id const& peerid,
-                                         beltpp::packet&& packet)
+    static stream_event event_result(beltpp::event_item const* pevent_item,
+                                     beltpp::socket::peer_id const& peerid,
+                                     beltpp::packet&& packet)
     {
-        wait_result_item res;
-        res.et = event;
+        stream_event res;
+        res.et = message;
         res.pevent_item = pevent_item;
         res.peerid = peerid;
         res.packet = std::move(packet);
@@ -203,39 +204,34 @@ public:
         return res;
     }
 
-    static wait_result_item timer_result()
+    static stream_event timer_result()
     {
-        wait_result_item res;
+        stream_event res;
         res.et = timer;
 
         return res;
     }
 
-    static wait_result_item empty_result()
+    static stream_event empty_result()
     {
-        wait_result_item res;
+        stream_event res;
         res.et = nothing;
 
         return res;
     }
 };
 
-class wait_result
+class event_queue_manager
 {
 public:
-    using packets_result = std::pair<beltpp::socket::peer_id, beltpp::socket::packets>;
-    using event_result = std::pair<beltpp::event_item const*, packets_result>;
-    using event_results = std::unordered_map<beltpp::event_item const*, packets_result>;
-
-    beltpp::event_handler::wait_result m_wait_result = beltpp::event_handler::wait_result::nothing;
-    event_results event_packets;
+    beltpp::queue<stream_event> queue;
 };
 
-wait_result_item wait_and_receive_one(wait_result& wait_result_info,
-                                      beltpp::event_handler& eh,
-                                      beltpp::stream* rpc_stream,
-                                      meshpp::p2psocket* p2p_stream,
-                                      beltpp::stream* on_demand_stream);
+stream_event wait_and_receive_one(event_queue_manager& event_queue,
+                                  beltpp::event_handler& eh,
+                                  beltpp::stream* rpc_stream,
+                                  meshpp::p2psocket* p2p_stream,
+                                  beltpp::stream* on_demand_stream);
 
 }
 }

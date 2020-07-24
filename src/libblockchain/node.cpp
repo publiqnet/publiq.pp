@@ -128,25 +128,25 @@ void node::run(bool& stop_check)
         broadcast_service_statistics(*m_pimpl);
     }
 
-    auto wait_result = detail::wait_and_receive_one(m_pimpl->m_wait_result,
-                                                    *m_pimpl->m_ptr_eh,
-                                                    m_pimpl->m_ptr_rpc_socket.get(),
-                                                    m_pimpl->m_ptr_p2p_socket.get(),
-                                                    m_pimpl->m_ptr_direct_stream.get());
+    auto event = detail::wait_and_receive_one(m_pimpl->m_event_queue,
+                                              *m_pimpl->m_ptr_eh,
+                                              m_pimpl->m_ptr_rpc_socket.get(),
+                                              m_pimpl->m_ptr_p2p_socket.get(),
+                                              m_pimpl->m_ptr_direct_stream.get());
 
-    if (wait_result.et == detail::wait_result_item::timer)
+    if (event.et == detail::stream_event::timer)
     {
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
-    else if (wait_result.et == detail::wait_result_item::event &&
-             wait_result.pevent_item != m_pimpl->m_ptr_direct_stream.get())
+    else if (event.et == detail::stream_event::message &&
+             event.pevent_item != m_pimpl->m_ptr_direct_stream.get())
     {
-        auto peerid = wait_result.peerid;
-        auto received_packet = std::move(wait_result.packet);
+        auto peerid = event.peerid;
+        auto received_packet = std::move(event.packet);
         enum class interface_type {rpc, p2p};
         interface_type it = interface_type::rpc;
-        if (wait_result.pevent_item != m_pimpl->m_ptr_rpc_socket.get())
+        if (event.pevent_item != m_pimpl->m_ptr_rpc_socket.get())
             it = interface_type::p2p;
 
         beltpp::stream* psk = nullptr;
@@ -982,11 +982,11 @@ void node::run(bool& stop_check)
             throw;
         }
     }
-    else if (wait_result.et == detail::wait_result_item::event &&
+    else if (event.et == detail::stream_event::message &&
              m_pimpl->m_ptr_direct_stream &&
-             wait_result.pevent_item == m_pimpl->m_ptr_direct_stream.get())
+             event.pevent_item == m_pimpl->m_ptr_direct_stream.get())
     {
-        auto ref_packet = std::move(wait_result.packet);
+        auto ref_packet = std::move(event.packet);
 
         if (false == m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
         {

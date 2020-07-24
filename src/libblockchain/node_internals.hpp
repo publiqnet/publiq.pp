@@ -723,7 +723,7 @@ public:
     };
 
     unordered_map<string, vote_info> m_votes;
-    wait_result m_wait_result;
+    event_queue_manager m_event_queue;
 };
 
 }

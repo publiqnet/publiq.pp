@@ -102,7 +102,7 @@ public:
     publiqpp::storage m_storage;
 
     unordered_set<string> m_verified_channels;
-    wait_result m_wait_result;
+    event_queue_manager m_event_queue;
 };
 
 }

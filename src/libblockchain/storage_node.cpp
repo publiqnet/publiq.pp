@@ -63,21 +63,21 @@ void storage_node::run(bool& stop)
 
     unordered_set<beltpp::event_item const*> wait_sockets;
 
-    auto wait_result = detail::wait_and_receive_one(m_pimpl->m_wait_result,
-                                                    *m_pimpl->m_ptr_eh,
-                                                    m_pimpl->m_ptr_rpc_socket.get(),
-                                                    nullptr,
-                                                    m_pimpl->m_ptr_direct_stream.get());
+    auto event = detail::wait_and_receive_one(m_pimpl->m_event_queue,
+                                              *m_pimpl->m_ptr_eh,
+                                              m_pimpl->m_ptr_rpc_socket.get(),
+                                              nullptr,
+                                              m_pimpl->m_ptr_direct_stream.get());
 
-    if (wait_result.et == detail::wait_result_item::timer)
+    if (event.et == detail::stream_event::timer)
     {
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
-    else if (wait_result.et == detail::wait_result_item::event &&
-             wait_result.pevent_item != m_pimpl->m_ptr_direct_stream.get())
+    else if (event.et == detail::stream_event::message &&
+             event.pevent_item != m_pimpl->m_ptr_direct_stream.get())
     {
-        auto peerid = wait_result.peerid;
-        auto ref_packet = std::move(wait_result.packet);
+        auto peerid = event.peerid;
+        auto ref_packet = std::move(event.packet);
 
         beltpp::stream* psk = m_pimpl->m_ptr_rpc_socket.get();
 
@@ -253,11 +253,11 @@ void storage_node::run(bool& stop)
             throw;
         }
     }
-    else if (wait_result.et == detail::wait_result_item::event &&
-             wait_result.pevent_item == m_pimpl->m_ptr_direct_stream.get())
+    else if (event.et == detail::stream_event::message &&
+             event.pevent_item == m_pimpl->m_ptr_direct_stream.get())
     {
-        auto peerid = wait_result.peerid;
-        auto received_packet = std::move(wait_result.packet);
+        auto peerid = event.peerid;
+        auto received_packet = std::move(event.packet);
 
         auto& stream = *m_pimpl->m_ptr_direct_stream;
         
