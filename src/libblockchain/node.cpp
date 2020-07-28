@@ -128,25 +128,23 @@ void node::run(bool& stop_check)
         broadcast_service_statistics(*m_pimpl);
     }
 
-    auto event = detail::wait_and_receive_one(m_pimpl->m_event_queue,
-                                              *m_pimpl->m_ptr_eh,
-                                              m_pimpl->m_ptr_rpc_socket.get(),
-                                              m_pimpl->m_ptr_p2p_socket.get(),
-                                              m_pimpl->m_ptr_direct_stream.get());
+    m_pimpl->m_event_queue.next(*m_pimpl->m_ptr_eh,
+                                m_pimpl->m_ptr_rpc_socket.get(),
+                                m_pimpl->m_ptr_p2p_socket.get(),
+                                m_pimpl->m_ptr_direct_stream.get());
 
-    if (event.et == detail::stream_event::timer)
+    if (m_pimpl->m_event_queue.is_timer())
     {
         m_pimpl->m_ptr_p2p_socket->timer_action();
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
-    else if (event.et == detail::stream_event::message &&
-             event.pevent_item != m_pimpl->m_ptr_direct_stream.get())
+    else if (m_pimpl->m_event_queue.is_message() &&
+             m_pimpl->m_event_queue.message_source() != m_pimpl->m_ptr_direct_stream.get())
     {
-        auto peerid = event.peerid;
-        auto received_packet = std::move(event.packet);
+        auto peerid = m_pimpl->m_event_queue.message_peerid();
         enum class interface_type {rpc, p2p};
         interface_type it = interface_type::rpc;
-        if (event.pevent_item != m_pimpl->m_ptr_rpc_socket.get())
+        if (m_pimpl->m_event_queue.message_source() != m_pimpl->m_ptr_rpc_socket.get())
             it = interface_type::p2p;
 
         beltpp::stream* psk = nullptr;
@@ -160,23 +158,23 @@ void node::run(bool& stop_check)
 
         try
         {
-            if (false == m_pimpl->m_nodeid_sessions.process(peerid, std::move(received_packet)) &&
-                false == m_pimpl->m_sync_sessions.process(peerid, std::move(received_packet)))
+            if (false == m_pimpl->m_nodeid_sessions.process(peerid, std::move(m_pimpl->m_event_queue.message())) &&
+                false == m_pimpl->m_sync_sessions.process(peerid, std::move(m_pimpl->m_event_queue.message())))
             {
-                vector<packet*> composition;
+                auto& received_package = m_pimpl->m_event_queue.message();
 
                 open_container_packet<Broadcast, SignedTransaction> broadcast_signed_transaction;
                 open_container_packet<Broadcast> broadcast_anything;
-                bool is_container = broadcast_signed_transaction.open(received_packet, composition, *m_pimpl) ||
-                                    broadcast_anything.open(received_packet, composition, *m_pimpl);
+                
+                packet* p_package = nullptr;
+                if (broadcast_signed_transaction.open(received_package, *m_pimpl))
+                    p_package = broadcast_signed_transaction.items.back();
+                else if (broadcast_anything.open(received_package, *m_pimpl))
+                    p_package = broadcast_anything.items.back();
+                else
+                    p_package = &received_package;
 
-                if (is_container == false)
-                {
-                    composition.clear();
-                    composition.push_back(&received_packet);
-                }
-
-                packet& ref_packet = *composition.back();
+                packet& ref_packet = *p_package;
 
                 switch (ref_packet.type())
                 {
@@ -219,7 +217,7 @@ void node::run(bool& stop_check)
                 case beltpp::stream_protocol_error::rtt:
                 {
                     beltpp::stream_protocol_error msg;
-                    ref_packet.get(msg);
+                    std::move(ref_packet).get(msg);
                     m_pimpl->writeln_node("protocol error: " + detail::peer_short_names(peerid));
                     m_pimpl->writeln_node(msg.buffer);
                     psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
@@ -232,14 +230,14 @@ void node::run(bool& stop_check)
                 case beltpp::socket_open_refused::rtt:
                 {
                     beltpp::socket_open_refused msg;
-                    ref_packet.get(msg);
+                    std::move(ref_packet).get(msg);
                     //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
                 case beltpp::socket_open_error::rtt:
                 {
                     beltpp::socket_open_error msg;
-                    ref_packet.get(msg);
+                    std::move(ref_packet).get(msg);
                     //m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
                     break;
                 }
@@ -982,11 +980,11 @@ void node::run(bool& stop_check)
             throw;
         }
     }
-    else if (event.et == detail::stream_event::message &&
+    else if (m_pimpl->m_event_queue.is_message() &&
              m_pimpl->m_ptr_direct_stream &&
-             event.pevent_item == m_pimpl->m_ptr_direct_stream.get())
+             m_pimpl->m_event_queue.message_source() == m_pimpl->m_ptr_direct_stream.get())
     {
-        auto ref_packet = std::move(event.packet);
+        auto& ref_packet = m_pimpl->m_event_queue.message();
 
         if (false == m_pimpl->m_sessions.process("slave", std::move(ref_packet)))
         {

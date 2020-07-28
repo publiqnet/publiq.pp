@@ -187,9 +187,9 @@ class stream_event
 public:
     enum event_type {nothing, message, timer};
     event_type et = nothing;
-    beltpp::event_item const* pevent_item = nullptr;
+    beltpp::event_item const* pevent_source = nullptr;
     beltpp::socket::peer_id peerid;
-    beltpp::packet packet;
+    beltpp::packet package;
 
     static stream_event event_result(beltpp::event_item const* pevent_item,
                                      beltpp::socket::peer_id const& peerid,
@@ -197,9 +197,9 @@ public:
     {
         stream_event res;
         res.et = message;
-        res.pevent_item = pevent_item;
+        res.pevent_source = pevent_item;
         res.peerid = peerid;
-        res.packet = std::move(packet);
+        res.package = std::move(packet);
 
         return res;
     }
@@ -224,14 +224,20 @@ public:
 class event_queue_manager
 {
 public:
+    void next(beltpp::event_handler& eh,
+              beltpp::stream* rpc_stream,
+              meshpp::p2psocket* p2p_stream,
+              beltpp::stream* on_demand_stream);
+    
+    bool is_timer() const;
+    bool is_message() const;
+    beltpp::event_item const* message_source() const;
+    beltpp::socket::peer_id message_peerid() const;
+    beltpp::packet& message();
+
+private:
     beltpp::queue<stream_event> queue;
 };
-
-stream_event wait_and_receive_one(event_queue_manager& event_queue,
-                                  beltpp::event_handler& eh,
-                                  beltpp::stream* rpc_stream,
-                                  meshpp::p2psocket* p2p_stream,
-                                  beltpp::stream* on_demand_stream);
 
 }
 }

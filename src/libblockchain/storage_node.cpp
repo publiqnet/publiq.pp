@@ -63,21 +63,20 @@ void storage_node::run(bool& stop)
 
     unordered_set<beltpp::event_item const*> wait_sockets;
 
-    auto event = detail::wait_and_receive_one(m_pimpl->m_event_queue,
-                                              *m_pimpl->m_ptr_eh,
-                                              m_pimpl->m_ptr_rpc_socket.get(),
-                                              nullptr,
-                                              m_pimpl->m_ptr_direct_stream.get());
+    m_pimpl->m_event_queue.next(*m_pimpl->m_ptr_eh,
+                                m_pimpl->m_ptr_rpc_socket.get(),
+                                nullptr,
+                                m_pimpl->m_ptr_direct_stream.get());
 
-    if (event.et == detail::stream_event::timer)
+    if (m_pimpl->m_event_queue.is_timer())
     {
         m_pimpl->m_ptr_rpc_socket->timer_action();
     }
-    else if (event.et == detail::stream_event::message &&
-             event.pevent_item != m_pimpl->m_ptr_direct_stream.get())
+    else if (m_pimpl->m_event_queue.is_message() &&
+             m_pimpl->m_event_queue.message_source() != m_pimpl->m_ptr_direct_stream.get())
     {
-        auto peerid = event.peerid;
-        auto ref_packet = std::move(event.packet);
+        auto peerid = m_pimpl->m_event_queue.message_peerid();
+        auto& ref_packet = m_pimpl->m_event_queue.message();
 
         beltpp::stream* psk = m_pimpl->m_ptr_rpc_socket.get();
 
@@ -96,7 +95,7 @@ void storage_node::run(bool& stop)
             case beltpp::stream_protocol_error::rtt:
             {
                 beltpp::stream_protocol_error msg;
-                ref_packet.get(msg);
+                std::move(ref_packet).get(msg);
                 m_pimpl->writeln_node("slave has protocol error: " + detail::peer_short_names(peerid));
                 m_pimpl->writeln_node(msg.buffer);
 
@@ -105,7 +104,7 @@ void storage_node::run(bool& stop)
             case beltpp::socket_open_refused::rtt:
             {
                 beltpp::socket_open_refused msg;
-                ref_packet.get(msg);
+                std::move(ref_packet).get(msg);
                 m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
 
                 break;
@@ -113,7 +112,7 @@ void storage_node::run(bool& stop)
             case beltpp::socket_open_error::rtt:
             {
                 beltpp::socket_open_error msg;
-                ref_packet.get(msg);
+                std::move(ref_packet).get(msg);
                 m_pimpl->writeln_node_warning(msg.reason + ", " + peerid);
 
                 break;
@@ -253,22 +252,22 @@ void storage_node::run(bool& stop)
             throw;
         }
     }
-    else if (event.et == detail::stream_event::message &&
-             event.pevent_item == m_pimpl->m_ptr_direct_stream.get())
+    else if (m_pimpl->m_event_queue.is_message() &&
+             m_pimpl->m_event_queue.message_source() == m_pimpl->m_ptr_direct_stream.get())
     {
-        auto peerid = event.peerid;
-        auto received_packet = std::move(event.packet);
+        auto peerid = m_pimpl->m_event_queue.message_peerid();
+        auto& ref_packet = m_pimpl->m_event_queue.message();
 
         auto& stream = *m_pimpl->m_ptr_direct_stream;
         
         try
         {
-            switch (received_packet.type())
+            switch (ref_packet.type())
             {
             case StorageTypes::StorageFile::rtt:
             {
                 StorageTypes::StorageFile storage_file_ex;
-                std::move(received_packet).get(storage_file_ex);
+                std::move(ref_packet).get(storage_file_ex);
 
                 assert(storage_file_ex.storage_file.type() == BlockchainMessage::StorageFile::rtt);
                 if (storage_file_ex.storage_file.type() != BlockchainMessage::StorageFile::rtt)
@@ -303,7 +302,7 @@ void storage_node::run(bool& stop)
             case StorageTypes::StorageFileDelete::rtt:
             {
                 StorageTypes::StorageFileDelete storage_file_delete_ex;
-                std::move(received_packet).get(storage_file_delete_ex);
+                std::move(ref_packet).get(storage_file_delete_ex);
 
                 assert(storage_file_delete_ex.storage_file_delete.type() == BlockchainMessage::StorageFileDelete::rtt);
                 if (storage_file_delete_ex.storage_file_delete.type() != BlockchainMessage::StorageFileDelete::rtt)
@@ -334,7 +333,7 @@ void storage_node::run(bool& stop)
             case StorageTypes::SetVerifiedChannels::rtt:
             {
                 StorageTypes::SetVerifiedChannels channels;
-                std::move(received_packet).get(channels);
+                std::move(ref_packet).get(channels);
 
                 m_pimpl->m_verified_channels.clear();
                 for (auto const& channel_address : channels.channel_addresses)
