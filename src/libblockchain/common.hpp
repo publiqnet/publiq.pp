@@ -16,6 +16,7 @@
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include <chrono>
 
 std::string const node_peerid = "node";
 std::string const storage_peerid = "storage";
@@ -187,19 +188,23 @@ class stream_event
 public:
     enum event_type {nothing, message, timer};
     event_type et = nothing;
+    size_t rescheduled = false;
     beltpp::event_item const* pevent_source = nullptr;
     beltpp::socket::peer_id peerid;
     beltpp::packet package;
+    std::chrono::steady_clock::time_point tm;
 
     static stream_event event_result(beltpp::event_item const* pevent_item,
                                      beltpp::socket::peer_id const& peerid,
-                                     beltpp::packet&& packet)
+                                     beltpp::packet&& package)
     {
         stream_event res;
         res.et = message;
         res.pevent_source = pevent_item;
         res.peerid = peerid;
-        res.package = std::move(packet);
+        res.package = std::move(package);
+        res.tm = std::chrono::steady_clock::now();
+        res.rescheduled = 0;
 
         return res;
     }
@@ -208,6 +213,8 @@ public:
     {
         stream_event res;
         res.et = timer;
+        res.tm = std::chrono::steady_clock::now();
+        res.rescheduled = 0;
 
         return res;
     }
@@ -216,6 +223,8 @@ public:
     {
         stream_event res;
         res.et = nothing;
+        res.tm = std::chrono::steady_clock::now();
+        res.rescheduled = 0;
 
         return res;
     }
@@ -234,9 +243,14 @@ public:
     beltpp::event_item const* message_source() const;
     beltpp::socket::peer_id message_peerid() const;
     beltpp::packet& message();
+    void reschedule();
+    size_t count_rescheduled() const;
+    std::chrono::steady_clock::duration pending_duration() const;
 
 private:
+    bool event_read = false;
     beltpp::queue<stream_event> queue;
+    beltpp::queue<stream_event> queue_async;
 };
 
 }

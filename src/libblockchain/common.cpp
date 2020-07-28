@@ -13,6 +13,16 @@ void event_queue_manager::next(beltpp::event_handler& eh,
 {
     if (false == queue.empty())
         queue.pop();
+    
+    if (queue.empty() && event_read)
+    {
+        event_read = false;
+        while (false == queue_async.empty())
+        {
+            queue.push(std::move(queue_async.front()));
+            queue_async.pop();
+        }
+    }
 
     if (queue.empty())
     {
@@ -40,6 +50,8 @@ void event_queue_manager::next(beltpp::event_handler& eh,
                 else
                     throw std::logic_error("wait_and_receive_one: pevent_item != rpc_stream && pevent_item != p2p_stream");
 
+                if (false == received_packets.empty())
+                    event_read = true;
                 for (auto&& reveived_packet : received_packets)
                     queue.push(stream_event::event_result(pevent_item, peerid, std::move(reveived_packet)));
             }
@@ -55,6 +67,8 @@ void event_queue_manager::next(beltpp::event_handler& eh,
             beltpp::event_item* pevent_item = on_demand_stream;
             received_packets = on_demand_stream->receive(peerid);
 
+            if (false == received_packets.empty())
+                event_read = true;
             for (auto&& reveived_packet : received_packets)
                 queue.push(stream_event::event_result(pevent_item, peerid, std::move(reveived_packet)));
         }
@@ -100,6 +114,29 @@ beltpp::packet& event_queue_manager::message()
         throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
 
     return queue.front().package;
+}
+
+void event_queue_manager::reschedule()
+{
+    if (queue.empty() || queue.front().et != detail::stream_event::message)
+        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+    
+    queue.front().rescheduled++;
+    queue_async.push(std::move(queue.front()));
+}
+
+size_t event_queue_manager::count_rescheduled() const
+{
+    if (queue.empty() || queue.front().et != detail::stream_event::message)
+        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+    return queue.front().rescheduled;
+}
+
+std::chrono::steady_clock::duration event_queue_manager::pending_duration() const
+{
+    if (queue.empty() || queue.front().et != detail::stream_event::message)
+        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+    return std::chrono::steady_clock::now() - queue.front().tm;
 }
 
 }   // end namespace detail

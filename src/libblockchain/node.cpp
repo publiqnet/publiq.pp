@@ -691,6 +691,18 @@ void node::run(bool& stop_check)
                             beltpp::socket::peer_type::streaming_accepted)
                         throw wrong_request_exception("CheckInbox received not through rpc!");
 
+                    m_pimpl->writeln_node("check inbox: " + std::to_string(m_pimpl->m_event_queue.count_rescheduled()));
+                    auto pending = std::chrono::duration_cast<std::chrono::seconds>(m_pimpl->m_event_queue.pending_duration());
+                    m_pimpl->writeln_node("pending: " + std::to_string(pending.count()) + " seconds");
+
+                    if (0 == m_pimpl->m_inbox.length() &&
+                        pending.count() < 10)
+                    {
+                        m_pimpl->writeln_node("reschedule()");
+                        m_pimpl->m_event_queue.reschedule();
+                        break;
+                    }
+                    
                     Inbox response;
                     for (size_t index = 0; index != m_pimpl->m_inbox.length(); ++index)
                         response.items.push_back(m_pimpl->m_inbox.at(index));
