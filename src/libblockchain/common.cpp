@@ -102,7 +102,7 @@ beltpp::event_item const* event_queue_manager::message_source() const
 beltpp::socket::peer_id event_queue_manager::message_peerid() const
 {
     if (queue.empty() || queue.front().et != detail::stream_event::message)
-        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+        throw std::logic_error("event_queue_manager::message_peerid: queue.empty() || queue.front().et != detail::stream_event::message");
 
     return queue.front().peerid;
 }
@@ -111,7 +111,7 @@ beltpp::socket::peer_id event_queue_manager::message_peerid() const
 beltpp::packet& event_queue_manager::message()
 {
     if (queue.empty() || queue.front().et != detail::stream_event::message)
-        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+        throw std::logic_error("event_queue_manager::message: queue.empty() || queue.front().et != detail::stream_event::message");
 
     return queue.front().package;
 }
@@ -119,7 +119,7 @@ beltpp::packet& event_queue_manager::message()
 void event_queue_manager::reschedule()
 {
     if (queue.empty() || queue.front().et != detail::stream_event::message)
-        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+        throw std::logic_error("event_queue_manager::reschedule: queue.empty() || queue.front().et != detail::stream_event::message");
     
     queue.front().rescheduled++;
     queue_async.push(std::move(queue.front()));
@@ -128,14 +128,14 @@ void event_queue_manager::reschedule()
 size_t event_queue_manager::count_rescheduled() const
 {
     if (queue.empty() || queue.front().et != detail::stream_event::message)
-        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+        throw std::logic_error("event_queue_manager::count_rescheduled: queue.empty() || queue.front().et != detail::stream_event::message");
     return queue.front().rescheduled;
 }
 
 std::chrono::steady_clock::duration event_queue_manager::pending_duration() const
 {
     if (queue.empty() || queue.front().et != detail::stream_event::message)
-        throw std::logic_error("event_queue_manager::message_source: queue.empty() || queue.front().et != detail::stream_event::message");
+        throw std::logic_error("event_queue_manager::pending_duration: queue.empty() || queue.front().et != detail::stream_event::message");
     return std::chrono::steady_clock::now() - queue.front().tm;
 }
 
