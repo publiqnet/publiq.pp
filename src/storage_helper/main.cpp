@@ -205,6 +205,7 @@ bool process_command_line(int argc, char** argv,
     try
     {
         auto desc_init = options_description.add_options()
+            ("version,v", "Print the version information.")
             ("help,h", "Print this help message and exit.")
             ("rpc_local_interface,r", program_options::value<string>(&rpc_local_interface),
                             "(rpc) The local network interface and port to bind to")
@@ -223,9 +224,10 @@ bool process_command_line(int argc, char** argv,
         program_options::notify(options);
 
         if (options.count("help"))
-        {
             throw std::runtime_error("");
-        }
+
+        if (options.count("version"))
+            throw std::runtime_error("version");
 
         if (false == rpc_local_interface.empty())
             rpc_bind_to_address.from_string(rpc_local_interface);
@@ -235,13 +237,20 @@ bool process_command_line(int argc, char** argv,
     }
     catch (std::exception const& ex)
     {
-        std::stringstream ss;
-        ss << options_description;
-
         string ex_message = ex.what();
-        if (false == ex_message.empty())
-            cout << ex.what() << endl << endl;
-        cout << ss.str();
+        if (ex_message == "version")
+        {
+            cout << publiqpp::version_string("storage_helper") << endl;
+        }
+        else
+        {
+            if (false == ex_message.empty())
+                cout << ex.what() << endl << endl;
+
+            std::stringstream ss;
+            ss << options_description;
+            cout << ss.str();
+        }
         return false;
     }
     catch (...)

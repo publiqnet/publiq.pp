@@ -12,7 +12,6 @@
 #include <publiq.pp/node.hpp>
 #include <publiq.pp/storage_node.hpp>
 #include <publiq.pp/coin.hpp>
-#include <publiq.pp/config.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/locale.hpp>
@@ -585,6 +584,7 @@ bool process_command_line(int argc, char** argv,
     try
     {
         auto desc_init = options_description.add_options()
+            ("version,v", "Print the version information.")
             ("help,h", "Print this help message and exit.")
             ("action_log,g", "Keep track of blockchain actions.")
             ("p2p_local_interface,i", program_options::value<string>(&p2p_local_interface),
@@ -631,9 +631,11 @@ bool process_command_line(int argc, char** argv,
         program_options::notify(options);
 
         if (options.count("help"))
-        {
             throw std::runtime_error("");
-        }
+
+        if (options.count("version"))
+            throw std::runtime_error("version");
+
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
         enable_inbox = options.count("enable_inbox");
@@ -670,13 +672,20 @@ bool process_command_line(int argc, char** argv,
     }
     catch (std::exception const& ex)
     {
-        std::stringstream ss;
-        ss << options_description;
-
         string ex_message = ex.what();
-        if (false == ex_message.empty())
-            cout << ex.what() << endl << endl;
-        cout << ss.str();
+        if (ex_message == "version")
+        {
+            cout << publiqpp::version_string("publiqd") << endl;
+        }
+        else
+        {
+            if (false == ex_message.empty())
+                cout << ex.what() << endl << endl;
+
+            std::stringstream ss;
+            ss << options_description;
+            cout << ss.str();
+        }
         return false;
     }
     catch (...)

@@ -22,6 +22,7 @@
 + *full blown blockchain?*, yes! it is all inside this code repository. all from scratch.
 
 ## how to build publiq.pp?
+in case the following does not really get you started, please refer to [wiki](https://github.com/publiqnet/publiq.pp/wiki/1.1-Home "wiki")
 ```console
 user@pc:~$ mkdir projects
 user@pc:~$ cd projects
