@@ -21,6 +21,7 @@
 #include <belt.pp/scope_helper.hpp>
 #include <belt.pp/message_global.hpp>
 #include <belt.pp/timer.hpp>
+#include <belt.pp/direct_stream.hpp>
 
 #include <mesh.pp/p2psocket.hpp>
 #include <mesh.pp/cryptoutility.hpp>
@@ -444,15 +445,15 @@ public:
                    std::vector<coin> const& block_reward_array,
                    detail::fp_counts_per_channel_views p_counts_per_channel_views,
                    detail::fp_content_unit_validate_check p_content_unit_validate_check,
+                   beltpp::direct_channel& channel,
                    unique_ptr<event_handler>&& inject_eh,
                    unique_ptr<socket>&& inject_rpc_socket,
                    unique_ptr<socket>&& inject_p2p_socket)
-        : m_slave_node(nullptr)
-        , plogger_p2p(_plogger_p2p)
+        : plogger_p2p(_plogger_p2p)
         , plogger_node(_plogger_node)
         , m_ptr_eh(nullptr == inject_eh ?
-                       beltpp::take_unique_ptr(beltpp::libsocket::construct_event_handler()) :
-                       beltpp::take_unique_ptr(std::move(inject_eh)) )
+                       beltpp::libsocket::construct_event_handler() :
+                       std::move(inject_eh) )
         , m_ptr_p2p_socket(new meshpp::p2psocket(
                                meshpp::getp2psocket(*m_ptr_eh,
                                                     ref_config.get_p2p_bind_to_address(),
@@ -464,8 +465,9 @@ public:
                                                     std::move(inject_p2p_socket))
         ))
         , m_ptr_rpc_socket(nullptr == inject_rpc_socket ?
-                               beltpp::take_unique_ptr(beltpp::libsocket::getsocket<rpc_sf>(*m_ptr_eh)) :
-                               beltpp::take_unique_ptr(std::move(inject_rpc_socket)) )
+                               beltpp::libsocket::getsocket<rpc_sf>(*m_ptr_eh) :
+                               std::move(inject_rpc_socket) )
+        , m_ptr_direct_stream(beltpp::construct_direct_stream(node_peerid, *m_ptr_eh, channel))
         , m_sync_timer()
         , m_check_timer()
         , m_broadcast_timer()
@@ -661,14 +663,13 @@ public:
     }
 
     bool initialize();
-    wait_result_item wait_and_receive_one();
 
-    storage_node* m_slave_node;
     beltpp::ilog* plogger_p2p;
     beltpp::ilog* plogger_node;
-    beltpp::t_unique_ptr<beltpp::event_handler> m_ptr_eh;
+    beltpp::event_handler_ptr m_ptr_eh;
     unique_ptr<meshpp::p2psocket> m_ptr_p2p_socket;
-    beltpp::t_unique_ptr<beltpp::socket> m_ptr_rpc_socket;
+    beltpp::socket_ptr m_ptr_rpc_socket;
+    beltpp::stream_ptr m_ptr_direct_stream;
 
     beltpp::timer m_sync_timer;
     beltpp::timer m_check_timer;
@@ -722,7 +723,7 @@ public:
     };
 
     unordered_map<string, vote_info> m_votes;
-    wait_result m_wait_result;
+    event_queue_manager m_event_queue;
 };
 
 }

@@ -1,6 +1,7 @@
 #include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>
 #include <belt.pp/scope_helper.hpp>
+#include <belt.pp/direct_stream.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
@@ -413,6 +414,8 @@ int main(int argc, char** argv)
         boost::filesystem::path fs_inbox;
         if (config.inbox())
             fs_inbox = meshpp::data_directory_path("inbox");
+        
+        beltpp::direct_channel direct_channel;
 
         publiqpp::node node(genesis_signed_block(config.testnet()),
                             fs_blockchain,
@@ -433,7 +436,8 @@ int main(int argc, char** argv)
                             mine_amount_threshhold(),
                             block_reward_array(),
                             &counts_per_channel_views,
-                            &content_unit_validate_check);
+                            &content_unit_validate_check,
+                            direct_channel);
 
         cout << endl;
         cout << "Node: " << node.name() << endl;
@@ -452,10 +456,10 @@ int main(int argc, char** argv)
         if (config.get_node_type() != NodeType::blockchain)
         {
             fs_storage = meshpp::data_directory_path("storage");
-            ptr_storage_node.reset(new publiqpp::storage_node(node,
-                                                              config,
+            ptr_storage_node.reset(new publiqpp::storage_node(config,
                                                               fs_storage,
-                                                              plogger_rpc.get()));
+                                                              plogger_rpc.get(),
+                                                              direct_channel));
             g_pstorage_node = ptr_storage_node.get();
         }
 
