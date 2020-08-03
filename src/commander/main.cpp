@@ -52,13 +52,15 @@ int main(int argc, char** argv)
     uint64_t sync_interval;
     beltpp::ip_address connect_to_address;
     beltpp::ip_address rpc_address;
+    string data_directory;
 
     if (false == process_command_line(argc, argv,
                                       prefix,
                                       str_pv_key,
                                       sync_interval,
                                       connect_to_address,
-                                      rpc_address))
+                                      rpc_address,
+                                      data_directory))
         return 1;
 
 #ifdef B_OS_WINDOWS
@@ -81,7 +83,7 @@ int main(int argc, char** argv)
     application_name += "_" + add_to_dir;
 
     meshpp::settings::set_application_name(application_name);
-    meshpp::settings::set_data_directory(meshpp::config_directory_path().string());
+    meshpp::settings::set_data_directory(data_directory);
 
     try
     {

@@ -18,7 +18,8 @@ bool process_command_line(int argc, char** argv,
                           string& str_pv_key,
                           uint64_t& sync_interval,
                           beltpp::ip_address& connect_to_address,
-                          beltpp::ip_address& listen_on_address)
+                          beltpp::ip_address& listen_on_address,
+                          std::string& data_directory)
 {
     string str_connect_to_address;
     string str_listen_on_address;
@@ -38,7 +39,9 @@ bool process_command_line(int argc, char** argv,
             ("manage_private_key,k", program_options::value<string>(&str_pv_key),
                         "commander private key to sign commands")
             ("sync_interval,t", program_options::value<uint64_t>(&sync_interval),
-                        "time interval between syncs");
+                        "time interval between syncs")
+            ("data_directory,d", program_options::value<string>(&data_directory),
+                        "data directory path");
         (void)(desc_init);
 
         program_options::variables_map options;
