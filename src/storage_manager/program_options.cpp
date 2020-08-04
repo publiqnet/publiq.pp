@@ -40,7 +40,7 @@ bool process_command_line(int argc, char** argv,
                         "commander private key to sign commands")
             ("sync_interval,t", program_options::value<uint64_t>(&sync_interval),
                         "time interval between syncs")
-             ("data_directory,d", program_options::value<string>(&data_directory),
+             ("data_directory,d", program_options::value<string>(&data_directory)->required(),
                         "data directory path");
         (void)(desc_init);
 
