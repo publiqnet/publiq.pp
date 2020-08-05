@@ -327,6 +327,18 @@ beltpp::detail::pmsg_all message_list_load(
                                               &BlockchainMessage::CheckInbox::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 2 &&
+                 ss.resource.path.front() == "get_public_key")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::PublicKeyRequest>();
+            BlockchainMessage::PublicKeyRequest& ref = *reinterpret_cast<BlockchainMessage::PublicKeyRequest*>(p.get());
+            ref.private_key = ss.resource.path.back();
+
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::PublicKeyRequest::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::PublicKeyRequest::pvoid_saver);
+        }
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
                  ss.resource.path.front() == "protocol")
         {

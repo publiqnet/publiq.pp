@@ -562,6 +562,16 @@ module BlockchainMessage
         UpdateType update_type
     }
 
+    class PublicKeyRequest
+    {
+        String private_key
+    }
+
+    class PublicKeyResponse
+    {
+        String public_key
+    }
+
     class GenericModelReserve1 {}
     class GenericModelReserve2 {}
     class GenericModelReserve3 {}
