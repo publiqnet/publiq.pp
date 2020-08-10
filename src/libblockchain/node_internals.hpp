@@ -8,6 +8,7 @@
 #include "action_log.hpp"
 #include "blockchain.hpp"
 #include "storage.hpp"
+#include "authority_manager.hpp"
 #include "nodeid_service.hpp"
 #include "node_synchronization.hpp"
 #include "storage_node.hpp"
@@ -430,6 +431,7 @@ public:
                    filesystem::path const& fs_action_log,
                    filesystem::path const& fs_transaction_pool,
                    filesystem::path const& fs_state,
+                   filesystem::path const& fs_authority_store,
                    filesystem::path const& fs_documents,
                    filesystem::path const& fs_storages,
                    filesystem::path const& fs_storage,
@@ -480,6 +482,7 @@ public:
         , m_transaction_pool(fs_transaction_pool)
         , m_state(fs_state, *this)
         , m_documents(fs_documents, fs_storages)
+        , m_authority_manager(fs_authority_store)
         , m_storage_controller(fs_storage)
         , m_inbox(fs_inbox)
         , all_sync_info(*this)
@@ -684,6 +687,7 @@ public:
     publiqpp::transaction_pool m_transaction_pool;
     publiqpp::state m_state;
     publiqpp::documents m_documents;
+    publiqpp::authority_manager m_authority_manager;
     publiqpp::storage_controller m_storage_controller;
     publiqpp::inbox m_inbox;
 

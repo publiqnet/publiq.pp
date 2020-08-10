@@ -649,10 +649,10 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                 }
 
                 if(temp_from == temp_to)
-                    pimpl->writeln_node(s_code + "  " + std::to_string(temp_from) + " - " + blockchain_response.signed_blocks.back().authorization.address);
+                    pimpl->writeln_node(s_code + "  " + std::to_string(temp_from) + " - " + blockchain::get_miner(blockchain_response.signed_blocks.back()));
                 else
                     pimpl->writeln_node(s_code + "  [" + std::to_string(temp_from) +
-                                        "," + std::to_string(temp_to) + "]" + " - " + blockchain_response.signed_blocks.back().authorization.address);
+                                        "," + std::to_string(temp_to) + "]" + " - " + blockchain::get_miner(blockchain_response.signed_blocks.back()));
             }
 
             process_response(header, std::move(blockchain_response));
@@ -796,13 +796,15 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     if (sync_blocks.size() == 1 && lcb_number == blockchain_length - 2)
     {
         auto& inserted_block = pimpl->m_blockchain.at(blockchain_length - 1);
-        coin inserted_block_miner_balance = pimpl->m_state.get_balance(inserted_block.authorization.address, state_layer::pool);
-        coin received_block_miner_balance = pimpl->m_state.get_balance(sync_blocks.back().authorization.address, state_layer::pool);
+        string inserted_block_miner = blockchain::get_miner(inserted_block);
+        string received_block_miner = blockchain::get_miner(sync_blocks.back());
+        coin inserted_block_miner_balance = pimpl->m_state.get_balance(inserted_block_miner, state_layer::pool);
+        coin received_block_miner_balance = pimpl->m_state.get_balance(received_block_miner, state_layer::pool);
 
         if (inserted_block_miner_balance >= received_block_miner_balance &&
             inserted_block.block_details.header.c_sum == sync_blocks.back().block_details.header.c_sum)
         {
-            pimpl->writeln_node("reject block by " + sync_blocks.front().authorization.address);
+            pimpl->writeln_node("reject block by " + received_block_miner); //  this had sync_blocks.front(), changed to back
 
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -853,11 +855,15 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
 
         Block const& block = signed_block.block_details;
 
+        string signed_block_miner_authority = signed_block.authorization.address;
+        string signed_block_miner_address = blockchain::get_miner(signed_block);
+
         map<string, map<string, uint64_t>> unit_uri_view_counts;
         map<string, coin> unit_sponsor_applied;
+
         // verify block rewards before reverting, this also reclaims advertisement coins
         if (check_rewards(block,
-                          signed_block.authorization.address,
+                          signed_block_miner_address,
                           rewards_type::revert,
                           *pimpl,
                           unit_uri_view_counts,
@@ -874,9 +880,12 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         // calculate back transactions
         for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
         {
-            revert_transaction(*it, *pimpl, signed_block.authorization.address);
+            revert_transaction(*it, *pimpl, signed_block_miner_address);
             pimpl->m_transaction_cache.erase_chain(*it);
         }
+
+        if (false == pimpl->m_authority_manager.check_miner_authority(signed_block_miner_address, signed_block_miner_authority))
+            throw std::logic_error("session_action_block::process_response: false == pimpl->m_authority_manager.check_miner_authority(signed_block_miner_address, signed_block_miner_authority)");
 
         // add TRANSACTION_MAX_LIFETIME_HOURS old block transactions to cache
         // to prevent transaction double use when reverting long chains
@@ -911,8 +920,10 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         Block const& block = signed_block.block_details;
 
         // verify consensus_delta
-        Coin amount = pimpl->m_state.get_balance(signed_block.authorization.address, state_layer::pool);
-        uint64_t delta = pimpl->calc_delta(signed_block.authorization.address, amount.whole, block.header.prev_hash, c_const);
+        string signed_block_miner = blockchain::get_miner(signed_block);
+        string signed_block_authority = signed_block.authorization.address;
+        Coin amount = pimpl->m_state.get_balance(signed_block_miner, state_layer::pool);
+        uint64_t delta = pimpl->calc_delta(signed_block_miner, amount.whole, block.header.prev_hash, c_const);
 
         if (delta != block.header.delta)
             return set_errored("blockchain response. consensus delta!", throw_for_debugging_only);
@@ -921,8 +932,11 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         if (coin(amount) < pimpl->m_mine_amount_threshhold)
             return set_errored("blockchain response. miner balance!", throw_for_debugging_only);
 
+        if (false == pimpl->m_authority_manager.check_miner_authority(signed_block_miner, signed_block_authority))
+            return set_errored("blockchain response. miner:" + signed_block_miner + ", authority: " + signed_block_authority, throw_for_debugging_only);
+
         NodeType miner_node_type;
-        if (pimpl->m_state.get_role(signed_block.authorization.address, miner_node_type) &&
+        if (pimpl->m_state.get_role(signed_block_miner, miner_node_type) &&
             miner_node_type != NodeType::blockchain)
             return set_errored("blockchain response. node type!", throw_for_debugging_only);
 
@@ -933,7 +947,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             if (false == pimpl->m_transaction_cache.add_chain(tr_item))
                 return set_errored("blockchain response. transaction double use!", throw_for_debugging_only);
 
-            if (!apply_transaction(tr_item, *pimpl, signed_block.authorization.address))
+            if (!apply_transaction(tr_item, *pimpl, signed_block_miner))
                 return set_errored("blockchain response. apply_transaction(). " + block.to_string(), throw_for_debugging_only);
 
             if (prev_transaction_time > tr_item.transaction_details.creation.tm)
@@ -946,7 +960,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         map<string, coin> applied_sponsor_items;
         // verify block rewards
         if (check_rewards(block,
-                          signed_block.authorization.address,
+                          signed_block_miner,
                           rewards_type::apply,
                           *pimpl,
                           unit_uri_view_counts,

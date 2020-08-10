@@ -18,6 +18,8 @@ add_library(blockchain
     global.hpp
     action_log.cpp
     action_log.hpp
+    authority_manager.cpp
+    authority_manager.hpp
     blockchain.cpp
     blockchain.hpp
     communication_rpc.cpp

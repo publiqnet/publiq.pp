@@ -49,7 +49,7 @@ bool check_headers(BlockchainMessage::BlockHeaderExtended const& next_header,
 
 enum class rewards_type {apply, revert};
 bool check_rewards(BlockchainMessage::Block const& block,
-                   std::string const& authority,
+                   std::string const& miner_address,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
                    std::map<std::string, std::map<std::string, uint64_t>>& unit_uri_view_counts,

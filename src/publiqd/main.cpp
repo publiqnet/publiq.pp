@@ -385,6 +385,7 @@ int main(int argc, char** argv)
         auto fs_log = meshpp::data_directory_path("log");
         auto fs_documents = meshpp::data_directory_path("documents");
         auto fs_storages = meshpp::data_directory_path("storages");
+        auto fs_authority_store = meshpp::data_directory_path("authority_store");
 
         cout << "p2p local address: " << config.get_p2p_bind_to_address().to_string() << endl;
         for (auto const& item : config.get_p2p_connect_to_addresses())
@@ -422,6 +423,7 @@ int main(int argc, char** argv)
                             fs_action_log,
                             fs_transaction_pool,
                             fs_state,
+                            fs_authority_store,
                             fs_documents,
                             fs_storages,
                             fs_storage,

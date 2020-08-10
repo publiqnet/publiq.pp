@@ -10,6 +10,7 @@
 #include "transaction_statinfo.hpp"
 #include "transaction_sponsoring.hpp"
 
+#include <unordered_map>
 #include <unordered_set>
 
 using namespace BlockchainMessage;
@@ -17,6 +18,7 @@ using namespace BlockchainMessage;
 using std::string;
 using std::vector;
 using std::unordered_set;
+using std::unordered_map;
 
 namespace publiqpp
 {
@@ -28,15 +30,14 @@ void signed_transaction_validate(SignedTransaction const& signed_transaction,
     if (signed_transaction.authorizations.empty())
         throw wrong_data_exception("transaction with no authorizations");
 
-    unordered_set<string> owners;
+    unordered_map<string, unordered_set<string>> signatures;
 
     string signed_message = signed_transaction.transaction_details.to_string();
     for (auto const& authority : signed_transaction.authorizations)
     {
-        if (owners.count(authority.address))
-            throw wrong_data_exception("same account - double signed transaction");
-
-        owners.insert(authority.address);
+        auto insert_res = signatures[authority.address].insert(authority.signature);
+        if (false == insert_res.second)
+            throw wrong_data_exception("duplicate signature");
 
         meshpp::public_key pb_key(authority.address);
         meshpp::signature signature_check(pb_key, signed_message, authority.signature);
@@ -704,7 +705,7 @@ void action_revert(publiqpp::detail::node_internals& impl,
 void fee_validate(publiqpp::detail::node_internals const& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction)
 {
-    auto address = signed_transaction.authorizations.front().address;
+    auto address = action_owners(signed_transaction).front();
 
     Coin balance = impl.m_state.get_balance(address, state_layer::pool);
     if (coin(balance) < signed_transaction.transaction_details.fee)
@@ -716,7 +717,9 @@ void fee_validate(publiqpp::detail::node_internals const& impl,
 bool fee_can_apply(publiqpp::detail::node_internals const& impl,
                    SignedTransaction const& signed_transaction)
 {
-    Coin balance = impl.m_state.get_balance(signed_transaction.authorizations.front().address, state_layer::pool);
+    auto address = action_owners(signed_transaction).front();
+
+    Coin balance = impl.m_state.get_balance(address, state_layer::pool);
     if (coin(balance) < signed_transaction.transaction_details.fee)
         return false;
     return true;
@@ -735,8 +738,10 @@ void fee_apply(publiqpp::detail::node_internals& impl,
             throw not_enough_balance_exception(coin(balance),
                                                fee);*/
 
+        auto address = action_owners(signed_transaction).front();
+
         impl.m_state.increase_balance(fee_receiver, fee, state_layer::chain);
-        impl.m_state.decrease_balance(signed_transaction.authorizations.front().address, fee, state_layer::chain);
+        impl.m_state.decrease_balance(address, fee, state_layer::chain);
     }
 }
 
@@ -754,8 +759,10 @@ void fee_revert(publiqpp::detail::node_internals& impl,
                                                fee);
                                                */
 
+        auto address = action_owners(signed_transaction).front();
+
         impl.m_state.decrease_balance(fee_receiver, fee, state_layer::chain);
-        impl.m_state.increase_balance(signed_transaction.authorizations.front().address, fee, state_layer::chain);
+        impl.m_state.increase_balance(address, fee, state_layer::chain);
     }
 }
 

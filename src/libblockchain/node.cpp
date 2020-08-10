@@ -51,6 +51,7 @@ node::node(string const& genesis_signed_block,
            filesystem::path const& fs_action_log,
            filesystem::path const& fs_transaction_pool,
            filesystem::path const& fs_state,
+           filesystem::path const& fs_authority_store,
            filesystem::path const& fs_documents,
            filesystem::path const& fs_storages,
            filesystem::path const& fs_storage,
@@ -75,6 +76,7 @@ node::node(string const& genesis_signed_block,
                                          fs_action_log,
                                          fs_transaction_pool,
                                          fs_state,
+                                         fs_authority_store,
                                          fs_documents,
                                          fs_storages,
                                          fs_storage,
@@ -357,7 +359,9 @@ void node::run(bool& stop_check)
                             m_pimpl->front_public_key().to_string())
                         {
                             // command is addressed to me
-                            if (signed_tx.authorizations.front().address == m_pimpl->pconfig->get_manager_address())
+                            if (m_pimpl->m_authority_manager.check_authority(m_pimpl->pconfig->get_manager_address(),
+                                                                             signed_tx.authorizations.front().address,
+                                                                             StorageUpdateCommand::rtt))
                             {
                                 if (update_command.status == UpdateType::remove)
                                 {
