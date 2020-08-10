@@ -728,6 +728,30 @@ void node::run(bool& stop_check)
 
                     break;
                 }
+                case Encrypt::rtt:
+                {
+                    Encrypt msg;
+                    std::move(ref_packet).get(msg);
+
+                    EncryptedMessage response;
+                    response.message = ""; // TODO
+
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+
+                    break;
+                }
+                case Decrypt::rtt:
+                {
+                    Decrypt msg;
+                    std::move(ref_packet).get(msg);
+
+                    DecryptedMessage response;
+                    response.message = ""; // TODO
+
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+
+                    break;
+                }
                 case Ping::rtt:
                 {
                     Ping msg;

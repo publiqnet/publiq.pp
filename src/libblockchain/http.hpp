@@ -340,6 +340,32 @@ beltpp::detail::pmsg_all message_list_load(
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "encrypt")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::Encrypt>();
+            BlockchainMessage::Encrypt& ref = *reinterpret_cast<BlockchainMessage::Encrypt*>(p.get());
+            ref.public_key = ss.resource.arguments["public_key"];
+            ref.message = ss.resource.arguments["message"];
+
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::Encrypt::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::Encrypt::pvoid_saver);
+        }
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
+                 ss.resource.path.front() == "decrypt")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::Decrypt>();
+            BlockchainMessage::Decrypt& ref = *reinterpret_cast<BlockchainMessage::Decrypt*>(p.get());
+            ref.private_key = ss.resource.arguments["private_key"];
+            ref.message = ss.resource.arguments["message"];
+
+            return ::beltpp::detail::pmsg_all(BlockchainMessage::Decrypt::rtt,
+                                              std::move(p),
+                                              &BlockchainMessage::Decrypt::pvoid_saver);
+        }
+        else if (ss.type == beltpp::http::detail::scan_status::get &&
+                 ss.resource.path.size() == 1 &&
                  ss.resource.path.front() == "protocol")
         {
             ssd.session_specal_handler = nullptr;

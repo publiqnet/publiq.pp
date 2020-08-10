@@ -572,6 +572,28 @@ module BlockchainMessage
         String public_key
     }
 
+    class Encrypt
+    {
+        String message
+        String public_key
+    }
+
+    class EncryptedMessage
+    {
+        String message
+    }
+
+    class Decrypt
+    {
+        String message
+        String private_key
+    }
+
+    class DecryptedMessage
+    {
+        String message
+    }
+
     class GenericModelReserve1 {}
     class GenericModelReserve2 {}
     class GenericModelReserve3 {}
