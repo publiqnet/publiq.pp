@@ -221,7 +221,7 @@ void clear_storage(string const& storage_address,
             {
                 std::cout << string(progress_str.length(), '\b');
         
-                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scaned " + std::to_string(count) + "sent...";
+                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scaned " + std::to_string(count) + " sent...";
                 std::cout << progress_str;
         
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -231,7 +231,7 @@ void clear_storage(string const& storage_address,
         
             for (auto const& address : file_info.own_storages)
                 if (address == storage_address &&
-                    file_info.last_report < sm_server.head_block_index->value - 28800)
+                    file_info.last_report < sm_server.head_block_index->value - 100 * 144) // 100 days
                 {
                     ++count;
 
