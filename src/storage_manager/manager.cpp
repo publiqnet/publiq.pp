@@ -211,6 +211,7 @@ void clear_storage(string const& storage_address,
         size_t keys_count = keys.size();
         size_t index = 0;
         size_t count = 0;
+        size_t own_count = 0;
 
         std::cout << std::endl << std::endl;
         for (auto const& key : keys)
@@ -221,7 +222,10 @@ void clear_storage(string const& storage_address,
             {
                 std::cout << string(progress_str.length(), '\b');
         
-                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scaned " + std::to_string(count) + " sent...";
+                progress_str = std::to_string(index) + " files out of " + 
+                               std::to_string(keys_count) + " are scaned " + 
+                               std::to_string(own_count) + " files stored and " +
+                               std::to_string(count) + " sent to remove...";
                 std::cout << progress_str;
         
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -230,19 +234,24 @@ void clear_storage(string const& storage_address,
             FileInfo& file_info = sm_server.files.at(key);
         
             for (auto const& address : file_info.own_storages)
-                if (address == storage_address &&
-                    file_info.last_report < sm_server.head_block_index->value - 100 * 144) // 100 days
+                if (address == storage_address)
                 {
-                    ++count;
+                    ++own_count;
 
-                    send_command(pv_key,
-                        file_info.uri,
-                        storage_address,
-                        file_info.channel_address,
-                        dm,
-                        false);
-        
-                    break;
+                    if (file_info.last_report < sm_server.head_block_index->value - 100 * 144) // 100 days
+                    {
+                        ++count;
+                        --own_count;
+
+                        send_command(pv_key,
+                                     file_info.uri,
+                                     storage_address,
+                                     file_info.channel_address,
+                                     dm,
+                                     false);
+
+                        break;
+                    }
                 }
 
             if (count >= 100)
