@@ -67,7 +67,7 @@ bool node_internals::initialize()
 
         // calculate back transactions
         for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
-            revert_transaction(*it, *this, blockchain::get_miner(signed_block));
+            revert_transaction(*it, *this, signed_block_miner_address);
 
         --m_revert_blocks_count;
         writeln_node(std::to_string(block.header.block_number) + " block reverted");
