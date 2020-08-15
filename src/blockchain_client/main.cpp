@@ -53,10 +53,10 @@ int main(int argc, char** argv)
         if (argc > 2)
             count = std::atoi(argv[2]);
 
-        uint64_t fee = 0;
+        /*uint64_t fee; // unused
 
         if (argc > 3)
-            fee = std::atoi(argv[3]);
+            fee = std::atoi(argv[3]);*/
 
         //__debugbreak();
         beltpp::socket::peer_id peerid;
