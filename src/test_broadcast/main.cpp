@@ -389,12 +389,13 @@ int main(int argc, char** argv)
 
                 try
                 {
+                    bool event_check = true;
                     bool stop_check = false;
 
                     // allow each node read all waiting 
                     // packets from network
-                    while (!stop_check && (info.peh->read()))
-                        info.node->run(stop_check);
+                    while (!stop_check && (event_check || info.peh->read()))
+                        event_check = info.node->run(stop_check);
 
                     if (stop_check)
                     {
@@ -513,7 +514,7 @@ bool process_command_line(int argc, char** argv,
     {
         auto desc_init = options_description.add_options()
             ("help,h", "Print this help message and exit.")
-            ("data_directory,d", program_options::value<string>(&data_directory_root), "Data directory path")
+            ("data_directory,d", program_options::value<string>(&data_directory_root)->required(), "Data directory path")
             ("nodes_count,n", program_options::value<size_t>(&node_count), "Nodes count")
             ("connect_base,c", program_options::value<uint32_t>(&connect_base), "Chance of connect base");
         (void)(desc_init);

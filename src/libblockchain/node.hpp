@@ -71,7 +71,7 @@ public:
 
     void wake();
     std::string name() const;
-    void run(bool& stop);
+    bool run(bool& stop);
 
 private:
     std::unique_ptr<detail::node_internals> m_pimpl;
