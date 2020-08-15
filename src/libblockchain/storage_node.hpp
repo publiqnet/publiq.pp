@@ -6,6 +6,7 @@
 
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/isocket.hpp>
+#include <belt.pp/direct_stream.hpp>
 
 #include <mesh.pp/cryptoutility.hpp>
 
@@ -23,20 +24,16 @@ namespace detail
 
 class BLOCKCHAINSHARED_EXPORT storage_node
 {
-    friend class node;
 public:
-    storage_node(node& master_node,
-                 config& ref_config,
+    storage_node(config& ref_config,
                  boost::filesystem::path const& fs_storage,
-                 beltpp::ilog* plogger_storage_node);
+                 beltpp::ilog* plogger_storage_node,
+                 beltpp::direct_channel& channel);
     storage_node(storage_node&& other) noexcept;
     ~storage_node();
 
     void wake();
     void run(bool& stop);
-
-    beltpp::stream::packets receive();
-    void send(beltpp::packet&& pack);
 
 private:
     std::unique_ptr<detail::storage_node_internals> m_pimpl;

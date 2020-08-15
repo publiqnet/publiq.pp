@@ -7,6 +7,7 @@
 #include <belt.pp/ilog.hpp>
 #include <belt.pp/ievent.hpp>
 #include <belt.pp/isocket.hpp>
+#include <belt.pp/direct_stream.hpp>
 
 #include <mesh.pp/cryptoutility.hpp>
 
@@ -61,6 +62,7 @@ public:
          std::vector<coin> const& block_reward_array,
          detail::fp_counts_per_channel_views p_counts_per_channel_views,
          detail::fp_content_unit_validate_check p_content_unit_validate_check,
+         beltpp::direct_channel& channel,
          std::unique_ptr<beltpp::event_handler>&& inject_eh = nullptr,
          std::unique_ptr<beltpp::socket>&& inject_rpc_socket = nullptr,
          std::unique_ptr<beltpp::socket>&& inject_p2p_socket = nullptr);
@@ -69,8 +71,7 @@ public:
 
     void wake();
     std::string name() const;
-    bool run(bool& stop);
-    void set_slave_node(storage_node& slave_node);
+    void run(bool& stop);
 
 private:
     std::unique_ptr<detail::node_internals> m_pimpl;

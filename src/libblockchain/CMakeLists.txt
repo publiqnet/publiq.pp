@@ -26,6 +26,7 @@ add_library(blockchain
     communication_p2p.hpp
     coin.cpp
     coin.hpp
+    common.cpp
     common.hpp
     config.cpp
     config.hpp
@@ -89,6 +90,7 @@ target_link_libraries(blockchain
         mesh.pp
         belt.pp
         publiq.pp
+        direct_stream
         Boost::system
     PRIVATE
         packet

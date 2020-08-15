@@ -1,4 +1,7 @@
+#pragma once
+
 #include <belt.pp/global.hpp>
+#include <string>
 
 #define PUBLIQ_EXPORT BELT_EXPORT
 #define PUBLIQ_IMPORT BELT_IMPORT
@@ -15,3 +18,13 @@
 #ifdef B_OS_MACOS
 #define P_OS_MACOS
 #endif
+
+namespace publiqpp
+{
+inline std::string version_string(std::string const& program_name)
+{
+    return "PUBLIQ Foundation\n"
+           "publiq.pp " PUBLIQPP_VERSION "\n" +
+            program_name;
+}
+}

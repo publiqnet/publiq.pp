@@ -19,7 +19,8 @@ module ManagerMessage
     class FileInfo
     {
         String uri
-        UInt64 rep_count
+        UInt64 repl_count
+        UInt64 last_report
         String channel_address
         Array String all_storages
         Array String own_storages
@@ -37,7 +38,12 @@ module ManagerMessage
     class HeadBlockRequest
     {}
 
-    class ImportStorage
+    class ImportStorageRequest
+    {
+        String address
+    }
+
+    class ClearStorageRequest
     {
         String address
     }
@@ -50,4 +56,4 @@ module ManagerMessage
         Array String storages
     }
 }
-////3
+////4
