@@ -140,9 +140,9 @@ struct node_info
     beltpp::ilog_ptr plogger_exceptions;
 
     event_handler_ns* peh;
+    unique_ptr<beltpp::direct_channel> direct_channel;
     unique_ptr<publiqpp::node> node;
     unique_ptr<DataDirAttributeLoader> dda;
-    unique_ptr<beltpp::direct_channel> direct_channel;
     publiqpp::config config;
 };
 
