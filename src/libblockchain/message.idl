@@ -24,6 +24,9 @@ module BlockchainMessage
         TimePoint expiry
         Coin fee
         Object action
+        //  action is one of
+        //  Transfer, File, ContentUnit, Content, Role, StorageUpdate
+        //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
     }
 
     class Authority
@@ -97,6 +100,9 @@ module BlockchainMessage
     {
         Coin fee
         Object action
+        //  action is one of
+        //  Transfer, File, ContentUnit, Content, Role, StorageUpdate
+        //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
         String transaction_hash
         UInt64 transaction_size
         TimePoint time_signed
@@ -584,4 +590,4 @@ module BlockchainMessage
     class GenericModelReserve9 {}
     class GenericModelReserve10 {}
 }
-////3
+////4

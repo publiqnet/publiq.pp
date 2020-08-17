@@ -1,6 +1,7 @@
 #include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>
 #include <belt.pp/scope_helper.hpp>
+#include <belt.pp/direct_stream.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
@@ -12,7 +13,6 @@
 #include <publiq.pp/node.hpp>
 #include <publiq.pp/storage_node.hpp>
 #include <publiq.pp/coin.hpp>
-#include <publiq.pp/config.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/locale.hpp>
@@ -414,6 +414,8 @@ int main(int argc, char** argv)
         boost::filesystem::path fs_inbox;
         if (config.inbox())
             fs_inbox = meshpp::data_directory_path("inbox");
+        
+        beltpp::direct_channel direct_channel;
 
         publiqpp::node node(genesis_signed_block(config.testnet()),
                             fs_blockchain,
@@ -434,7 +436,8 @@ int main(int argc, char** argv)
                             mine_amount_threshhold(),
                             block_reward_array(),
                             &counts_per_channel_views,
-                            &content_unit_validate_check);
+                            &content_unit_validate_check,
+                            direct_channel);
 
         cout << endl;
         cout << "Node: " << node.name() << endl;
@@ -453,10 +456,10 @@ int main(int argc, char** argv)
         if (config.get_node_type() != NodeType::blockchain)
         {
             fs_storage = meshpp::data_directory_path("storage");
-            ptr_storage_node.reset(new publiqpp::storage_node(node,
-                                                              config,
+            ptr_storage_node.reset(new publiqpp::storage_node(config,
                                                               fs_storage,
-                                                              plogger_rpc.get()));
+                                                              plogger_rpc.get(),
+                                                              direct_channel));
             g_pstorage_node = ptr_storage_node.get();
         }
 
@@ -585,6 +588,7 @@ bool process_command_line(int argc, char** argv,
     try
     {
         auto desc_init = options_description.add_options()
+            ("version,v", "Print the version information.")
             ("help,h", "Print this help message and exit.")
             ("action_log,g", "Keep track of blockchain actions.")
             ("p2p_local_interface,i", program_options::value<string>(&p2p_local_interface),
@@ -631,9 +635,11 @@ bool process_command_line(int argc, char** argv,
         program_options::notify(options);
 
         if (options.count("help"))
-        {
             throw std::runtime_error("");
-        }
+
+        if (options.count("version"))
+            throw std::runtime_error("version");
+
         testnet = options.count("testnet");
         resync = options.count("resync_blockchain");
         enable_inbox = options.count("enable_inbox");
@@ -670,13 +676,20 @@ bool process_command_line(int argc, char** argv,
     }
     catch (std::exception const& ex)
     {
-        std::stringstream ss;
-        ss << options_description;
-
         string ex_message = ex.what();
-        if (false == ex_message.empty())
-            cout << ex.what() << endl << endl;
-        cout << ss.str();
+        if (ex_message == "version")
+        {
+            cout << publiqpp::version_string("publiqd") << endl;
+        }
+        else
+        {
+            if (false == ex_message.empty())
+                cout << ex.what() << endl << endl;
+
+            std::stringstream ss;
+            ss << options_description;
+            cout << ss.str();
+        }
         return false;
     }
     catch (...)

@@ -117,6 +117,7 @@ public:
     string export_connections_load();
     string export_connections_info();
     string export_packets(const size_t rtt = -1);
+    string export_network();
 
     string export_counter();
     void process_counter_state(string const& receiver, string const& sender, bool connect);

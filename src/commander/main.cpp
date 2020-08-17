@@ -53,6 +53,7 @@ int main(int argc, char** argv)
     beltpp::ip_address connect_to_address;
     beltpp::ip_address rpc_address;
 
+
     if (false == process_command_line(argc, argv,
                                       prefix,
                                       str_pv_key,

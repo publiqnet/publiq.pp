@@ -71,10 +71,16 @@ void send_command(meshpp::private_key const& pv_key,
                   string const& file_uri,
                   string const& storage_address,
                   string const& channel_address,
-                  sm_daemon& dm)
+                  sm_daemon& dm,
+                  bool store_remove)
 {
     BlockchainMessage::StorageUpdateCommand update_command;
-    update_command.status = BlockchainMessage::UpdateType::store;
+
+    if (store_remove)
+        update_command.status = BlockchainMessage::UpdateType::store;
+    else 
+        update_command.status = BlockchainMessage::UpdateType::remove;
+
     update_command.file_uri = file_uri;
     update_command.storage_address = storage_address;
     update_command.channel_address = channel_address;
@@ -100,8 +106,8 @@ void send_command(meshpp::private_key const& pv_key,
 }
 
 void import_storage(string const& storage_address,
-                              manager& sm_server,
-                              beltpp::ip_address const& connect_to_address)
+                    manager& sm_server,
+                    beltpp::ip_address const& connect_to_address)
 {
     if (false == sm_server.storages.contains(storage_address))
     {
@@ -149,6 +155,7 @@ void import_storage(string const& storage_address,
         auto keys = sm_server.files.keys();
         size_t keys_count = keys.size();
         size_t index = 0;
+        size_t count = 0;
 
         std::cout << std::endl << std::endl;
         for (auto const& key : keys)
@@ -159,7 +166,7 @@ void import_storage(string const& storage_address,
             {
                 std::cout << string(progress_str.length(), '\b');
 
-                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scaned...";
+                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scaned " + std::to_string(count) + "sent...";
                 std::cout << progress_str;
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -170,14 +177,84 @@ void import_storage(string const& storage_address,
             for (auto const& address : file_info.own_storages)
                 if (address == storage_address)
                 {
+                    ++count;
+
                     send_command(pv_key,
                                  file_info.uri,
                                  storage_address,
                                  file_info.channel_address,
-                                 dm);
+                                 dm,
+                                 true);
 
                     break;
                 }
+        }
+    }
+}
+
+void clear_storage(string const& storage_address,
+                   manager& sm_server,
+                   beltpp::ip_address const& connect_to_address)
+{
+    if (false == sm_server.m_str_pv_key.empty() &&
+        false != sm_server.storages.contains(storage_address))
+    {
+        sm_daemon dm(sm_server);
+        dm.open(connect_to_address);
+        beltpp::finally finally_close([&dm] { dm.close(); });
+
+        meshpp::private_key pv_key = meshpp::private_key(sm_server.m_str_pv_key);
+
+        string progress_str;
+        auto keys = sm_server.files.keys();
+        size_t keys_count = keys.size();
+        size_t index = 0;
+        size_t count = 0;
+        size_t own_count = 0;
+
+        std::cout << std::endl << std::endl;
+        for (auto const& key : keys)
+        {
+            ++index;
+        
+            if (index % 10 == 0)
+            {
+                std::cout << string(progress_str.length(), '\b');
+        
+                progress_str = std::to_string(index) + " files out of " + 
+                               std::to_string(keys_count) + " are scaned " + 
+                               std::to_string(own_count) + " files stored and " +
+                               std::to_string(count) + " sent to remove...";
+                std::cout << progress_str;
+        
+                std::this_thread::sleep_for(std::chrono::milliseconds(25));
+            }
+        
+            FileInfo& file_info = sm_server.files.at(key);
+        
+            for (auto const& address : file_info.own_storages)
+                if (address == storage_address)
+                {
+                    ++own_count;
+
+                    if (file_info.last_report < sm_server.head_block_index->value - 100 * 144) // 100 days
+                    {
+                        ++count;
+                        --own_count;
+
+                        send_command(pv_key,
+                                     file_info.uri,
+                                     storage_address,
+                                     file_info.channel_address,
+                                     dm,
+                                     false);
+
+                        break;
+                    }
+                }
+
+            if (count >= 100)
+                break;
         }
     }
 }
@@ -203,12 +280,22 @@ void manager::run()
 
             switch (ref_packet.type())
             {
-            case ImportStorage::rtt:
+            case ImportStorageRequest::rtt:
             {
-                ImportStorage msg;
+                ImportStorageRequest msg;
                 std::move(ref_packet).get(msg);
 
                 import_storage(msg.address, *this, connect_to_address);
+
+                rpc_socket->send(peerid, beltpp::packet(Done()));
+                break;
+            }
+            case ClearStorageRequest::rtt:
+            {
+                ClearStorageRequest msg;
+                std::move(ref_packet).get(msg);
+
+                clear_storage(msg.address, *this, connect_to_address);
 
                 rpc_socket->send(peerid, beltpp::packet(Done()));
                 break;
@@ -277,8 +364,7 @@ void manager::run()
         dm.commit();
 
         // send broadcast packet with storage management command
-        if (false == m_str_pv_key.empty() && 
-            storage_update_timer.expired())
+        if (false == m_str_pv_key.empty() && storage_update_timer.expired())
         {
             storage_update_timer.update();
         
@@ -328,7 +414,11 @@ void manager::run()
             {
                 meshpp::private_key pv_key = meshpp::private_key(m_str_pv_key);
                 auto threshold = (info_map.begin()->first + info_map.rbegin()->first) / 2;
+                
+                if (threshold < 3)
+                    threshold = 3;
 
+                auto sent_count = 0;
                 auto it = info_map.rbegin();
                 while (it->first > threshold && it != info_map.rend())
                 {
@@ -340,10 +430,17 @@ void manager::run()
                                  it->second.uri,
                                  *temp_storages.begin(),
                                  it->second.channel_address,
-                                 dm);
+                                 dm,
+                                 true);
 
                     ++it;
+                    ++sent_count;
                 }
+
+                std::cout << std::endl << std::endl;
+                std::cout << "Size : " << std::to_string(info_map.size());
+                std::cout << "  Sent : " << std::to_string(sent_count);
+                std::cout << "  Max : " << std::to_string(info_map.rbegin()->first);
             }
         }
     }

@@ -1,5 +1,7 @@
 #include "program_options.hpp"
 
+#include <publiq.pp/global.hpp>
+
 #include <boost/program_options.hpp>
 
 #include <sstream>
@@ -16,7 +18,8 @@ bool process_command_line(int argc, char** argv,
                           string& str_pv_key,
                           uint64_t& sync_interval,
                           beltpp::ip_address& connect_to_address,
-                          beltpp::ip_address& listen_on_address)
+                          beltpp::ip_address& listen_on_address,
+                          std::string& data_directory)
 {
     string str_connect_to_address;
     string str_listen_on_address;
@@ -25,6 +28,7 @@ bool process_command_line(int argc, char** argv,
     try
     {
         auto desc_init = options_description.add_options()
+            ("version,v", "Print the version information.")
             ("help,h", "Print this help message and exit.")
             ("connect_to_address,c", program_options::value<string>(&str_connect_to_address)->required(),
                         "the blockchain daemon rpc address")
@@ -35,7 +39,9 @@ bool process_command_line(int argc, char** argv,
             ("manage_private_key,k", program_options::value<string>(&str_pv_key),
                         "commander private key to sign commands")
             ("sync_interval,t", program_options::value<uint64_t>(&sync_interval),
-                        "time interval between syncs");
+                        "time interval between syncs")
+             ("data_directory,d", program_options::value<string>(&data_directory)->required(),
+                        "data directory path");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -47,9 +53,10 @@ bool process_command_line(int argc, char** argv,
         program_options::notify(options);
 
         if (options.count("help"))
-        {
             throw std::runtime_error("");
-        }
+
+        if (options.count("version"))
+            throw std::runtime_error("version");
 
         if (0 == options.count("sync_interval"))
             sync_interval = 10;
@@ -70,13 +77,21 @@ bool process_command_line(int argc, char** argv,
     }
     catch (std::exception const& ex)
     {
-        std::stringstream ss;
-        ss << options_description;
-
         string ex_message = ex.what();
-        if (false == ex_message.empty())
-            cout << ex.what() << endl << endl;
-        cout << ss.str();
+
+        if (ex_message == "version")
+        {
+            cout << publiqpp::version_string("storage_manager") << endl;
+        }
+        else
+        {
+            if (false == ex_message.empty())
+                cout << ex.what() << endl << endl;
+
+            std::stringstream ss;
+            ss << options_description;
+            cout << ss.str();
+        }
         return false;
     }
     catch (...)

@@ -238,7 +238,7 @@ string network_simulation::export_connections_matrix()
             if (peer_to_socket.find(it.first) != peer_to_socket.end())
                 tmp.push_back(peer_to_socket[it.first]);
             else
-                tmp.push_back("oo"); // just for error detection
+                tmp.push_back("o"); // just for error detection
         }
 
         tmp.sort();
@@ -252,11 +252,11 @@ string network_simulation::export_connections_matrix()
             while (node_index < node_count && *it != format_index(node_index , node_count))
             {
                 ++node_index;
-                result += "  ";
+                result += " ";
             }
 
             ++node_index;
-            result += "**";
+            result += "*";
         }
 
         result += "\n";
@@ -365,6 +365,81 @@ string network_simulation::export_packets(const size_t rtt)
                     }
                     }
                 }
+
+    return result;
+}
+
+string network_simulation::export_network()
+{
+    string result;
+
+    for (auto const& receiver : receive_send)
+    {
+        result += "receiver socket name: " + receiver.first + "\n";
+
+        for (auto const& sender : receiver.second)
+        {
+            auto receiver_peerid = peer_to_peer[sender.first];
+            auto receiver_socket = peer_to_socket[receiver_peerid];
+
+            if (receiver_socket == receiver.first)
+                result += "receiver peerid: " + receiver_peerid + "\n";
+
+            result += "    sender socket name: "  + peer_to_socket[sender.first] + "\n";
+            result += "    sender peerid: "  + sender.first + "\n";
+
+            for(auto const& pack : sender.second)
+            {
+                result += "        packet: ";
+
+                switch (pack.type())
+                {
+                case beltpp::stream_join::rtt:
+                {
+                    result += "join\n";
+                    break;
+                }
+                case beltpp::stream_drop::rtt:
+                {
+                    result += "drop\n";
+                    break;
+                }
+                case beltpp::stream_protocol_error::rtt:
+                {
+                    result += "protocol error\n";
+                    break;
+                }
+                case beltpp::socket_open_refused::rtt:
+                {
+                    result += "open refused\n";
+                    break;
+                }
+                case beltpp::socket_open_error::rtt:
+                {
+                    result += "open error\n";
+                    break;
+                }
+                default:
+                {
+                    try
+                    {
+                        auto models = BlockchainMessage::detail::meta_models();
+                        string model_name = models.at(pack.type());
+                        result += model_name + "\n";
+                    }
+                    catch (std::out_of_range const& ex)
+                    {
+                        B_UNUSED(ex);
+                        result += "unknown type! \n";
+                    }
+                    break;
+                }
+                }
+            }
+        }
+
+        result += "\n";
+    }
 
     return result;
 }

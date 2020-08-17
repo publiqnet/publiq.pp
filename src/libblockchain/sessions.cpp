@@ -641,10 +641,9 @@ bool session_action_block::process(beltpp::packet&& package, meshpp::nodeid_sess
                 }
 
                 if(temp_from == temp_to)
-                    //pimpl->writeln_node("processing block " + std::to_string(temp_from) +" from " + detail::peer_short_names(peerid));
-                    pimpl->writeln_node(s_code + " block " + std::to_string(temp_from) + " - " + blockchain_response.signed_blocks.back().authorization.address);
+                    pimpl->writeln_node(s_code + "  " + std::to_string(temp_from) + " - " + blockchain_response.signed_blocks.back().authorization.address);
                 else
-                    pimpl->writeln_node(s_code + " blocks [" + std::to_string(temp_from) +
+                    pimpl->writeln_node(s_code + "  [" + std::to_string(temp_from) +
                                         "," + std::to_string(temp_to) + "]" + " - " + blockchain_response.signed_blocks.back().authorization.address);
             }
 
@@ -1250,8 +1249,7 @@ void session_action_save_file::initiate(meshpp::session_header&/* header*/)
     StorageTypes::StorageFile file_ex;
     file_ex.storage_file.set(std::move(file));
 
-    pimpl->m_slave_node->send(beltpp::packet(std::move(file_ex)));
-    pimpl->m_slave_node->wake();
+    pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(file_ex)));
     expected_next_package_type = BlockchainMessage::StorageFileAddress::rtt;
 }
 
@@ -1355,8 +1353,7 @@ void session_action_delete_file::initiate(meshpp::session_header&/* header*/)
     StorageTypes::StorageFileDelete storage_file_delete_ex;
     storage_file_delete_ex.storage_file_delete.set(std::move(storage_file_delete));
 
-    pimpl->m_slave_node->send(beltpp::packet(std::move(storage_file_delete_ex)));
-    pimpl->m_slave_node->wake();
+    pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(storage_file_delete_ex)));
     expected_next_package_type = BlockchainMessage::Done::rtt;
 }
 
@@ -1450,8 +1447,7 @@ session_action_get_file_uris::~session_action_get_file_uris()
 
 void session_action_get_file_uris::initiate(meshpp::session_header&/* header*/)
 {
-    pimpl->m_slave_node->send(beltpp::packet(StorageTypes::FileUrisRequest()));
-    pimpl->m_slave_node->wake();
+    pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(StorageTypes::FileUrisRequest()));
     expected_next_package_type = BlockchainMessage::FileUris::rtt;
 }
 

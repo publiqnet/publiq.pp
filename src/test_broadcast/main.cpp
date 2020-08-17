@@ -3,6 +3,7 @@
 #include <belt.pp/global.hpp>
 #include <belt.pp/log.hpp>
 #include <belt.pp/scope_helper.hpp>
+#include <belt.pp/direct_stream.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
@@ -14,7 +15,6 @@
 #include <publiq.pp/node.hpp>
 #include <publiq.pp/storage_node.hpp>
 #include <publiq.pp/coin.hpp>
-#include <publiq.pp/config.hpp>
 
 #include <boost/program_options.hpp>
 #include <boost/locale.hpp>
@@ -140,6 +140,7 @@ struct node_info
     beltpp::ilog_ptr plogger_exceptions;
 
     event_handler_ns* peh;
+    unique_ptr<beltpp::direct_channel> direct_channel;
     unique_ptr<publiqpp::node> node;
     unique_ptr<DataDirAttributeLoader> dda;
     publiqpp::config config;
@@ -335,6 +336,8 @@ int main(int argc, char** argv)
                                                                        /*"p" +*/ format_index(node_index, node_count)));
 
             info.peh = peh;
+            info.direct_channel.reset(new beltpp::direct_channel());
+
             info.node.reset(new publiqpp::node(
                                     genesis_signed_block(info.config.testnet()),
                                     fs_blockchain,
@@ -356,6 +359,7 @@ int main(int argc, char** argv)
                                     block_reward_array(),
                                     &counts_per_channel_views,
                                     &content_unit_validate_check,
+                                    *info.direct_channel,
                                     std::move(inject_eh),
                                     std::move(inject_rpc_socket),
                                     std::move(inject_p2p_socket)));
@@ -442,9 +446,10 @@ int main(int argc, char** argv)
 
             // print network info
             //string tmp_state = ns.export_connections();
-            //string tmp_state = ns.export_connections_matrix();
+            string tmp_state = ns.export_connections_matrix();
             //string tmp_state = ns.export_connections_load();
-            string tmp_state = ns.export_counter();
+            //string tmp_state = ns.export_counter();
+            //string tmp_state = ns.export_network();
             string info = ns.export_connections_info();
 
             if (tmp_state != connection_state)
@@ -509,7 +514,7 @@ bool process_command_line(int argc, char** argv,
     {
         auto desc_init = options_description.add_options()
             ("help,h", "Print this help message and exit.")
-            ("data_directory,d", program_options::value<string>(&data_directory_root), "Data directory path")
+            ("data_directory,d", program_options::value<string>(&data_directory_root)->required(), "Data directory path")
             ("nodes_count,n", program_options::value<size_t>(&node_count), "Nodes count")
             ("connect_base,c", program_options::value<uint32_t>(&connect_base), "Chance of connect base");
         (void)(desc_init);
