@@ -734,7 +734,8 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(msg);
 
                     EncryptedMessage response;
-                    response.message = ""; // TODO
+                    response.cipher_b64_msg = meshpp::ECIES_encrypt(msg.public_key,
+                                                                    msg.plain_b64_msg);
 
                     psk->send(peerid, beltpp::packet(std::move(response)));
 
@@ -746,7 +747,8 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(msg);
 
                     DecryptedMessage response;
-                    response.message = ""; // TODO
+                    response.plain_b64_msg = meshpp::ECIES_decrypt(msg.private_key,
+                                                                   msg.cipher_b64_msg);
 
                     psk->send(peerid, beltpp::packet(std::move(response)));
 
