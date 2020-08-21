@@ -62,7 +62,8 @@ bool process_command_line(int argc, char** argv,
                           bool& testnet,
                           bool& resync,
                           bool& enable_inbox,
-                          bool& discovery_server);
+                          bool& discovery_server,
+                          bool& light_node);
 string genesis_signed_block(bool testnet);
 publiqpp::coin mine_amount_threshhold();
 vector<publiqpp::coin> block_reward_array();
@@ -250,6 +251,7 @@ int main(int argc, char** argv)
     bool resync;
     bool enable_inbox;
     bool discovery_server;
+    bool light_node;
 
     if (false == process_command_line(argc, argv,
                                       p2p_bind_to_address,
@@ -270,7 +272,8 @@ int main(int argc, char** argv)
                                       testnet,
                                       resync,
                                       enable_inbox,
-                                      discovery_server))
+                                      discovery_server,
+                                      light_node))
         return 1;
 
     if (false == data_directory.empty())
@@ -572,7 +575,8 @@ bool process_command_line(int argc, char** argv,
                           bool& testnet,
                           bool& resync,
                           bool& enable_inbox,
-                          bool& discovery_server)
+                          bool& discovery_server,
+                          bool& light_node)
 {
     string p2p_local_interface;
     string rpc_local_interface;
@@ -619,7 +623,8 @@ bool process_command_line(int argc, char** argv,
                             "revert recent recorded actions, "
                             "this means to add new actions that are marked as reverted")
             ("enable_inbox", "enable inbox")
-            ("discovery_server", "discovery server");
+            ("discovery_server", "discovery server")
+            ("light_node", "light node");
         (void)(desc_init);
 
         program_options::variables_map options;
@@ -640,6 +645,7 @@ bool process_command_line(int argc, char** argv,
         resync = options.count("resync_blockchain");
         enable_inbox = options.count("enable_inbox");
         discovery_server = options.count("discovery_server");
+        light_node = options.count("light_node");
 
         if (false == p2p_local_interface.empty())
         p2p_bind_to_address.from_string(p2p_local_interface);
@@ -663,7 +669,9 @@ bool process_command_line(int argc, char** argv,
 
         if (0 == options.count("fee_fractions"))
             fractions = 0;
-        if (0 == options.count("freeze_before_block"))
+        if (true == light_node)
+            freeze_before_block = 0;
+        else if (0 == options.count("freeze_before_block"))
             freeze_before_block = uint64_t(-1);
         if (0 == options.count("revert_blocks"))
             revert_blocks_count = 0;
