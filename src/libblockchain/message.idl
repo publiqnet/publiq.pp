@@ -594,6 +594,12 @@ module BlockchainMessage
         String plain_b64_msg
     }
 
+    class StorageFileRedirect // better to move next to StorageFileRequest
+    {
+        String uri
+        String storage_order_token
+    }
+
     class GenericModelReserve1 {}
     class GenericModelReserve2 {}
     class GenericModelReserve3 {}

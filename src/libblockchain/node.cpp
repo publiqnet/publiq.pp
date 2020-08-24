@@ -1080,6 +1080,20 @@ void node::run(bool& stop_check)
                 }
                 break;
             }
+            case StorageTypes::FileStorageRequest::rtt:
+            {
+                StorageTypes::FileStorageRequest storage_request;
+
+                std::move(ref_packet).get(storage_request);
+
+                StorageTypes::FileStorageResponse storage_response;
+                storage_response.file_uri = storage_request.file_uri;
+                storage_response.storage_address = node_peerid; // order slave to serve file himselvs
+
+                m_pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(storage_response)));
+
+                break;
+            }
             }
         }   // if not processed by sessions
     }

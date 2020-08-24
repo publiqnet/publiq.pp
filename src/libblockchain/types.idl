@@ -80,5 +80,16 @@ module StorageTypes
     {
         Extension package
     }
+
+    class FileStorageRequest
+    {
+        String file_uri
+    }
+
+    class FileStorageResponse
+    {
+        String file_uri
+        String storage_address
+    }
 }
 ////4

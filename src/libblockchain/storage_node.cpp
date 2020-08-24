@@ -147,9 +147,41 @@ void storage_node::run(bool& stop)
                 }
                 else
                 {
-                    file_uri = file_info.uri;
-                }
+                    string storage_addres = m_pimpl->m_file_to_storage[file_info.uri];
 
+                    if (storage_addres.empty())
+                    {
+                        // storage request to master
+                        StorageTypes::FileStorageRequest storage_request;
+                        storage_request.file_uri = file_info.uri;
+                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(storage_request)));
+
+                        // reshedule request
+                        m_pimpl->m_event_queue.reschedule();
+
+                        break;
+                    }
+                    else if (storage_addres != node_peerid)
+                    {
+                        //send redirect response
+                        StorageFileRedirect msg_redirect;
+                        msg_redirect.uri = file_info.uri;
+                        msg_redirect.storage_order_token = "here must be a valid token";
+
+                        psk->send(peerid, beltpp::packet(std::move(msg_redirect)));
+
+                        m_pimpl->m_file_to_storage.erase(file_info.uri);
+
+                        break;
+                    }
+                    else // order to serve file received from master
+                    {
+                        file_uri = file_info.uri;
+
+                        m_pimpl->m_file_to_storage.erase(file_info.uri);
+                    }
+                }
+                
                 StorageFile file;
                 if (false == file_uri.empty() &&
                     m_pimpl->m_storage.get(file_uri, file))
@@ -356,6 +388,15 @@ void storage_node::run(bool& stop)
                 StorageTypes::ContainerMessage msg_response;
                 msg_response.package.set(msg);
                 stream.send(peerid, packet(std::move(msg_response)));
+                break;
+            }
+            case StorageTypes::FileStorageResponse::rtt:
+            {
+                StorageTypes::FileStorageResponse response;
+
+                if (m_pimpl->m_file_to_storage.find(response.file_uri) != m_pimpl->m_file_to_storage.end())
+                    m_pimpl->m_file_to_storage[response.file_uri] = response.storage_address;
+
                 break;
             }
             }
