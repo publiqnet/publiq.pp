@@ -1088,8 +1088,27 @@ void node::run(bool& stop_check)
 
                 StorageTypes::FileStorageResponse storage_response;
                 storage_response.file_uri = storage_request.file_uri;
-                storage_response.storage_address = node_peerid; // order slave to serve file himselvs
+                // order slave to serve file himselvs if no active storage will be found
+                storage_response.storage_address = node_peerid;
 
+                vector<string> storages;
+                m_pimpl->m_documents.get_file_storages(storage_request.file_uri, storages);
+
+                PublicAddressesInfo public_info = m_pimpl->m_nodeid_service.get_addresses();
+
+                for (auto it = storages.begin(); it != storages.end(); ++it)
+                {
+                    for (auto const& info : public_info.addresses_info)
+                        if (*it == info.node_address && info.seconds_since_checked <= PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                        {
+                            storage_response.storage_address = info.node_address;
+                            break;
+                        }
+
+                    if (storage_response.storage_address != node_peerid)
+                        break;
+                }
+                                
                 m_pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(storage_response)));
 
                 break;

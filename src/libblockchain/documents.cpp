@@ -250,6 +250,16 @@ bool documents::storage_has_uri(std::string const& uri,
     return 0 != holders.addresses.count(address);
 }
 
+void documents::get_file_storages(std::string const& uri, std::vector<std::string>& storages) const
+{
+    storages.clear();
+
+    StorageTypes::FileUriHolders& holders = m_pimpl->m_storages.at(uri);
+
+    for (auto const& address : holders.addresses)
+        storages.push_back(address);
+}
+
 namespace
 {
 void refresh_index(StorageTypes::ContentUnitSponsoredInformation& cusi)

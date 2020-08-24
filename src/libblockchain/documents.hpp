@@ -51,6 +51,7 @@ public:
 
     void storage_update(std::string const& uri, std::string const& address, BlockchainMessage::UpdateType status);
     bool storage_has_uri(std::string const& uri, std::string const& address) const;
+    void get_file_storages(std::string const& uri, std::vector<std::string>&) const;
 
 public:
 
