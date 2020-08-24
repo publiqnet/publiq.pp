@@ -147,9 +147,9 @@ void storage_node::run(bool& stop)
                 }
                 else
                 {
-                    string storage_addres = m_pimpl->m_file_to_storage[file_info.uri];
+                    string storage_address = m_pimpl->m_file_to_storage[file_info.uri];
 
-                    if (storage_addres.empty())
+                    if (storage_address.empty())
                     {
                         // storage request to master
                         StorageTypes::FileStorageRequest storage_request;
@@ -161,12 +161,12 @@ void storage_node::run(bool& stop)
 
                         break;
                     }
-                    else if (storage_addres != node_peerid)
+                    else if (storage_address != node_peerid)
                     {
                         //send redirect response
                         StorageFileRedirect msg_redirect;
-                        msg_redirect.uri = file_info.uri;
-                        msg_redirect.storage_order_token = "here must be a valid token";
+                        msg_redirect.storage_address = storage_address;
+                        msg_redirect.storage_order_token = "here must be a valid token";//TODO
 
                         psk->send(peerid, beltpp::packet(std::move(msg_redirect)));
 

@@ -596,7 +596,7 @@ module BlockchainMessage
 
     class StorageFileRedirect // better to move next to StorageFileRequest
     {
-        String uri
+        String storage_address
         String storage_order_token
     }
 

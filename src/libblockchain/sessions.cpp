@@ -1094,17 +1094,11 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
         {
         case BlockchainMessage::StorageFile::rtt:
         {
-#ifdef EXTRA_LOGGING
-            pimpl->writeln_node(file_uri + " processing");
-#endif
             BlockchainMessage::StorageFile storage_file;
             std::move(package).get(storage_file);
 
             if (file_uri != meshpp::hash(storage_file.data))
             {
-#ifdef EXTRA_LOGGING
-                pimpl->writeln_node(file_uri + " verification failed");
-#endif
                 errored = true;
                 break;
             }
@@ -1124,9 +1118,6 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 
                 if (package.type() == StorageFileAddress::rtt)
                 {
-#ifdef EXTRA_LOGGING
-                    impl.writeln_node(file_uri_local + " saved");
-#endif
                     StorageFileAddress* pfile_address;
                     package.get(pfile_address);
 
@@ -1187,16 +1178,17 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             break;
         }
     }
-    else if (package.type() == UriError::rtt)
+    else if (package.type() == BlockchainMessage::StorageFileRedirect::rtt)
     {
-        UriError* msg;
+        //TODO
+    }
+    else if (package.type() == BlockchainMessage::UriError::rtt)
+    {
+        BlockchainMessage::UriError* msg;
         package.get(msg);
 
         if (msg->uri == file_uri)
         {
-#ifdef EXTRA_LOGGING
-            pimpl->writeln_node(file_uri + " missing from channel");
-#endif
             pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
             need_to_revert_initiate = false;
             pimpl->m_storage_controller.pop(file_uri, nodeid);
