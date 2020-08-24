@@ -167,7 +167,7 @@ void import_storage(string const& storage_address,
             {
                 std::cout << string(progress_str.length(), '\b');
 
-                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scaned " + std::to_string(count) + "sent...";
+                progress_str = std::to_string(index) + " files out of " + std::to_string(keys_count) + " are scanned " + std::to_string(count) + "sent...";
                 std::cout << progress_str;
 
                 std::this_thread::sleep_for(std::chrono::milliseconds(25));
