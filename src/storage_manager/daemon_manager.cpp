@@ -134,7 +134,8 @@ void process_unit_transactions(BlockchainMessage::TransactionLog const& transact
                 {
                     ManagerMessage::FileInfo file_info;
                     file_info.uri = uri;
-                    file_info.rep_count = 0;
+                    file_info.repl_count = 0;
+                    file_info.last_report = 0;
                     file_info.channel_address = content_unit.channel_address;
 
                     sm_server.files.insert(uri, file_info);
@@ -222,6 +223,9 @@ void process_statistics_transactions(BlockchainMessage::TransactionLog const& tr
                 {
                     for (auto const& count_item : file_item.count_items)
                         sm_server.m_file_usage_map[block_index][file_item.file_uri] += count_item.count;
+
+                    ManagerMessage::FileInfo& file_info = sm_server.files.at(file_item.file_uri);
+                    file_info.last_report = block_index;
                 }
             }
         }

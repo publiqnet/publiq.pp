@@ -65,7 +65,7 @@ class open_container_packet<T_container>
 {
 public:
     template <typename... T_args>
-    bool open(packet& pck, vector<packet*>& composition, T_args&&... args)
+    bool open(packet& pck, T_args&&... args)
     {
         if (T_container::rtt != pck.type())
             return false;
@@ -79,19 +79,18 @@ public:
         items.push_back(&pck);
         items.push_back(&temp);
 
-        composition = items;
-
         return true;
     }
 
     vector<packet*> items;
 };
+
 template <typename T_container, typename... Ts>
 class open_container_packet<T_container, Ts...>
 {
 public:
     template <typename... T_args>
-    bool open(packet& pck, vector<packet*>& composition, T_args&&... args)
+    bool open(packet& pck, T_args&&... args)
     {
         if (T_container::rtt != pck.type())
             return false;
@@ -102,15 +101,13 @@ public:
         packet& temp = contained_member(*pcontainer, std::forward<T_args>(args)...);
 
         open_container_packet<Ts...> sub;
-        if (false == sub.open(temp, composition, std::forward<T_args>(args)...))
+        if (false == sub.open(temp, std::forward<T_args>(args)...))
             return false;
 
         items.reserve(items.size() + 1 + sub.items.size());
         items.push_back(&pck);
         for (auto& item : sub.items)
             items.push_back(item);
-
-        composition = items;
 
         return true;
     }

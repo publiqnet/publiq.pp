@@ -61,4 +61,4 @@ everything's is in an active development stage.
 
 ### more details?
 refer to the [wiki](https://github.com/publiqnet/publiq.pp/wiki "wiki") page.
-don't forget to check out mesh.pp and belt.pp readme files
+don't forget to check out mesh.pp and belt.pp readme documents.
