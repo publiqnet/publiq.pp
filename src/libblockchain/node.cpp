@@ -1238,17 +1238,16 @@ void node::run(bool& stop_check)
 
                 NodeType check_role;
                 if (impl.m_state.get_role(item.node_address, check_role) &&
-                    check_role == NodeType::channel)
+                    (check_role == NodeType::channel || check_role == NodeType::storage))
                 {
                     set_resolved_nodeids.insert(item.node_address);
                     beltpp::assign(map_nodeid_ip_address[item.node_address], item.ip_address);
                 }
             }
 
-            auto file_to_channel =
-                    impl.m_storage_controller.get_file_requests(set_resolved_nodeids);
+            auto file_to_node = impl.m_storage_controller.get_file_requests(set_resolved_nodeids);
 
-            auto get_file_uris_callback = [&impl, file_to_channel, map_nodeid_ip_address](beltpp::packet&& package)
+            auto get_file_uris_callback = [&impl, file_to_node, map_nodeid_ip_address](beltpp::packet&& package)
             {
                 if (package.type() == BlockchainMessage::FileUris::rtt)
                 {
@@ -1265,14 +1264,15 @@ void node::run(bool& stop_check)
                     unordered_map<string, actions_vector> map_actions;
                     unordered_map<string, pair<string, bool>> map_broadcast;
 
-                    for (auto const& item : file_to_channel)
+                    for (auto const& item : file_to_node)
                     {
                         auto const& file_uri = item.first;
-                        auto const& channel_address = item.second;
+                        auto const& node_address = item.second.first;
+                        auto const& order_token = item.second.second;
 
                         if (0 == set_file_uris.count(file_uri))
                         {
-                            auto& actions = map_actions[channel_address];
+                            auto& actions = map_actions[node_address];
                             if (actions.empty())
                             {
                                 actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
@@ -1281,12 +1281,13 @@ void node::run(bool& stop_check)
                             }
 
                             actions.emplace_back(new session_action_request_file(file_uri,
-                                                                                 item.second,
+                                                                                 node_address,
+                                                                                 order_token,
                                                                                  impl));
                         }
                         else
                         {
-                            map_broadcast[file_uri] = {channel_address, true};
+                            map_broadcast[file_uri] = {node_address, true};
                         }
                     }
 
@@ -1295,14 +1296,14 @@ void node::run(bool& stop_check)
                         for (auto const& item : map_broadcast)
                         {
                             auto const& file_uri = item.first;
-                            auto const& channel_address = item.second.first;
+                            auto const& node_address = item.second.first;
 
                             if (item.second.second)
                             {
 #ifdef EXTRA_LOGGING
                                 impl.writeln_node(file_uri + " session_action_get_file_uris callback calling initiate revert");
 #endif
-                                impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
+                                impl.m_storage_controller.initiate(file_uri, node_address, storage_controller::revert);
                             }
                         }
                     });
@@ -1320,7 +1321,7 @@ void node::run(bool& stop_check)
                     for (auto& item : map_broadcast)
                     {
                         auto const& file_uri = item.first;
-                        auto const& channel_address = item.second.first;
+                        auto const& node_address = item.second.first;
 #ifdef EXTRA_LOGGING
                         beltpp::on_failure guard([&impl, file_uri]{impl.writeln_node(file_uri + " flew");});
 #endif
@@ -1330,9 +1331,9 @@ void node::run(bool& stop_check)
 #ifdef EXTRA_LOGGING
                         impl.writeln_node(file_uri + " session_action_get_file_uris callback calling pop");
 #endif
-                        impl.m_storage_controller.initiate(file_uri, channel_address, storage_controller::revert);
+                        impl.m_storage_controller.initiate(file_uri, node_address, storage_controller::revert);
                         item.second.second = false;
-                        impl.m_storage_controller.pop(file_uri, channel_address);
+                        impl.m_storage_controller.pop(file_uri, node_address);
 #ifdef EXTRA_LOGGING
                         guard.dismiss();
 #endif
@@ -1355,12 +1356,12 @@ void node::run(bool& stop_check)
                     }
                     impl.writeln_node("session_action_get_file_uris callback calling initiate revert " + std::to_string(file_to_channel.size()));
 #endif
-                    for (auto const& item : file_to_channel)
-                        impl.m_storage_controller.initiate(item.first, item.second, storage_controller::revert);
+                    for (auto const& item : file_to_node)
+                        impl.m_storage_controller.initiate(item.first, item.second.first, storage_controller::revert);
                 }
             };
 
-            if (false == file_to_channel.empty())
+            if (false == file_to_node.empty())
             {
 #ifdef EXTRA_LOGGING
                 m_pimpl->writeln_node("can download now: " + std::to_string(file_to_channel.size()));

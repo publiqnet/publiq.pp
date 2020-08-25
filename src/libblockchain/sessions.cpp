@@ -1049,12 +1049,14 @@ void session_action_block::set_errored(string const& message, bool throw_for_deb
 
 session_action_request_file::session_action_request_file(string const& _file_uri,
                                                          string const& _nodeid,
+                                                         string const& _order_token,
                                                          detail::node_internals& impl)
     : meshpp::session_action<meshpp::nodeid_session_header>()
     , need_to_revert_initiate(true)
     , pimpl(&impl)
     , file_uri(_file_uri)
     , nodeid(_nodeid)
+    , order_token(_order_token)
 {}
 
 session_action_request_file::~session_action_request_file()
@@ -1075,7 +1077,12 @@ void session_action_request_file::initiate(meshpp::nodeid_session_header& header
     ssd.parser_unrecognized_limit = 1024 * 1024 * 30;
 
     StorageFileRequest msg;
-    msg.uri = file_uri;
+
+    if (order_token.empty())
+        msg.uri = file_uri;
+    else
+        msg.storage_order_token = order_token;
+
     pimpl->m_ptr_rpc_socket->send(header.peerid, beltpp::packet(std::move(msg)));
 
     expected_next_package_type = BlockchainMessage::StorageFile::rtt;
@@ -1181,7 +1188,25 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
     else if (package.type() == BlockchainMessage::StorageFileRedirect::rtt &&
              expected_next_package_type != size_t(-1))
     {
-        //TODO
+        BlockchainMessage::StorageFileRedirect msg;
+        package.get(msg);
+
+        if (msg.file_uri == file_uri)
+        {
+            // TODO check
+            
+            // remove old request from channel
+            pimpl->m_storage_controller.pop(file_uri, nodeid);
+
+            // enqueue new request from storage with order_token for next cycles
+            pimpl->m_storage_controller.enqueue(msg.file_uri, msg.storage_address, msg.storage_order_token);
+
+            completed = true;
+            need_to_revert_initiate = false;
+            expected_next_package_type = size_t(-1);
+        }
+        else
+            code = false;
     }
     else if (package.type() == BlockchainMessage::UriError::rtt)
     {

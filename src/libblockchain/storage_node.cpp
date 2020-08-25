@@ -147,10 +147,7 @@ void storage_node::run(bool& stop)
                 }
                 else
                 {
-                    // create empty slot for first time
-                    string storage_address = m_pimpl->m_redirects[file_info.uri].storage_address;
-
-                    if (storage_address.empty())
+                    if (m_pimpl->m_redirects.find(file_info.uri) == m_pimpl->m_redirects.end())
                     {
                         // request to master node
                         StorageFileAddress msg;
@@ -163,24 +160,39 @@ void storage_node::run(bool& stop)
                         // reshedule request
                         m_pimpl->m_event_queue.reschedule();
 
-                        break;
-                    }
-                    else if (storage_address != node_peerid)
-                    {
-                        // send redirect response
-                        psk->send(peerid, beltpp::packet(std::move(m_pimpl->m_redirects[file_info.uri])));
-
-                        // clear stored data
-                        m_pimpl->m_redirects.erase(file_info.uri);
+                        // mark as request sent to master
+                        m_pimpl->m_redirects.insert({ file_info.uri, StorageFileRedirect() });
 
                         break;
                     }
-                    else // order to serve file received from master
+                    else
                     {
-                        file_uri = file_info.uri;
+                        string storage_address = m_pimpl->m_redirects[file_info.uri].storage_address;
 
-                        // clear stored data
-                        m_pimpl->m_redirects.erase(file_info.uri);
+                        if (storage_address.empty())
+                        {
+                            // still wait for master's response
+                            m_pimpl->m_event_queue.reschedule();
+
+                            break;
+                        }
+                        else if (storage_address != node_peerid)
+                        {
+                            // send redirect response
+                            psk->send(peerid, beltpp::packet(std::move(m_pimpl->m_redirects[file_info.uri])));
+
+                            // clear stored data
+                            m_pimpl->m_redirects.erase(file_info.uri);
+
+                            break;
+                        }
+                        else // order to serve file received from master
+                        {
+                            file_uri = file_info.uri;
+
+                            // clear stored data
+                            m_pimpl->m_redirects.erase(file_info.uri);
+                        }
                     }
                 }
                 

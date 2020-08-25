@@ -172,6 +172,7 @@ class session_action_request_file : public meshpp::session_action<meshpp::nodeid
 public:
     session_action_request_file(std::string const& file_uri,
                                 std::string const& nodeid,
+                                std::string const& order_token,
                                 detail::node_internals& impl);
     ~session_action_request_file() override;
 
@@ -183,6 +184,7 @@ public:
     detail::node_internals* pimpl;
     std::string const file_uri;
     std::string const nodeid;
+    std::string const order_token;
 };
 
 class session_action_save_file : public meshpp::session_action<meshpp::session_header>

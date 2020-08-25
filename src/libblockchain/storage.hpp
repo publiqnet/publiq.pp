@@ -45,13 +45,16 @@ public:
     void discard() noexcept;
     void clear();
 
-    void enqueue(std::string const& file_uri, std::string const& channel_address);
-    void pop(std::string const& file_uri, std::string const& channel_address);
+    void enqueue(std::string const& file_uri, 
+                 std::string const& node_address, 
+                 std::string const& order_token = std::string());
+    void pop(std::string const& file_uri, 
+             std::string const& node_address);
     enum initiate_type {check, revert};
     void initiate(std::string const& file_uri,
-                  std::string const& channel_address,
+                  std::string const& node_address,
                   initiate_type e_initiate_type);
-    std::unordered_map<std::string, std::string> get_file_requests(std::unordered_set<std::string> const& resolved_channels);
+    std::unordered_map<std::string, std::pair<std::string, std::string>> get_file_requests(std::unordered_set<std::string> const& resolved_nodes);
 private:
     std::unique_ptr<detail::storage_controller_internals> m_pimpl;
 };

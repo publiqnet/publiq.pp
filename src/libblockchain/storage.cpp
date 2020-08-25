@@ -12,6 +12,7 @@
 #include <string>
 
 namespace filesystem = boost::filesystem;
+using std::pair;
 using std::string;
 using std::unordered_map;
 using std::unordered_set;
@@ -118,7 +119,7 @@ public:
     {}
 
     meshpp::map_loader<StorageTypes::FileRequest> map;
-    unordered_map<string, unordered_map<string, bool>> channels_files_requesting;
+    unordered_map<string, unordered_map<string, bool>> nodes_files_requesting;
 };
 
 }
@@ -158,32 +159,35 @@ void storage_controller::clear()
     m_pimpl->map.clear();
 }
 
-void storage_controller::enqueue(string const& file_uri, string const& channel_address)
+void storage_controller::enqueue(string const& file_uri, 
+                                 string const& node_address, 
+                                 string const& order_token)
 {
     if (nullptr == m_pimpl)
         return;
 
     StorageTypes::FileRequest fr;
     fr.file_uri = file_uri;
-    fr.channel_address = channel_address;
+    fr.node_address = node_address;
+    fr.order_token = order_token;
     m_pimpl->map.insert(file_uri, fr);
 }
 
-void storage_controller::pop(string const& file_uri, string const& channel_address)
+void storage_controller::pop(string const& file_uri, string const& node_address)
 {
     if (nullptr == m_pimpl)
         return;
 
-    auto it_channel = m_pimpl->channels_files_requesting.find(channel_address);
-    if (it_channel != m_pimpl->channels_files_requesting.end())
+    auto it_node = m_pimpl->nodes_files_requesting.find(node_address);
+    if (it_node != m_pimpl->nodes_files_requesting.end())
     {
-        auto it_file = it_channel->second.find(file_uri);
-        if (it_file != it_channel->second.end())
+        auto it_file = it_node->second.find(file_uri);
+        if (it_file != it_node->second.end())
             throw std::logic_error("pop: it_file != it_channel->second.end()");
     }
 
     auto const& fr = m_pimpl->map.as_const().at(file_uri);
-    if (fr.channel_address == channel_address)
+    if (fr.node_address == node_address)
     {
         beltpp::on_failure guard([this]{ discard(); });
         m_pimpl->map.erase(file_uri);
@@ -194,19 +198,19 @@ void storage_controller::pop(string const& file_uri, string const& channel_addre
 }
 
 void storage_controller::initiate(string const& file_uri,
-                                  string const& channel_address,
+                                  string const& node_address,
                                   initiate_type e_initiate_type)
 {
     if (nullptr == m_pimpl)
         return;
 
-    auto it_channel = m_pimpl->channels_files_requesting.find(channel_address);
-    if (it_channel == m_pimpl->channels_files_requesting.end())
-        throw std::logic_error("initiate: it_channel == m_pimpl->channels_files_requesting.end()");
+    auto it_node = m_pimpl->nodes_files_requesting.find(node_address);
+    if (it_node == m_pimpl->nodes_files_requesting.end())
+        throw std::logic_error("initiate: it_node == m_pimpl->nodes_files_requesting.end()");
 
-    auto it_file = it_channel->second.find(file_uri);
-    if (it_file == it_channel->second.end())
-        throw std::logic_error("initiate: it_file == it_channel->second.end()");
+    auto it_file = it_node->second.find(file_uri);
+    if (it_file == it_node->second.end())
+        throw std::logic_error("initiate: it_file == it_node->second.end()");
 
     if (check == e_initiate_type)
     {
@@ -217,41 +221,41 @@ void storage_controller::initiate(string const& file_uri,
     }
     else
     {
-        it_channel->second.erase(it_file);
-        if (it_channel->second.empty())
-            m_pimpl->channels_files_requesting.erase(it_channel);
+        it_node->second.erase(it_file);
+        if (it_node->second.empty())
+            m_pimpl->nodes_files_requesting.erase(it_node);
     }
 }
 
-unordered_map<string, string> storage_controller::get_file_requests(unordered_set<string> const& resolved_channels)
+unordered_map<string, pair<string, string>> storage_controller::get_file_requests(unordered_set<string> const& resolved_nodes)
 {
-    unordered_map<string, string> file_to_channel;
+    unordered_map<string, pair<string, string>> file_to_node;
     if (nullptr == m_pimpl)
-        return file_to_channel;
+        return file_to_node;
 
     size_t count_all = 0;
-    for (auto const& item : m_pimpl->channels_files_requesting)
+    for (auto const& item : m_pimpl->nodes_files_requesting)
         count_all += item.second.size();
     if (count_all)
-        return file_to_channel;
+        return file_to_node;
 
     auto file_uris = m_pimpl->map.as_const().keys();
 
-    unordered_set<string> unresolved_channels;
+    unordered_set<string> unresolved_nodes;
 
     for (auto const& file_uri : file_uris)
     {
         auto const& file_request = m_pimpl->map.as_const().at(file_uri);
 
-        if (0 == resolved_channels.count(file_request.channel_address))
+        if (0 == resolved_nodes.count(file_request.node_address))
         {
-            if (10 == unresolved_channels.size())
+            if (10 == unresolved_nodes.size())
             {
-                if (0 == unresolved_channels.count(file_request.channel_address))
+                if (0 == unresolved_nodes.count(file_request.node_address))
                     m_pimpl->map.erase(file_uri);
             }
             else
-                unresolved_channels.insert(file_request.channel_address);
+                unresolved_nodes.insert(file_request.node_address);
 
             continue;
         }
@@ -263,16 +267,16 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
             0 == m_pimpl->channels_files_requesting.count(file_request.channel_address))
             continue;*/
 
-        auto insert_res = m_pimpl->channels_files_requesting[file_request.channel_address].insert({file_uri, false});
+        auto insert_res = m_pimpl->nodes_files_requesting[file_request.node_address].insert({file_uri, false});
 
         if (insert_res.second)
         {
             ++count_all;
-            file_to_channel[file_uri] = file_request.channel_address;
+            file_to_node[file_uri] = { file_request.node_address, file_request.order_token };
         }
     }
 
-    return file_to_channel;
+    return file_to_node;
 }
 
 }
