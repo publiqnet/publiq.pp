@@ -1178,7 +1178,8 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             break;
         }
     }
-    else if (package.type() == BlockchainMessage::StorageFileRedirect::rtt)
+    else if (package.type() == BlockchainMessage::StorageFileRedirect::rtt &&
+             expected_next_package_type != size_t(-1))
     {
         //TODO
     }

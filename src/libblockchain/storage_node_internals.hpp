@@ -102,7 +102,7 @@ public:
     publiqpp::storage m_storage;
 
     unordered_set<string> m_verified_channels;
-    unordered_map<string, string> m_file_to_storage;
+    unordered_map<string, BlockchainMessage::StorageFileRedirect> m_redirects;
 
     event_queue_manager m_event_queue;
 };

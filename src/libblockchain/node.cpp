@@ -1070,47 +1070,45 @@ void node::run(bool& stop_check)
                             unit.content_unit_uri.clear(); // simulate the old behavior
 
                             m_pimpl->service_counter.served(unit, unit_counter);
-#ifdef EXTRA_LOGGING
-                            m_pimpl->writeln_node("storage served");
-                            m_pimpl->writeln_node(msg.to_string());
-#endif
                         }
-
                     }
                 }
-                break;
-            }
-            case StorageTypes::FileStorageRequest::rtt:
-            {
-                StorageTypes::FileStorageRequest storage_request;
-
-                std::move(ref_packet).get(storage_request);
-
-                StorageTypes::FileStorageResponse storage_response;
-                storage_response.file_uri = storage_request.file_uri;
-                // order slave to serve file himselvs if no active storage will be found
-                storage_response.storage_address = node_peerid;
-
-                vector<string> storages;
-                m_pimpl->m_documents.get_file_storages(storage_request.file_uri, storages);
-
-                PublicAddressesInfo public_info = m_pimpl->m_nodeid_service.get_addresses();
-
-                for (auto it = storages.begin(); it != storages.end(); ++it)
+                else if (msg_container.package.type() == StorageFileAddress::rtt)
                 {
-                    for (auto const& info : public_info.addresses_info)
-                        if (*it == info.node_address && info.seconds_since_checked <= PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                    StorageFileAddress msg;
+                    std::move(msg_container.package).get(msg);
+
+                    StorageFileRedirect response;
+                    response.file_uri = msg.uri;
+                    // order slave to serve file himselvs if no active storage will be found
+                    response.storage_address = node_peerid;
+
+                    vector<string> storages;
+                    m_pimpl->m_documents.get_file_storages(msg.uri, storages);
+                    PublicAddressesInfo public_info = m_pimpl->m_nodeid_service.get_addresses();
+
+                    for (auto it = storages.begin(); it != storages.end(); ++it)
+                    {
+                        for (auto const& info : public_info.addresses_info)
+                            if (*it == info.node_address && info.seconds_since_checked <= PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                            {
+                                response.ip_address = info.ip_address;
+                                response.storage_address = info.node_address;
+                                break;
+                            }
+
+                        if (response.storage_address != node_peerid)
                         {
-                            storage_response.storage_address = info.node_address;
+                            response.storage_order_token = "create valid token"; //TODO
                             break;
                         }
+                    }
 
-                    if (storage_response.storage_address != node_peerid)
-                        break;
+                    StorageTypes::ContainerMessage msg_response;
+                    msg_response.package.set(response);
+
+                    m_pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(msg_response)));
                 }
-                                
-                m_pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(storage_response)));
-
                 break;
             }
             }

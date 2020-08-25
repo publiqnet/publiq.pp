@@ -147,14 +147,18 @@ void storage_node::run(bool& stop)
                 }
                 else
                 {
-                    string storage_address = m_pimpl->m_file_to_storage[file_info.uri];
+                    // create empty slot for first time
+                    string storage_address = m_pimpl->m_redirects[file_info.uri].storage_address;
 
                     if (storage_address.empty())
                     {
-                        // storage request to master
-                        StorageTypes::FileStorageRequest storage_request;
-                        storage_request.file_uri = file_info.uri;
-                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(storage_request)));
+                        // request to master node
+                        StorageFileAddress msg;
+                        msg.uri = file_info.uri;
+                        
+                        StorageTypes::ContainerMessage msg_request;
+                        msg_request.package.set(msg);
+                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(msg_request)));
 
                         // reshedule request
                         m_pimpl->m_event_queue.reschedule();
@@ -163,14 +167,11 @@ void storage_node::run(bool& stop)
                     }
                     else if (storage_address != node_peerid)
                     {
-                        //send redirect response
-                        StorageFileRedirect msg_redirect;
-                        msg_redirect.storage_address = storage_address;
-                        msg_redirect.storage_order_token = "here must be a valid token";//TODO
+                        // send redirect response
+                        psk->send(peerid, beltpp::packet(std::move(m_pimpl->m_redirects[file_info.uri])));
 
-                        psk->send(peerid, beltpp::packet(std::move(msg_redirect)));
-
-                        m_pimpl->m_file_to_storage.erase(file_info.uri);
+                        // clear stored data
+                        m_pimpl->m_redirects.erase(file_info.uri);
 
                         break;
                     }
@@ -178,7 +179,8 @@ void storage_node::run(bool& stop)
                     {
                         file_uri = file_info.uri;
 
-                        m_pimpl->m_file_to_storage.erase(file_info.uri);
+                        // clear stored data
+                        m_pimpl->m_redirects.erase(file_info.uri);
                     }
                 }
                 
@@ -390,13 +392,19 @@ void storage_node::run(bool& stop)
                 stream.send(peerid, packet(std::move(msg_response)));
                 break;
             }
-            case StorageTypes::FileStorageResponse::rtt:
+            case StorageTypes::ContainerMessage::rtt:
             {
-                StorageTypes::FileStorageResponse response;
+                StorageTypes::ContainerMessage msg_container;
+                std::move(ref_packet).get(msg_container);
 
-                if (m_pimpl->m_file_to_storage.find(response.file_uri) != m_pimpl->m_file_to_storage.end())
-                    m_pimpl->m_file_to_storage[response.file_uri] = response.storage_address;
+                if (msg_container.package.type() == StorageFileRedirect::rtt)
+                {
+                    StorageFileRedirect response;
+                    std::move(msg_container.package).get(response);
 
+                    if (m_pimpl->m_redirects.find(response.file_uri) != m_pimpl->m_redirects.end())
+                        m_pimpl->m_redirects[response.file_uri] = std::move(response);
+                }
                 break;
             }
             }
