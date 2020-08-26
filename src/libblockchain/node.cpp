@@ -640,6 +640,11 @@ void node::run(bool& stop_check)
                     {
                         if (letter.to != m_pimpl->front_public_key().to_string())
                         {
+
+                            Coin balance = m_pimpl->get_balance();
+                            if ( balance.whole == 0 && balance.fraction == 0 )
+                                throw not_enough_balance_exception(letter.from, coin(balance), MESSAGE_BROADCASTING_AMOUNT_THRESHOLD);
+
                             // rebroadcast message direct peer or to all
                             std::unordered_set<beltpp::stream::peer_id> broadcast_peers;
                             bool full_broadcast;
@@ -664,7 +669,10 @@ void node::run(bool& stop_check)
                                               nullptr,
                                               broadcast_peers,
                                               m_pimpl->m_ptr_p2p_socket.get());
-                        }
+
+                            m_pimpl->m_state.decrease_balance(letter.from, MESSAGE_BROADCASTING_AMOUNT_THRESHOLD, state_layer::chain);
+
+                            }
                     }
 
                     if (it == detail::wait_result_item::interface_type::rpc)
