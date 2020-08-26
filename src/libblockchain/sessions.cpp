@@ -1193,8 +1193,6 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 
         if (msg.file_uri == file_uri)
         {
-            // TODO check
-            
             // remove old request from channel
             pimpl->m_storage_controller.pop(file_uri, nodeid);
 

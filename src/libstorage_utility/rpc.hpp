@@ -41,6 +41,10 @@ public:
                                      uint64_t& seconds,
                                      std::chrono::system_clock::time_point& tp);
 
+    static std::string create_order_token(std::string const& file_uri, 
+                                          std::string const& node_address,
+                                          meshpp::private_key const& pv_key);
+
 private:
     std::unique_ptr<detail::rpc_internals> m_pimpl;
 };

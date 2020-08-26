@@ -370,6 +370,27 @@ bool rpc::verify_storage_order(string const& storage_order_token,
 
     return true;
 }
+
+string rpc::create_order_token(string const& file_uri, 
+                               string const& node_address,
+                               meshpp::private_key const& pv_key)
+{
+    StorageOrder storage_order;
+    storage_order.file_uri = file_uri;
+    storage_order.storage_address = node_address;
+    storage_order.seconds = 600; // 10 minutes to download file
+    storage_order.time_point.tm = system_clock::to_time_t(system_clock::now());
+
+    Authority authorization;
+    authorization.address = pv_key.get_public_key().to_string();
+    authorization.signature = pv_key.sign(storage_order.to_string()).base58;
+
+    SignedStorageOrder signed_storage_order;
+    signed_storage_order.order = storage_order;
+    signed_storage_order.authorization = authorization;
+
+    return meshpp::to_base64(signed_storage_order.to_string(), false);
+}
 }
 
 

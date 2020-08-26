@@ -1099,7 +1099,10 @@ void node::run(bool& stop_check)
 
                         if (response.storage_address != node_peerid)
                         {
-                            response.storage_order_token = "create valid token"; //TODO
+                            response.storage_order_token = storage_utility::rpc::create_order_token(response.file_uri,
+                                                                                                    response.storage_address,
+                                                                                                    m_pimpl->front_private_key());
+
                             break;
                         }
                     }
