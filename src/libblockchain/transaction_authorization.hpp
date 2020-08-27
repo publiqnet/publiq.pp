@@ -10,55 +10,53 @@
 
 namespace publiqpp
 {
-// sponsoring stuff
-std::vector<std::string> action_owners(BlockchainMessage::SponsorContentUnit const& sponsor_content_unit);
-std::vector<std::string> action_participants(BlockchainMessage::SponsorContentUnit const& sponsor_content_unit);
+std::vector<std::string> action_owners(BlockchainMessage::AwardAuthorization const& award_authorization);
+std::vector<std::string> action_participants(BlockchainMessage::AwardAuthorization const& award_authorization);
 
 void action_validate(BlockchainMessage::SignedTransaction const& signed_transaction,
-                     BlockchainMessage::SponsorContentUnit const& sponsor_content_unit,
+                     BlockchainMessage::AwardAuthorization const& award_authorization,
                      bool check_complete);
 
 bool action_is_complete(BlockchainMessage::SignedTransaction const& signed_transaction,
-                        BlockchainMessage::SponsorContentUnit const& sponsor_content_unit);
+                        BlockchainMessage::AwardAuthorization const& award_authorization);
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       BlockchainMessage::SignedTransaction const& signed_transaction,
-                      BlockchainMessage::SponsorContentUnit const& sponsor_content_unit,
+                      BlockchainMessage::AwardAuthorization const& award_authorization,
                       state_layer layer);
 
 void action_apply(publiqpp::detail::node_internals& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction,
-                  BlockchainMessage::SponsorContentUnit const& sponsor_content_unit,
+                  BlockchainMessage::AwardAuthorization const& award_authorization,
                   state_layer layer);
 
 void action_revert(publiqpp::detail::node_internals& impl,
                    BlockchainMessage::SignedTransaction const& signed_transaction,
-                   BlockchainMessage::SponsorContentUnit const& sponsor_content_unit,
+                   BlockchainMessage::AwardAuthorization const& award_authorization,
                    state_layer layer);
 
-// cancel sponsoring stuff
-std::vector<std::string> action_owners(BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit);
-std::vector<std::string> action_participants(BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit);
+std::vector<std::string> action_owners(BlockchainMessage::RejectAuthorization const& reject_authorization);
+std::vector<std::string> action_participants(BlockchainMessage::RejectAuthorization const& reject_authorization);
 
 void action_validate(BlockchainMessage::SignedTransaction const& signed_transaction,
-                     BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit,
+                     BlockchainMessage::RejectAuthorization const& reject_authorization,
                      bool check_complete);
 
 bool action_is_complete(BlockchainMessage::SignedTransaction const& signed_transaction,
-                        BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit);
+                        BlockchainMessage::RejectAuthorization const& reject_authorization);
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       BlockchainMessage::SignedTransaction const& signed_transaction,
-                      BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit,
+                      BlockchainMessage::RejectAuthorization const& reject_authorization,
                       state_layer layer);
 
 void action_apply(publiqpp::detail::node_internals& impl,
                   BlockchainMessage::SignedTransaction const& signed_transaction,
-                  BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit,
+                  BlockchainMessage::RejectAuthorization const& reject_authorization,
                   state_layer layer);
 
 void action_revert(publiqpp::detail::node_internals& impl,
                    BlockchainMessage::SignedTransaction const& signed_transaction,
-                   BlockchainMessage::CancelSponsorContentUnit const& cancel_sponsor_content_unit,
+                   BlockchainMessage::RejectAuthorization const& reject_authorization,
                    state_layer layer);
 }

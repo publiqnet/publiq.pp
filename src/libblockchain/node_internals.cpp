@@ -72,7 +72,7 @@ bool node_internals::initialize()
         --m_revert_blocks_count;
         writeln_node(std::to_string(block.header.block_number) + " block reverted");
 
-        if (false == m_authority_manager.check_miner_authority(signed_block_miner_address, signed_block_miner_authority))
+        if (false == m_authority_manager.check_authority(signed_block_miner_address, signed_block_miner_authority, Block::rtt))
             throw std::logic_error("node_internals::initialize: false == m_authority_manager.check_miner_authority(signed_block_miner_address, signed_block_miner_authority)");
 
         if (m_revert_blocks_count % BLOCK_REVERT_LENGTH == 0)
@@ -107,6 +107,7 @@ bool node_internals::initialize()
             m_blockchain.clear();
             m_action_log.clear();
             m_transaction_pool.clear();
+            m_authority_manager.clear();
 
             save(guard);
 

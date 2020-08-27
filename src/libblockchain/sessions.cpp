@@ -884,7 +884,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
             pimpl->m_transaction_cache.erase_chain(*it);
         }
 
-        if (false == pimpl->m_authority_manager.check_miner_authority(signed_block_miner_address, signed_block_miner_authority))
+        if (false == pimpl->m_authority_manager.check_authority(signed_block_miner_address, signed_block_miner_authority, Block::rtt))
             throw std::logic_error("session_action_block::process_response: false == pimpl->m_authority_manager.check_miner_authority(signed_block_miner_address, signed_block_miner_authority)");
 
         // add TRANSACTION_MAX_LIFETIME_HOURS old block transactions to cache
@@ -932,7 +932,7 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
         if (coin(amount) < pimpl->m_mine_amount_threshhold)
             return set_errored("blockchain response. miner balance!", throw_for_debugging_only);
 
-        if (false == pimpl->m_authority_manager.check_miner_authority(signed_block_miner, signed_block_authority))
+        if (false == pimpl->m_authority_manager.check_authority(signed_block_miner, signed_block_authority, Block::rtt))
             return set_errored("blockchain response. miner:" + signed_block_miner + ", authority: " + signed_block_authority, throw_for_debugging_only);
 
         NodeType miner_node_type;

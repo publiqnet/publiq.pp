@@ -980,7 +980,6 @@ void mine_block(publiqpp::detail::node_internals& impl)
     });
     reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
 
-
     for (auto& key_stxs : map_incomplete_transactions)
     {
         unordered_map<string, string> map_authorizations;

@@ -1,6 +1,7 @@
 #include "global.hpp"
 #include "transaction_handler.hpp"
 
+#include "transaction_authorization.hpp"
 #include "transaction_transfer.hpp"
 #include "transaction_file.hpp"
 #include "transaction_contentunit.hpp"
@@ -71,7 +72,9 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
     auto const& package = signed_transaction.transaction_details.action;
 
     if (impl.pconfig->transfer_only() &&
-        package.type() != Transfer::rtt)
+        package.type() != Transfer::rtt &&
+        package.type() != AwardAuthorization::rtt &&
+        package.type() != RejectAuthorization::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -79,6 +82,20 @@ bool action_process_on_chain(SignedTransaction const& signed_transaction,
     case Transfer::rtt:
     {
         Transfer const* paction;
+        package.get(paction);
+        code = action_process_on_chain_t(signed_transaction, *paction, impl);
+        break;
+    }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        code = action_process_on_chain_t(signed_transaction, *paction, impl);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
         package.get(paction);
         code = action_process_on_chain_t(signed_transaction, *paction, impl);
         break;
@@ -160,6 +177,20 @@ vector<string> action_owners(SignedTransaction const& signed_transaction)
         result = action_owners(*paction);
         break;
     }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
+        package.get(paction);
+        result = action_owners(*paction);
+        break;
+    }
     case File::rtt:
     {
         File const* paction;
@@ -237,6 +268,20 @@ vector<string> action_participants(SignedTransaction const& signed_transaction)
         result = action_participants(*paction);
         break;
     }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
+        package.get(paction);
+        result = action_participants(*paction);
+        break;
+    }
     case File::rtt:
     {
         File const* paction;
@@ -307,7 +352,9 @@ void action_validate(publiqpp::detail::node_internals const& impl,
     auto const& package = signed_transaction.transaction_details.action;
 
     if (impl.pconfig->transfer_only() &&
-        package.type() != Transfer::rtt)
+        package.type() != Transfer::rtt &&
+        package.type() != AwardAuthorization::rtt &&
+        package.type() != RejectAuthorization::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -315,6 +362,20 @@ void action_validate(publiqpp::detail::node_internals const& impl,
     case Transfer::rtt:
     {
         Transfer const* paction;
+        package.get(paction);
+        action_validate(signed_transaction, *paction, check_complete);
+        break;
+    }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        action_validate(signed_transaction, *paction, check_complete);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
         package.get(paction);
         action_validate(signed_transaction, *paction, check_complete);
         break;
@@ -399,6 +460,20 @@ bool action_is_complete(publiqpp::detail::node_internals& impl,
         complete = action_is_complete(signed_transaction, *paction);
         break;
     }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        complete = action_is_complete(signed_transaction, *paction);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
+        package.get(paction);
+        complete = action_is_complete(signed_transaction, *paction);
+        break;
+    }
     case File::rtt:
     {
         File const* paction;
@@ -468,7 +543,9 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
                       state_layer layer)
 {
     if (impl.pconfig->transfer_only() &&
-        package.type() != Transfer::rtt)
+        package.type() != Transfer::rtt &&
+        package.type() != AwardAuthorization::rtt &&
+        package.type() != RejectAuthorization::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     bool code;
@@ -477,6 +554,20 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     case Transfer::rtt:
     {
         Transfer const* paction;
+        package.get(paction);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
+        break;
+    }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        code = action_can_apply(impl, signed_transaction, *paction, layer);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
         package.get(paction);
         code = action_can_apply(impl, signed_transaction, *paction, layer);
         break;
@@ -550,7 +641,9 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   state_layer layer)
 {
     if (impl.pconfig->transfer_only() &&
-        package.type() != Transfer::rtt)
+        package.type() != Transfer::rtt &&
+        package.type() != AwardAuthorization::rtt &&
+        package.type() != RejectAuthorization::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -558,6 +651,20 @@ void action_apply(publiqpp::detail::node_internals& impl,
     case Transfer::rtt:
     {
         Transfer const* paction;
+        package.get(paction);
+        action_apply(impl, signed_transaction, *paction, layer);
+        break;
+    }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        action_apply(impl, signed_transaction, *paction, layer);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
         package.get(paction);
         action_apply(impl, signed_transaction, *paction, layer);
         break;
@@ -629,7 +736,9 @@ void action_revert(publiqpp::detail::node_internals& impl,
                    state_layer layer)
 {
     if (impl.pconfig->transfer_only() &&
-        package.type() != Transfer::rtt)
+        package.type() != Transfer::rtt &&
+        package.type() != AwardAuthorization::rtt &&
+        package.type() != RejectAuthorization::rtt)
         throw std::runtime_error("this is coin only blockchain");
 
     switch (package.type())
@@ -637,6 +746,20 @@ void action_revert(publiqpp::detail::node_internals& impl,
     case Transfer::rtt:
     {
         Transfer const* paction;
+        package.get(paction);
+        action_revert(impl, signed_transaction, *paction, layer);
+        break;
+    }
+    case AwardAuthorization::rtt:
+    {
+        AwardAuthorization const* paction;
+        package.get(paction);
+        action_revert(impl, signed_transaction, *paction, layer);
+        break;
+    }
+    case RejectAuthorization::rtt:
+    {
+        RejectAuthorization const* paction;
         package.get(paction);
         action_revert(impl, signed_transaction, *paction, layer);
         break;

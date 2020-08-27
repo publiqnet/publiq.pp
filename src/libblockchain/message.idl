@@ -24,7 +24,7 @@ module BlockchainMessage
         Coin fee
         Object action
         //  action is one of
-        //  Transfer, File, ContentUnit, Content, Role, StorageUpdate
+        //  Transfer, AwardAuthorization, RejectAuthorization, File, ContentUnit, Content, Role, StorageUpdate
         //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
     }
 
@@ -99,7 +99,7 @@ module BlockchainMessage
         Coin fee
         Object action
         //  action is one of
-        //  Transfer, File, ContentUnit, Content, Role, StorageUpdate
+        //  Transfer, AwardAuthorization, RejectAuthorization, File, ContentUnit, Content, Role, StorageUpdate
         //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
         String transaction_hash
         UInt64 transaction_size
@@ -137,8 +137,24 @@ module BlockchainMessage
         String message
     }
 
-    class TransactionReserve1 {}
-    class TransactionReserve2 {}
+    class AwardAuthorization
+    {
+        String owner
+        String actor
+
+        // empty set means full awarded permissons
+        Set UInt64 action_ids
+    }
+    
+    class RejectAuthorization
+    {
+        String owner
+        String actor
+        
+        // empty set means full rejected permissons
+        Set UInt64 action_ids
+    }
+
     class TransactionReserve3 {}
     class TransactionReserve4 {}
     class TransactionReserve5 {}
