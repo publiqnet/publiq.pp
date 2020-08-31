@@ -342,7 +342,10 @@ int main(int argc, char** argv)
         config.set_key(pv_key);
     }
 
-    config.set_node_type(node_type);
+    if ( true == light_node)
+        config.set_node_type("blockchain");
+    else
+        config.set_node_type(node_type);
 
     string config_error = config.check_for_error();
     if (false == config_error.empty())
@@ -440,7 +443,14 @@ int main(int argc, char** argv)
 
         cout << endl;
         cout << "Node: " << node.name() << endl;
-        cout << "Node Type: " << BlockchainMessage::to_string(config.get_node_type()) << endl;
+
+        cout << "Node Type: ";
+
+        if (true == light_node)
+            cout << "light" << endl;
+        else
+            cout << BlockchainMessage::to_string(config.get_node_type()) << endl;
+
         cout << "automatic fee: " << config.get_automatic_fee().to_string() << endl;
         cout << "action log enabled: " << config.action_log() << endl;
         cout << "inbox enabled: " << config.inbox() << endl;
