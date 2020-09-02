@@ -72,22 +72,14 @@ int main(int argc, char** argv)
 
         beltpp::packet receive_package;
 
-        /*  StorageFile file;
-        file.mime_type = "audio/mpeg";
+        StorageFileRequest file_request;
+        file_request.uri = "GdSv21yGgth2dvPpaAAxzQJMaFuqJvkZ3x2DRjEo3DDD";
 
-        boost::filesystem::ifstream fl;
-        fl.open("/Users/sona/Downloads/3.mp3", std::ios_base::binary);
-        if (fl)
-        {
-        auto end = std::istreambuf_iterator<char>();
-        auto begin = std::istreambuf_iterator<char>(fl);
-        file.data.assign(begin, end);
-        file.data.resize(10000);
-        }
+        Send(beltpp::packet(file_request), receive_package, sk, peerid, eh);
 
-        Send(file, receive_package, sk, peerid, eh);*/
+        cout << receive_package.to_string();
 
-
+        /*
         KeyPairRequest key_pair_request;
         key_pair_request.index = 0;
 
@@ -140,7 +132,7 @@ int main(int argc, char** argv)
             Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
-
+        */
     }
     catch (std::exception const& e)
     {

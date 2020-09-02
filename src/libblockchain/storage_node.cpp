@@ -123,13 +123,13 @@ void storage_node::run(bool& stop)
                 std::move(ref_packet).get(file_info);
 
                 string file_uri;
+                string session_id;
 
                 if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
                 {
                     string channel_address;
                     string storage_address;
                     string content_unit_uri;
-                    string session_id;
                     uint64_t seconds;
                     system_clock::time_point tp;
 
@@ -202,7 +202,8 @@ void storage_node::run(bool& stop)
                 {
                     psk->send(peerid, beltpp::packet(std::move(file)));
 
-                    if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
+                    if (false == session_id.empty() && 
+                        m_pimpl->pconfig->get_node_type() == NodeType::storage)
                     {
                         Served msg;
                         msg.storage_order_token = file_info.storage_order_token;
