@@ -1194,14 +1194,14 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
         if (msg.file_uri == file_uri)
         {
             // remove old request from channel
+            pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
+            need_to_revert_initiate = false;
             pimpl->m_storage_controller.pop(file_uri, nodeid);
+            completed = true;
+            expected_next_package_type = size_t(-1);
 
             // enqueue new request from storage with order_token for next cycles
             pimpl->m_storage_controller.enqueue(msg.file_uri, msg.storage_address, msg.storage_order_token);
-
-            completed = true;
-            need_to_revert_initiate = false;
-            expected_next_package_type = size_t(-1);
         }
         else
             code = false;

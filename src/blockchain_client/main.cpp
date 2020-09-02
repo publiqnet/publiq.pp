@@ -72,10 +72,58 @@ int main(int argc, char** argv)
 
         beltpp::packet receive_package;
 
+        /*
         StorageFileRequest file_request;
         file_request.uri = "13QsbKrnEpqausMBWG1ybMPpLGCRZzBzArH61Q4sAGad";
 
         Send(beltpp::packet(file_request), receive_package, sk, peerid, eh);
+
+        cout << receive_package.to_string();
+        */
+
+        KeyPairRequest key_pair_request;
+        key_pair_request.index = 0;
+
+        key_pair_request.master_key = "ARMEN";
+        Send(beltpp::packet(key_pair_request), receive_package, sk, peerid, eh);
+
+        KeyPair armen_key;
+        receive_package.get(armen_key);
+
+        BlockchainMessage::StorageUpdateCommand update_command;
+
+        update_command.status = BlockchainMessage::UpdateType::store;
+        update_command.file_uri = "13QsbKrnEpqausMBWG1ybMPpLGCRZzBzArH61Q4sAGad";
+        update_command.storage_address = "TPBQ8mogwgutXv1hJnuYXrQF9z6AeMU69TpVeau7qhwoshCEpSQEbt";
+        update_command.channel_address = "TPBQ7MJwGCpZStXbTsukEbunryBKaBL6USPY6n2FyJA97uCiHkvasp";
+
+        BlockchainMessage::Transaction transaction;
+        transaction.action = std::move(update_command);
+        transaction.creation.tm = system_clock::to_time_t(system_clock::now());
+        transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::seconds(24 * 3600));
+
+        SignRequest sign_request;
+        sign_request.private_key = armen_key.private_key;
+        sign_request.package = transaction;
+
+        Send(beltpp::packet(sign_request), receive_package, sk, peerid, eh);
+
+        Signature signature;
+        receive_package.get(signature);
+
+        BlockchainMessage::Authority authorization;
+        authorization.address = armen_key.public_key;
+        authorization.signature = signature.signature;
+
+        BlockchainMessage::SignedTransaction signed_transaction;
+        signed_transaction.authorizations.push_back(authorization);
+        signed_transaction.transaction_details = transaction;
+
+        BlockchainMessage::Broadcast broadcast;
+        broadcast.echoes = 2;
+        broadcast.package = signed_transaction;
+
+        Send(beltpp::packet(broadcast), receive_package, sk, peerid, eh);
 
         cout << receive_package.to_string();
 
