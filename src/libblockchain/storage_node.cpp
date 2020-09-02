@@ -120,7 +120,7 @@ void storage_node::run(bool& stop)
             case StorageFileRequest::rtt:
             {
                 StorageFileRequest file_info;
-                std::move(ref_packet).get(file_info);
+                ref_packet.get(file_info);
 
                 string file_uri;
                 string session_id;

@@ -378,7 +378,7 @@ string rpc::create_order_token(string const& file_uri,
     StorageOrder storage_order;
     storage_order.file_uri = file_uri;
     storage_order.storage_address = node_address;
-    storage_order.seconds = 600; // 10 minutes to download file
+    storage_order.seconds = SIGN_SECONDS;
     storage_order.time_point.tm = system_clock::to_time_t(system_clock::now());
 
     Authority authorization;

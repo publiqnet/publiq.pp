@@ -73,7 +73,7 @@ int main(int argc, char** argv)
         beltpp::packet receive_package;
 
         StorageFileRequest file_request;
-        file_request.uri = "GdSv21yGgth2dvPpaAAxzQJMaFuqJvkZ3x2DRjEo3DDD";
+        file_request.uri = "13QsbKrnEpqausMBWG1ybMPpLGCRZzBzArH61Q4sAGad";
 
         Send(beltpp::packet(file_request), receive_package, sk, peerid, eh);
 
