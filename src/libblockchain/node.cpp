@@ -1092,7 +1092,7 @@ void node::run(bool& stop_check)
                         for (auto const& info : public_info.addresses_info)
                             if (*it == info.node_address && info.seconds_since_checked <= PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
                             {
-                                response.ip_address = info.ip_address;
+                                response.ip_address = info.ssl_ip_address;
                                 response.storage_address = info.node_address;
                                 break;
                             }

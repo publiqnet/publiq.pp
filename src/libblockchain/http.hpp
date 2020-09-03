@@ -56,6 +56,22 @@ string file_response(beltpp::detail::session_special_data& ssd,
 
         return str_result;
     }
+    else if (pc.type() == BlockchainMessage::StorageFileRedirect::rtt)
+    {
+        string str_result;
+        BlockchainMessage::StorageFileRedirect const* pRedirect = nullptr;
+        pc.get(pRedirect);
+
+        str_result += "HTTP/1.1 307 Temporary Redirect\r\n";
+        str_result += "Content-Type: text/html\r\n";
+        str_result += "Location: https://" + pRedirect->ip_address.local.address + ":" + std::to_string(pRedirect->ip_address.local.port);
+        str_result += "/storage?storage_order_token=" + pRedirect->storage_order_token + "\r\n";
+        str_result += "Access-Control-Allow-Origin: *\r\n";
+        str_result += "Content-Length: 0";
+        str_result += "\r\n\r\n";
+
+        return str_result;
+    }
     else
     {
         string str_result;
