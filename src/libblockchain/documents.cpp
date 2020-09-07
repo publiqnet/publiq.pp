@@ -149,17 +149,9 @@ void documents::remove_file(string const& uri)
     m_pimpl->m_files.erase(uri);
 }
 
-BlockchainMessage::File const& documents::get_file(std::string const& uri) const
+BlockchainMessage::File const& documents::get_file(string const& uri) const
 {
     return m_pimpl->m_files.as_const().at(uri);
-}
-
-void documents::get_file_uris(vector<string>& file_uris) const
-{
-    file_uris.clear();
-
-    for (auto it : m_pimpl->m_files.as_const().keys())
-        file_uris.push_back(it);
 }
 
 pair<bool, string> documents::units_exist(unordered_set<string> const& uris) const
@@ -196,21 +188,13 @@ void documents::remove_unit(string const& uri)
     m_pimpl->m_units.erase(uri);
 }
 
-BlockchainMessage::ContentUnit const& documents::get_unit(std::string const& uri) const
+BlockchainMessage::ContentUnit const& documents::get_unit(string const& uri) const
 {
     return m_pimpl->m_units.as_const().at(uri);
 }
 
-void documents::get_unit_uris(vector<string>& unit_uris) const
-{
-    unit_uris.clear();
-
-    for (auto it : m_pimpl->m_units.as_const().keys())
-        unit_uris.push_back(it);
-}
-
-void documents::storage_update(std::string const& uri,
-                               std::string const& address,
+void documents::storage_update(string const& uri,
+                               string const& address,
                                UpdateType status)
 {
     if (UpdateType::store == status)
@@ -240,8 +224,8 @@ void documents::storage_update(std::string const& uri,
     }
 }
 
-bool documents::storage_has_uri(std::string const& uri,
-                                std::string const& address) const
+bool documents::storage_has_uri(string const& uri,
+                                string const& address) const
 {
     if (false == m_pimpl->m_storages.contains(uri))
         return false;
@@ -250,14 +234,16 @@ bool documents::storage_has_uri(std::string const& uri,
     return 0 != holders.addresses.count(address);
 }
 
-void documents::get_file_storages(std::string const& uri, std::vector<std::string>& storages) const
+vector<string> documents::get_file_storages(string const& uri) const
 {
-    storages.clear();
+    vector<string> storages;
 
-    StorageTypes::FileUriHolders& holders = m_pimpl->m_storages.at(uri);
+    StorageTypes::FileUriHolders const& holders = m_pimpl->m_storages.as_const().at(uri);
 
     for (auto const& address : holders.addresses)
         storages.push_back(address);
+
+    return storages;
 }
 
 namespace
@@ -728,7 +714,7 @@ documents::expiration_entry_ref_by_block(uint64_t block_number)
 }
 
 StorageTypes::SponsoredInformationHeader&
-documents::expiration_entry_ref_by_block_by_hash(uint64_t block_number, std::string const& transaction_hash)
+documents::expiration_entry_ref_by_block_by_hash(uint64_t block_number, string const& transaction_hash)
 {
     auto& expirings = expiration_entry_ref_by_block(block_number);
 
@@ -742,7 +728,7 @@ documents::expiration_entry_ref_by_block_by_hash(uint64_t block_number, std::str
 }
 
 StorageTypes::SponsoredInformationHeader&
-documents::expiration_entry_ref_by_hash(std::string const& transaction_hash)
+documents::expiration_entry_ref_by_hash(string const& transaction_hash)
 {
     assert(m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash));
     if (false == m_pimpl->m_sponsored_informations_hash_to_block.contains(transaction_hash))

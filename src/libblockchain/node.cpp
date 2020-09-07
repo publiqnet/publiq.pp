@@ -1083,8 +1083,7 @@ void node::run(bool& stop_check)
                     // order slave to serve file himselvs if no active storage will be found
                     response.storage_address = node_peerid;
 
-                    vector<string> storages;
-                    m_pimpl->m_documents.get_file_storages(msg.uri, storages);
+                    vector<string> storages = m_pimpl->m_documents.get_file_storages(msg.uri);
                     PublicAddressesInfo public_info = m_pimpl->m_nodeid_service.get_addresses();
 
                     for (auto it = storages.begin(); it != storages.end(); ++it)
