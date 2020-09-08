@@ -160,8 +160,7 @@ void storage_controller::clear()
 }
 
 void storage_controller::enqueue(string const& file_uri, 
-                                 string const& node_address, 
-                                 string const& order_token)
+                                 string const& node_address)
 {
     if (nullptr == m_pimpl)
         return;
@@ -169,8 +168,19 @@ void storage_controller::enqueue(string const& file_uri,
     StorageTypes::FileRequest fr;
     fr.file_uri = file_uri;
     fr.node_address = node_address;
-    fr.order_token = order_token;
     m_pimpl->map.insert(file_uri, fr);
+}
+
+void storage_controller::queue_redirect(std::string const& file_uri,
+                                        std::string const& node_address,
+                                        std::string const& order_token)
+{
+    if (false == m_pimpl->map.contains(file_uri))
+        throw std::logic_error("storage_controller::queue_redirect: false == m_pimpl->map.contains(file_uri)");
+
+    auto& file_request_item = m_pimpl->map.at(file_uri);
+    file_request_item.node_address = node_address;
+    file_request_item.order_token = order_token;
 }
 
 void storage_controller::pop(string const& file_uri, string const& node_address)

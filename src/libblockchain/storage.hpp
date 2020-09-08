@@ -10,6 +10,7 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 namespace publiqpp
 {
@@ -46,14 +47,17 @@ public:
     void clear();
 
     void enqueue(std::string const& file_uri, 
-                 std::string const& node_address, 
-                 std::string const& order_token = std::string());
+                 std::string const& node_address);
+    void queue_redirect(std::string const& file_uri,
+                        std::string const& node_address,
+                        std::string const& order_token);
     void pop(std::string const& file_uri, 
              std::string const& node_address);
     enum initiate_type {check, revert};
     void initiate(std::string const& file_uri,
                   std::string const& node_address,
                   initiate_type e_initiate_type);
+    //                   file                    nodeid    order token
     std::unordered_map<std::string, std::pair<std::string, std::string>> get_file_requests(std::unordered_set<std::string> const& resolved_nodes);
 private:
     std::unique_ptr<detail::storage_controller_internals> m_pimpl;

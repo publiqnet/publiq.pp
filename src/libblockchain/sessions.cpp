@@ -1205,17 +1205,17 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
             // remove old request from channel
             pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
             need_to_revert_initiate = false;
-            pimpl->m_storage_controller.pop(file_uri, nodeid);
+
+            pimpl->m_storage_controller.queue_redirect(file_uri, msg.storage_address, msg.storage_order_token);
+
             completed = true;
             expected_next_package_type = size_t(-1);
-
-            // enqueue new request from storage with order_token for next cycles
-            pimpl->m_storage_controller.enqueue(msg.file_uri, msg.storage_address, msg.storage_order_token);
         }
         else
             code = false;
     }
-    else if (package.type() == BlockchainMessage::UriError::rtt)
+    else if (package.type() == BlockchainMessage::UriError::rtt &&
+             expected_next_package_type != size_t(-1))
     {
         BlockchainMessage::UriError* msg;
         package.get(msg);
@@ -1227,6 +1227,7 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 #endif
             pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
             need_to_revert_initiate = false;
+            
             pimpl->m_storage_controller.pop(file_uri, nodeid);
             completed = true;
             expected_next_package_type = size_t(-1);
@@ -1327,7 +1328,8 @@ bool session_action_save_file::process(beltpp::packet&& package, meshpp::session
     }
     else
     {
-        if (msg_package.type() == BlockchainMessage::UriError::rtt)
+        if (msg_package.type() == BlockchainMessage::UriError::rtt &&
+            expected_next_package_type != size_t(-1))
         {
             beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
             if (callback)
@@ -1427,7 +1429,8 @@ bool session_action_delete_file::process(beltpp::packet&& package, meshpp::sessi
     }
     else
     {
-        if (msg_package.type() == BlockchainMessage::UriError::rtt)
+        if (msg_package.type() == BlockchainMessage::UriError::rtt &&
+            expected_next_package_type != size_t(-1))
         {
             beltpp::finally guard2([this]{ callback = std::function<void(beltpp::packet&&)>(); });
             if (callback)
