@@ -1078,32 +1078,35 @@ void node::run(bool& stop_check)
                     StorageFileAddress msg;
                     std::move(msg_container.package).get(msg);
 
+                    vector<string> storages = m_pimpl->m_documents.get_file_storages(msg.uri);
+                    PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
+
+                    unordered_map<string, PublicAddressInfo> map_public_addresses;
+
+                    for (auto const& public_address : public_addresses.addresses_info)
+                    {
+                        if (public_address.seconds_since_checked <= PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
+                            map_public_addresses[public_address.node_address] = public_address;
+                    }
+
                     StorageFileRedirect response;
                     response.file_uri = msg.uri;
-                    // order slave to serve file himselvs if no active storage will be found
-                    response.storage_address = node_peerid;
 
-                    vector<string> storages = m_pimpl->m_documents.get_file_storages(msg.uri);
-                    PublicAddressesInfo public_info = m_pimpl->m_nodeid_service.get_addresses();
-
-                    for (auto it = storages.begin(); it != storages.end(); ++it)
+                    for (auto const& storage : storages)
                     {
-                        for (auto const& info : public_info.addresses_info)
-                            if (*it == info.node_address && info.seconds_since_checked <= PUBLIC_ADDRESS_FRESH_THRESHHOLD_SECONDS)
-                            {
-                                response.ip_address = info.ssl_ip_address;
-                                response.storage_address = info.node_address;
-                                break;
-                            }
-
-                        if (response.storage_address != node_peerid)
+                        auto it_public_address = map_public_addresses.find(storage);
+                        if (it_public_address != map_public_addresses.end())
                         {
+                            response.ip_address = it_public_address->second.ssl_ip_address;
+                            response.storage_address = storage;
                             response.storage_order_token = storage_utility::rpc::create_order_token(response.file_uri,
                                                                                                     response.storage_address,
                                                                                                     m_pimpl->front_private_key());
-
                             break;
                         }
+
+                        // if no active storage found, then the default empty storage_address 
+                        // will tell the slave to serve file by himself
                     }
 
                     StorageTypes::ContainerMessage msg_response;

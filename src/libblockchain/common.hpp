@@ -188,7 +188,7 @@ class stream_event
 public:
     enum event_type {nothing, message, timer};
     event_type et = nothing;
-    size_t rescheduled = false;
+    size_t rescheduled = 0;
     beltpp::event_item const* pevent_source = nullptr;
     beltpp::socket::peer_id peerid;
     beltpp::packet package;

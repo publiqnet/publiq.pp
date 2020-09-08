@@ -107,7 +107,6 @@ beltpp::socket::peer_id event_queue_manager::message_peerid() const
     return queue.front().peerid;
 }
 
-
 beltpp::packet& event_queue_manager::message()
 {
     if (queue.empty() || queue.front().et != detail::stream_event::message)

@@ -125,7 +125,47 @@ void storage_node::run(bool& stop)
                 string file_uri;
                 string session_id;
 
-                if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
+                if (m_pimpl->pconfig->get_node_type() != NodeType::storage)
+                {
+                    auto it_redirect = m_pimpl->m_redirects.find(file_info.uri);
+                    if (it_redirect == m_pimpl->m_redirects.end())
+                    {
+                        if (0 == m_pimpl->m_event_queue.count_rescheduled())
+                        {
+                            // request to master node
+                            StorageFileAddress msg;
+                            msg.uri = file_info.uri;
+                            
+                            StorageTypes::ContainerMessage msg_request;
+                            msg_request.package.set(msg);
+                            m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(msg_request)));
+                        }
+
+                        // reshedule request
+                        m_pimpl->m_event_queue.reschedule();
+
+                        break;  //  break the switch case
+                    }
+                    else
+                    {
+                        auto redirect_info = std::move(it_redirect->second);
+                        
+                        // clear stored redirect response
+                        m_pimpl->m_redirects.erase(it_redirect);
+
+                        if (false == redirect_info.storage_address.empty())
+                        {   // master node told to send redirect response
+                            psk->send(peerid, beltpp::packet(std::move(redirect_info)));
+
+                            break;  //  break the switch case
+                        }
+                        else
+                        {   // master node told to serve the file from own storage
+                            file_uri = file_info.uri;
+                        }
+                    }
+                }
+                else
                 {
                     string channel_address;
                     string storage_address;
@@ -143,57 +183,7 @@ void storage_node::run(bool& stop)
                                                                             tp) ||
                         storage_address != m_pimpl->pconfig->get_key().get_public_key().to_string() ||
                         0 == m_pimpl->m_verified_channels.count(channel_address))
-                        file_uri.clear();
-                }
-                else
-                {
-                    if (m_pimpl->m_redirects.find(file_info.uri) == m_pimpl->m_redirects.end())
-                    {
-                        // request to master node
-                        StorageFileAddress msg;
-                        msg.uri = file_info.uri;
-                        
-                        StorageTypes::ContainerMessage msg_request;
-                        msg_request.package.set(msg);
-                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(msg_request)));
-
-                        // reshedule request
-                        m_pimpl->m_event_queue.reschedule();
-
-                        // mark as request sent to master
-                        m_pimpl->m_redirects.insert({ file_info.uri, StorageFileRedirect() });
-
-                        break;
-                    }
-                    else
-                    {
-                        string storage_address = m_pimpl->m_redirects[file_info.uri].storage_address;
-
-                        if (storage_address.empty())
-                        {
-                            // still wait for master's response
-                            m_pimpl->m_event_queue.reschedule();
-
-                            break;
-                        }
-                        else if (storage_address != node_peerid)
-                        {
-                            // send redirect response
-                            psk->send(peerid, beltpp::packet(std::move(m_pimpl->m_redirects[file_info.uri])));
-
-                            // clear stored data
-                            m_pimpl->m_redirects.erase(file_info.uri);
-
-                            break;
-                        }
-                        else // order to serve file received from master
-                        {
-                            file_uri = file_info.uri;
-
-                            // clear stored data
-                            m_pimpl->m_redirects.erase(file_info.uri);
-                        }
-                    }
+                        file_info.uri = std::move(file_uri);
                 }
                 
                 StorageFile file;
@@ -216,7 +206,7 @@ void storage_node::run(bool& stop)
                 else
                 {
                     UriError error;
-                    error.uri = file_uri;
+                    error.uri = file_info.uri;
                     error.uri_problem_type = UriProblemType::missing;
                     psk->send(peerid, beltpp::packet(std::move(error)));
                 }
