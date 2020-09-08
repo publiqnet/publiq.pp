@@ -1202,14 +1202,23 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 
         if (msg.file_uri == file_uri)
         {
-            // remove old request from channel
-            pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
-            need_to_revert_initiate = false;
+            if (false == order_token.empty())
+            {
+    #ifdef EXTRA_LOGGING
+                pimpl->writeln_node(file_uri + " ignoring recursive redirect");
+    #endif
+                code = false;
+            }
+            else
+            {
+                pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
+                need_to_revert_initiate = false;
 
-            pimpl->m_storage_controller.queue_redirect(file_uri, msg.storage_address, msg.storage_order_token);
+                pimpl->m_storage_controller.queue_redirect(file_uri, msg.storage_address, msg.storage_order_token);
 
-            completed = true;
-            expected_next_package_type = size_t(-1);
+                completed = true;
+                expected_next_package_type = size_t(-1);
+            }
         }
         else
             code = false;
@@ -1227,7 +1236,7 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 #endif
             pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
             need_to_revert_initiate = false;
-            
+
             pimpl->m_storage_controller.pop(file_uri, nodeid);
             completed = true;
             expected_next_package_type = size_t(-1);
