@@ -137,24 +137,17 @@ module BlockchainMessage
         String message
     }
 
-    class AwardAuthorization
+    class AuthorizationUpdate
     {
+        UpdateType update_type
         String owner
         String actor
 
         // empty set means full awarded permissons
         Set UInt64 action_ids
     }
-    
-    class RejectAuthorization
-    {
-        String owner
-        String actor
-        
-        // empty set means full rejected permissons
-        Set UInt64 action_ids
-    }
 
+    class TransactionReserve2 {}
     class TransactionReserve3 {}
     class TransactionReserve4 {}
     class TransactionReserve5 {}
