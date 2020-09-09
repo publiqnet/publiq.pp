@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <utility>
 #include <exception>
+#include <math.h>
 
 using namespace BlockchainMessage;
 
@@ -636,14 +637,40 @@ void node::run(bool& stop_check)
                     SignedTransaction& signed_transaction = *p_signed_tx;
                     Letter& letter = *p_letter;
 
+                    Coin balance = m_pimpl->m_state.get_balance(letter.from, state_layer::pool);
+                    Coin threshold;
+                    MESSAGE_BROADCASTING_AMOUNT_THRESHOLD.to_Coin(threshold);
+
+                    if (balance.whole < threshold.whole)
+                            throw not_enough_balance_exception( letter.from,
+                                                                coin(balance),
+                                                                MESSAGE_BROADCASTING_AMOUNT_THRESHOLD
+                                                           );
+
+
+                    auto find_iter = m_pimpl->m_last_broadcast_time.find(letter.from);
+                    if (find_iter != m_pimpl->m_last_broadcast_time.end())
+                    {
+                        uint64_t miliseconds = 1000 * ( 1.0 / (int)log10(balance.whole));
+
+                        auto last_broadcast_time = find_iter->second;
+                        auto current_time = system_clock::now();
+
+                        if (current_time > last_broadcast_time + chrono::milliseconds(miliseconds))
+                            m_pimpl->m_last_broadcast_time[letter.from] = current_time;
+                        else
+                            throw wrong_request_exception("you don`t have enough balance for sending messages as much frequently as you want");
+                    }
+                    else
+                    {
+                        auto current_time = system_clock::now();
+                        m_pimpl->m_last_broadcast_time[letter.from] = current_time;
+                    }
+
                     if (process_letter(signed_transaction, letter, *m_pimpl.get()))
                     {
                         if (letter.to != m_pimpl->front_public_key().to_string())
                         {
-
-                            Coin balance = m_pimpl->get_balance();
-                            if ( balance.whole == 0 && balance.fraction == 0 )
-                                throw not_enough_balance_exception(letter.from, coin(balance), MESSAGE_BROADCASTING_AMOUNT_THRESHOLD);
 
                             // rebroadcast message direct peer or to all
                             std::unordered_set<beltpp::stream::peer_id> broadcast_peers;
@@ -669,8 +696,6 @@ void node::run(bool& stop_check)
                                               nullptr,
                                               broadcast_peers,
                                               m_pimpl->m_ptr_p2p_socket.get());
-
-                            m_pimpl->m_state.decrease_balance(letter.from, MESSAGE_BROADCASTING_AMOUNT_THRESHOLD, state_layer::chain);
 
                             }
                     }
