@@ -22,7 +22,7 @@
 #include <unordered_map>
 #include <utility>
 #include <exception>
-#include <math.h>
+#include "cmath"
 
 using namespace BlockchainMessage;
 
@@ -645,8 +645,7 @@ void node::run(bool& stop_check)
                             throw not_enough_balance_exception( letter.from,
                                                                 coin(balance),
                                                                 MESSAGE_BROADCASTING_AMOUNT_THRESHOLD
-                                                           );
-
+                                                                );
 
                     auto find_iter = m_pimpl->m_last_broadcast_time.find(letter.from);
                     if (find_iter != m_pimpl->m_last_broadcast_time.end())
@@ -654,18 +653,14 @@ void node::run(bool& stop_check)
                         uint64_t miliseconds = 1000 * ( 1.0 / (int)log10(balance.whole));
 
                         auto last_broadcast_time = find_iter->second;
-                        auto current_time = system_clock::now();
+                        auto current_time = steady_clock::now();
 
-                        if (current_time > last_broadcast_time + chrono::milliseconds(miliseconds))
-                            m_pimpl->m_last_broadcast_time[letter.from] = current_time;
-                        else
-                            throw wrong_request_exception("you don`t have enough balance for sending messages as much frequently as you want");
+                        if (current_time <= last_broadcast_time + chrono::milliseconds(miliseconds))
+                            throw  wrong_data_exception("you don`t have enough balance for sending messages as much frequently as you want");
                     }
-                    else
-                    {
-                        auto current_time = system_clock::now();
-                        m_pimpl->m_last_broadcast_time[letter.from] = current_time;
-                    }
+
+                    auto current_time = steady_clock::now();
+                    m_pimpl->m_last_broadcast_time[letter.from] = current_time;
 
                     if (process_letter(signed_transaction, letter, *m_pimpl.get()))
                     {
