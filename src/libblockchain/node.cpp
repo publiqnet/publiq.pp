@@ -644,19 +644,19 @@ void node::run(bool& stop_check)
                     if (balance.whole < threshold.whole)
                         break;
 
+                    auto& lbt = m_pimpl->m_last_broadcast_time;
                     auto current_time = steady_clock::now();
 
-                    auto find_iter = m_pimpl->m_last_broadcast_time.find(letter.from);
-                    if (find_iter != m_pimpl->m_last_broadcast_time.end())
+                    auto find_it = lbt.find(letter.from);
+                    if (find_it != lbt.end())
                     {
-                        uint64_t miliseconds = 1000 * ( 1.0 / (int)log10(balance.whole));
+                        uint64_t ms = 1000 * ( 1.0 / (int)log10(balance.whole));
 
-                        if (current_time <= find_iter->second + chrono::milliseconds(miliseconds))
+                        if (current_time <= find_it->second + chrono::milliseconds(ms))
                             break;
-
                     }
 
-                    m_pimpl->m_last_broadcast_time[letter.from] = current_time;
+                    lbt[letter.from] = current_time;
 
                     if (process_letter(signed_transaction, letter, *m_pimpl.get()))
                     {
@@ -1191,6 +1191,12 @@ void node::run(bool& stop_check)
     if (m_pimpl->m_check_timer.expired())
     {
         m_pimpl->m_check_timer.update();
+
+        auto& lbt = m_pimpl->m_last_broadcast_time;
+
+        for (auto it = lbt.begin(); it !=  lbt.end(); ++it)
+            if (steady_clock::now() > it->second + chrono::seconds(2))
+               lbt.erase(it);
 
         if (m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
             sync_worker(*m_pimpl.get());
