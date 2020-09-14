@@ -723,7 +723,7 @@ public:
 
     unordered_map<string, vote_info> m_votes;
     wait_result m_wait_result;
-    map<string, std::chrono::steady_clock::time_point> m_last_broadcast_time;
+    unordered_map<string, std::chrono::steady_clock::time_point> m_last_broadcast_time;
 };
 
 }

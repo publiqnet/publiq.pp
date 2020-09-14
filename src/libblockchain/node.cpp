@@ -1193,10 +1193,16 @@ void node::run(bool& stop_check)
         m_pimpl->m_check_timer.update();
 
         auto& lbt = m_pimpl->m_last_broadcast_time;
+        std::vector<std::string> keys;
 
         for (auto it = lbt.begin(); it !=  lbt.end(); ++it)
-            if (steady_clock::now() > it->second + chrono::seconds(2))
-               lbt.erase(it);
+            if (steady_clock::now() > it->second + chrono::seconds(1)) //not sure about one second
+                keys.push_back(it->first);
+
+        for (auto const& key : keys)
+            lbt.erase(key);
+
+        keys.clear();
 
         if (m_pimpl->m_blockchain.length() < m_pimpl->m_freeze_before_block)
             sync_worker(*m_pimpl.get());
