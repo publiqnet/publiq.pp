@@ -62,8 +62,7 @@ string file_response(beltpp::detail::session_special_data& ssd,
         BlockchainMessage::StorageFileRedirect const* pRedirect = nullptr;
         pc.get(pRedirect);
 
-        str_result += "HTTP/1.1 307 Temporary Redirect\r\n"; // can also use 302. search engies seem to prefer 302
-        //str_result += "Content-Type: text/html\r\n"; // can skip this, because the content length is 0
+        str_result += "HTTP/1.1 302 Temporary Redirect\r\n";
         str_result += "Location: https://" + pRedirect->ip_address.local.address + ":" + std::to_string(pRedirect->ip_address.local.port);
         str_result += "/storage?storage_order_token=" + pRedirect->storage_order_token + "\r\n";
         str_result += "Access-Control-Allow-Origin: *\r\n";
