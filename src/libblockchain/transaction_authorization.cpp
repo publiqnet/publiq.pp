@@ -8,13 +8,10 @@
 using namespace BlockchainMessage;
 using std::string;
 using std::vector;
+using std::unordered_set;
 
 namespace publiqpp
 {
-
-//
-// Award Authorization
-//
 
 vector<string> action_owners(AuthorizationUpdate const& authorization_update)
 {
@@ -35,10 +32,32 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_transaction.authorizations.size() != 1)
         throw authority_exception(signed_transaction.authorizations.back().address, string());
 
-    // check the meaning of this ...
-    if (authorization_update.update_type == UpdateType::store &&
-        authorization_update.owner == authorization_update.actor)
-        throw wrong_data_exception("cannot award authorization to self");
+    if (signed_transaction.authorizations.front().address == authorization_update.actor)
+        throw wrong_data_exception("cannot sign authorization update for self as an actor");
+
+    unordered_set<uint64_t> allowed_ids =
+    {
+        AddressInfo::rtt,
+        Letter::rtt,
+        StorageUpdateCommand::rtt,
+        Transfer::rtt,
+        //AuthorizationUpdate::rtt,
+        Role::rtt,
+        File::rtt,
+        ContentUnit::rtt,
+        Content::rtt,
+        SponsorContentUnit::rtt,
+        CancelSponsorContentUnit::rtt,
+        ServiceStatistics::rtt,
+        StorageUpdate::rtt,
+        Block::rtt,
+    };
+
+    for (uint64_t id : authorization_update.action_ids)
+    {
+        if (0 == allowed_ids.count(id))
+            throw wrong_data_exception("unsupported customization for id: " + std::to_string(id));
+    }
 
     meshpp::public_key pb_key_from(authorization_update.owner);
     meshpp::public_key pb_key_actor(authorization_update.actor);
@@ -83,6 +102,9 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 
                 if (0 == erased)
                     return false;
+                
+                // limitation
+                throw std::logic_error("action_can_apply: impossible to reach state that specifies 'default full' with exceptions");
             }
         }
         else
@@ -107,13 +129,16 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
     {
         if (auth_record.default_full)
         {
-            for (auto action_id : authorization_update.action_ids)
-            {
-                auto insert_res = auth_record.action_ids.insert(action_id);
+            // limitation
+            return false;
 
-                if (false == insert_res.second)
-                    return false;
-            }
+            // for (auto action_id : authorization_update.action_ids)
+            // {
+            //     auto insert_res = auth_record.action_ids.insert(action_id);
+
+            //     if (false == insert_res.second)
+            //         return false;
+            // }
         }
         else
         {
@@ -165,6 +190,9 @@ void action_apply(publiqpp::detail::node_internals& impl,
 
                 if (0 == erased)
                     throw wrong_data_exception(authorization_update.actor + " is not rejected authorization for action id: " + std::to_string(action_id));
+
+                // limitation
+                throw std::logic_error("action_apply: impossible to reach state that specifies 'default full' with exceptions");
             }
         }
         else
@@ -189,13 +217,16 @@ void action_apply(publiqpp::detail::node_internals& impl,
     {
         if (auth_record.default_full)
         {
-            for (auto action_id : authorization_update.action_ids)
-            {
-                auto insert_res = auth_record.action_ids.insert(action_id);
+            // limitation
+            throw wrong_data_exception("parital authorization rejection is not supported");
 
-                if (false == insert_res.second)
-                    throw wrong_data_exception(authorization_update.actor + " is rejected authorization for action id: " + std::to_string(action_id));
-            }
+            // for (auto action_id : authorization_update.action_ids)
+            // {
+            //     auto insert_res = auth_record.action_ids.insert(action_id);
+
+            //     if (false == insert_res.second)
+            //         throw wrong_data_exception(authorization_update.actor + " is rejected authorization for action id: " + std::to_string(action_id));
+            // }
         }
         else
         {
@@ -241,6 +272,9 @@ void action_revert(publiqpp::detail::node_internals& impl,
 
                 if (false == insert_res.second)
                     throw std::logic_error("action_revert: " + authorization_update.actor + " is rejected authorization for action id: " + std::to_string(action_id));
+
+                // limitation
+                throw std::logic_error("action_revert: impossible to reach state that specifies 'default full' with exceptions");
             }
         }
         else
@@ -265,13 +299,16 @@ void action_revert(publiqpp::detail::node_internals& impl,
     {
         if (auth_record.default_full)
         {
-            for (auto action_id : authorization_update.action_ids)
-            {
-                size_t erased = auth_record.action_ids.erase(action_id);
+            // limitation
+            throw std::logic_error("action_revert: parital authorization rejection is not supported");
 
-                if (0 == erased)
-                    throw std::logic_error("action_revert: " + authorization_update.actor + " is not rejected authorization for action id: " + std::to_string(action_id));
-            }
+            // for (auto action_id : authorization_update.action_ids)
+            // {
+            //     size_t erased = auth_record.action_ids.erase(action_id);
+
+            //     if (0 == erased)
+            //         throw std::logic_error("action_revert: " + authorization_update.actor + " is not rejected authorization for action id: " + std::to_string(action_id));
+            // }
         }
         else
         {
