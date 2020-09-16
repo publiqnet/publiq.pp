@@ -799,7 +799,7 @@ string genesis_signed_block(bool testnet)
                                                "c_sum":0,
                                                "c_const":1,
                                                "prev_hash":"GnFozpoEMEuVkVFnuJfVn64oWqpPmYQSyzsmo7ptmUD3",
-                                               "time_signed":"2019-04-01 00:00:00"
+                                               "time_signed":"2020-09-15 00:00:00"
                                             },
                                             "rewards":[
                                                {
@@ -879,8 +879,8 @@ string genesis_signed_block(bool testnet)
                                          },
                                          "authorization":{
                                             "rtt":3,
-                                            "address":"TPBQ7ztjFZ28yCrcYffMEYQp3kMtRV1g5QmgiSkp4d7ic4FU2BdUFd",
-                                            "signature":"381yXZB2msTUmsnhZVXus7YwhWSbwbbvnBS4JpK1cnVqrjsEnqHL9FBYN9GJeECHfbfE6aGs7awn7W1jeegSMrHAEwAhoxPh"
+                                            "address":"TPBQ7x3GPAPirkWhy9L5LkB1FD1ds3ZKbc9vx8aXxfxVwjKFgvsxxj",
+                                            "signature":"381yXYyLu7h5vDTqwugRrSDiavw884FDwxQ3Yrjr3ps4xAEZathbuC9cG2NBM5GLg6NYitWFi1coKvaX7RrtE9cweQg8j7AK"
                                          }
                                       }
                                       )genesis";
@@ -896,7 +896,7 @@ string genesis_signed_block(bool testnet)
                                                "c_sum":0,
                                                "c_const":1,
                                                "prev_hash":"GnFozpoEMEuVkVFnuJfVn64oWqpPmYQSyzsmo7ptmUD3",
-                                               "time_signed":"2019-04-01 00:00:00"
+                                               "time_signed":"2020-09-15 00:00:00"
                                             },
                                             "rewards":[
                                                {
@@ -936,8 +936,8 @@ string genesis_signed_block(bool testnet)
                                          },
                                          "authorization":{
                                             "rtt":3,
-                                            "address":"PBQ6sx9qUobi84gcEDxtHqbEY1HScyiBQ3HodnskwfVf1RYkU77Za",
-                                            "signature":"AN1rKp6KAXTNXpAbC5SzpWAbs2KVvoxVGjGdkED5JJgUZfh2vhALctCo4s3x9y7dCcpKgE8dEfSDRGtaRy7MfzN4PRqQYCiEb"
+                                            "address":"PBQ7f2fX32i4PzYVVgAhGYwiCCfnC3kpgE5w1xhSwrTc84c1s3R68",
+                                            "signature":"iKx1CJP1WE9qbtpJPNjqo3jY4JAhNN4erMM38VnRqAEpnqagYvEviLHesTzWDws1JzLEnKE53s233jz6iSdCrToU4y3dbf9TPz"
                                          }
                                       }
                                       )genesis";
