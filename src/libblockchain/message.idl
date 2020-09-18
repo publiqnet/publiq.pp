@@ -571,6 +571,38 @@ module BlockchainMessage
         UpdateType update_type
     }
 
+    class PublicKeyRequest
+    {
+        String private_key
+    }
+
+    class PublicKeyResponse
+    {
+        String public_key
+    }
+
+    class Encrypt
+    {
+        String plain_b64_msg
+        String public_key
+    }
+
+    class EncryptedMessage
+    {
+        String cipher_b64_msg
+    }
+
+    class Decrypt
+    {
+        String cipher_b64_msg
+        String private_key
+    }
+
+    class DecryptedMessage
+    {
+        String plain_b64_msg
+    }
+
     class GenericModelReserve1 {}
     class GenericModelReserve2 {}
     class GenericModelReserve3 {}

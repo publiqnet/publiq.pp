@@ -99,7 +99,7 @@ void construct_type_name(   expression_tree const* member_type,
         }
         if(it->lexem.rtt == identifier::rtt)
         {
-            result[1]=it->lexem.value;
+            result[1] = convert_type(it->lexem.value, state, type_detail);
         }
         result[2] = std::to_string(count);
     }
@@ -326,7 +326,7 @@ void analyze_struct(    state_holder& state,
         }
 
         /////////////////////////// array of non primitive types ///////////////////
-        if ( info[0] == "array" && info[1] != "number" && info[1] != "String" && info[1] != "boolean" && info[1] != "::beltpp::packet" )
+        if ( info[0] == "array" && info[1] != "number" && info[1] != "string" && info[1] != "boolean" && info[1] != "::beltpp::packet" )
         {
             if ( info[1] != "Date")
             {
@@ -418,7 +418,7 @@ void analyze_struct(    state_holder& state,
             }
         }
         ////////////////////// array of primitive types /////////////////////
-        else if ( info[0] == "array" && ( info[1] == "number" || info[1] == "String" || info[1] == "boolean" ) )
+        else if ( info[0] == "array" && ( info[1] == "number" || info[1] == "string" || info[1] == "boolean" ) )
         {
             if ( info[3] == "Optional")
             {
