@@ -123,13 +123,25 @@ beltpp::detail::pmsg_all message_list_load(
             ss.resource.path.size() == 2 &&
             ss.resource.path.front() == "import")
         {
-            auto p = ::beltpp::new_void_unique_ptr<ManagerMessage::ImportStorage>();
-            ManagerMessage::ImportStorage& ref = *reinterpret_cast<ManagerMessage::ImportStorage*>(p.get());
+            auto p = ::beltpp::new_void_unique_ptr<ManagerMessage::ImportStorageRequest>();
+            ManagerMessage::ImportStorageRequest& ref = *reinterpret_cast<ManagerMessage::ImportStorageRequest*>(p.get());
             ref.address = ss.resource.path.back();
 
-            return ::beltpp::detail::pmsg_all(ManagerMessage::ImportStorage::rtt,
+            return ::beltpp::detail::pmsg_all(ManagerMessage::ImportStorageRequest::rtt,
                                               std::move(p),
-                                              &ManagerMessage::ImportStorage::pvoid_saver);
+                                              &ManagerMessage::ImportStorageRequest::pvoid_saver);
+        }
+        if (ss.type == beltpp::http::detail::scan_status::get &&
+            ss.resource.path.size() == 2 &&
+            ss.resource.path.front() == "clear")
+        {
+            auto p = ::beltpp::new_void_unique_ptr<ManagerMessage::ClearStorageRequest>();
+            ManagerMessage::ClearStorageRequest& ref = *reinterpret_cast<ManagerMessage::ClearStorageRequest*>(p.get());
+            ref.address = ss.resource.path.back();
+
+            return ::beltpp::detail::pmsg_all(ManagerMessage::ClearStorageRequest::rtt,
+                                              std::move(p),
+                                              &ManagerMessage::ClearStorageRequest::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&

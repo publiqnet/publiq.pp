@@ -739,6 +739,46 @@ void node::run(bool& stop_check)
 
                     break;
                 }
+                case PublicKeyRequest::rtt:
+                {
+                    PublicKeyRequest msg;
+                    std::move(ref_packet).get(msg);
+
+                    meshpp::private_key pv(msg.private_key);
+
+                    PublicKeyResponse response;
+                    response.public_key = pv.get_public_key().to_string();
+
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+
+                    break;
+                }
+                case Encrypt::rtt:
+                {
+                    Encrypt msg;
+                    std::move(ref_packet).get(msg);
+
+                    EncryptedMessage response;
+                    response.cipher_b64_msg = meshpp::ECIES_encrypt(msg.public_key,
+                                                                    msg.plain_b64_msg);
+
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+
+                    break;
+                }
+                case Decrypt::rtt:
+                {
+                    Decrypt msg;
+                    std::move(ref_packet).get(msg);
+
+                    DecryptedMessage response;
+                    response.plain_b64_msg = meshpp::ECIES_decrypt(msg.private_key,
+                                                                   msg.cipher_b64_msg);
+
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+
+                    break;
+                }
                 case Ping::rtt:
                 {
                     Ping msg;

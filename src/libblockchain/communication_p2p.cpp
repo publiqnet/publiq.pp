@@ -1540,7 +1540,8 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
         if (NodeType::storage == pimpl->pconfig->get_node_type() && package.type() == Done::rtt)
             broadcast_storage_update(*pimpl, uri, UpdateType::remove);
 
-        if (false == package.empty())
+        // if request is from rpc, sender will receive Done() from upper level
+        if (false == package.empty() && package.type() != Done::rtt)
             psk->send(peerid, std::move(package));
     };
 

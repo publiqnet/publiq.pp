@@ -236,16 +236,26 @@ void construct_type_name( expression_tree const* member_type,
                           g_type_info& type_detail,
                           string* result )
 {
-    if ( member_type->lexem.rtt == identifier::rtt )
+    expression_tree const* member;
+    if (member_type->lexem.rtt == keyword_optional::rtt &&
+        member_type->children.size() == 1)
     {
-        result[0] = convert_type( member_type->lexem.value, state, type_detail );
+        result[4] = "Optional";
+        member =  member_type->children.front();
     }
-    else if ( member_type->lexem.rtt == keyword_array::rtt &&
-             member_type->children.size() == 1 )
+    else
+        member = member_type;
+
+    if ( member->lexem.rtt == identifier::rtt )
+    {
+        result[0] = convert_type( member->lexem.value, state, type_detail );
+    }
+    else if ( member->lexem.rtt == keyword_array::rtt &&
+             member->children.size() == 1 )
     {
         result[0] = "array";
         int count = 1;
-        auto it = member_type->children.front();
+        auto it = member->children.front();
         for( ; it->lexem.rtt != identifier::rtt; it = it->children.front() )
         {
             count++;
@@ -257,11 +267,11 @@ void construct_type_name( expression_tree const* member_type,
         result[2] = std::to_string( count );
     }
     else
-    if ( member_type->lexem.rtt == keyword_hash::rtt &&
-         member_type->children.size() == 2 )
+    if ( member->lexem.rtt == keyword_hash::rtt &&
+         member->children.size() == 2 )
     {
         int count = 1;
-        auto it = member_type->children.front();
+        auto it = member->children.front();
         for( ; it->lexem.rtt != identifier::rtt; it = it->children.front() )
         {
             count++;
@@ -273,7 +283,7 @@ void construct_type_name( expression_tree const* member_type,
 
         result[0] = "hash";
         result[2] = std::to_string( count );
-        result[3] = convert_type( member_type->children.back()->lexem.value, state, type_detail );
+        result[3] = convert_type( member->children.back()->lexem.value, state, type_detail );
 
     }
     else
@@ -480,6 +490,9 @@ trait RttSerializableTrait
         foreach ($vars as  $name => $value)
         {
             $member = (static::class)::getMemberName($name);
+            if ($member['removeIfNull'] === true && $value === null) {
+                continue;
+            }
             if ($member['convertToDate']) {
                 $vars2[$member['key']] = date("Y-m-d H:i:s", $value);
             } else {
@@ -489,6 +502,8 @@ trait RttSerializableTrait
         return $vars2;
     }
 }
+
+
 
 )file_template";
 
@@ -650,7 +665,7 @@ void analyze_struct(    state_holder& state,
 
         g_type_info type_detail;
 
-        string info[4];
+        string info[5];
         construct_type_name( member_type, state, type_detail, info );
 
         string camelCaseMemberName = transformString( member_name.value );
@@ -685,9 +700,14 @@ void analyze_struct(    state_holder& state,
 
         memberNamesMap += "        '" + member_name.value + "'" + " => ['name' => '" + camelCaseMemberName + "', 'convertToDate' => ";
         if ( info[0] == "integer")
-            memberNamesMap += "true],\n";
+            memberNamesMap += "true, ";
         else
-            memberNamesMap += "false],\n";
+            memberNamesMap += "false, ";
+
+        if ( info[4] == "Optional")
+            memberNamesMap += "'removeIfNull' => true],\n";
+        else
+            memberNamesMap += "'removeIfNull' => false],\n";
 
         if ( info[0] == "::beltpp::packet" )
         {
