@@ -24,7 +24,7 @@ module BlockchainMessage
         Coin fee
         Object action
         //  action is one of
-        //  Transfer, AwardAuthorization, RejectAuthorization, File, ContentUnit, Content, Role, StorageUpdate
+        //  Transfer, AuthorizationUpdate, File, ContentUnit, Content, Role, StorageUpdate
         //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
     }
 
@@ -99,7 +99,7 @@ module BlockchainMessage
         Coin fee
         Object action
         //  action is one of
-        //  Transfer, AwardAuthorization, RejectAuthorization, File, ContentUnit, Content, Role, StorageUpdate
+        //  Transfer, AuthorizationUpdate, File, ContentUnit, Content, Role, StorageUpdate
         //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
         String transaction_hash
         UInt64 transaction_size
@@ -144,7 +144,7 @@ module BlockchainMessage
         String actor
 
         // empty set means full awarded permissons
-        Set UInt64 action_ids
+        Array UInt64 action_ids
     }
 
     class TransactionReserve2 {}
