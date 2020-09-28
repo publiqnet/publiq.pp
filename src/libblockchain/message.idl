@@ -144,7 +144,7 @@ module BlockchainMessage
         String actor
 
         // empty set means full awarded permissons
-        Array UInt64 action_ids
+        Set UInt64 action_ids
     }
 
     class TransactionReserve2 {}
