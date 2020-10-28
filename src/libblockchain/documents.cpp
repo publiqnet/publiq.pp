@@ -527,10 +527,6 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
         end_tp = chrono::time_point_cast<chrono::seconds>(end_tp);
         auto start_tp = system_clock::from_time_t(cusi.time_points_used.back().tm);
 
-        coin part_sum;
-        if (sponsored_content_unit_set_used_apply == type && end_tp <= start_tp)
-            throw std::logic_error("sponsored_content_unit_set_used_apply == type && end_tp <= start_tp");
-
         if ((sponsored_content_unit_set_used_apply == type && end_tp > start_tp) ||
             (sponsored_content_unit_set_used_revert == type &&
              (
@@ -596,8 +592,6 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
 
                 if (part == coin())
                     continue;
-
-                part_sum += part;
 
                 auto& temp_result = result[item.sponsor_address];
 
@@ -672,8 +666,7 @@ map<string, map<string, coin>> documents::sponsored_content_unit_set_used(publiq
         }
 
         if (sponsored_content_unit_set_used_apply == type &&
-            transaction_hash_to_cancel.empty() &&
-            part_sum != coin())
+            transaction_hash_to_cancel.empty())
         {
             //  pretend mode cannot enter this path
             //
