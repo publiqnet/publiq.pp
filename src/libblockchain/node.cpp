@@ -252,6 +252,7 @@ void node::run(bool& stop_check)
                 case ServiceStatistics::rtt:
                 case SponsorContentUnit::rtt:
                 case CancelSponsorContentUnit::rtt:
+                case AuthorizationUpdate::rtt:
                 {
                     if (m_pimpl->m_blockchain.length() >= m_pimpl->m_freeze_before_block)
                         break;
