@@ -660,7 +660,7 @@ public:
 
     meshpp::public_key front_public_key() const
     {
-        return front_private_key().get_public_key();
+        return pconfig->get_public_key();
     }
 
     meshpp::private_key front_private_key() const

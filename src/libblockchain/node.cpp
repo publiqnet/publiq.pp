@@ -799,18 +799,36 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(msg);
 
                     auto pv_key = m_pimpl->front_private_key();
+                    auto pb_key = m_pimpl->front_public_key();
+
                     if (msg.address)
-                    for (auto const& key_item : m_pimpl->pconfig->keys())
                     {
-                        if (key_item.get_public_key().to_string() == *msg.address)
+                        bool skip_next = false;
+
+                        for (auto const& pbkey_item : m_pimpl->pconfig->public_keys())
                         {
-                            pv_key = key_item;
-                            break;
+                            if (pbkey_item.to_string() == *msg.address)
+                            {
+                                pb_key = pbkey_item;
+                                skip_next = true;
+                                break;
+                            }
+                        }
+
+                        if (false == skip_next)
+                        for (auto const& key_item : m_pimpl->pconfig->keys())
+                        {
+                            if (key_item.get_public_key().to_string() == *msg.address)
+                            {
+                                pv_key = key_item;
+                                pb_key = pv_key.get_public_key();
+                                break;
+                            }
                         }
                     }
 
                     Pong msg_pong;
-                    msg_pong.node_address = pv_key.get_public_key().to_string();
+                    msg_pong.node_address = pb_key.to_string();
                     msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
                     string message_pong = msg_pong.node_address + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
                     auto signed_message = pv_key.sign(message_pong);
