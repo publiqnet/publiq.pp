@@ -43,6 +43,14 @@ namespace publiqpp
 {
 //  free functions
 void sync_worker(detail::node_internals& impl);
+string value(unordered_map<string, string> const& map, string const& key)
+{
+    auto it = map.find(key);
+    if (it == map.end())
+        return string();
+    
+    return it->second;
+}
 /*
  * node
  */
@@ -321,6 +329,11 @@ void node::run(bool& stop_check)
                         beltpp::assign(beltpp_ip_address, address_info.ip_address);
                         beltpp::ip_address beltpp_ssl_ip_address;
                         beltpp::assign(beltpp_ssl_ip_address, address_info.ssl_ip_address);
+
+                        auto const& authority = signed_tx.authorizations.front().address;
+
+                        if (authority != address_info.node_address)
+                            m_pimpl->m_nodeid_authorities[address_info.node_address] = authority;
 
                         m_pimpl->m_nodeid_service.add(address_info.node_address,
                                                       beltpp_ip_address,
@@ -786,18 +799,36 @@ void node::run(bool& stop_check)
                     std::move(ref_packet).get(msg);
 
                     auto pv_key = m_pimpl->front_private_key();
+                    auto pb_key = m_pimpl->front_public_key();
+
                     if (msg.address)
-                    for (auto const& key_item : m_pimpl->pconfig->keys())
                     {
-                        if (key_item.get_public_key().to_string() == *msg.address)
+                        bool skip_next = false;
+
+                        for (auto const& pbkey_item : m_pimpl->pconfig->public_keys())
                         {
-                            pv_key = key_item;
-                            break;
+                            if (pbkey_item.to_string() == *msg.address)
+                            {
+                                pb_key = pbkey_item;
+                                skip_next = true;
+                                break;
+                            }
+                        }
+
+                        if (false == skip_next)
+                        for (auto const& key_item : m_pimpl->pconfig->keys())
+                        {
+                            if (key_item.get_public_key().to_string() == *msg.address)
+                            {
+                                pv_key = key_item;
+                                pb_key = pv_key.get_public_key();
+                                break;
+                            }
                         }
                     }
 
                     Pong msg_pong;
-                    msg_pong.node_address = pv_key.get_public_key().to_string();
+                    msg_pong.node_address = pb_key.to_string();
                     msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
                     string message_pong = msg_pong.node_address + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
                     auto signed_message = pv_key.sign(message_pong);
@@ -1145,7 +1176,8 @@ void node::run(bool& stop_check)
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
             actions.emplace_back(new session_action_connections(*m_pimpl->m_ptr_rpc_socket.get()));
             actions.emplace_back(new session_action_signatures(*m_pimpl->m_ptr_rpc_socket.get(),
-                                                                m_pimpl->m_nodeid_service));
+                                                                m_pimpl->m_nodeid_service,
+                                                                value(m_pimpl->m_nodeid_authorities, node_address)));
 
             actions.emplace_back(std::move(ptr_action));
 
@@ -1251,7 +1283,8 @@ void node::run(bool& stop_check)
                             {
                                 actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
                                 actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
-                                                                                   impl.m_nodeid_service));
+                                                                                   impl.m_nodeid_service,
+                                                                                   value(impl.m_nodeid_authorities, channel_address)));
                             }
 
                             actions.emplace_back(new session_action_request_file(file_uri,
@@ -1840,7 +1873,8 @@ void sync_worker(detail::node_internals& impl)
             vector<unique_ptr<meshpp::session_action<meshpp::nodeid_session_header>>> actions;
             actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
             actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
-                                                               impl.m_nodeid_service));
+                                                               impl.m_nodeid_service,
+                                                               value(impl.m_nodeid_authorities, item.node_address)));
             actions.emplace_back(new session_action_sync_request(impl,
                                                                  *impl.m_ptr_rpc_socket.get()));
 

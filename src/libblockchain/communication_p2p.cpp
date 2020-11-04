@@ -1276,7 +1276,7 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     m_pimpl->pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = m_pimpl->front_public_key().to_string();
+    authorization.address = m_pimpl->front_private_key().get_public_key().to_string();
     authorization.signature = m_pimpl->front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
@@ -1305,17 +1305,40 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         m_pimpl->pconfig->get_public_address().remote.empty())
         return;
 
+    vector<pair<meshpp::private_key, string>> arr_keys;
+    
+    auto pbks = m_pimpl->pconfig->public_keys();
     auto pks = m_pimpl->pconfig->keys();
+
+    arr_keys.reserve(pks.size() + pbks.size());
+
+    unordered_set<string> used_public_keys;
+
+    if (false == pbks.empty())
+        used_public_keys.insert(m_pimpl->front_private_key().get_public_key().to_string());
+
+    for (auto const& pbk : pbks)
+    {
+        string pbk_string = pbk.to_string();
+        arr_keys.push_back(std::make_pair(m_pimpl->front_private_key(), pbk_string));
+
+        used_public_keys.insert(pbk_string);
+    }
+
     for (auto const& pk : pks)
     {
-        auto pbk = pk.get_public_key();
+        string pbk_string = pk.get_public_key().to_string();
 
-        NodeType my_state_type;
-        if (false == m_pimpl->m_state.get_role(pbk.to_string(), my_state_type))
-            my_state_type = NodeType::blockchain;
+        if (used_public_keys.count(pbk_string))
+            continue;
 
+        arr_keys.push_back(std::make_pair(pk, pbk_string));
+    }
+
+    for (auto const& item : arr_keys)
+    {
         AddressInfo address_info;
-        address_info.node_address = pbk.to_string();
+        address_info.node_address = item.second;
         beltpp::assign(address_info.ip_address, m_pimpl->pconfig->get_public_address());
         beltpp::assign(address_info.ssl_ip_address, m_pimpl->pconfig->get_public_ssl_address());
 
@@ -1325,8 +1348,8 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
 
         Authority authorization;
-        authorization.address = pbk.to_string();
-        authorization.signature = pk.sign(transaction.to_string()).base58;
+        authorization.address = item.first.get_public_key().to_string();
+        authorization.signature = item.first.sign(transaction.to_string()).base58;
 
         SignedTransaction signed_transaction;
         signed_transaction.transaction_details = transaction;
@@ -1466,7 +1489,7 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     impl.pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = impl.front_public_key().to_string();
+    authorization.address = impl.front_private_key().get_public_key().to_string();
     authorization.signature = impl.front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
@@ -1505,7 +1528,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
     impl.pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = impl.front_public_key().to_string();
+    authorization.address = impl.front_private_key().get_public_key().to_string();
     authorization.signature = impl.front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;

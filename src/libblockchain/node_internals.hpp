@@ -660,7 +660,7 @@ public:
 
     meshpp::public_key front_public_key() const
     {
-        return front_private_key().get_public_key();
+        return pconfig->get_public_key();
     }
 
     meshpp::private_key front_private_key() const
@@ -730,6 +730,7 @@ public:
     };
 
     unordered_map<string, vote_info> m_votes;
+    unordered_map<string, string> m_nodeid_authorities;
     event_queue_manager m_event_queue;
 };
 
