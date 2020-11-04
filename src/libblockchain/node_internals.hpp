@@ -730,6 +730,7 @@ public:
     };
 
     unordered_map<string, vote_info> m_votes;
+    unordered_map<string, string> m_nodeid_authorities;
     event_queue_manager m_event_queue;
 };
 

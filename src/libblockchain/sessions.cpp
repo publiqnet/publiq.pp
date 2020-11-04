@@ -144,12 +144,14 @@ bool session_action_p2pconnections::permanent() const
 // --------------------------- session_action_signatures ---------------------------
 
 session_action_signatures::session_action_signatures(beltpp::socket& sk,
-                                                     nodeid_service& service)
+                                                     nodeid_service& service,
+                                                     string const& authority_override)
     : session_action<meshpp::nodeid_session_header>()
     , psk(&sk)
     , pnodeid_service(&service)
     , need_to_revert_keep_successful(false)
     , address()
+    , authority(authority_override)
 {}
 
 session_action_signatures::~session_action_signatures()
@@ -169,6 +171,8 @@ void session_action_signatures::initiate(meshpp::nodeid_session_header& header)
 
     nodeid = header.nodeid;
     address = header.address;
+    if (authority.empty())
+        authority = nodeid;
 }
 
 bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid_session_header& header)
@@ -191,8 +195,8 @@ bool session_action_signatures::process(beltpp::packet&& package, meshpp::nodeid
             string message = msg.node_address + ::beltpp::gm_time_t_to_gm_string(msg.stamp.tm);
 
             if ((chrono::seconds(-30) <= diff && diff < chrono::seconds(30)) &&
-                meshpp::verify_signature(msg.node_address, message, msg.signature) &&
-                header.nodeid == msg.node_address)
+                header.nodeid == msg.node_address &&
+                meshpp::verify_signature(authority, message, msg.signature))
             {
                 pnodeid_service->keep_successful(nodeid, address, true);
                 need_to_revert_keep_successful = true;
