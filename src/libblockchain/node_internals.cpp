@@ -53,7 +53,7 @@ bool node_internals::initialize()
                           *this,
                           unit_uri_view_counts,
                           unit_sponsor_applied))
-            writeln_node(std::to_string(block.header.block_number) + ") block rewards reverting error!");
+            throw std::logic_error(std::to_string(block.header.block_number) + "- block rewards reverting error!");
 
         B_UNUSED(unit_uri_view_counts);
         B_UNUSED(unit_sponsor_applied);
