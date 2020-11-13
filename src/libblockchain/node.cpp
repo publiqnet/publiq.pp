@@ -1070,6 +1070,10 @@ void node::run(bool& stop_check)
                             unit.content_unit_uri.clear(); // simulate the old behavior
 
                             m_pimpl->service_counter.served(unit, unit_counter);
+#ifdef EXTRA_LOGGING
+                            m_pimpl->writeln_node("storage served");
+                            m_pimpl->writeln_node(msg.to_string());
+#endif
                         }
                     }
                 }
