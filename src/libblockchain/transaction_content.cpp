@@ -38,10 +38,6 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_transaction.authorizations.size() != 1)
         throw authority_exception(signed_transaction.authorizations.back().address, string());
 
-    auto signed_authority = signed_transaction.authorizations.front().address;
-    if (signed_authority != content.channel_address)
-        throw authority_exception(signed_authority, content.channel_address);
-
     meshpp::public_key pb_key_channel(content.channel_address);
 
     if (content.content_unit_uris.empty())
@@ -62,10 +58,16 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      SignedTransaction const&/* signed_transaction*/,
+                      SignedTransaction const& signed_transaction,
                       Content const& content,
                       state_layer/* layer*/)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(content.channel_address, signed_authority, Content::rtt))
+        return false;
+
     NodeType node_type;
     if (false == impl.m_state.get_role(content.channel_address, node_type) ||
         node_type != NodeType::channel)
@@ -90,10 +92,16 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  SignedTransaction const&/* signed_transaction*/,
+                  SignedTransaction const& signed_transaction,
                   Content const& content,
                   state_layer layer)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(content.channel_address, signed_authority, Content::rtt))
+        throw authority_exception(signed_authority, impl.m_authority_manager.get_authority(content.channel_address, Content::rtt));
+
     NodeType node_type;
     if (false == impl.m_state.get_role(content.channel_address, node_type) ||
         node_type != NodeType::channel)
@@ -129,10 +137,15 @@ void action_apply(publiqpp::detail::node_internals& impl,
     }
 }
 
-void action_revert(publiqpp::detail::node_internals& /*impl*/,
-                   SignedTransaction const&/* signed_transaction*/,
-                   Content const& /*content*/,
+void action_revert(publiqpp::detail::node_internals& impl,
+                   SignedTransaction const& signed_transaction,
+                   Content const& content,
                    state_layer/* layer*/)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(content.channel_address, signed_authority, Content::rtt))
+        throw std::logic_error("false == impl.m_authority_manager.check_authority(content.channel_address, signed_authority, Content::rtt)");
 }
 }

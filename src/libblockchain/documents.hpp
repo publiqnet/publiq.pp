@@ -1,5 +1,6 @@
 #pragma once
 
+#include "global.hpp"
 #include "coin.hpp"
 #include "message.hpp"
 

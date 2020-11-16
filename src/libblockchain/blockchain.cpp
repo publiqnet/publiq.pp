@@ -9,6 +9,8 @@
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
 
+using std::string;
+
 namespace publiqpp
 {
 namespace detail
@@ -22,7 +24,7 @@ public:
     {
     }
 
-    std::string m_last_hash;
+    string m_last_hash;
     BlockHeader m_last_header;
     meshpp::vector_loader<BlockHeader> m_header;
     meshpp::vector_loader<SignedBlock> m_blockchain;
@@ -82,7 +84,7 @@ uint64_t blockchain::length() const
     return m_pimpl->m_blockchain.size();
 }
 
-std::string blockchain::last_hash() const
+string blockchain::last_hash() const
 {
     return m_pimpl->m_last_hash;
 }
@@ -161,5 +163,25 @@ void blockchain::remove_last_block()
     m_pimpl->m_blockchain.pop_back();
 
     update_state();
+}
+
+string blockchain::get_miner(SignedBlock const& signed_block)
+{
+    string miner;
+    for (auto const& reward_item : signed_block.block_details.rewards)
+    {
+        if (reward_item.reward_type == RewardType::miner)
+        {
+            if (false == miner.empty())
+                throw std::logic_error("blockchain::get_miner: false == miner.empty()");
+            
+            miner = reward_item.to;
+        }
+    }
+
+    if (miner.empty())
+        miner = signed_block.authorization.address;
+
+    return miner;
 }
 }

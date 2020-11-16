@@ -3,7 +3,6 @@
 #include "global.hpp"
 #include "message.hpp"
 #include "node.hpp"
-#include "common.hpp"
 #include "state.hpp"
 
 #include <string>

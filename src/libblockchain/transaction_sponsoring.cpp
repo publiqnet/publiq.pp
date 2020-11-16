@@ -38,16 +38,12 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_transaction.authorizations.size() != 1)
         throw authority_exception(signed_transaction.authorizations.back().address, string());
 
-    auto signed_authority = signed_transaction.authorizations.front().address;
-    if (signed_authority != sponsor_content_unit.sponsor_address)
-        throw authority_exception(signed_authority, sponsor_content_unit.sponsor_address);
-
     if (sponsor_content_unit.hours == 0)
         throw wrong_data_exception("sponsor duration");
     if (sponsor_content_unit.amount == Coin())
         throw wrong_data_exception("sponsor amount");
 
-    meshpp::public_key pb_key_from(sponsor_content_unit.sponsor_address);
+    meshpp::public_key pb_key_sponsor(sponsor_content_unit.sponsor_address);
 
     string file_hash = meshpp::from_base58(sponsor_content_unit.uri);
     if (file_hash.length() != 32)
@@ -61,10 +57,16 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      SignedTransaction const&/* signed_transaction*/,
+                      SignedTransaction const& signed_transaction,
                       SponsorContentUnit const& sponsor_content_unit,
                       state_layer/* layer*/)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(sponsor_content_unit.sponsor_address, signed_authority, SponsorContentUnit::rtt))
+        return false;
+
     if (false == impl.m_documents.unit_exists(sponsor_content_unit.uri))
         return false;
 
@@ -80,6 +82,12 @@ void action_apply(publiqpp::detail::node_internals& impl,
                   SponsorContentUnit const& sponsor_content_unit,
                   state_layer layer)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(sponsor_content_unit.sponsor_address, signed_authority, SponsorContentUnit::rtt))
+        throw authority_exception(signed_authority, impl.m_authority_manager.get_authority(sponsor_content_unit.sponsor_address, SponsorContentUnit::rtt));
+
     if (false == impl.m_documents.unit_exists(sponsor_content_unit.uri))
         throw uri_exception(sponsor_content_unit.uri, uri_exception::missing);
 
@@ -111,6 +119,12 @@ void action_revert(publiqpp::detail::node_internals& impl,
     impl.m_documents.sponsor_content_unit_revert(impl,
                                                  sponsor_content_unit,
                                                  meshpp::hash(signed_transaction.to_string()));
+    
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(sponsor_content_unit.sponsor_address, signed_authority, SponsorContentUnit::rtt))
+        throw std::logic_error("false == impl.m_authority_manager.check_authority(sponsor_content_unit.sponsor_address, signed_authority, SponsorContentUnit::rtt)");
 }
 
 // cancel sponsoring stuff
@@ -134,11 +148,7 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_transaction.authorizations.size() != 1)
         throw authority_exception(signed_transaction.authorizations.back().address, string());
 
-    auto signed_authority = signed_transaction.authorizations.front().address;
-    if (signed_authority != cancel_sponsor_content_unit.sponsor_address)
-        throw authority_exception(signed_authority, cancel_sponsor_content_unit.sponsor_address);
-
-    meshpp::public_key pb_key_from(cancel_sponsor_content_unit.sponsor_address);
+    meshpp::public_key pb_key_sponsor(cancel_sponsor_content_unit.sponsor_address);
 
     string file_hash = meshpp::from_base58(cancel_sponsor_content_unit.uri);
     if (file_hash.length() != 32)
@@ -157,10 +167,16 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      SignedTransaction const&/* signed_transaction*/,
+                      SignedTransaction const& signed_transaction,
                       CancelSponsorContentUnit const& cancel_sponsor_content_unit,
                       state_layer/* layer*/)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(cancel_sponsor_content_unit.sponsor_address, signed_authority, CancelSponsorContentUnit::rtt))
+        return false;
+
     if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         return false;
 
@@ -186,10 +202,16 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  SignedTransaction const& /*signed_transaction*/,
+                  SignedTransaction const& signed_transaction,
                   CancelSponsorContentUnit const& cancel_sponsor_content_unit,
                   state_layer /*layer*/)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(cancel_sponsor_content_unit.sponsor_address, signed_authority, CancelSponsorContentUnit::rtt))
+        throw authority_exception(signed_authority, impl.m_authority_manager.get_authority(cancel_sponsor_content_unit.sponsor_address, CancelSponsorContentUnit::rtt));
+
     if (false == impl.m_documents.unit_exists(cancel_sponsor_content_unit.uri))
         throw uri_exception(cancel_sponsor_content_unit.uri, uri_exception::missing);
 
@@ -213,7 +235,7 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   SignedTransaction const& /*signed_transaction*/,
+                   SignedTransaction const& signed_transaction,
                    CancelSponsorContentUnit const& cancel_sponsor_content_unit,
                    state_layer /*layer*/)
 {
@@ -235,5 +257,11 @@ void action_revert(publiqpp::detail::node_internals& impl,
                 throw std::logic_error("invalid transaction hash: " +
                                        cancel_sponsor_content_unit.transaction_hash);
         }
+
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(cancel_sponsor_content_unit.sponsor_address, signed_authority, CancelSponsorContentUnit::rtt))
+        throw std::logic_error("false == impl.m_authority_manager.check_authority(cancel_sponsor_content_unit.sponsor_address, signed_authority, CancelSponsorContentUnit::rtt)");
 }
 }

@@ -30,9 +30,7 @@ void action_validate(SignedTransaction const& signed_transaction,
     if (signed_transaction.authorizations.size() != 1)
         throw authority_exception(signed_transaction.authorizations.back().address, string());
 
-    auto signed_authority = signed_transaction.authorizations.front().address;
-    if (signed_authority != role.node_address)
-        throw authority_exception(signed_authority, role.node_address);
+    meshpp::public_key pb_key_address(role.node_address);
 
     if (role.node_type == NodeType::blockchain)
         throw std::runtime_error("there is no need to broadcast role::blockchain");
@@ -45,10 +43,16 @@ bool action_is_complete(SignedTransaction const&/* signed_transaction*/,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      SignedTransaction const&/* signed_transaction*/,
+                      SignedTransaction const& signed_transaction,
                       Role const& role,
                       state_layer/* layer*/)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(role.node_address, signed_authority, Role::rtt))
+        return false;
+
     NodeType node_type;
     if (impl.m_state.get_role(role.node_address, node_type))
         return false;
@@ -71,10 +75,16 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  SignedTransaction const&/* signed_transaction*/,
+                  SignedTransaction const& signed_transaction,
                   Role const& role,
                   state_layer/* layer*/)
 {
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(role.node_address, signed_authority, Role::rtt))
+        throw authority_exception(signed_authority, impl.m_authority_manager.get_authority(role.node_address, Role::rtt));
+
     NodeType node_type;
     if (impl.m_state.get_role(role.node_address, node_type))
         throw std::runtime_error("role: " +
@@ -103,10 +113,16 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   SignedTransaction const&/* signed_transaction*/,
+                   SignedTransaction const& signed_transaction,
                    Role const& role,
                    state_layer/* layer*/)
 {
     impl.m_state.remove_role(role.node_address);
+
+    assert(signed_transaction.authorizations.size() == 1);
+
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(role.node_address, signed_authority, Role::rtt))
+        throw std::logic_error("false == impl.m_authority_manager.check_authority(role.node_address, signed_authority, Role::rtt)");
 }
 }

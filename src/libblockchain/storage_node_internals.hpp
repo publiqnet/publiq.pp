@@ -93,6 +93,16 @@ public:
             plogger_storage_node->warning(value);
     }
 
+    meshpp::public_key front_public_key() const
+    {
+        return pconfig->get_public_key();
+    }
+
+    meshpp::private_key front_private_key() const
+    {
+        return pconfig->get_key();
+    }
+
     beltpp::ilog* plogger_storage_node;
     config* pconfig;
     beltpp::event_handler_ptr m_ptr_eh;

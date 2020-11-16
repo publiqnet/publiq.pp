@@ -43,38 +43,23 @@ void action_validate(SignedTransaction const& signed_transaction,
             throw authority_exception(signed_transaction.authorizations.back().address, string());
         else if (signed_transaction.authorizations.size() < content_unit.author_addresses.size())
             throw authority_exception(string(), content_unit.author_addresses.back());
-
-        for (size_t index = 0; index != signed_transaction.authorizations.size(); ++index)
-        {
-            auto const& signer = signed_transaction.authorizations[index].address;
-            auto const& author = content_unit.author_addresses[index];
-
-            meshpp::public_key pb_key_author(author);
-
-            if (signer != author)
-                throw authority_exception(signer, author);
-        }
     }
     else
     {
         if (signed_transaction.authorizations.size() != 1)
             throw authority_exception(signed_transaction.authorizations[1].address, string());
-
-        bool found = false;
-        for (size_t index = 0; index != content_unit.author_addresses.size(); ++index)
-        {
-            auto const& signer = signed_transaction.authorizations.front().address;
-            auto const& author = content_unit.author_addresses[index];
-
-            meshpp::public_key pb_key_author(author);
-
-            if (signer == author)
-                found = true;
-        }
-
-        if (false == found)
-            throw authority_exception(signed_transaction.authorizations.front().address, string());
     }
+    
+    unordered_set<string> set_authors;
+    for (auto const& author : content_unit.author_addresses)
+    {
+        meshpp::public_key pb_key_author(author);
+
+        auto insert_res = set_authors.insert(author);
+        if (false == insert_res.second)
+            throw wrong_data_exception("duplicate author: " + author);
+    }
+
     meshpp::public_key pb_key_channel(content_unit.channel_address);
 
     if (content_unit.file_uris.empty())
@@ -99,10 +84,21 @@ bool action_is_complete(SignedTransaction const& signed_transaction,
 }
 
 bool action_can_apply(publiqpp::detail::node_internals const& impl,
-                      SignedTransaction const&/* signed_transaction*/,
+                      SignedTransaction const& signed_transaction,
                       ContentUnit const& content_unit,
                       state_layer/* layer*/)
 {
+    if (action_is_complete(signed_transaction, content_unit))
+    {
+        for (size_t index = 0; index != signed_transaction.authorizations.size(); ++index)
+        {
+            auto const& signer = signed_transaction.authorizations[index].address;
+            auto const& author = content_unit.author_addresses[index];
+
+            if (false == impl.m_authority_manager.check_authority(author, signer, ContentUnit::rtt))
+                return false;
+        }
+    }
 
     string duplicate_file_uri;
     if (false == impl.pcontent_unit_validate_check(content_unit.file_uris,
@@ -122,10 +118,21 @@ bool action_can_apply(publiqpp::detail::node_internals const& impl,
 }
 
 void action_apply(publiqpp::detail::node_internals& impl,
-                  SignedTransaction const&/* signed_transaction*/,
+                  SignedTransaction const& signed_transaction,
                   ContentUnit const& content_unit,
                   state_layer/* layer*/)
 {
+    if (action_is_complete(signed_transaction, content_unit))
+    {
+        for (size_t index = 0; index != signed_transaction.authorizations.size(); ++index)
+        {
+            auto const& signer = signed_transaction.authorizations[index].address;
+            auto const& author = content_unit.author_addresses[index];
+
+            if (false == impl.m_authority_manager.check_authority(author, signer, ContentUnit::rtt))
+                throw authority_exception(signer, impl.m_authority_manager.get_authority(author, ContentUnit::rtt));
+        }
+    }
 
     string duplicate_file_uri;
     if (false == impl.pcontent_unit_validate_check(content_unit.file_uris,
@@ -158,10 +165,19 @@ void action_apply(publiqpp::detail::node_internals& impl,
 }
 
 void action_revert(publiqpp::detail::node_internals& impl,
-                   SignedTransaction const&/* signed_transaction*/,
+                   SignedTransaction const& signed_transaction,
                    ContentUnit const& content_unit,
                    state_layer/* layer*/)
 {
     impl.m_documents.remove_unit(content_unit.uri);
+
+    for (size_t index = 0; index != signed_transaction.authorizations.size(); ++index)
+    {
+        auto const& signer = signed_transaction.authorizations[index].address;
+        auto const& author = content_unit.author_addresses[index];
+
+        if (false == impl.m_authority_manager.check_authority(author, signer, ContentUnit::rtt))
+            throw std::logic_error("false == impl.m_authority_manager.check_authority(author, signer, ContentUnit::rtt)");
+    }
 }
 }

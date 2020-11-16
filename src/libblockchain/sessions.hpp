@@ -50,7 +50,8 @@ class session_action_signatures : public meshpp::session_action<meshpp::nodeid_s
 {
 public:
     session_action_signatures(beltpp::socket& sk,
-                              nodeid_service& service);
+                              nodeid_service& service,
+                              std::string const& authority_override);
     ~session_action_signatures() override;
 
     void initiate(meshpp::nodeid_session_header& header) override;
@@ -62,6 +63,7 @@ public:
     bool need_to_revert_keep_successful;
     std::string nodeid;
     beltpp::ip_address address;
+    std::string authority;
 };
 
 class session_action_broadcast_address_info : public meshpp::session_action<meshpp::nodeid_session_header>

@@ -302,6 +302,36 @@ bool config::is_key_set() const
     return false;
 }
 
+void config::set_public_key(public_key const& pbk)
+{
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
+
+    pimpl->config_loader->public_key = pbk.to_string();
+
+    pimpl->config_loader.save();
+    pimpl->config_loader.commit();
+}
+
+public_key config::get_public_key() const
+{
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
+
+    auto& pbk = pimpl->config_loader->public_key;
+    if (pbk)
+        return public_key(*pbk);
+
+    throw std::logic_error("config::get_public_key");
+}
+
+bool config::is_public_key_set() const
+{
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
+
+    if (pimpl->config_loader->public_key)
+        return true;
+    return false;
+}
+
 void config::add_secondary_key(private_key const& pk)
 {
     if (is_key_set() &&
@@ -364,6 +394,65 @@ std::vector<private_key> config::keys() const
                                     pkitem);
         result.push_back(private_key(decrypted_private_key));
     }
+
+    return result;
+}
+
+void config::add_secondary_public_key(public_key const& pbk)
+{
+    string pbk_string = pbk.to_string();
+
+    if (is_public_key_set() &&
+        get_public_key().to_string() == pbk_string)
+        return;
+
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
+
+    auto& pbks = pimpl->config_loader->public_keys;
+    if (pbks &&
+        pbks->end() != std::find(pbks->begin(), pbks->end(), pbk_string))
+        return;
+
+    if (!pbks)
+        pbks = vector<string>();
+
+    pbks->push_back(pbk_string);
+
+    pimpl->config_loader.save();
+    pimpl->config_loader.commit();
+}
+
+void config::remove_secondary_public_key(public_key const& pbk)
+{
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
+
+    auto& pbks = pimpl->config_loader->public_keys;
+    if (!pbks)
+        return;
+
+    string pbk_string = pbk.to_string();
+
+    pbks->erase(std::remove_if(pbks->begin(),
+                              pbks->end(),
+                              [&pbk_string](string const& value) { return value == pbk_string; }),
+               pbks->end());
+
+    pimpl->config_loader.save();
+    pimpl->config_loader.commit();
+}
+
+vector<public_key> config::public_keys() const
+{
+    vector<public_key> result;
+    result.push_back(get_public_key());
+
+    auto locker = unique_lock<mutex>(pimpl->m_mutex);
+
+    auto& pbks = pimpl->config_loader->public_keys;
+
+    if (pbks)
+    for (auto const& pbkitem : *pbks)
+        result.push_back(public_key(pbkitem));
 
     return result;
 }
