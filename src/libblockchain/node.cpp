@@ -1324,7 +1324,7 @@ void node::run(bool& stop_check)
                                 actions.emplace_back(new session_action_connections(*impl.m_ptr_rpc_socket.get()));
                                 actions.emplace_back(new session_action_signatures(*impl.m_ptr_rpc_socket.get(),
                                                                                    impl.m_nodeid_service,
-                                                                                   value(impl.m_nodeid_authorities, channel_address)));
+                                                                                   value(impl.m_nodeid_authorities, node_address)));
                             }
 
                             actions.emplace_back(new session_action_request_file(file_uri,
