@@ -282,6 +282,30 @@ void storage_node::run(bool& stop)
                 psk->send(peerid, beltpp::packet(std::move(msg_pong)));
                 break;
             }
+            case SyncRequest::rtt:
+            {
+                if (nullptr == m_pimpl->m_sync_response)
+                {
+                    if (0 == m_pimpl->m_event_queue.count_rescheduled())
+                    {
+                        // request to master node
+                        StorageTypes::ContainerMessage msg_request;
+                        msg_request.package.set(SyncRequest());
+                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(msg_request)));
+                    }
+
+                    // reshedule request
+                    m_pimpl->m_event_queue.reschedule();
+                }
+                else
+                {
+                    SyncResponse response(std::move(*m_pimpl->m_sync_response));
+                    m_pimpl->m_sync_response.reset();
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+                }
+
+                break;
+            }
             default:
             {
                 m_pimpl->writeln_node("slave can't handle: " + std::to_string(ref_packet.type()) +
@@ -418,7 +442,14 @@ void storage_node::run(bool& stop)
                 StorageTypes::ContainerMessage msg_container;
                 std::move(ref_packet).get(msg_container);
 
-                if (msg_container.package.type() == StorageFileRedirect::rtt)
+                if (msg_container.package.type() == SyncResponse::rtt)
+                {
+                    SyncResponse response;
+                    std::move(msg_container.package).get(response);
+
+                    m_pimpl->m_sync_response.reset(new SyncResponse(response));
+                }
+				else if (msg_container.package.type() == StorageFileRedirect::rtt)
                 {
                     StorageFileRedirect response;
                     std::move(msg_container.package).get(response);
@@ -426,6 +457,7 @@ void storage_node::run(bool& stop)
                     if (m_pimpl->m_redirects.find(response.file_uri) != m_pimpl->m_redirects.end())
                         m_pimpl->m_redirects[response.file_uri] = std::move(response);
                 }
+
                 break;
             }
             }

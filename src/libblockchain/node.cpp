@@ -1154,6 +1154,23 @@ void node::run(bool& stop_check)
 
                     m_pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(msg_response)));
                 }
+                else if (msg_container.package.type() == SyncRequest::rtt)
+                {
+                    BlockHeaderExtended const& header_ex = m_pimpl->m_blockchain.last_header_ex();
+
+                    SyncResponse sync_response;
+                    sync_response.own_header = header_ex;
+
+                    if (m_pimpl->all_sync_info.net_sync_info().c_sum > m_pimpl->all_sync_info.own_sync_info().c_sum)
+                        sync_response.promised_header = m_pimpl->all_sync_info.net_sync_info();
+                    else
+                        sync_response.promised_header = m_pimpl->all_sync_info.own_sync_info();
+
+                    StorageTypes::ContainerMessage msg_response;
+                    msg_response.package.set(std::move(sync_response));
+
+                    m_pimpl->m_ptr_direct_stream->send(storage_peerid, beltpp::packet(std::move(msg_response)));
+                }
                 break;
             }
             }
@@ -1895,7 +1912,8 @@ void sync_worker(detail::node_internals& impl)
                                  chrono::seconds(SYNC_TIMER));
     }
 
-    if (0 < revert_coefficient)
+    B_UNUSED(revert_coefficient);
+    //if (0 < revert_coefficient)
     {
         PublicAddressesInfo public_addresses = impl.m_nodeid_service.get_addresses();
 
