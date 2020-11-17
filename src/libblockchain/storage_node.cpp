@@ -261,7 +261,11 @@ void storage_node::run(bool& stop)
                     m_pimpl->m_event_queue.reschedule();
                 }
                 else
-                    psk->send(peerid, beltpp::packet(std::move(*m_pimpl->m_sync_response)));
+                {
+                    SyncResponse response(std::move(*m_pimpl->m_sync_response));
+                    m_pimpl->m_sync_response.reset();
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+                }
 
                 break;
             }
