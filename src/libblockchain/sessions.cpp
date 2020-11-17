@@ -307,7 +307,7 @@ bool session_action_sync_request::process(beltpp::packet&& package, meshpp::node
             SyncResponse sync_response;
             std::move(package).get(sync_response);
 
-            current_peerid = header.peerid;
+            current_peerid = header.nodeid;
             pimpl->all_sync_info.sync_responses[current_peerid] = std::move(sync_response);
 
             expected_next_package_type = size_t(-1);

@@ -245,6 +245,26 @@ void storage_node::run(bool& stop)
                 psk->send(peerid, beltpp::packet(std::move(msg_pong)));
                 break;
             }
+            case SyncRequest::rtt:
+            {
+                if (nullptr == m_pimpl->m_sync_response)
+                {
+                    if (0 == m_pimpl->m_event_queue.count_rescheduled())
+                    {
+                        // request to master node
+                        StorageTypes::ContainerMessage msg_request;
+                        msg_request.package.set(SyncRequest());
+                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(msg_request)));
+                    }
+
+                    // reshedule request
+                    m_pimpl->m_event_queue.reschedule();
+                }
+                else
+                    psk->send(peerid, beltpp::packet(std::move(*m_pimpl->m_sync_response)));
+
+                break;
+            }
             default:
             {
                 m_pimpl->writeln_node("slave can't handle: " + std::to_string(ref_packet.type()) +
@@ -374,6 +394,21 @@ void storage_node::run(bool& stop)
                 StorageTypes::ContainerMessage msg_response;
                 msg_response.package.set(msg);
                 stream.send(peerid, packet(std::move(msg_response)));
+                break;
+            }
+            case StorageTypes::ContainerMessage::rtt:
+            {
+                StorageTypes::ContainerMessage msg_container;
+                std::move(ref_packet).get(msg_container);
+
+                if (msg_container.package.type() == SyncResponse::rtt)
+                {
+                    SyncResponse response;
+                    std::move(msg_container.package).get(response);
+
+                    m_pimpl->m_sync_response.reset(new SyncResponse(response));
+                }
+
                 break;
             }
             }

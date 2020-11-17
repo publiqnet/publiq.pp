@@ -29,6 +29,7 @@
 #include <list>
 #include <utility>
 #include <unordered_set>
+#include <unordered_map>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -112,6 +113,7 @@ public:
     publiqpp::storage m_storage;
 
     unordered_set<string> m_verified_channels;
+    unique_ptr<SyncResponse> m_sync_response;
     event_queue_manager m_event_queue;
 };
 
