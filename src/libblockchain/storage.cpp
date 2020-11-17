@@ -99,17 +99,6 @@ unordered_set<string> storage::get_file_uris() const
 
 namespace detail
 {
-inline
-beltpp::void_unique_ptr get_putl_types()
-{
-    beltpp::message_loader_utility utl;
-    StorageTypes::detail::extension_helper(utl);
-
-    auto ptr_utl =
-        beltpp::new_void_unique_ptr<beltpp::message_loader_utility>(std::move(utl));
-
-    return ptr_utl;
-}
 
 class storage_controller_internals
 {

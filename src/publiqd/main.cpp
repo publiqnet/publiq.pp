@@ -53,6 +53,7 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& public_ssl_address,
                           string& data_directory,
                           string& private_key,
+                          string& public_key,
                           string& node_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
@@ -241,6 +242,7 @@ int main(int argc, char** argv)
     vector<beltpp::ip_address> p2p_connect_to_addresses;
     string data_directory;
     string str_private_key;
+    string str_public_key;
     string node_type;
     uint64_t fractions;
     uint64_t freeze_before_block;
@@ -263,6 +265,7 @@ int main(int argc, char** argv)
                                       public_ssl_address,
                                       data_directory,
                                       str_private_key,
+                                      str_public_key,
                                       node_type,
                                       fractions,
                                       freeze_before_block,
@@ -343,6 +346,11 @@ int main(int argc, char** argv)
         config.set_key(pv_key);
     }
 
+    if (false == str_public_key.empty())
+        config.set_public_key(meshpp::public_key(str_public_key));
+    else if (false == config.is_public_key_set())
+        config.set_public_key(config.get_key().get_public_key());
+
     config.set_node_type(node_type);
 
     string config_error = config.check_for_error();
@@ -388,6 +396,7 @@ int main(int argc, char** argv)
         auto fs_log = meshpp::data_directory_path("log");
         auto fs_documents = meshpp::data_directory_path("documents");
         auto fs_storages = meshpp::data_directory_path("storages");
+        auto fs_authority_store = meshpp::data_directory_path("authority_store");
 
         cout << "p2p local address: " << config.get_p2p_bind_to_address().to_string() << endl;
         for (auto const& item : config.get_p2p_connect_to_addresses())
@@ -425,6 +434,7 @@ int main(int argc, char** argv)
                             fs_action_log,
                             fs_transaction_pool,
                             fs_state,
+                            fs_authority_store,
                             fs_documents,
                             fs_storages,
                             fs_storage,
@@ -443,7 +453,8 @@ int main(int argc, char** argv)
                             direct_channel);
 
         cout << endl;
-        cout << "Node: " << node.name() << endl;
+        cout << "Node: " << config.get_public_key().to_string() << endl;
+        cout << "Node Authority: " << config.get_key().get_public_key().to_string() << endl;
         cout << "Node Type: " << BlockchainMessage::to_string(config.get_node_type()) << endl;
         cout << "automatic fee: " << config.get_automatic_fee().to_string() << endl;
         cout << "action log enabled: " << config.action_log() << endl;
@@ -569,6 +580,7 @@ bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& public_ssl_address,
                           string& data_directory,
                           string& private_key,
+                          string& public_key,
                           string& node_type,
                           uint64_t& fractions,
                           uint64_t& freeze_before_block,
@@ -611,6 +623,8 @@ bool process_command_line(int argc, char** argv,
                             "Data directory path")
             ("node_private_key,k", program_options::value<string>(&private_key),
                             "Node private key to start with")
+            ("node_public_key,K", program_options::value<string>(&public_key),
+                            "Node public key to start with")
             ("node_type,t", program_options::value<string>(&node_type),
                             "Node start mode")
             ("fee_fractions,f", program_options::value<uint64_t>(&fractions),

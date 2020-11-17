@@ -128,17 +128,21 @@ void nodeid_service::add(std::string const& node_address,
     auto insert_result = m_pimpl->nodeids.insert(std::move(nodeid_item));
     auto it_nodeid = insert_result.first;
 
-    //  not really clear why below code checks for address and node_address equality
-    //  seems in any cases, even if this object was not inserted, the object preventing insertion
-    //  must be identical, set this assert for now
-    assert(it_nodeid->header.address == header_address);
-    assert(it_nodeid->header.node_address == header_node_address);
+    // there was an old code checking if the item preventing the insert has the same header ip address and node address
+    // but this pair is the only unique key for this container
+    // just in case, check for logic errors. can remove the checks later, entirelly
+    if (it_nodeid->header.address != header_address)
+        throw std::logic_error("nodeid_service::add: it_nodeid->header.address != header_address");
+    if (it_nodeid->header.node_address != header_node_address)
+        throw std::logic_error("nodeid_service::add: it_nodeid->header.node_address != header_node_address");
 
+    /*
     if (insert_result.second ||
         (
             it_nodeid->header.address == nodeid_item.header.address &&
             it_nodeid->header.node_address == nodeid_item.header.node_address
         ))
+    */
     {
         bool modified;
         B_UNUSED(modified);

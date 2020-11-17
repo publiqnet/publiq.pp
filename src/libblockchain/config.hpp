@@ -57,9 +57,17 @@ public:
     meshpp::private_key get_key() const;
     bool is_key_set() const;
 
+    void set_public_key(meshpp::public_key const& pbk);
+    meshpp::public_key get_public_key() const;
+    bool is_public_key_set() const;
+
     void add_secondary_key(meshpp::private_key const& pk);
     void remove_secondary_key(meshpp::private_key const& pk);
     std::vector<meshpp::private_key> keys() const;
+
+    void add_secondary_public_key(meshpp::public_key const& pbk);
+    void remove_secondary_public_key(meshpp::public_key const& pbk);
+    std::vector<meshpp::public_key> public_keys() const;
 
     void set_node_type(std::string const& node_type);
     BlockchainMessage::NodeType get_node_type() const;

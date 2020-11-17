@@ -56,6 +56,19 @@ module StorageTypes
         String order_token
     }
 
+    class AccountAuthorization
+    {
+        Bool default_full
+        // default_full tells the meaning of the empty set
+        Set UInt64 action_ids
+    }
+    
+    class AccountAuthorizations
+    {
+        // key is the actor
+        Hash String AccountAuthorization authorizations
+    }
+
     ///
     // Slave message types below
     ///
@@ -82,4 +95,4 @@ module StorageTypes
         Extension package
     }
 }
-////4
+////5
