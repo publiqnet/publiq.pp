@@ -248,7 +248,8 @@ void storage_node::run(bool& stop)
             }
             case SyncRequest::rtt:
             {
-                if (nullptr == m_pimpl->m_sync_response)
+                if (nullptr == m_pimpl->m_sync_response ||
+                    0 == m_pimpl->m_event_queue.count_rescheduled())
                 {
                     if (0 == m_pimpl->m_event_queue.count_rescheduled())
                     {
