@@ -403,8 +403,10 @@ void storage_node::run(bool& stop)
             }
             case StorageTypes::ContainerMessage::rtt:
             {
-                StorageTypes::ContainerMessage msg_container;
-                std::move(ref_packet).get(msg_container);
+                StorageTypes::ContainerMessage* pcontainer;
+                ref_packet.get(pcontainer);
+
+                StorageTypes::ContainerMessage& msg_container = *pcontainer;
 
                 if (msg_container.package.type() == SyncResponse::rtt)
                 {
