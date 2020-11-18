@@ -98,6 +98,7 @@ void storage_node::run(bool& stop)
                 std::move(ref_packet).get(msg);
                 m_pimpl->writeln_node("slave has protocol error: " + detail::peer_short_names(peerid));
                 m_pimpl->writeln_node(msg.buffer);
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
 
                 break;
             }
@@ -407,10 +408,15 @@ void storage_node::run(bool& stop)
 
                 if (msg_container.package.type() == SyncResponse::rtt)
                 {
-                    SyncResponse response;
-                    std::move(msg_container.package).get(response);
+                    if (m_pimpl->m_sync_response)
+                        m_pimpl->m_event_queue.reschedule();
+                    else
+                    {
+                        SyncResponse response;
+                        std::move(msg_container.package).get(response);
 
-                    m_pimpl->m_sync_response.reset(new SyncResponse(response));
+                        m_pimpl->m_sync_response.reset(new SyncResponse(response));
+                    }
                 }
 
                 break;
