@@ -1118,8 +1118,9 @@ void node::run(bool& stop_check)
                     StorageFileAddress msg;
                     std::move(msg_container.package).get(msg);
 
-                    vector<string> storages = m_pimpl->m_documents.get_file_storages(msg.uri);
-                    PublicAddressesInfo public_addresses = m_pimpl->m_nodeid_service.get_addresses();
+                    // redirect temporary disabled
+                    vector<string> storages;// = m_pimpl->m_documents.get_file_storages(msg.uri);
+                    PublicAddressesInfo public_addresses;// = m_pimpl->m_nodeid_service.get_addresses();
 
                     unordered_map<string, PublicAddressInfo> map_public_addresses;
 

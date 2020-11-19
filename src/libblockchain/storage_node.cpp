@@ -126,11 +126,11 @@ void storage_node::run(bool& stop)
                 string file_uri;
                 string session_id;
 
-#if 0 // channel node file redirect disabled for now
                 if (m_pimpl->pconfig->get_node_type() != NodeType::storage)
                 {
                     auto it_redirect = m_pimpl->m_redirects.find(file_info.uri);
-                    if (it_redirect == m_pimpl->m_redirects.end())
+                    if (it_redirect == m_pimpl->m_redirects.end() ||
+                        0 == m_pimpl->m_event_queue.count_rescheduled())
                     {
                         if (0 == m_pimpl->m_event_queue.count_rescheduled())
                         {
@@ -185,35 +185,11 @@ void storage_node::run(bool& stop)
                                                                             tp) ||
                         storage_address != m_pimpl->front_public_key().to_string() ||
                         0 == m_pimpl->m_verified_channels.count(channel_address))
-                        file_info.uri = std::move(file_uri);
-                }
-#endif          
-                // this block should be remove once the code above is enabled
-                if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
-                {
-                    string channel_address;
-                    string storage_address;
-                    string content_unit_uri;
-                    uint64_t seconds;
-                    system_clock::time_point tp;
-
-                    if (false == storage_utility::rpc::verify_storage_order(file_info.storage_order_token,
-                                                                            channel_address,
-                                                                            storage_address,
-                                                                            file_uri,
-                                                                            content_unit_uri,
-                                                                            session_id,
-                                                                            seconds,
-                                                                            tp) ||
-                        storage_address != m_pimpl->pconfig->get_key().get_public_key().to_string() ||
-                        0 == m_pimpl->m_verified_channels.count(channel_address))
+                    {
+                        file_info.uri = file_uri;
                         file_uri.clear();
+                    }
                 }
-                else
-                {
-                    file_uri = file_info.uri;
-                }
-                // remove till here
 
                 StorageFile file;
                 if (false == file_uri.empty() &&
@@ -488,11 +464,13 @@ void storage_node::run(bool& stop)
                 }
 				else if (msg_container.package.type() == StorageFileRedirect::rtt)
                 {
-                    StorageFileRedirect response;
-                    std::move(msg_container.package).get(response);
+                    StorageFileRedirect* presponse;
+                    msg_container.package.get(presponse);
 
-                    if (m_pimpl->m_redirects.find(response.file_uri) != m_pimpl->m_redirects.end())
-                        m_pimpl->m_redirects[response.file_uri] = std::move(response);
+                    if (m_pimpl->m_redirects.count(presponse->file_uri))
+                        m_pimpl->m_event_queue.reschedule();
+                    else
+                        m_pimpl->m_redirects[presponse->file_uri] = std::move(*presponse);
                 }
 
                 break;
