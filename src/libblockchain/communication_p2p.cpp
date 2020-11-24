@@ -983,6 +983,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
     for (auto& key_stxs : map_incomplete_transactions)
     {
         unordered_map<string, string> map_authorizations;
+        unordered_set<string> used_authorizations;
         unordered_set<string> authorities;
 
         auto const& stxs = key_stxs.second;
@@ -1007,13 +1008,16 @@ void mine_block(publiqpp::detail::node_internals& impl)
             auto it_map = map_authorizations.end();
             if (false == authority.empty())
                 it_map = map_authorizations.find(authority);
-            if (map_authorizations.end() != it_map)
+
+            if (map_authorizations.end() != it_map &&
+                0 == used_authorizations.count(it_map->second))
             {
                 Authority temp_authority;
                 temp_authority.address = it_map->first;
                 temp_authority.signature = it_map->second;
 
                 signed_transaction.authorizations.push_back(std::move(temp_authority));
+                used_authorizations.insert(it_map->second);
             }
             else
             {
