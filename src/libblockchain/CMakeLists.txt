@@ -18,6 +18,8 @@ add_library(blockchain
     global.hpp
     action_log.cpp
     action_log.hpp
+    authority_manager.cpp
+    authority_manager.hpp
     blockchain.cpp
     blockchain.hpp
     communication_rpc.cpp
@@ -61,6 +63,8 @@ add_library(blockchain
     storage_node.cpp
     storage_node.hpp
     storage_node_internals.hpp
+    transaction_authorization.cpp
+    transaction_authorization.hpp
     transaction_content.cpp
     transaction_content.hpp
     transaction_storageupdate.cpp

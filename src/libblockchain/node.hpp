@@ -47,6 +47,7 @@ public:
          boost::filesystem::path const& fs_action_log,
          boost::filesystem::path const& fs_transaction_pool,
          boost::filesystem::path const& fs_state,
+         boost::filesystem::path const& fs_authority_store,
          boost::filesystem::path const& fs_documents,
          boost::filesystem::path const& fs_storages,
          boost::filesystem::path const& fs_storage,

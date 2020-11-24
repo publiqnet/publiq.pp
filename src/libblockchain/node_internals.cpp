@@ -44,11 +44,14 @@ bool node_internals::initialize()
 
         Block const& block = signed_block.block_details;
 
+        string signed_block_miner_authority = signed_block.authorization.address;
+        string signed_block_miner_address = blockchain::get_miner(signed_block);
+
         map<string, map<string, uint64_t>> unit_uri_view_counts;
         map<string, coin> unit_sponsor_applied;
         // verify block rewards before reverting, this also reclaims advertisement coins
         if (check_rewards(block,
-                          signed_block.authorization.address,
+                          signed_block_miner_address,
                           rewards_type::revert,
                           *this,
                           unit_uri_view_counts,
@@ -64,10 +67,13 @@ bool node_internals::initialize()
 
         // calculate back transactions
         for (auto it = block.signed_transactions.crbegin(); it != block.signed_transactions.crend(); ++it)
-            revert_transaction(*it, *this, signed_block.authorization.address);
+            revert_transaction(*it, *this, signed_block_miner_address);
 
         --m_revert_blocks_count;
         writeln_node(std::to_string(block.header.block_number) + " block reverted");
+
+        if (false == m_authority_manager.check_authority(signed_block_miner_address, signed_block_miner_authority, Block::rtt))
+            throw std::logic_error("node_internals::initialize: false == m_authority_manager.check_miner_authority(signed_block_miner_address, signed_block_miner_authority)");
 
         if (m_revert_blocks_count % BLOCK_REVERT_LENGTH == 0)
         {
@@ -101,6 +107,7 @@ bool node_internals::initialize()
             m_blockchain.clear();
             m_action_log.clear();
             m_transaction_pool.clear();
+            m_authority_manager.clear();
 
             save(guard);
 

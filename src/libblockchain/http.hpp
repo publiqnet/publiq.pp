@@ -171,29 +171,44 @@ beltpp::detail::pmsg_all message_list_load(
                  ss.resource.path.size() == 2 &&
                  ss.resource.path.front() == "send")
         {
-            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::TransactionBroadcastRequest>();
-            BlockchainMessage::TransactionBroadcastRequest& ref = *reinterpret_cast<BlockchainMessage::TransactionBroadcastRequest*>(p.get());
+            try
+            {
+                auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::TransactionBroadcastRequest>();
+                BlockchainMessage::TransactionBroadcastRequest& ref = *reinterpret_cast<BlockchainMessage::TransactionBroadcastRequest*>(p.get());
 
-            size_t pos;
-            ref.private_key = ss.resource.path.back();
-            meshpp::private_key pv(ref.private_key);
+                size_t pos;
+                ref.private_key = ss.resource.path.back();
+                meshpp::private_key pv(ref.private_key);
 
-            BlockchainMessage::Transfer transfer;
-            transfer.amount.whole = beltpp::stoui64(ss.resource.arguments["whole"], pos);
-            transfer.amount.fraction = beltpp::stoui64(ss.resource.arguments["fraction"], pos);
-            transfer.from = pv.get_public_key().to_string();
-            transfer.message = ss.resource.arguments["message"];
-            transfer.to = ss.resource.arguments["to"];
+                BlockchainMessage::Transfer transfer;
+                transfer.amount.whole = beltpp::stoui64(ss.resource.arguments["whole"], pos);
+                transfer.amount.fraction = beltpp::stoui64(ss.resource.arguments["fraction"], pos);
+                transfer.from = pv.get_public_key().to_string();
+                transfer.message = ss.resource.arguments["message"];
+                transfer.to = ss.resource.arguments["to"];
 
-            ref.transaction_details.creation.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            ref.transaction_details.expiry.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::seconds(beltpp::stoui64(ss.resource.arguments["seconds"], pos)));
-            ref.transaction_details.fee.whole = beltpp::stoui64(ss.resource.arguments["fee_whole"], pos);
-            ref.transaction_details.fee.fraction = beltpp::stoui64(ss.resource.arguments["fee_fraction"], pos);
-            ref.transaction_details.action = std::move(transfer);
+                ref.transaction_details.creation.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                ref.transaction_details.expiry.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() + std::chrono::seconds(beltpp::stoui64(ss.resource.arguments["seconds"], pos)));
+                ref.transaction_details.fee.whole = beltpp::stoui64(ss.resource.arguments["fee_whole"], pos);
+                ref.transaction_details.fee.fraction = beltpp::stoui64(ss.resource.arguments["fee_fraction"], pos);
+                ref.transaction_details.action = std::move(transfer);
 
-            return ::beltpp::detail::pmsg_all(BlockchainMessage::TransactionBroadcastRequest::rtt,
-                                              std::move(p),
-                                              &BlockchainMessage::TransactionBroadcastRequest::pvoid_saver);
+                return ::beltpp::detail::pmsg_all(BlockchainMessage::TransactionBroadcastRequest::rtt,
+                                                std::move(p),
+                                                &BlockchainMessage::TransactionBroadcastRequest::pvoid_saver);
+            }
+            catch (std::exception const& ex)
+            {
+                ssd.session_specal_handler = nullptr;
+
+                BlockchainMessage::RemoteError response;
+                response.message = ex.what();
+                ssd.autoreply = beltpp::http::http_response(ssd, response.to_string());
+
+                return ::beltpp::detail::pmsg_all(size_t(-1),
+                                                  ::beltpp::void_unique_nullptr(),
+                                                  nullptr);
+            }
         }
         else if (ss.type == beltpp::http::detail::scan_status::post &&
                  ss.resource.path.size() == 1 &&
@@ -275,46 +290,48 @@ beltpp::detail::pmsg_all message_list_load(
             try
             {
                 sender = meshpp::private_key(ss.resource.arguments["private_key"]);
+
+                BlockchainMessage::Letter letter;
+                letter.to = ss.resource.arguments["to"];
+                letter.from = sender.get_public_key().to_string();
+                letter.message = ss.resource.arguments["message"];
+
+                BlockchainMessage::Transaction transaction;
+                transaction.action = std::move(letter);
+                transaction.creation.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                transaction.expiry.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() +
+                                                                            std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
+
+                BlockchainMessage::Authority authorization;
+                authorization.address = sender.get_public_key().to_string();
+                authorization.signature = sender.sign(transaction.to_string()).base58;
+
+                BlockchainMessage::SignedTransaction signed_transaction;
+                signed_transaction.transaction_details = std::move(transaction);
+                signed_transaction.authorizations.push_back(std::move(authorization));
+
+                auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::Broadcast>();
+                BlockchainMessage::Broadcast& ref_broadcast = *reinterpret_cast<BlockchainMessage::Broadcast*>(p.get());
+
+                ref_broadcast.echoes = 2;
+                ref_broadcast.package = std::move(signed_transaction);
+
+                return ::beltpp::detail::pmsg_all(BlockchainMessage::Broadcast::rtt,
+                                                std::move(p),
+                                                &BlockchainMessage::Broadcast::pvoid_saver);
             }
             catch (std::exception const& ex)
             {
                 ssd.session_specal_handler = nullptr;
 
-                ssd.autoreply = beltpp::http::http_response(ssd, ex.what());
+                BlockchainMessage::RemoteError response;
+                response.message = ex.what();
+                ssd.autoreply = beltpp::http::http_response(ssd, response.to_string());
 
                 return ::beltpp::detail::pmsg_all(size_t(-1),
                                                   ::beltpp::void_unique_nullptr(),
                                                   nullptr);
             }
-
-            BlockchainMessage::Letter letter;
-            letter.to = ss.resource.arguments["to"];
-            letter.from = sender.get_public_key().to_string();
-            letter.message = ss.resource.arguments["message"];
-
-            BlockchainMessage::Transaction transaction;
-            transaction.action = std::move(letter);
-            transaction.creation.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-            transaction.expiry.tm = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now() +
-                                                                         std::chrono::hours(TRANSACTION_MAX_LIFETIME_HOURS));
-
-            BlockchainMessage::Authority authorization;
-            authorization.address = sender.get_public_key().to_string();
-            authorization.signature = sender.sign(transaction.to_string()).base58;
-
-            BlockchainMessage::SignedTransaction signed_transaction;
-            signed_transaction.transaction_details = std::move(transaction);
-            signed_transaction.authorizations.push_back(std::move(authorization));
-
-            auto p = ::beltpp::new_void_unique_ptr<BlockchainMessage::Broadcast>();
-            BlockchainMessage::Broadcast& ref_broadcast = *reinterpret_cast<BlockchainMessage::Broadcast*>(p.get());
-
-            ref_broadcast.echoes = 2;
-            ref_broadcast.package = std::move(signed_transaction);
-
-            return ::beltpp::detail::pmsg_all(BlockchainMessage::Broadcast::rtt,
-                                              std::move(p),
-                                              &BlockchainMessage::Broadcast::pvoid_saver);
         }
         else if (ss.type == beltpp::http::detail::scan_status::get &&
                  ss.resource.path.size() == 1 &&

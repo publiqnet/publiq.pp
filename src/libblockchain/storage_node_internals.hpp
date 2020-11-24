@@ -29,6 +29,7 @@
 #include <list>
 #include <utility>
 #include <unordered_set>
+#include <unordered_map>
 
 using namespace BlockchainMessage;
 namespace filesystem = boost::filesystem;
@@ -93,6 +94,16 @@ public:
             plogger_storage_node->warning(value);
     }
 
+    meshpp::public_key front_public_key() const
+    {
+        return pconfig->get_public_key();
+    }
+
+    meshpp::private_key front_private_key() const
+    {
+        return pconfig->get_key();
+    }
+
     beltpp::ilog* plogger_storage_node;
     config* pconfig;
     beltpp::event_handler_ptr m_ptr_eh;
@@ -102,6 +113,7 @@ public:
     publiqpp::storage m_storage;
 
     unordered_set<string> m_verified_channels;
+    unique_ptr<SyncResponse> m_sync_response;
     event_queue_manager m_event_queue;
 };
 

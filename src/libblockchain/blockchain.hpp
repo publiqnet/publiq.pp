@@ -39,6 +39,8 @@ public:
     BlockchainMessage::BlockHeader const& header_at(uint64_t number) const;
     BlockchainMessage::BlockHeaderExtended header_ex_at(uint64_t number) const;
     void remove_last_block();
+
+    static std::string get_miner(BlockchainMessage::SignedBlock const& signed_block);
 private:
     std::unique_ptr<detail::blockchain_internals> m_pimpl;
 };

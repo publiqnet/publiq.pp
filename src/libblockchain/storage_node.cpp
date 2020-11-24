@@ -98,6 +98,7 @@ void storage_node::run(bool& stop)
                 std::move(ref_packet).get(msg);
                 m_pimpl->writeln_node("slave has protocol error: " + detail::peer_short_names(peerid));
                 m_pimpl->writeln_node(msg.buffer);
+                psk->send(peerid, beltpp::packet(beltpp::stream_drop()));
 
                 break;
             }
@@ -141,7 +142,7 @@ void storage_node::run(bool& stop)
                                                                             session_id,
                                                                             seconds,
                                                                             tp) ||
-                        storage_address != m_pimpl->pconfig->get_key().get_public_key().to_string() ||
+                        storage_address != m_pimpl->front_public_key().to_string() ||
                         0 == m_pimpl->m_verified_channels.count(channel_address))
                         file_uri.clear();
                 }
@@ -206,25 +207,68 @@ void storage_node::run(bool& stop)
                 Ping msg;
                 std::move(ref_packet).get(msg);
 
-                auto pv_key = m_pimpl->pconfig->get_key();
+                auto pv_key = m_pimpl->front_private_key();
+                auto pb_key = m_pimpl->front_public_key();
+
                 if (msg.address)
-                for (auto const& key_item : m_pimpl->pconfig->keys())
                 {
-                    if (key_item.get_public_key().to_string() == *msg.address)
+                    bool skip_next = false;
+
+                    for (auto const& pbkey_item : m_pimpl->pconfig->public_keys())
                     {
-                        pv_key = key_item;
-                        break;
+                        if (pbkey_item.to_string() == *msg.address)
+                        {
+                            pb_key = pbkey_item;
+                            skip_next = true;
+                            break;
+                        }
+                    }
+
+                    if (false == skip_next)
+                    for (auto const& key_item : m_pimpl->pconfig->keys())
+                    {
+                        if (key_item.get_public_key().to_string() == *msg.address)
+                        {
+                            pv_key = key_item;
+                            pb_key = pv_key.get_public_key();
+                            break;
+                        }
                     }
                 }
 
                 Pong msg_pong;
-                msg_pong.node_address = pv_key.get_public_key().to_string();
+                msg_pong.node_address = pb_key.to_string();
                 msg_pong.stamp.tm = system_clock::to_time_t(system_clock::now());
                 string message_pong = msg_pong.node_address + ::beltpp::gm_time_t_to_gm_string(msg_pong.stamp.tm);
                 auto signed_message = pv_key.sign(message_pong);
 
                 msg_pong.signature = std::move(signed_message.base58);
                 psk->send(peerid, beltpp::packet(std::move(msg_pong)));
+                break;
+            }
+            case SyncRequest::rtt:
+            {
+                if (nullptr == m_pimpl->m_sync_response ||
+                    0 == m_pimpl->m_event_queue.count_rescheduled())
+                {
+                    if (0 == m_pimpl->m_event_queue.count_rescheduled())
+                    {
+                        // request to master node
+                        StorageTypes::ContainerMessage msg_request;
+                        msg_request.package.set(SyncRequest());
+                        m_pimpl->m_ptr_direct_stream->send(node_peerid, packet(std::move(msg_request)));
+                    }
+
+                    // reshedule request
+                    m_pimpl->m_event_queue.reschedule();
+                }
+                else
+                {
+                    SyncResponse response(std::move(*m_pimpl->m_sync_response));
+                    m_pimpl->m_sync_response.reset();
+                    psk->send(peerid, beltpp::packet(std::move(response)));
+                }
+
                 break;
             }
             default:
@@ -356,6 +400,28 @@ void storage_node::run(bool& stop)
                 StorageTypes::ContainerMessage msg_response;
                 msg_response.package.set(msg);
                 stream.send(peerid, packet(std::move(msg_response)));
+                break;
+            }
+            case StorageTypes::ContainerMessage::rtt:
+            {
+                StorageTypes::ContainerMessage* pcontainer;
+                ref_packet.get(pcontainer);
+
+                StorageTypes::ContainerMessage& msg_container = *pcontainer;
+
+                if (msg_container.package.type() == SyncResponse::rtt)
+                {
+                    if (m_pimpl->m_sync_response)
+                        m_pimpl->m_event_queue.reschedule();
+                    else
+                    {
+                        SyncResponse response;
+                        std::move(msg_container.package).get(response);
+
+                        m_pimpl->m_sync_response.reset(new SyncResponse(response));
+                    }
+                }
+
                 break;
             }
             }

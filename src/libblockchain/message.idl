@@ -24,7 +24,7 @@ module BlockchainMessage
         Coin fee
         Object action
         //  action is one of
-        //  Transfer, File, ContentUnit, Content, Role, StorageUpdate
+        //  Transfer, AuthorizationUpdate, File, ContentUnit, Content, Role, StorageUpdate
         //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
     }
 
@@ -99,7 +99,7 @@ module BlockchainMessage
         Coin fee
         Object action
         //  action is one of
-        //  Transfer, File, ContentUnit, Content, Role, StorageUpdate
+        //  Transfer, AuthorizationUpdate, File, ContentUnit, Content, Role, StorageUpdate
         //  ServiceStatistics, SponsorContentUnit, CancelSponsorContentUnit
         String transaction_hash
         UInt64 transaction_size
@@ -137,7 +137,16 @@ module BlockchainMessage
         String message
     }
 
-    class TransactionReserve1 {}
+    class AuthorizationUpdate
+    {
+        UpdateType update_type
+        String owner
+        String actor
+
+        // empty set means full awarded permissons
+        Set UInt64 action_ids
+    }
+
     class TransactionReserve2 {}
     class TransactionReserve3 {}
     class TransactionReserve4 {}
@@ -545,7 +554,9 @@ module BlockchainMessage
         Optional IPAddress public_address
         Optional IPAddress public_ssl_address
         Optional String private_key
+        Optional String public_key
         Optional Array String private_keys
+        Optional Array String public_keys
         Optional String manager_address
         Optional NodeType node_type
         Optional Coin automatic_fee
@@ -605,4 +616,4 @@ module BlockchainMessage
     class GenericModelReserve9 {}
     class GenericModelReserve10 {}
 }
-////4
+////5

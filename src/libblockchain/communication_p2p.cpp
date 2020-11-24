@@ -355,7 +355,7 @@ coin distribute_rewards(vector<Reward>& rewards,
 
 void grant_rewards(vector<SignedTransaction> const& signed_transactions,
                    vector<Reward>& rewards,
-                   string const& address,
+                   string const& miner_address,
                    BlockHeader const& block_header,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
@@ -555,7 +555,7 @@ void grant_rewards(vector<SignedTransaction> const& signed_transactions,
     if (!miner_emission_reward.empty())
     {
         Reward reward;
-        reward.to = address;
+        reward.to = miner_address;
         miner_emission_reward.to_Coin(reward.amount);
         reward.reward_type = RewardType::miner;
 
@@ -582,7 +582,7 @@ bool check_headers(BlockHeaderExtended const& next_header, BlockHeaderExtended c
 }
 
 bool check_rewards(Block const& block,
-                   string const& authority,
+                   string const& miner_address,
                    rewards_type type,
                    publiqpp::detail::node_internals& impl,
                    //  uri         channel   views
@@ -593,7 +593,7 @@ bool check_rewards(Block const& block,
     vector<Reward> rewards;
     grant_rewards(block.signed_transactions,
                   rewards,
-                  authority,
+                  miner_address,
                   block.header,
                   type,
                   impl,
@@ -850,10 +850,10 @@ void mine_block(publiqpp::detail::node_internals& impl)
 
     SignedBlock const& prev_signed_block = impl.m_blockchain.at(block_number);
     BlockHeader const& prev_header = impl.m_blockchain.last_header();
-    string own_key = impl.front_public_key().to_string();
+    string miner_address = impl.front_public_key().to_string();
     string prev_hash = meshpp::hash(prev_signed_block.block_details.to_string());
 
-    uint64_t delta = impl.calc_delta(own_key,
+    uint64_t delta = impl.calc_delta(miner_address,
                                      impl.get_balance().whole,
                                      prev_hash,
                                      prev_header.c_const);
@@ -980,10 +980,10 @@ void mine_block(publiqpp::detail::node_internals& impl)
     });
     reverted_transactions.erase(reverted_transactions_it_end, reverted_transactions.end());
 
-
     for (auto& key_stxs : map_incomplete_transactions)
     {
         unordered_map<string, string> map_authorizations;
+        unordered_set<string> authorities;
 
         auto const& stxs = key_stxs.second;
         assert(false == stxs.empty());
@@ -992,6 +992,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
         {
             assert(stx.authorizations.size() == 1);
             map_authorizations[stx.authorizations.front().address] = stx.authorizations.front().signature;
+            authorities.insert(stx.authorizations.front().address);
         }
 
         auto signed_transaction = stxs.front();
@@ -1002,7 +1003,10 @@ void mine_block(publiqpp::detail::node_internals& impl)
         bool not_found = false;
         for (auto const& owner : owners)
         {
-            auto it_map = map_authorizations.find(owner);
+            string authority = impl.m_authority_manager.find_authority(authorities, owner, signed_transaction.transaction_details.action.type());
+            auto it_map = map_authorizations.end();
+            if (false == authority.empty())
+                it_map = map_authorizations.find(authority);
             if (map_authorizations.end() != it_map)
             {
                 Authority temp_authority;
@@ -1156,7 +1160,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
         }
 
         if (chain_added &&
-            apply_transaction(signed_transaction, impl, own_key))
+            apply_transaction(signed_transaction, impl, miner_address))
         {
             block.signed_transactions.push_back(std::move(signed_transaction));
             guard1.dismiss();
@@ -1188,7 +1192,7 @@ void mine_block(publiqpp::detail::node_internals& impl)
     // grant rewards and move to block
     grant_rewards(block.signed_transactions,
                   block.rewards,
-                  own_key,
+                  miner_address,
                   block.header,
                   rewards_type::apply,
                   impl,
@@ -1272,7 +1276,7 @@ void broadcast_node_type(std::unique_ptr<publiqpp::detail::node_internals>& m_pi
     m_pimpl->pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = m_pimpl->front_public_key().to_string();
+    authorization.address = m_pimpl->front_private_key().get_public_key().to_string();
     authorization.signature = m_pimpl->front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
@@ -1301,17 +1305,40 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         m_pimpl->pconfig->get_public_address().remote.empty())
         return;
 
+    vector<pair<meshpp::private_key, string>> arr_keys;
+    
+    auto pbks = m_pimpl->pconfig->public_keys();
     auto pks = m_pimpl->pconfig->keys();
+
+    arr_keys.reserve(pks.size() + pbks.size());
+
+    unordered_set<string> used_public_keys;
+
+    if (false == pbks.empty())
+        used_public_keys.insert(m_pimpl->front_private_key().get_public_key().to_string());
+
+    for (auto const& pbk : pbks)
+    {
+        string pbk_string = pbk.to_string();
+        arr_keys.push_back(std::make_pair(m_pimpl->front_private_key(), pbk_string));
+
+        used_public_keys.insert(pbk_string);
+    }
+
     for (auto const& pk : pks)
     {
-        auto pbk = pk.get_public_key();
+        string pbk_string = pk.get_public_key().to_string();
 
-        NodeType my_state_type;
-        if (false == m_pimpl->m_state.get_role(pbk.to_string(), my_state_type))
-            my_state_type = NodeType::blockchain;
+        if (used_public_keys.count(pbk_string))
+            continue;
 
+        arr_keys.push_back(std::make_pair(pk, pbk_string));
+    }
+
+    for (auto const& item : arr_keys)
+    {
         AddressInfo address_info;
-        address_info.node_address = pbk.to_string();
+        address_info.node_address = item.second;
         beltpp::assign(address_info.ip_address, m_pimpl->pconfig->get_public_address());
         beltpp::assign(address_info.ssl_ip_address, m_pimpl->pconfig->get_public_ssl_address());
 
@@ -1321,8 +1348,8 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
         transaction.expiry.tm = system_clock::to_time_t(system_clock::now() + chrono::hours(24));
 
         Authority authorization;
-        authorization.address = pbk.to_string();
-        authorization.signature = pk.sign(transaction.to_string()).base58;
+        authorization.address = item.first.get_public_key().to_string();
+        authorization.signature = item.first.sign(transaction.to_string()).base58;
 
         SignedTransaction signed_transaction;
         signed_transaction.transaction_details = transaction;
@@ -1342,8 +1369,8 @@ void broadcast_address_info(std::unique_ptr<publiqpp::detail::node_internals>& m
     }
 }
 
-bool process_address_info(BlockchainMessage::SignedTransaction const& signed_transaction,
-                          BlockchainMessage::AddressInfo const& address_info,
+bool process_address_info(SignedTransaction const& signed_transaction,
+                          AddressInfo const& address_info,
                           std::unique_ptr<publiqpp::detail::node_internals>& pimpl)
 {
     beltpp::ip_address beltpp_ip_address;
@@ -1367,8 +1394,8 @@ bool process_address_info(BlockchainMessage::SignedTransaction const& signed_tra
         throw wrong_data_exception("transaction authorizations error");
 
     auto signed_authority = signed_transaction.authorizations.front().address;
-    if (signed_authority != address_info.node_address)
-        throw authority_exception(signed_authority, address_info.node_address);
+    if (false == pimpl->m_authority_manager.check_authority(address_info.node_address, signed_authority, AddressInfo::rtt))
+        throw authority_exception(signed_authority, pimpl->m_authority_manager.get_authority(address_info.node_address, AddressInfo::rtt));
 
     // Check cache
     if (pimpl->m_transaction_cache.contains(signed_transaction))
@@ -1462,7 +1489,7 @@ void broadcast_service_statistics(publiqpp::detail::node_internals& impl)
     impl.pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = impl.front_public_key().to_string();
+    authorization.address = impl.front_private_key().get_public_key().to_string();
     authorization.signature = impl.front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
@@ -1501,7 +1528,7 @@ void broadcast_storage_update(publiqpp::detail::node_internals& impl,
     impl.pconfig->get_automatic_fee().to_Coin(transaction.fee);
 
     Authority authorization;
-    authorization.address = impl.front_public_key().to_string();
+    authorization.address = impl.front_private_key().get_public_key().to_string();
     authorization.signature = impl.front_private_key().sign(transaction.to_string()).base58;
 
     SignedTransaction signed_transaction;
@@ -1553,8 +1580,8 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
                         chrono::minutes(1));
 }
 
-bool process_letter(BlockchainMessage::SignedTransaction const& signed_transaction,
-                    BlockchainMessage::Letter const& letter,
+bool process_letter(SignedTransaction const& signed_transaction,
+                    Letter const& letter,
                     publiqpp::detail::node_internals& impl)
 {
     if (letter.message.size() > 16 * 1024)
@@ -1568,8 +1595,9 @@ bool process_letter(BlockchainMessage::SignedTransaction const& signed_transacti
     if (signed_transaction.authorizations.size() != 1)
         throw wrong_data_exception("transaction authorizations error");
 
-    if (signed_transaction.authorizations.front().address != letter.from)
-        throw authority_exception(signed_transaction.authorizations.front().address, letter.from);
+    auto signed_authority = signed_transaction.authorizations.front().address;
+    if (false == impl.m_authority_manager.check_authority(letter.from, signed_authority, Letter::rtt))
+        throw authority_exception(signed_authority, impl.m_authority_manager.get_authority(letter.from, Letter::rtt));
 
     if (letter.to == letter.from)
         throw wrong_data_exception("sender can read his messages without blockchain!");
