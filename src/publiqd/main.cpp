@@ -2,6 +2,7 @@
 #include <belt.pp/log.hpp>
 #include <belt.pp/scope_helper.hpp>
 #include <belt.pp/direct_stream.hpp>
+#include <belt.pp/utility.hpp>
 
 #include <mesh.pp/fileutility.hpp>
 #include <mesh.pp/processutility.hpp>
@@ -18,6 +19,7 @@
 #include <boost/locale.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/fstream.hpp>
+
 
 #include <memory>
 #include <iostream>
@@ -43,6 +45,13 @@ using std::endl;
 using std::vector;
 using std::runtime_error;
 using std::thread;
+
+
+string time_now()
+{
+    std::time_t time_t_now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    return beltpp::gm_time_t_to_lc_string(time_t_now);
+}
 
 bool process_command_line(int argc, char** argv,
                           beltpp::ip_address& p2p_bind_to_address,
@@ -75,7 +84,7 @@ static publiqpp::node* g_pnode = nullptr;
 static publiqpp::storage_node* g_pstorage_node = nullptr;
 void termination_handler(int /*signum*/)
 {
-    cout << "stopping..." << endl;
+    cout << time_now() << " - stopping..." << endl;
 
     g_termination_handled = true;
     if (g_pnode)
@@ -505,13 +514,13 @@ int main(int argc, char** argv)
     {
         if (plogger_exceptions)
             plogger_exceptions->message(ex.what());
-        cout << "exception cought: " << ex.what() << endl;
+        cout << time_now() << " - exception cought: " << ex.what() << endl;
     }
     catch (...)
     {
         if (plogger_exceptions)
             plogger_exceptions->message("always throw std::exceptions");
-        cout << "always throw std::exceptions" << endl;
+        cout << time_now() << " - always throw std::exceptions" << endl;
     }
 
     cout << "quit." << endl;
@@ -540,7 +549,7 @@ void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_ha
         {
             if (plogger_exceptions)
                 plogger_exceptions->message(ex.what());
-            cout << "exception cought: " << ex.what() << endl;
+            cout << time_now() << " - exception cought: " << ex.what() << endl;
             cout << "will exit now" << endl;
             termination_handler(0);
             break;
@@ -549,7 +558,7 @@ void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_ha
         {
             if (plogger_exceptions)
                 plogger_exceptions->message(ex.what());
-            cout << "logic error cought: " << ex.what() << endl;
+            cout << time_now() << " - logic error cought: " << ex.what() << endl;
             cout << "will exit now" << endl;
             termination_handler(0);
             break;
@@ -558,13 +567,13 @@ void loop(NODE& node, beltpp::ilog_ptr& plogger_exceptions, bool& termination_ha
         {
             if (plogger_exceptions)
                 plogger_exceptions->message(ex.what());
-            cout << "exception cought: " << ex.what() << endl;
+            cout << time_now() << " - exception cought: " << ex.what() << endl;
         }
         catch (...)
         {
             if (plogger_exceptions)
                 plogger_exceptions->message("always throw std::exceptions, will exit now");
-            cout << "always throw std::exceptions, will exit now" << endl;
+            cout << time_now() << " - always throw std::exceptions, will exit now" << endl;
             termination_handler(0);
             break;
         }
