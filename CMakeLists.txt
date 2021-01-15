@@ -29,7 +29,7 @@ else (WIN32)
     add_compile_options(-Werror)
 endif (WIN32)
 
-project(publiq.pp VERSION 1.1.2)
+project(publiq.pp VERSION 1.1.3)
 add_definitions(-DPUBLIQPP_VERSION_MAJOR=${PROJECT_VERSION_MAJOR})
 add_definitions(-DPUBLIQPP_VERSION_MINOR=${PROJECT_VERSION_MINOR})
 add_definitions(-DPUBLIQPP_VERSION_PATCH=${PROJECT_VERSION_PATCH})
