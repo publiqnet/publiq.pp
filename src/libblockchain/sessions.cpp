@@ -725,7 +725,9 @@ void session_action_block::process_response(meshpp::nodeid_session_header& heade
     assert(block_number > 0);
     assert(block_number <= pimpl->m_blockchain.length());
     if (block_number == 0)
-        throw std::logic_error("sync headers action must take care of this, the program will stop because of this");
+        throw std::logic_error("block_number == 0 - sync headers action must take care of this, the program will stop because of this");
+    if (block_number > pimpl->m_blockchain.length())
+        throw std::logic_error("block_number > pimpl->m_blockchain.length() - sync headers action must take care of this, the program will stop because of this");
 
     //2. check and add received blockchain to sync_blocks_vector for future process
     string prev_block_hash;

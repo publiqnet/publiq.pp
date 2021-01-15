@@ -56,4 +56,4 @@ module ManagerMessage
         Array String storages
     }
 }
-////5
+////6
