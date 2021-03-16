@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <exception>
+#include <stdexcept>
 #include <utility>
 #include <iostream>
 #include <string>

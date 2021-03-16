@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <utility>
 #include <exception>
+#include <stdexcept>
 #include <thread>
 
 using namespace BlockchainMessage;

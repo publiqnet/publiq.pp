@@ -26,6 +26,7 @@
 #include <vector>
 #include <sstream>
 #include <exception>
+#include <stdexcept>
 #include <thread>
 #include <functional>
 #include <chrono>

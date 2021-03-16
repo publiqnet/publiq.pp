@@ -1,3 +1,4 @@
+set Boost_USE_STATIC_LIBS=ON
 REM powershell -command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls"
 powershell -command "&{Write-Host \"downloading boost\"; (New-Object System.Net.WebClient).DownloadFile(\"http://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.zip\", \"boost_1_70_0.zip\")}"
 

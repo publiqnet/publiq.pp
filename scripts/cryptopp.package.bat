@@ -7,7 +7,7 @@ copy cmake\CMakeLists.txt .
 cd ..
 mkdir cryptopp.build
 cd cryptopp.build
-cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_INSTALL_PREFIX=../install ../cryptopp
+cmake -A X64 -DCMAKE_INSTALL_PREFIX=../install ../cryptopp
 cmake --build . --target install --config Release
 cd ..
 rmdir /Q /S cryptopp
