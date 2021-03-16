@@ -21,6 +21,7 @@
 #include <memory>
 #include <vector>
 #include <exception>
+#include <stdexcept>
 #include <functional>
 #include <csignal>
 #include <string>

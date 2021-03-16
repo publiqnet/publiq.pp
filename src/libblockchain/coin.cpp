@@ -2,6 +2,7 @@
 #include "common.hpp"
 
 #include <exception>
+#include <stdexcept>
 
 namespace publiqpp
 {

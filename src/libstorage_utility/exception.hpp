@@ -3,8 +3,8 @@
 #include "global.hpp"
 
 #include <exception>
-#include <string>
 #include <stdexcept>
+#include <string>
 
 namespace storage_utility
 {

@@ -4,8 +4,8 @@
 #include "coin.hpp"
 
 #include <exception>
-#include <string>
 #include <stdexcept>
+#include <string>
 
 namespace publiqpp
 {
