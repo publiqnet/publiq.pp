@@ -241,6 +241,30 @@ int main(int argc, char** argv)
     catch (...)
     {}  //  don't care for exception, for now
     //
+
+    auto tp_start = std::chrono::steady_clock::now();
+    boost::filesystem::path bl_path("/home/tigran/block.31353");
+    //boost::filesystem::path bl_path("/home/tigran/block.mod.81349");
+    meshpp::file_loader<BlockchainMessage::SignedBlock,
+    &BlockchainMessage::SignedBlock::from_string,
+    &BlockchainMessage::SignedBlock::to_string> fl_loader(bl_path);
+
+    // auto& tr_ref = fl_loader->block_details.signed_transactions;
+    // size_t count = tr_ref.size();
+    // for (size_t index = 0; index != count; ++index)
+    // {
+    //     BlockchainMessage::SignedTransaction tx;
+    //     tx.from_string(tr_ref[index].to_string());
+    //     tr_ref.push_back(std::move(tx));
+    // }
+
+    // fl_loader.save();
+
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - tp_start);
+    cout << duration.count() << "\n";
+    return 0;
+
+
     meshpp::settings::set_application_name("publiqd");
     meshpp::settings::set_data_directory(meshpp::config_directory_path().string());
 
