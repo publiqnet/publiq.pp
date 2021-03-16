@@ -7,7 +7,9 @@ copy cmake\CMakeLists.txt .
 cd ..
 mkdir cryptopp.build
 cd cryptopp.build
-cmake -A X64 -DCMAKE_INSTALL_PREFIX=../install ../cryptopp
+cmake -G "Visual Studio 15 2017 Win64" -DCMAKE_INSTALL_PREFIX=../install ../cryptopp
+REM use the following for VS 2019
+REM cmake -A X64 -DCMAKE_INSTALL_PREFIX=../install ../cryptopp
 cmake --build . --target install --config Release
 cd ..
 rmdir /Q /S cryptopp
