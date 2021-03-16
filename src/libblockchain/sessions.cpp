@@ -1170,7 +1170,7 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 #ifdef EXTRA_LOGGING
                     beltpp::on_failure guard([&impl, file_uri_local]{impl.writeln_node(file_uri_local + " flew");});
 #endif
-                    if (false ==
+                    if (false && false ==
                         impl.m_documents.storage_has_uri(file_uri_local,
                                                          impl.front_public_key().to_string()))
                         broadcast_storage_update(impl, file_uri_local, UpdateType::store);
@@ -1219,7 +1219,7 @@ bool session_action_request_file::process(beltpp::packet&& package, meshpp::node
 #endif
             pimpl->m_storage_controller.initiate(file_uri, nodeid, storage_controller::revert);
             need_to_revert_initiate = false;
-            pimpl->m_storage_controller.pop(file_uri, nodeid);
+            // pimpl->m_storage_controller.pop(file_uri, nodeid); to retry to get missing files
             completed = true;
             expected_next_package_type = size_t(-1);
         }

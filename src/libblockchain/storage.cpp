@@ -221,6 +221,7 @@ unordered_map<string, string> storage_controller::get_file_requests(unordered_se
     size_t count_all = 0;
     for (auto const& item : m_pimpl->channels_files_requesting)
         count_all += item.second.size();
+
     if (count_all)
         return file_to_channel;
 

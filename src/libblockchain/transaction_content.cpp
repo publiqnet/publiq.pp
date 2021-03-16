@@ -130,7 +130,9 @@ void action_apply(publiqpp::detail::node_internals& impl,
         for (auto const& unit_uri : content.content_unit_uris)
         {
             auto const& unit = impl.m_documents.get_unit(unit_uri);
-        
+
+            impl.m_storage_controller.enqueue(unit_uri, content.channel_address);
+
             for (auto const& file_uri : unit.file_uris)
                 impl.m_storage_controller.enqueue(file_uri, content.channel_address);
         }

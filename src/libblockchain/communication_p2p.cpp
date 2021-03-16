@@ -1564,7 +1564,7 @@ void delete_storage_file(publiqpp::detail::node_internals& impl,
     std::function<void(beltpp::packet&&)> callback_lambda =
         [psk, peerid, uri, pimpl](beltpp::packet&& package)
     {
-        if (NodeType::storage == pimpl->pconfig->get_node_type() && package.type() == Done::rtt)
+        if (false && NodeType::storage == pimpl->pconfig->get_node_type() && package.type() == Done::rtt)
             broadcast_storage_update(*pimpl, uri, UpdateType::remove);
 
         // if request is from rpc, sender will receive Done() from upper level

@@ -442,8 +442,8 @@ void node::run(bool& stop_check)
                         {
                             StorageFileAddress* pfile_address;
                             package.get(pfile_address);
-                            if (false == pimpl->m_documents.storage_has_uri(pfile_address->uri,
-                                                                            pimpl->front_public_key().to_string()))
+                            if (false && false == pimpl->m_documents.storage_has_uri(pfile_address->uri,
+                                                                                     pimpl->front_public_key().to_string()))
                                 broadcast_storage_update(*pimpl, pfile_address->uri, UpdateType::store);
                         }
 
@@ -1231,7 +1231,7 @@ void node::run(bool& stop_check)
         }
 
         //  yes temp place still
-        broadcast_node_type(m_pimpl);
+        //broadcast_node_type(m_pimpl);
         broadcast_address_info(m_pimpl);
     }
 
@@ -1349,7 +1349,7 @@ void node::run(bool& stop_check)
 #ifdef EXTRA_LOGGING
                         beltpp::on_failure guard([&impl, file_uri]{impl.writeln_node(file_uri + " flew");});
 #endif
-                        if (false == impl.m_documents.storage_has_uri(file_uri, impl.front_public_key().to_string()))
+                        if (false && false == impl.m_documents.storage_has_uri(file_uri, impl.front_public_key().to_string()))
                             broadcast_storage_update(impl, file_uri, UpdateType::store);
 
 #ifdef EXTRA_LOGGING

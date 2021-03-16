@@ -126,7 +126,7 @@ void storage_node::run(bool& stop)
 
                 string file_uri;
 
-                if (m_pimpl->pconfig->get_node_type() == NodeType::storage)
+                if (false && m_pimpl->pconfig->get_node_type() == NodeType::storage)
                 {
                     string channel_address;
                     string storage_address;
