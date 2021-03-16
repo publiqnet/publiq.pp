@@ -5,7 +5,9 @@
 #include <string>
 #include <unordered_map>
 #include <boost/filesystem.hpp>
+
 using expression_tree = beltpp::expression_tree<lexers, std::string>;
+using expression_tree_pointer = beltpp::expression_tree_pointer<lexers, std::string>;
 
 class state_holder
 {

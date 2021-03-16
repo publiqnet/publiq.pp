@@ -70,7 +70,7 @@ string convert_type(string const& type_name, state_holder& state, g_type_info& t
     return type_name;
 }
 
-void construct_type_name(   expression_tree const* member_type,
+void construct_type_name(expression_tree const* member_type,
                          state_holder& state,
                          g_type_info& type_detail,
                          string* result)
@@ -80,7 +80,7 @@ void construct_type_name(   expression_tree const* member_type,
         member_type->children.size() == 1)
     {
         result[3] = "Optional";
-        member =  member_type->children.front();
+        member = &member_type->children.front();
     }
     else
         member = member_type;
@@ -90,12 +90,12 @@ void construct_type_name(   expression_tree const* member_type,
         result[0] = convert_type(member->lexem.value, state, type_detail);
     }
     else if (member->lexem.rtt == keyword_array::rtt &&
-             member->children.size() == 1 )
+             member->children.size() == 1)
     {
         result[0] = "array";
         int count = 1;
-        auto it = member->children.front();
-        for(; it->lexem.rtt != identifier::rtt; it = it->children.front()){
+        auto it = member->children.begin();
+        for(; it->lexem.rtt != identifier::rtt; it = it->children.begin()){
             count++;
         }
         if(it->lexem.rtt == identifier::rtt)
@@ -126,7 +126,7 @@ string transformString( string const& scoreString )
     return camelString;
 }
 
-void analyze(   state_holder& state,
+void analyze(state_holder& state,
              expression_tree const* pexpression,
              std::string const& outputFilePath,
              std::string const& prefix)
@@ -141,43 +141,43 @@ void analyze(   state_holder& state,
 
     if (pexpression->lexem.rtt != keyword_module::rtt ||
         pexpression->children.size() != 2 ||
-        pexpression->children.front()->lexem.rtt != identifier::rtt ||
-        pexpression->children.back()->lexem.rtt != scope_brace::rtt ||
-        pexpression->children.back()->children.empty())
+        pexpression->children.front().lexem.rtt != identifier::rtt ||
+        pexpression->children.back().lexem.rtt != scope_brace::rtt ||
+        pexpression->children.back().children.empty())
         throw runtime_error("wtf");
     else
     {
 
-        for ( auto item : pexpression->children.back()->children )
+        for (auto const& item : pexpression->children.back().children)
         {
-            if (item->lexem.rtt == keyword_enum::rtt)
+            if (item.lexem.rtt == keyword_enum::rtt)
             {
-                if (item->children.size() != 2 ||
-                    item->children.front()->lexem.rtt != identifier::rtt ||
-                    item->children.back()->lexem.rtt != scope_brace::rtt)
+                if (item.children.size() != 2 ||
+                    item.children.front().lexem.rtt != identifier::rtt ||
+                    item.children.back().lexem.rtt != scope_brace::rtt)
                     throw runtime_error("enum syntax is wrong");
 
-                enum_names.push_back(item->children.front()->lexem.value);
-                string enum_name = item->children.front()->lexem.value;
-                analyze_enum(   item->children.back(),
+                enum_names.push_back(item.children.front().lexem.value);
+                string enum_name = item.children.front().lexem.value;
+                analyze_enum(&item.children.back(),
                              enum_name,
                              outputFilePath,
                              prefix );
             }
         }
 
-        for (auto item : pexpression->children.back()->children)
+        for (auto const& item : pexpression->children.back().children)
         {
-            if (item->lexem.rtt == keyword_class::rtt)
+            if (item.lexem.rtt == keyword_class::rtt)
             {
-                if (item->children.size() != 2 ||
-                    item->children.front()->lexem.rtt != identifier::rtt ||
-                    item->children.back()->lexem.rtt != scope_brace::rtt)
+                if (item.children.size() != 2 ||
+                    item.children.front().lexem.rtt != identifier::rtt ||
+                    item.children.back().lexem.rtt != scope_brace::rtt)
                     throw runtime_error("type syntax is wrong");
 
-                string type_name = item->children.front()->lexem.value;
-                analyze_struct( state,
-                               item->children.back(),
+                string type_name = item.children.front().lexem.value;
+                analyze_struct(state,
+                               &item.children.back(),
                                type_name, enum_names,
                                outputFilePath,
                                prefix,
@@ -263,14 +263,14 @@ void analyze_struct(    state_holder& state,
     auto it = pexpression->children.begin();
     for (size_t index = 0; it != pexpression->children.end(); ++index, ++it)
     {
-        auto const* member_type = *it;
+        auto const& member_type = *it;
         ++it;
-        auto const* member_name = *it;
+        auto const& member_name = *it;
 
-        if (member_name->lexem.rtt != identifier::rtt)
+        if (member_name.lexem.rtt != identifier::rtt)
             throw runtime_error("inside class syntax error, wtf, still " + type_name);
 
-        members.push_back(std::make_pair(member_name, member_type));
+        members.push_back(std::make_pair(&member_name, &member_type));
     }
 
     string import;
@@ -578,9 +578,9 @@ void analyze_enum(  expression_tree const* pexpression,
     while (iter != children.end())
     {
         if (iter == children.end() - 1)
-            model<< "    " << transformString( (*iter)->lexem.value ) << "\n";
+            model<< "    " << transformString( (*iter).lexem.value ) << "\n";
         else
-            model<< "    " << transformString( (*iter)->lexem.value ) << ",\n";
+            model<< "    " << transformString( (*iter).lexem.value ) << ",\n";
 
         ++iter;
     }

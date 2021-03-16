@@ -232,59 +232,58 @@ string convert_type( string const& type_name, state_holder& state, g_type_info& 
     return type_name;
 }
 
-void construct_type_name( expression_tree const* member_type,
-                          state_holder& state,
-                          g_type_info& type_detail,
-                          string* result )
+void construct_type_name(expression_tree const* member_type,
+                         state_holder& state,
+                         g_type_info& type_detail,
+                         string* result )
 {
     expression_tree const* member;
     if (member_type->lexem.rtt == keyword_optional::rtt &&
         member_type->children.size() == 1)
     {
         result[4] = "Optional";
-        member =  member_type->children.front();
+        member = &member_type->children.front();
     }
     else
         member = member_type;
 
-    if ( member->lexem.rtt == identifier::rtt )
+    if (member->lexem.rtt == identifier::rtt)
     {
-        result[0] = convert_type( member->lexem.value, state, type_detail );
+        result[0] = convert_type(member->lexem.value, state, type_detail);
     }
-    else if ( member->lexem.rtt == keyword_array::rtt &&
-             member->children.size() == 1 )
+    else if (member->lexem.rtt == keyword_array::rtt &&
+             member->children.size() == 1)
     {
         result[0] = "array";
         int count = 1;
-        auto it = member->children.front();
-        for( ; it->lexem.rtt != identifier::rtt; it = it->children.front() )
+        auto it = member->children.begin();
+        for (; it->lexem.rtt != identifier::rtt; it = it->children.begin())
         {
             count++;
         }
-        if( it->lexem.rtt == identifier::rtt )
+        if (it->lexem.rtt == identifier::rtt)
         {
             result[1] = convert_type( it->lexem.value, state, type_detail );
         }
         result[2] = std::to_string( count );
     }
-    else
-    if ( member->lexem.rtt == keyword_hash::rtt &&
-         member->children.size() == 2 )
+    else if (member->lexem.rtt == keyword_hash::rtt &&
+             member->children.size() == 2 )
     {
         int count = 1;
-        auto it = member->children.front();
-        for( ; it->lexem.rtt != identifier::rtt; it = it->children.front() )
+        auto it = member->children.begin();
+        for (; it->lexem.rtt != identifier::rtt; it = it->children.begin())
         {
             count++;
         }
-        if( it->lexem.rtt == identifier::rtt )
+        if (it->lexem.rtt == identifier::rtt)
         {
             result[1] = convert_type( it->lexem.value, state, type_detail );
         }
 
         result[0] = "hash";
         result[2] = std::to_string( count );
-        result[3] = convert_type( member->children.back()->lexem.value, state, type_detail );
+        result[3] = convert_type(member->children.back().lexem.value, state, type_detail);
 
     }
     else
@@ -335,31 +334,31 @@ interface ValidatorInterface
     unordered_map<size_t, string> class_names;
     vector <string> enum_names;
 
-    if ( pexpression->lexem.rtt != keyword_module::rtt ||
-         pexpression->children.size() != 2 ||
-         pexpression->children.front()->lexem.rtt != identifier::rtt ||
-         pexpression->children.back()->lexem.rtt != scope_brace::rtt ||
-         pexpression->children.back()->children.empty() )
+    if (pexpression->lexem.rtt != keyword_module::rtt ||
+        pexpression->children.size() != 2 ||
+        pexpression->children.front().lexem.rtt != identifier::rtt ||
+        pexpression->children.back().lexem.rtt != scope_brace::rtt ||
+        pexpression->children.back().children.empty() )
         throw runtime_error( "wtf" );
     else
     {
 
 
-        for ( auto item : pexpression->children.back()->children )
+        for (auto const& item : pexpression->children.back().children)
         {
-            if (item->lexem.rtt == keyword_enum::rtt)
+            if (item.lexem.rtt == keyword_enum::rtt)
             {
-                            if (item->children.size() != 2 ||
-                                item->children.front()->lexem.rtt != identifier::rtt ||
-                                item->children.back()->lexem.rtt != scope_brace::rtt)
-                                throw runtime_error("enum syntax is wrong");
+                if (item.children.size() != 2 ||
+                    item.children.front().lexem.rtt != identifier::rtt ||
+                    item.children.back().lexem.rtt != scope_brace::rtt)
+                    throw runtime_error("enum syntax is wrong");
 
-                            enum_names.push_back(item->children.front()->lexem.value);
-                            string enum_name = item->children.front()->lexem.value;
-                            analyze_enum(   item->children.back(),
-                                            enum_name,
-                                            PackageName,
-                                            BaseFolderPath );
+                enum_names.push_back(item.children.front().lexem.value);
+                string enum_name = item.children.front().lexem.value;
+                analyze_enum(&item.children.back(),
+                             enum_name,
+                             PackageName,
+                             BaseFolderPath);
             }
         }
 
@@ -371,22 +370,22 @@ interface ValidatorInterface
 
         ////////////////////////////////////////////////////////
 
-        for ( auto item : pexpression->children.back()->children )
+        for (auto const& item : pexpression->children.back().children)
         {
-            if ( item->lexem.rtt == keyword_class::rtt )
+            if (item.lexem.rtt == keyword_class::rtt )
             {
-                if (    item->children.size() != 2 ||
-                        item->children.front()->lexem.rtt != identifier::rtt ||
-                        item->children.back()->lexem.rtt != scope_brace::rtt )
-                    throw runtime_error( "type syntax is wrong" );
+                if (item.children.size() != 2 ||
+                    item.children.front().lexem.rtt != identifier::rtt ||
+                    item.children.back().lexem.rtt != scope_brace::rtt )
+                    throw runtime_error("type syntax is wrong");
 
-                string type_name = item->children.front()->lexem.value;
-                analyze_struct(     state,
-                                    item->children.back(),
-                                    type_name,
-                                    enum_names,
-                                    PackageName,
-                                    ModelFolder );
+                string type_name = item.children.front().lexem.value;
+                analyze_struct(state,
+                               &item.children.back(),
+                               type_name,
+                               enum_names,
+                               PackageName,
+                               ModelFolder);
 
                 class_names.insert( std::make_pair( rtt, type_name ) );
                 ++rtt;
@@ -616,19 +615,19 @@ void analyze_struct(    state_holder& state,
 
     vector<pair<expression_tree const*, expression_tree const*>> members;
 
-    if ( pexpression->children.size() % 2 != 0 )
+    if (pexpression->children.size() % 2 != 0)
         throw runtime_error( "inside class syntax error, wtf - " + type_name );
 
-    for ( auto it = pexpression->children.begin(); it != pexpression->children.end(); ++it )
+    for (auto it = pexpression->children.begin(); it != pexpression->children.end(); ++it)
     {
-        auto const* member_type = *it;
+        auto const& member_type = *it;
         ++it;
-        auto const* member_name = *it;
+        auto const& member_name = *it;
 
-        if ( member_name->lexem.rtt != identifier::rtt )
+        if (member_name.lexem.rtt != identifier::rtt )
             throw runtime_error( "inside class syntax error, wtf, still " + type_name );
 
-        members.push_back( std::make_pair( member_name, member_type) );
+        members.push_back(std::make_pair(&member_name, &member_type));
     }
 
     /////////////////////
@@ -656,24 +655,24 @@ void analyze_struct(    state_holder& state,
     usings +=       "use " + PackageName +  "\\Base\\Rtt;\n";
 
     string memberNamesMap = "";
-    for ( auto member_pair : members )
+    for (auto member_pair : members)
     {
         auto const& member_name = member_pair.first->lexem;
         auto const& member_type = member_pair.second;
 
-        if ( member_name.rtt != identifier::rtt )
+        if (member_name.rtt != identifier::rtt)
             throw runtime_error( "use \"variable type\" syntax please" );
 
         g_type_info type_detail;
 
         string info[5];
-        construct_type_name( member_type, state, type_detail, info );
+        construct_type_name(member_type, state, type_detail, info);
 
-        string camelCaseMemberName = transformString( member_name.value );
+        string camelCaseMemberName = transformString(member_name.value);
 
         bool isEnum = false;
 
-        if ( std::find( enum_names.begin(), enum_names.end(), info[0]) != enum_names.end() )
+        if (std::find(enum_names.begin(), enum_names.end(), info[0]) != enum_names.end())
         {
                 isEnum = true;
 
@@ -906,9 +905,9 @@ void analyze_enum(  expression_tree const* pexpression,
 
     for (auto const& item : pexpression->children)
     {
-        enumFile << "    const " << item->lexem.value << " = " << "\"" << item->lexem.value << "\"" <<  ";\n" ;
+        enumFile << "    const " << item.lexem.value << " = " << "\"" << item.lexem.value << "\"" <<  ";\n" ;
 
-        string camelCaseMemberName = transformString( item->lexem.value );
+        string camelCaseMemberName = transformString( item.lexem.value );
 
     }   
     enumFile << "} \n";

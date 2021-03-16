@@ -17,12 +17,10 @@ using std::ofstream;
 using std::ifstream;
 using std::vector;
 
-using ptr_expression_tree = std::unique_ptr<expression_tree>;
-
 int main(int argc, char* argv[])
 {
     string definition;
-    ptr_expression_tree ptr_expression;
+    expression_tree_pointer ptr_expression;
     try
     {
         if (argc >= 2)
@@ -101,9 +99,10 @@ int main(int argc, char* argv[])
         }
 
         bool is_value = false;
-        auto proot = beltpp::root(ptr_expression.get(), is_value);
-        ptr_expression.release();
-        ptr_expression.reset(proot);
+        auto proot = beltpp::root(ptr_expression, is_value);
+        B_UNUSED(proot);
+
+        ptr_expression.stack.resize(1);
 
         if (false == is_value)
             throw runtime_error("missing expression, apparently");
@@ -111,7 +110,7 @@ int main(int argc, char* argv[])
         if (it_begin != it_end)
             throw runtime_error("syntax error, maybe: " + string(it_begin, it_end));
 
-        if (ptr_expression->depth() > 30)
+        if (ptr_expression.item().depth() > 30)
             throw runtime_error("expected tree max depth 30 is exceeded");
 
         state_holder state;
@@ -120,17 +119,17 @@ int main(int argc, char* argv[])
         {
             string outputFilePath = argv[2];
             string PackageName = argv[3];
-            analyze(state, ptr_expression.get(), outputFilePath,  PackageName);
+            analyze(state, &ptr_expression.item(), outputFilePath,  PackageName);
         }
     }
     catch(std::exception const& ex)
     {
         cout << "exception: " << ex.what() << endl;
 
-        if (ptr_expression)
+        if (false == ptr_expression.is_empty())
         {
             cout << "=====\n";
-            cout << beltpp::dump(ptr_expression.get()) << endl;
+            cout << beltpp::dump(&ptr_expression.item()) << endl;
         }
 
         return 2;
