@@ -243,8 +243,8 @@ int main(int argc, char** argv)
     //
 
     auto tp_start = std::chrono::steady_clock::now();
-    boost::filesystem::path bl_path("/home/tigran/block.31353");
-    //boost::filesystem::path bl_path("/home/tigran/block.mod.81349");
+    //boost::filesystem::path bl_path("C:\\Users\\user\\Source\\Repos\\test\\block.31353");
+    boost::filesystem::path bl_path("C:\\Users\\user\\Source\\Repos\\test\\block.mod.81349");
     meshpp::file_loader<BlockchainMessage::SignedBlock,
     &BlockchainMessage::SignedBlock::from_string,
     &BlockchainMessage::SignedBlock::to_string> fl_loader(bl_path);

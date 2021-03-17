@@ -102,7 +102,8 @@ int main(int argc, char* argv[])
         auto proot = beltpp::root(ptr_expression, is_value);
         B_UNUSED(proot);
 
-        ptr_expression.stack.resize(1);
+        if (false == ptr_expression.stack.empty())
+            ptr_expression.stack.resize(1);
 
         if (false == is_value)
             throw runtime_error("missing expression, apparently");
@@ -129,7 +130,7 @@ int main(int argc, char* argv[])
         if (false == ptr_expression.is_empty())
         {
             cout << "=====\n";
-            cout << beltpp::dump(&ptr_expression.item()) << endl;
+            cout << beltpp::dump(ptr_expression.item()) << endl;
         }
 
         return 2;
