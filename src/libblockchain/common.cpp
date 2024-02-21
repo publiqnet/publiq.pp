@@ -1,6 +1,9 @@
 #include "common.hpp"
+#include "belt.pp/isocket.hpp"
+#include "belt.pp/stream.hpp"
 
 #include <unordered_set>
+#include <unordered_map>
 
 namespace publiqpp
 {
@@ -13,6 +16,29 @@ void event_queue_manager::next(beltpp::event_handler& eh,
 {
     if (false == queue.empty())
         queue.pop();
+
+    std::unordered_map<beltpp::event_item const*, std::unordered_set<beltpp::socket::peer_id>> dropped;
+
+    for (auto it = queue.cbegin(); it != queue.cend(); ++it)
+    {
+        if (it->et == detail::stream_event::message &&
+            it->package.type() == beltpp::stream_drop::rtt)
+        {
+            dropped[it->pevent_source].insert(it->peerid);
+        }
+    }
+
+    // remove all pending requests that are already dropped
+    while (false == queue.empty() &&
+           is_message() &&
+           message().type() != beltpp::stream_join::rtt &&
+           message().type() != beltpp::stream_drop::rtt &&
+           message().type() != beltpp::socket_open_refused::rtt &&
+           message().type() != beltpp::socket_open_error::rtt &&
+           dropped[message_source()].count(message_peerid()))
+    {
+        queue.pop();
+    }
     
     if (queue.empty() && event_read)
     {

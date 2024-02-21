@@ -7,8 +7,9 @@
 #include <exception>
 #include <stdexcept>
 #include <utility>
-#include<iostream>
-#include<string>
+#include <algorithm>
+#include <iostream>
+#include <string>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 

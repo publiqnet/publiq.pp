@@ -46,7 +46,7 @@ bool analyze_json(optional<T>& value,
         code = false;
     else
     {
-        T optional_value;
+        T optional_value{};
         if (analyze_json(optional_value, pexp, utl))
             value = std::move(optional_value);
         else
