@@ -1,4 +1,4 @@
-PATH=./install:$PATH
+PATH="$(realpath ./install):${PATH}"
 git clone https://github.com/publiqnet/publiq.pp
 mkdir publiq.pp.release
 cd publiq.pp
