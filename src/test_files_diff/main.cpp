@@ -1,6 +1,7 @@
 ﻿#include <belt.pp/global.hpp>
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 #include <boost/filesystem.hpp>
 
 namespace fs = boost::filesystem;
@@ -91,14 +92,16 @@ bool isSame( const string& path1, const string&  path2 )
         {
             if ( fs::is_directory(itrf->path()) )
             {
-                fs::path fileName( itrf->path().string() );
-                firstDirs.push_back( fileName.leaf().string() );
+                //fs::path fileName( itrf->path().string() );
+                //firstDirs.push_back( fileName.leaf().string() );
+                firstDirs.push_back(itrf->path().filename().string());
             }
 
             if ( !fs::is_directory(itrf->path()) )
             {
-                fs::path fileName( itrf->path().string() );
-                firstFiles.push_back( fileName.leaf().string() );
+                //fs::path fileName( itrf->path().string() );
+                //firstFiles.push_back( fileName.leaf().string() );
+                firstFiles.push_back( itrf->path().filename().string() );
             }
         }
 
@@ -109,14 +112,16 @@ bool isSame( const string& path1, const string&  path2 )
         {
             if ( fs::is_directory(itrs->path()) )
             {
-                fs::path fileName( itrs->path().string() );
-                secondDirs.push_back( fileName.leaf().string() );
+                // fs::path fileName( itrs->path().string() );
+                // secondDirs.push_back( fileName.leaf().string() );
+                secondDirs.push_back( itrf->path().filename().string() );
             }
 
             if ( !fs::is_directory(itrs->path()) )
             {
-                fs::path fileName( itrs->path().string() );
-                secondFiles.push_back( fileName.leaf().string() );
+                // fs::path fileName( itrs->path().string() );
+                // secondFiles.push_back( fileName.leaf().string() );
+                secondFiles.push_back( itrf->path().filename().string() );
             }
         }
 
@@ -187,7 +192,7 @@ bool isSame( const string& path1, const string&  path2 )
             fs::path name1( *it1 );
             fs::path name2( *it2 );
 
-            if ( name1.leaf().string() == name2.leaf().string() )
+            if ( name1.filename().string() == name2.filename().string() )
             {
                 isSame( *it1, *it2 );
             }
